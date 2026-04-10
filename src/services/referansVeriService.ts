@@ -4,6 +4,19 @@
 
 export const VARSAYILAN_MARKA = 'SMC';
 
+// Varsayılanlar değiştiğinde bu versiyonu artır → eski localStorage temizlenir.
+const VERI_VERSIYONU = 3;
+const VERSIYON_KEY = 'teklif_ref_v';
+
+function migrasyonKontrol() {
+  const kayitli = Number(localStorage.getItem(VERSIYON_KEY) ?? 0);
+  if (kayitli < VERI_VERSIYONU) {
+    // Eski liste verilerini sil, yeniden seed edilsin.
+    Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem(VERSIYON_KEY, String(VERI_VERSIYONU));
+  }
+}
+
 const KEYS = {
   markalar: 'teklif_markalar',
   birimler: 'teklif_birimler',
@@ -14,13 +27,14 @@ const VARSAYILANLAR = {
   markalar: ['SMC', 'Maxtor', 'SICK', 'Danfoss', 'WINMAN'],
   birimler: ['Adet', 'Takım', 'Metre', 'Cm', 'Mm', 'Kg', 'Litre', 'Paket', 'Kutu', 'Set', 'Rulo'],
   teslimSecenekleri: [
-    'Stokta mevcut',
-    '2-3 iş günü',
-    '5-7 iş günü',
-    '10 iş günü',
-    '2-3 hafta',
-    '4-6 hafta',
-    'Sipariş üzerine',
+    '2-3 Gün',
+    '5-7 Gün',
+    '10 Gün',
+    '1-2 Hafta',
+    '2-3 Hafta',
+    '4-6 Hafta',
+    'Stok',
+    'Sipariş Üzerine',
   ],
 };
 
@@ -68,6 +82,8 @@ function listeServisi(alan: Alan) {
     sirala: (liste: string[]) => sirala(alan, liste),
   };
 }
+
+migrasyonKontrol();
 
 export const referansVeriService = {
   markalar: listeServisi('markalar'),
