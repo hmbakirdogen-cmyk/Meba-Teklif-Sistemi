@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { formatCurrency } from '../utils/formatters';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 
@@ -25,41 +25,55 @@ export default function ToplamPaneli({
 
   // ── KDV ──────────────────────────────────────────────────────────────────
   // Son geçerli KDV oranını hatırla; KDV kapatılıp tekrar açıldığında kullanılır
-  const lastKdvRateRef = useRef(kdvOrani > 0 ? kdvOrani : 20);
-  if (kdvOrani > 0 && kdvOrani !== lastKdvRateRef.current) {
-    lastKdvRateRef.current = kdvOrani;
-  }
-  const lastKdvRate = lastKdvRateRef.current;
+  const [lastKdvRate, setLastKdvRate] = useState(kdvOrani > 0 ? kdvOrani : 20);
 
   const [kdvRateEditing, setKdvRateEditing] = useState(false);
   const [kdvRateDraft, setKdvRateDraft] = useState('');
 
   function commitKdvRate() {
     const v = parseFloat(kdvRateDraft.replace(',', '.'));
-    if (!isNaN(v) && v > 0 && v <= 100) onKdvOraniChange(Math.round(v * 100) / 100);
+    if (!isNaN(v) && v > 0 && v <= 100) {
+      const nextRate = Math.round(v * 100) / 100;
+      setLastKdvRate(nextRate);
+      onKdvOraniChange(nextRate);
+    }
     setKdvRateEditing(false);
   }
 
-  const handleKDV = () => onKdvOraniChange(kdvAktif ? 0 : lastKdvRate);
+  const handleKDV = () => {
+    if (kdvAktif) {
+      setLastKdvRate(kdvOrani);
+      onKdvOraniChange(0);
+      return;
+    }
+    onKdvOraniChange(lastKdvRate);
+  };
 
   // ── İSKONTO ──────────────────────────────────────────────────────────────
   // KDV ile birebir aynı yapı; fark: prop bazlı oran + toplamdan düşme
-  const lastIskontoRateRef = useRef(10); // default %10
-  if (iskontoOrani > 0 && iskontoOrani !== lastIskontoRateRef.current) {
-    lastIskontoRateRef.current = iskontoOrani;
-  }
-  const lastIskontoRate = lastIskontoRateRef.current;
+  const [lastIskontoRate, setLastIskontoRate] = useState(iskontoOrani > 0 ? iskontoOrani : 10);
 
   const [iskontoRateEditing, setIskontoRateEditing] = useState(false);
   const [iskontoRateDraft, setIskontoRateDraft] = useState('');
 
   function commitIskontoRate() {
     const v = parseFloat(iskontoRateDraft.replace(',', '.'));
-    if (!isNaN(v) && v > 0 && v <= 100) onIskontoOraniChange(Math.round(v * 100) / 100);
+    if (!isNaN(v) && v > 0 && v <= 100) {
+      const nextRate = Math.round(v * 100) / 100;
+      setLastIskontoRate(nextRate);
+      onIskontoOraniChange(nextRate);
+    }
     setIskontoRateEditing(false);
   }
 
-  const handleIskonto = () => onIskontoOraniChange(iskontoAktif ? 0 : lastIskontoRate);
+  const handleIskonto = () => {
+    if (iskontoAktif) {
+      setLastIskontoRate(iskontoOrani);
+      onIskontoOraniChange(0);
+      return;
+    }
+    onIskontoOraniChange(lastIskontoRate);
+  };
 
   // ── Hesaplamalar — ortak fonksiyon (TeklifSablonu ile aynı kaynak) ──────
   const { iskontoTutar, kdvTutar: hesaplananKdv, genelToplam: hesaplananGenel } =

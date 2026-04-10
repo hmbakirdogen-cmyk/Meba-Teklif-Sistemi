@@ -9,7 +9,7 @@ import {
 import { teklifService } from '../services/teklifService';
 import type { Teklif, TeklifDurum } from '../types';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { useKullanici } from '../context/KullaniciContext';
+import { useKullanici } from '../context/useKullanici';
 
 /* ── Durum rozet konfigürasyonu ─────────────────────────── */
 const DURUM_CFG: Record<TeklifDurum, { label: string; color: string; bg: string; border: string }> = {

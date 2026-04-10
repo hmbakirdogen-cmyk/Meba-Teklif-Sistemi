@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Tooltip, Button } from 'antd';
 import { FileTextOutlined, DatabaseOutlined, LogoutOutlined } from '@ant-design/icons';
-import { useKullanici } from './context/KullaniciContext';
+import { useKullanici } from './context/useKullanici';
 
 const { Header, Content } = Layout;
 

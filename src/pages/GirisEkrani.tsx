@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { KULLANICILAR } from '../types/kullanici';
 import type { Kullanici } from '../types/kullanici';
-import { useKullanici } from '../context/KullaniciContext';
+import { useKullanici } from '../context/useKullanici';
 
 /* ── Renk yardımcıları ─────────────────────────────────── */
 const gold   = (a: number) => `rgba(185,148,52,${a})`;

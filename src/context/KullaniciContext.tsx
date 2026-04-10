@@ -1,16 +1,9 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Kullanici } from '../types/kullanici';
+import { KullaniciContext } from './kullaniciContextStore';
 
 const STORAGE_KEY = 'meba_aktif_kullanici';
-
-interface KullaniciContextType {
-  aktifKullanici: Kullanici | null;
-  girisYap: (kullanici: Kullanici) => void;
-  cikisYap: () => void;
-}
-
-const KullaniciContext = createContext<KullaniciContextType | null>(null);
 
 export function KullaniciProvider({ children }: { children: ReactNode }) {
   const [aktifKullanici, setAktifKullanici] = useState<Kullanici | null>(() => {
@@ -37,10 +30,4 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
       {children}
     </KullaniciContext.Provider>
   );
-}
-
-export function useKullanici(): KullaniciContextType {
-  const ctx = useContext(KullaniciContext);
-  if (!ctx) throw new Error('useKullanici KullaniciProvider içinde kullanılmalıdır.');
-  return ctx;
 }

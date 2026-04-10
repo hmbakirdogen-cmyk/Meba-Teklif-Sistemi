@@ -15,7 +15,7 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { sanitizeMultilineText } from '../utils/formatters';
 import { cariService } from '../services/musteriService';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum } from '../types';
-import { useKullanici } from '../context/KullaniciContext';
+import { useKullanici } from '../context/useKullanici';
 
 const { Option } = Select;
 const { TextArea } = Input;

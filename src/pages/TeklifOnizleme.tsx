@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Space, message, Spin, Alert } from 'antd';
+import { Alert, Button, Space, Spin, message } from 'antd';
 import {
-  ArrowLeftOutlined, SaveOutlined,
-  FilePdfOutlined, PrinterOutlined, ReloadOutlined
+  ArrowLeftOutlined,
+  FilePdfOutlined,
+  PrinterOutlined,
+  ReloadOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -12,14 +15,8 @@ import { teklifService } from '../services/teklifService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import type { Teklif } from '../types';
 
-// ── PDF sabitleri ────────────────────────────────────────────────────────────
-const PAGE_PAD_LEFT   = 10;
-const PAGE_PAD_RIGHT  = 10;
-const PAGE_PAD_BOTTOM = 8;
-const FOOTER_GAP      = 6;
-
 const HTML2CANVAS_OPTIONS = {
-  scale: 4,
+  scale: 5,
   useCORS: true,
   logging: false,
   backgroundColor: '#ffffff',
@@ -27,133 +24,135 @@ const HTML2CANVAS_OPTIONS = {
   imageTimeout: 0,
 };
 
-// ── PDF üretim fonksiyonu ────────────────────────────────────────────────────
 async function buildPdf(sablonEl: HTMLElement): Promise<jsPDF> {
-  const footerEl = sablonEl.querySelector('#kase-imza-block') as HTMLElement | null;
-
-  let footerCanvas: HTMLCanvasElement | null = null;
-  if (footerEl) {
-    footerCanvas = await html2canvas(footerEl, HTML2CANVAS_OPTIONS);
-  }
-
-  const origDisplay = footerEl?.style.display ?? '';
-  if (footerEl) footerEl.style.display = 'none';
   const mainCanvas = await html2canvas(sablonEl, HTML2CANVAS_OPTIONS);
-  if (footerEl) footerEl.style.display = origDisplay;
 
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
     compress: false,
-    precision: 16,
+    precision: 20,
   });
+
   const pdfPageW = pdf.internal.pageSize.getWidth();
   const pdfPageH = pdf.internal.pageSize.getHeight();
-
   const mainPxToMm = pdfPageW / mainCanvas.width;
   const mainTotalH = mainCanvas.height * mainPxToMm;
-  const footerContentW = pdfPageW - PAGE_PAD_LEFT - PAGE_PAD_RIGHT;
-  const footerH = footerCanvas
-    ? (footerCanvas.height / footerCanvas.width) * footerContentW
-    : 0;
-  const footerArea = footerH + FOOTER_GAP + PAGE_PAD_BOTTOM;
-  const contentH = pdfPageH - footerArea;
 
-  const footerImgData = footerCanvas?.toDataURL('image/png');
-  const stampFooter = () => {
-    if (!footerImgData) return;
-    const footerY = pdfPageH - PAGE_PAD_BOTTOM - footerH;
-    pdf.addImage(footerImgData, 'PNG', PAGE_PAD_LEFT, footerY, footerContentW, footerH, undefined, 'NONE');
-  };
+  // 1mm tolerans: pixel→mm dönüşümündeki floating-point kaymasını maskeler.
+  // minHeight:297mm olan template canvas'ı ~297.02mm çıkabilir → 2. sayfa tetiklenip
+  // srcH≈0px olan degenerate canvas oluşur ve exception fırlatır.
+  const TEK_SAYFA_TOLERANS_MM = 1;
 
-  if (mainTotalH <= contentH) {
-    pdf.addImage(mainCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfPageW, mainTotalH, undefined, 'NONE');
-    stampFooter();
-  } else {
-    const sayfaSayisi = Math.ceil(mainTotalH / contentH);
-    for (let i = 0; i < sayfaSayisi; i++) {
-      if (i > 0) pdf.addPage();
-      const srcY = (i * contentH) / mainPxToMm;
-      const sliceH = Math.min(contentH, mainTotalH - i * contentH);
-      const srcH = sliceH / mainPxToMm;
-      const dilimCanvas = document.createElement('canvas');
-      dilimCanvas.width = mainCanvas.width;
-      dilimCanvas.height = srcH;
-      const ctx = dilimCanvas.getContext('2d');
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(mainCanvas, 0, srcY, mainCanvas.width, srcH, 0, 0, mainCanvas.width, srcH);
-      }
-      pdf.addImage(dilimCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfPageW, sliceH, undefined, 'NONE');
-      stampFooter();
-    }
+  if (mainTotalH <= pdfPageH + TEK_SAYFA_TOLERANS_MM) {
+    pdf.addImage(mainCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfPageW, Math.min(mainTotalH, pdfPageH), undefined, 'NONE');
+    return pdf;
   }
+
+  const sayfaSayisi = Math.ceil(mainTotalH / pdfPageH);
+  for (let i = 0; i < sayfaSayisi; i += 1) {
+    if (i > 0) pdf.addPage();
+    const srcY = (i * pdfPageH) / mainPxToMm;
+    const sliceH = Math.min(pdfPageH, mainTotalH - i * pdfPageH);
+    const srcH = Math.max(1, Math.round(sliceH / mainPxToMm));
+    const dilimCanvas = document.createElement('canvas');
+    dilimCanvas.width = mainCanvas.width;
+    dilimCanvas.height = srcH;
+    const ctx = dilimCanvas.getContext('2d');
+
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(mainCanvas, 0, Math.round(srcY), mainCanvas.width, srcH, 0, 0, mainCanvas.width, srcH);
+    }
+
+    pdf.addImage(dilimCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfPageW, sliceH, undefined, 'NONE');
+  }
+
   return pdf;
 }
 
-// ── Bileşen ──────────────────────────────────────────────────────────────────
 export default function TeklifOnizleme() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-
-  // Off-screen şablon ref'i (PDF canvas kaynağı)
   const sablonRef = useRef<HTMLDivElement>(null);
+  const pdfBlobUrlRef = useRef<string | null>(null);
+  const uretiliyorRef = useRef(false);
+  const sonOtomatikUretimRef = useRef<string | null>(null);
 
-  const [teklif, setTeklif]         = useState<Teklif | null>(null);
-  const [hata, setHata]             = useState<string | null>(null);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [pdfBlob, setPdfBlob]       = useState<Blob | null>(null);
-  const [pdfHazir, setPdfHazir]     = useState(false);
+  const [teklif, setTeklif] = useState<Teklif | null>(null);
+  const [hata, setHata] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfHazir, setPdfHazir] = useState(false);
   const [uretiliyor, setUretiliyor] = useState(false);
 
-  // ── Teklif verisi yükle (senkron, localStorage'dan) ──
   useEffect(() => {
-    if (!id) { setHata('Teklif ID bulunamadı.'); return; }
+    if (!id) {
+      setHata('Teklif ID bulunamadi.');
+      return;
+    }
+
     const bulunan = teklifService.teklifGetir(id);
-    if (!bulunan) { setHata('Teklif bulunamadı.'); return; }
+    if (!bulunan) {
+      setHata('Teklif bulunamadi.');
+      return;
+    }
+
     setTeklif(bulunan);
   }, [id]);
 
-  // ── PDF üret (arka plan) ──
   const pdfOlustur = useCallback(async () => {
-    if (!sablonRef.current || !teklif || uretiliyor) return;
+    if (!sablonRef.current || !teklif || uretiliyorRef.current) return;
+
+    uretiliyorRef.current = true;
     setUretiliyor(true);
-    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    setPdfHazir(false);
+
+    if (pdfBlobUrlRef.current) {
+      URL.revokeObjectURL(pdfBlobUrlRef.current);
+      pdfBlobUrlRef.current = null;
+    }
+
     try {
       const pdf = await buildPdf(sablonRef.current);
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
+      pdfBlobUrlRef.current = url;
       setPdfBlob(blob);
-      setPdfBlobUrl(url);
       setPdfHazir(true);
-    } catch {
-      message.error('PDF oluşturulurken bir hata oluştu.');
+    } catch (err) {
+      console.error('[PDF] buildPdf hatası:', err);
+      message.error('PDF olusturulurken bir hata olustu.');
     } finally {
+      uretiliyorRef.current = false;
       setUretiliyor(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teklif]);
 
-  // ── Teklif yüklenince → arka planda PDF üret ──
-  // Kullanıcı ANINDA HTML preview görür, PDF hazır olunca iframe ile değişir.
   useEffect(() => {
-    if (teklif && sablonRef.current) {
-      const t = setTimeout(() => pdfOlustur(), 80);
-      return () => clearTimeout(t);
-    }
+    if (!teklif || !sablonRef.current || sonOtomatikUretimRef.current === teklif.id) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      sonOtomatikUretimRef.current = teklif.id;
+      void pdfOlustur();
+    }, 80);
+
+    return () => window.clearTimeout(timeoutId);
   }, [teklif, pdfOlustur]);
 
-  // ── Cleanup ──
   useEffect(() => {
-    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+        pdfBlobUrlRef.current = null;
+      }
+    };
   }, []);
 
-  // ── PDF İndir (cache'ten — anında) ──
   function pdfIndir() {
     if (!pdfBlob || !teklif) return;
+
     const link = document.createElement('a');
     link.href = URL.createObjectURL(pdfBlob);
     link.download = `Teklif_${teklif.teklifNo}.pdf`;
@@ -161,26 +160,19 @@ export default function TeklifOnizleme() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
-    message.success('PDF başarıyla indirildi.');
+    message.success('PDF basariyla indirildi.');
   }
 
-  // ── Yazdır ──
   function yazdir() {
-    if (pdfBlobUrl) {
-      const w = window.open(pdfBlobUrl);
-      if (w) w.addEventListener('load', () => w.print(), { once: true });
-    } else {
-      window.print();
-    }
+    window.print();
   }
 
-  // ── Error / loading ──
   if (hata) {
     return (
       <div style={{ padding: 40, maxWidth: 480, margin: '0 auto' }}>
         <Alert type="error" message={hata} style={{ marginBottom: 16 }} />
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/teklifler')}>
-          Listeye Dön
+          Listeye Don
         </Button>
       </div>
     );
@@ -194,9 +186,14 @@ export default function TeklifOnizleme() {
     );
   }
 
+  const totals = hesaplamaMotoru.teklifToplamlariniHesapla({
+    araToplam: teklif.araToplam,
+    kdvOrani: teklif.kdvOrani,
+    iskontoOrani: teklif.iskontoOrani ?? 0,
+  });
+
   return (
     <>
-      {/* ── ARAÇ ÇUBUĞU ─────────────────────────────────────── */}
       <div
         className="no-print"
         style={{
@@ -208,21 +205,23 @@ export default function TeklifOnizleme() {
           WebkitBackdropFilter: 'blur(8px)',
           borderBottom: '1px solid #e9ecef',
           padding: '0 28px',
-          height: 54,
+          minHeight: 54,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
           boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <Button
             icon={<ArrowLeftOutlined />}
             size="small"
             onClick={() => navigate(`/teklif/${id}`)}
             style={{ fontWeight: 500 }}
           >
-            Düzenle
+            Duzenle
           </Button>
           <span
             style={{
@@ -231,6 +230,7 @@ export default function TeklifOnizleme() {
               letterSpacing: 0.3,
               borderLeft: '1px solid #e5e7eb',
               paddingLeft: 12,
+              minWidth: 0,
             }}
           >
             {teklif.teklifNo}
@@ -241,7 +241,7 @@ export default function TeklifOnizleme() {
           </span>
         </div>
 
-        <Space size={6}>
+        <Space size={6} wrap>
           <Button
             size="small"
             icon={<SaveOutlined />}
@@ -256,16 +256,14 @@ export default function TeklifOnizleme() {
             size="small"
             icon={<ReloadOutlined />}
             loading={uretiliyor}
-            onClick={() => { setPdfHazir(false); pdfOlustur(); }}
+            onClick={() => {
+              void pdfOlustur();
+            }}
           >
             Yenile
           </Button>
-          <Button
-            size="small"
-            icon={<PrinterOutlined />}
-            onClick={yazdir}
-          >
-            Yazdır
+          <Button size="small" icon={<PrinterOutlined />} onClick={yazdir}>
+            Yazdir
           </Button>
           <Button
             type="primary"
@@ -276,12 +274,11 @@ export default function TeklifOnizleme() {
             onClick={pdfIndir}
             style={{ background: '#0f1f45', borderColor: '#0f1f45' }}
           >
-            PDF İndir
+            PDF Indir
           </Button>
         </Space>
       </div>
 
-      {/* ── OFF-SCREEN ŞABLON (html2canvas kaynağı) ──────────── */}
       <div
         aria-hidden
         style={{
@@ -295,57 +292,68 @@ export default function TeklifOnizleme() {
         }}
       >
         <div ref={sablonRef}>
-          <TeklifSablonu
-            teklif={teklif}
-            totals={hesaplamaMotoru.teklifToplamlariniHesapla({
-              araToplam:    teklif.araToplam,
-              kdvOrani:     teklif.kdvOrani,
-              iskontoOrani: teklif.iskontoOrani ?? 0,
-            })}
-          />
+          <TeklifSablonu teklif={teklif} totals={totals} />
         </div>
       </div>
 
-      {/* ── PREVIEW ALANI — tek katman, tek açılma ──────────── */}
-      {/* PDF hazır → iframe göster. Hazır değil → loading state.  */}
-      {/* Çift açılma yok: HTML template preview kaldırıldı.       */}
       <div
-        className="no-print"
         style={{
           background: '#525659',
           minHeight: 'calc(100vh - 54px)',
           display: 'flex',
           justifyContent: 'center',
-          alignItems: 'center',
+          padding: '28px 16px 40px',
         }}
       >
-        {pdfHazir && pdfBlobUrl ? (
-          <iframe
-            key={pdfBlobUrl}
-            src={pdfBlobUrl}
-            title="Teklif PDF Önizleme"
+        <div style={{ width: '100%', maxWidth: '210mm' }}>
+          <div
+            className="no-print"
             style={{
-              width: '100%',
-              height: 'calc(100vh - 54px)',
-              border: 'none',
-              background: '#525659',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 12,
+              color: 'rgba(255,255,255,0.78)',
+              fontSize: 12,
+              letterSpacing: 0.2,
             }}
-          />
-        ) : (
-          <div style={{ textAlign: 'center', padding: 60 }}>
-            <Spin size="large" />
-            <div style={{ marginTop: 16, color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-              PDF hazırlanıyor…
-            </div>
+          >
+            <span>A4 Onizleme</span>
+            <span style={{ color: 'rgba(255,255,255,0.62)' }}>
+              {uretiliyor || !pdfHazir ? 'PDF hazirlaniyor...' : 'PDF hazir'}
+            </span>
           </div>
-        )}
+
+          <div
+            style={{
+              width: '210mm',
+              minHeight: '297mm',
+              maxWidth: '100%',
+              margin: '0 auto',
+              background: '#ffffff',
+              boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
+              overflow: 'hidden',
+            }}
+          >
+            <TeklifSablonu teklif={teklif} totals={totals} />
+          </div>
+
+          {(uretiliyor || !pdfHazir) && (
+            <div className="no-print" style={{ textAlign: 'center', padding: '18px 0 0' }}>
+              <Spin size="small" />
+              <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 12.5 }}>
+                Indirme icin yuksek kaliteli PDF arka planda hazirlaniyor.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── BASKIYA ÖZEL STİLLER ─────────────────────────────── */}
       <style>{`
         @media print {
           @page { size: A4 portrait; margin: 0; }
           .no-print { display: none !important; }
+          body { background: #ffffff !important; }
         }
       `}</style>
     </>

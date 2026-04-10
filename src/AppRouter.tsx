@@ -5,7 +5,7 @@ import YeniTeklif from './pages/YeniTeklif';
 import TeklifOnizleme from './pages/TeklifOnizleme';
 import VeriYonetimiSayfasi from './pages/VeriYonetimiSayfasi';
 import GirisEkrani from './pages/GirisEkrani';
-import { useKullanici } from './context/KullaniciContext';
+import { useKullanici } from './context/useKullanici';
 
 // `key={id}` ile her id değişiminde YeniTeklif yeniden mount olur → state
 // lazy initializer'ları yeni id ile çalışır, useEffect'te setState hilesine

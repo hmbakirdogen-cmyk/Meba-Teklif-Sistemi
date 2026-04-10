@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Button, Input, Select, Table, Tooltip, message } from 'antd';
 import { DeleteOutlined, PlusOutlined, CheckOutlined } from '@ant-design/icons';
-import { useKullanici } from '../context/KullaniciContext';
+import { useKullanici } from '../context/useKullanici';
 import type { TeklifSatiri, Urun } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { urunService } from '../services/urunService';
@@ -18,6 +18,10 @@ import {
 } from '../utils/formatters';
 
 const { Option, OptGroup } = Select;
+
+function firstLine(text: string): string {
+  return text.split(/\r?\n/)[0]?.trim() ?? '';
+}
 
 // ── NumericInput ──────────────────────────────────────────────────────────────
 interface NumericInputProps {
@@ -180,12 +184,12 @@ interface UrunSatirlariProps {
 export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSatirlariProps) {
   const sembol = SEMBOL[paraBirimi] ?? paraBirimi;
   const { aktifKullanici } = useKullanici();
-  const [urunler, setUrunler] = useState<Urun[]>([]);
-  const [markalar, setMarkalar] = useState<string[]>([]);
-  const [birimler, setBirimler] = useState<string[]>([]);
-  const [teslimSecenekleri, setTeslimSecenekleri] = useState<string[]>([]);
-  // Henüz kaydedilmemiş ikinci satır düzenlemeleri (satir.id → taslak değer)
+  const [urunler] = useState<Urun[]>(() => urunService.tumUrunleriGetir());
+  const [markalar] = useState<string[]>(() => referansVeriService.markalar.tumunuGetir());
+  const [birimler] = useState<string[]>(() => referansVeriService.birimler.tumunuGetir());
+  const [teslimSecenekleri] = useState<string[]>(() => referansVeriService.teslimSecenekleri.tumunuGetir());
   const [altAciklamaDuzenle, setAltAciklamaDuzenle] = useState<Map<string, string>>(new Map());
+  // Henüz kaydedilmemiş ikinci satır düzenlemeleri (satir.id → taslak değer)
 
   // ── Enter navigasyon ref'leri ──────────────────────────────────
   type SatirField = 'miktar' | 'birimFiyat' | 'teslimTarihi';
@@ -194,19 +198,11 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
   const pendingFocusId = useRef<string | null>(null);
 
   useEffect(() => {
-    setUrunler(urunService.tumUrunleriGetir());
-    setMarkalar(referansVeriService.markalar.tumunuGetir());
-    setBirimler(referansVeriService.birimler.tumunuGetir());
-    setTeslimSecenekleri(referansVeriService.teslimSecenekleri.tumunuGetir());
-  }, []);
-
-  useEffect(() => {
     if (pendingFocusId.current) {
       const id = pendingFocusId.current;
       pendingFocusId.current = null;
       requestAnimationFrame(() => selectRefs.current.get(id)?.focus());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satirlar]);
 
   const kategoriler = useMemo(() => {
@@ -246,7 +242,6 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
   function urunSec(satirId: string, urunKod: string) {
     const urun = urunler.find((u) => u.urunKod === urunKod);
     // Ürün değişince yerel taslak ve manuel kayıt temizlenir
-    setAltAciklamaDuzenle((prev) => { const m = new Map(prev); m.delete(satirId); return m; });
     onChange(
       satirlar.map((s) => {
         if (s.id !== satirId) return s;
@@ -255,13 +250,10 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
           urunKod,
           marka: urun?.marka || s.marka || VARSAYILAN_MARKA,
           urunAdi: urun ? cleanProductDescription(urun.urunAdi) : '',
-          aciklama: urun ? titleCaseAciklama(cleanProductDescription(urun.aciklama)) : '',
+          aciklama: urun ? cleanProductDescription(urun.aciklama) : '',
           birim: urun?.birim ?? s.birim,
           birimFiyat: urun?.varsayilanFiyat ?? s.birimFiyat,
           // Ürün değişince manuel açıklama sıfırlanır
-          manuelAltAciklama: undefined,
-          manuelAciklamaGuncelleyen: undefined,
-          manuelAciklamaGuncellemeTarihi: undefined,
         };
         return { ...g, satirToplami: hesaplamaMotoru.satirToplamHesapla(g) };
       }),
@@ -434,11 +426,11 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
                 lineHeight: 1.3, marginBottom: 3,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
-                {stripParantez(satir.urunAdi)}
+                {firstLine(stripParantez(satir.urunAdi))}
               </div>
             )}
             {/* Satır 2: Düzenlenebilir input + Kaydet butonu */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ display: 'none' }}>
               <Input
                 size="small"
                 value={localSat2}
