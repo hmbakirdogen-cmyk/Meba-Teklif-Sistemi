@@ -1,0 +1,91 @@
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; padding: 0; }
+
+/* ─ Header navbar — optik merkez grid hizalama ─────────────────────────────── */
+/* Tüm menu item'ları (icon + label) header'ın dikey merkezinde durur.         */
+/* Icon-text baseline uyumu için anticon explicit inline-flex center yapılır.  */
+.header-nav-menu.ant-menu.ant-menu-horizontal {
+  display: flex !important;
+  align-items: center !important;
+  line-height: normal !important;
+  height: 100% !important;
+  border-bottom: none !important;
+  /* Item'lar arasında uniform spacing */
+  column-gap: 4px;
+}
+
+.header-nav-menu.ant-menu-horizontal > .ant-menu-item,
+.header-nav-menu.ant-menu-horizontal > .ant-menu-submenu,
+.header-nav-menu.ant-menu-horizontal > .ant-menu-overflow-item {
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  line-height: 1 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  /* Yatay padding korunur — Ant default'u ile uyumlu */
+}
+
+/* Item içindeki ikon — text baseline ile uyumlu olsun */
+.header-nav-menu .ant-menu-item .anticon,
+.header-nav-menu .ant-menu-submenu .anticon {
+  display: inline-flex !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+/* Item içindeki text — icon ile aynı baseline'da, line-height 1 */
+.header-nav-menu .ant-menu-title-content {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* Seçili öğe altçizgisi — header'ın altında (varsayılan) */
+.header-nav-menu.ant-menu-horizontal > .ant-menu-item::after,
+.header-nav-menu.ant-menu-horizontal > .ant-menu-submenu::after {
+  top: auto !important;
+  bottom: 0 !important;
+  inset-inline: 12px !important;
+}
+
+/* ─ Ürün Kalem Tablosu — header override ──────────────────────────────────── */
+.urun-tablo .ant-table-thead > tr > th {
+  background: #0f1f45 !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2px;
+  padding: 9px 8px !important;
+  border-bottom: 1px solid #1a2f5e !important;
+  white-space: nowrap;
+}
+.urun-tablo .ant-table-thead > tr > th::before {
+  display: none !important;
+}
+.urun-tablo .ant-table-small .ant-table-tbody > tr > td {
+  padding: 5px 8px !important;
+}
+.urun-tablo .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f0f4f8 !important;
+  vertical-align: middle !important;
+}
+.urun-tablo .ant-table-tbody > tr:last-child > td {
+  border-bottom: none !important;
+}
+.urun-tablo .ant-table {
+  border-radius: 0 0 8px 8px !important;
+}
+.urun-tablo .ant-table-container {
+  border-radius: 8px !important;
+}
+.urun-tablo .ant-table-wrapper .ant-table-thead > tr:first-child > th:first-child {
+  border-start-start-radius: 8px !important;
+}
+.urun-tablo .ant-table-wrapper .ant-table-thead > tr:first-child > th:last-child {
+  border-start-end-radius: 8px !important;
+}
