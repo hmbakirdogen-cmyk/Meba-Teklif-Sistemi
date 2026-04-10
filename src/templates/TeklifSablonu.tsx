@@ -97,11 +97,7 @@ function TableColgroup() {
 
 export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
   const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
-  const {
-    araToplam, iskontoOrani, iskontoTutar,
-    iskontoSonrasiToplam: _iskontoSonrasiToplam,
-    kdvOrani, kdvTutar, genelToplam,
-  } = totals;
+  const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
 
   // Muhatap satırı: isim varsa title-case + hitap, yoksa yetkiliKisi
   const muhatapSatiri = teklif.contactName?.trim()

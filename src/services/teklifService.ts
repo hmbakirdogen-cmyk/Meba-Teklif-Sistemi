@@ -5,7 +5,7 @@ const STORAGE_KEY = 'teklif_teklifler';
 const SAYAC_KEY = 'teklif_sayac';
 
 function normalizeEskiKayit(t: Teklif): Teklif {
-  return { odemeVadesi: '45 Gün', ...t };
+  return { ...t, odemeVadesi: t.odemeVadesi ?? '45 Gün' };
 }
 
 function tumTeklifleriGetir(): Teklif[] {

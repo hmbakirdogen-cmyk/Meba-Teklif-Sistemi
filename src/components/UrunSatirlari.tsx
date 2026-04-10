@@ -155,7 +155,7 @@ function applyBlurStyle(el: HTMLInputElement) {
   el.style.boxShadow = 'none';
 }
 
-const SEMBOL: Record<ParaBirimi, string> = { TRY: '₺', EUR: '€', USD: '$' };
+const SEMBOL: Record<string, string> = { TRY: '₺', EUR: '€', USD: '$', GBP: '£', CHF: '₣' };
 
 // ── Tablo başlık yardımcıları ─────────────────────────────────────────────────
 const th = (label: string, align: 'left' | 'right' | 'center' = 'left') => (
@@ -178,7 +178,7 @@ interface UrunSatirlariProps {
 }
 
 export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSatirlariProps) {
-  const sembol = SEMBOL[paraBirimi];
+  const sembol = SEMBOL[paraBirimi] ?? paraBirimi;
   const { aktifKullanici } = useKullanici();
   const [urunler, setUrunler] = useState<Urun[]>([]);
   const [markalar, setMarkalar] = useState<string[]>([]);

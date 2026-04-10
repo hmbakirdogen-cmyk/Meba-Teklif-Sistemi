@@ -1,34 +1,3 @@
-import type { ParaBirimi } from '../types';
-
-/**
- * Türkiye telefon numaralarını standart formata getirir.
- * 05416223427  → 0 541 622 34 27
- * 5416223427   → 0 541 622 34 27
- * 03223456789  → 0 322 345 67 89
- */
-export function formatPhone(val: string): string {
-  const raw = (val || '').replace(/[^\d+]/g, '');
-  if (!raw) return '';
-
-  // Uluslararası +90 ön ekini kaldır
-  const digits = raw.startsWith('+90') ? raw.slice(3) : raw.replace(/^\+/, '');
-
-  if (digits.length === 11 && digits.startsWith('0')) {
-    // 0AAABBBCCDD → 0 AAA BBB CC DD
-    return `${digits[0]} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
-  }
-  if (digits.length === 10) {
-    // AAABBBCCDD → 0 AAA BBB CC DD
-    return `0 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8)}`;
-  }
-  // Kısa numara veya tanınmayan format → ham değeri döndür
-  return val.trim();
-}
-
-// ParaBirimi tipi import — kullanılmadığında lint uyarısını bastır
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _PB = ParaBirimi;
-
 const PARA_BIRIMI_SEMBOL: Record<string, string> = {
   TRY: '₺',
   EUR: '€',

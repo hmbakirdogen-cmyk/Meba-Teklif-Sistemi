@@ -6,9 +6,9 @@ import type { Cari } from '../types';
 import {
   normalizeProductCode,
   cleanTextInput,
-  formatPhone,
   normalizeEmail,
 } from '../utils/formatters';
+import { formatPhone } from '../utils/phone';
 
 const { Option } = Select;
 

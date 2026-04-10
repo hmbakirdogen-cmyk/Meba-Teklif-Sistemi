@@ -8,7 +8,8 @@ import * as XLSX from 'xlsx';
 import type { Cari, Urun } from '../types';
 import { cariService } from './musteriService';
 import { urunService } from './urunService';
-import { formatPhone, cleanTextInput, normalizeEmail, normalizeProductCode, formatTitleCaseTr, cleanProductDescription } from '../utils/formatters';
+import { cleanTextInput, normalizeEmail, normalizeProductCode, formatTitleCaseTr, cleanProductDescription } from '../utils/formatters';
+import { formatPhone } from '../utils/phone';
 
 // ── Yardımcı: başlık dizisinde pattern eşleşmesi ──────────────────────────
 type RawRow = Record<string, unknown>;

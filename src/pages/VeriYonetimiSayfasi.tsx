@@ -20,9 +20,10 @@ import { cariService } from '../services/musteriService';
 import { urunService } from '../services/urunService';
 import type { Cari, Urun } from '../types';
 import {
-  normalizeProductCode, cleanTextInput, formatPhone, normalizeEmail,
+  normalizeProductCode, cleanTextInput, normalizeEmail,
   stripParantez, formatPdfAciklama, titleCaseAciklama,
 } from '../utils/formatters';
+import { formatPhone } from '../utils/phone';
 
 const { Title, Paragraph } = Typography;
 

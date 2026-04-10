@@ -5,8 +5,6 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 interface ToplamPaneliProps {
   araToplam: number;
   toplamIndirim: number;
-  toplamVergi: number;
-  genelToplam: number;
   paraBirimi: string;
   kdvOrani: number;
   onKdvOraniChange: (oran: number) => void;
@@ -17,8 +15,6 @@ interface ToplamPaneliProps {
 export default function ToplamPaneli({
   araToplam,
   toplamIndirim,
-  toplamVergi: _toplamVergi,
-  genelToplam: _genelToplam,
   paraBirimi,
   kdvOrani,
   onKdvOraniChange,

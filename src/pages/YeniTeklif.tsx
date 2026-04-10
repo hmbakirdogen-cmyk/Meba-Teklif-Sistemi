@@ -90,7 +90,6 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
 
   const {
     araToplam, toplamIndirim,
-    iskontoTutar: _iskontoTutar, iskontoSonrasiToplam: _iskontoSonrasiToplam,
     kdvTutar: toplamVergi, genelToplam,
   } = hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani);
 
@@ -112,7 +111,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
       iskontoOrani,
       odemeVadesi,
       notlar,
-      olusturmaTarihi: dayjs().toISOString(),
+      olusturmaTarihi: mevcut?.olusturmaTarihi ?? dayjs().toISOString(),
       guncellemeTarihi: dayjs().toISOString(),
       hazirlayanKullaniciId: aktifKullanici?.id,
       hazirlayanAdSoyad: aktifKullanici?.adSoyad,
@@ -359,8 +358,6 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           <ToplamPaneli
             araToplam={araToplam}
             toplamIndirim={toplamIndirim}
-            toplamVergi={toplamVergi}
-            genelToplam={genelToplam}
             paraBirimi={paraBirimi}
             kdvOrani={kdvOrani}
             onKdvOraniChange={setKdvOrani}
