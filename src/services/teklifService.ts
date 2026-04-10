@@ -4,10 +4,14 @@ import type { Teklif } from '../types';
 const STORAGE_KEY = 'teklif_teklifler';
 const SAYAC_KEY = 'teklif_sayac';
 
+function normalizeEskiKayit(t: Teklif): Teklif {
+  return { odemeVadesi: '45 Gün', ...t };
+}
+
 function tumTeklifleriGetir(): Teklif[] {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return [];
-  return JSON.parse(raw) as Teklif[];
+  return (JSON.parse(raw) as Teklif[]).map(normalizeEskiKayit);
 }
 
 function teklifGetir(id: string): Teklif | undefined {

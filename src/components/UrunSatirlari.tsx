@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, Input, Select, Table, Tooltip } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import type { TeklifSatiri, ParaBirimi, Urun } from '../types';
+import { Button, Input, Select, Table, Tooltip, message } from 'antd';
+import { DeleteOutlined, PlusOutlined, CheckOutlined } from '@ant-design/icons';
+import { useKullanici } from '../context/KullaniciContext';
+import type { TeklifSatiri, Urun } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { urunService } from '../services/urunService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import {
   cleanProductDescription,
-  formatAciklama,
+  formatPdfAciklama,
+  titleCaseAciklama,
+  stripParantez,
   parseLocaleNumber,
   formatDisplayNumber,
   formatEditableNumber,
@@ -170,16 +173,19 @@ const th = (label: string, align: 'left' | 'right' | 'center' = 'left') => (
 
 interface UrunSatirlariProps {
   satirlar: TeklifSatiri[];
-  paraBirimi: ParaBirimi;
+  paraBirimi: string;
   onChange: (satirlar: TeklifSatiri[]) => void;
 }
 
 export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSatirlariProps) {
   const sembol = SEMBOL[paraBirimi];
+  const { aktifKullanici } = useKullanici();
   const [urunler, setUrunler] = useState<Urun[]>([]);
   const [markalar, setMarkalar] = useState<string[]>([]);
   const [birimler, setBirimler] = useState<string[]>([]);
   const [teslimSecenekleri, setTeslimSecenekleri] = useState<string[]>([]);
+  // Henüz kaydedilmemiş ikinci satır düzenlemeleri (satir.id → taslak değer)
+  const [altAciklamaDuzenle, setAltAciklamaDuzenle] = useState<Map<string, string>>(new Map());
 
   // ── Enter navigasyon ref'leri ──────────────────────────────────
   type SatirField = 'miktar' | 'birimFiyat' | 'teslimTarihi';
@@ -239,6 +245,8 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
 
   function urunSec(satirId: string, urunKod: string) {
     const urun = urunler.find((u) => u.urunKod === urunKod);
+    // Ürün değişince yerel taslak ve manuel kayıt temizlenir
+    setAltAciklamaDuzenle((prev) => { const m = new Map(prev); m.delete(satirId); return m; });
     onChange(
       satirlar.map((s) => {
         if (s.id !== satirId) return s;
@@ -247,9 +255,13 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
           urunKod,
           marka: urun?.marka || s.marka || VARSAYILAN_MARKA,
           urunAdi: urun ? cleanProductDescription(urun.urunAdi) : '',
-          aciklama: urun ? cleanProductDescription(urun.aciklama) : '',
+          aciklama: urun ? titleCaseAciklama(cleanProductDescription(urun.aciklama)) : '',
           birim: urun?.birim ?? s.birim,
           birimFiyat: urun?.varsayilanFiyat ?? s.birimFiyat,
+          // Ürün değişince manuel açıklama sıfırlanır
+          manuelAltAciklama: undefined,
+          manuelAciklamaGuncelleyen: undefined,
+          manuelAciklamaGuncellemeTarihi: undefined,
         };
         return { ...g, satirToplami: hesaplamaMotoru.satirToplamHesapla(g) };
       }),
@@ -372,7 +384,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
                 <Option key={u.id} value={u.urunKod} label={u.urunKod}>
                   <span style={{ fontWeight: 600, color: '#0f1f45', fontSize: 12 }}>{u.urunKod}</span>
                   <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 11 }}>
-                    {cleanProductDescription(u.urunAdi).slice(0, 32)}{cleanProductDescription(u.urunAdi).length > 32 ? '…' : ''}
+                    {(() => { const s = stripParantez(u.urunAdi); return s.length > 32 ? s.slice(0, 32) + '…' : s; })()}
                   </span>
                 </Option>
               ))}
@@ -381,64 +393,89 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
         </Select>
       ),
     },
-    // ── Açıklama — PDF ile aynı mantık: üstte ürün adı, altta açıklama ──
+    // ── Açıklama — satır 1: ürün adı · satır 2: düzenlenebilir açıklama ──
     {
       title: th('Açıklama'),
       key: 'aciklama',
-      render: (_: unknown, satir: TeklifSatiri) => (
-        <div>
-          {/* Satır 1: Ürün adı (PDF ile aynı — olduğu gibi) */}
-          {satir.urunAdi && (
-            <div style={{
-              fontSize: 12,
-              fontWeight: 500,
-              color: '#0f1f45',
-              lineHeight: 1.3,
-              marginBottom: 3,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              {satir.urunAdi}
-            </div>
-          )}
-          {/* Satır 2: Açıklama (formatAciklama ile lowercase + tekrar temizliği) */}
-          {/* Görüntü: formatlanmış hali. Düzenleme: inputa tıklayınca ham değer. */}
-          {satir.aciklama && satir.aciklama !== satir.urunAdi ? (
-            <div style={{
-              fontSize: 11,
-              color: '#64748b',
-              lineHeight: 1.3,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              cursor: 'text',
-            }}>
-              {formatAciklama(satir.aciklama, satir.urunAdi)}
-            </div>
-          ) : (
-            <Input
-              size="small"
-              value={satir.aciklama}
-              onChange={(e) => guncelle(satir.id, 'aciklama', e.target.value)}
-              onBlur={(e) => guncelle(satir.id, 'aciklama', cleanProductDescription(e.target.value))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  requestAnimationFrame(() => inputRefs.current.get(`${satir.id}:miktar`)?.focus());
+      render: (_: unknown, satir: TeklifSatiri) => {
+        // Otomatik üretilen ikinci satır
+        const autoSat2 = formatPdfAciklama(satir.urunAdi, satir.aciklama, satir.urunKod);
+        // Kaydedilmiş değer: manuel varsa o, yoksa otomatik
+        const savedSat2 = satir.manuelAltAciklama !== undefined ? satir.manuelAltAciklama : autoSat2;
+        // Kullanıcının şu an düzenlediği taslak (henüz kaydedilmedi)
+        const localSat2 = altAciklamaDuzenle.has(satir.id)
+          ? altAciklamaDuzenle.get(satir.id)!
+          : savedSat2;
+        const isDirty = altAciklamaDuzenle.has(satir.id) && localSat2 !== savedSat2;
+
+        function kaydet() {
+          // Kaydetmeden önce Title Case uygula (teknik token'lar korunur)
+          const yeniDeger = titleCaseAciklama(localSat2);
+          onChange(
+            satirlar.map((s) =>
+              s.id !== satir.id ? s : {
+                ...s,
+                manuelAltAciklama: yeniDeger,
+                manuelAciklamaGuncelleyen: aktifKullanici?.adSoyad ?? 'Bilinmiyor',
+                manuelAciklamaGuncellemeTarihi: new Date().toISOString(),
+              }
+            )
+          );
+          setAltAciklamaDuzenle((prev) => { const m = new Map(prev); m.delete(satir.id); return m; });
+          message.success('Kaydedildi', 1.5);
+        }
+
+        return (
+          <div>
+            {/* Satır 1: Ürün adı */}
+            {satir.urunAdi && (
+              <div style={{
+                fontSize: 12, fontWeight: 500, color: '#0f1f45',
+                lineHeight: 1.3, marginBottom: 3,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {stripParantez(satir.urunAdi)}
+              </div>
+            )}
+            {/* Satır 2: Düzenlenebilir input + Kaydet butonu */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Input
+                size="small"
+                value={localSat2}
+                placeholder="İkinci satır açıklama…"
+                onChange={(e) =>
+                  setAltAciklamaDuzenle((prev) => new Map(prev).set(satir.id, e.target.value))
                 }
-              }}
-              placeholder={satir.urunAdi ? 'Ek açıklama…' : '—'}
-              style={{
-                fontSize: 11,
-                height: 24,
-                borderColor: '#e2e8f0',
-                color: '#64748b',
-              }}
-            />
-          )}
-        </div>
-      ),
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); kaydet(); } }}
+                style={{
+                  fontSize: 11,
+                  height: 22,
+                  color: '#64748b',
+                  borderColor: isDirty ? '#3b82f6' : '#e2e8f0',
+                  transition: 'border-color 0.15s',
+                }}
+              />
+              <Tooltip title={isDirty ? 'Kaydet' : (satir.manuelAltAciklama !== undefined ? 'Manuel kayıt aktif' : 'Otomatik')}>
+                <Button
+                  size="small"
+                  type={isDirty ? 'primary' : 'text'}
+                  icon={<CheckOutlined />}
+                  onClick={kaydet}
+                  style={{
+                    height: 22,
+                    width: 22,
+                    minWidth: 22,
+                    padding: 0,
+                    fontSize: 11,
+                    flexShrink: 0,
+                    color: isDirty ? undefined : (satir.manuelAltAciklama !== undefined ? '#22c55e' : '#cbd5e1'),
+                  }}
+                />
+              </Tooltip>
+            </div>
+          </div>
+        );
+      },
     },
     // ── Miktar / Birim ───────────────────────────────────────────
     {

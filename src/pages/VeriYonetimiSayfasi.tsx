@@ -21,6 +21,7 @@ import { urunService } from '../services/urunService';
 import type { Cari, Urun } from '../types';
 import {
   normalizeProductCode, cleanTextInput, formatPhone, normalizeEmail,
+  stripParantez, formatPdfAciklama, titleCaseAciklama,
 } from '../utils/formatters';
 
 const { Title, Paragraph } = Typography;
@@ -149,7 +150,7 @@ function UrunModal({
         id: urun?.id ?? urunService.urunIdUret(),
         urunKod:          normalizeProductCode(vals.urunKod ?? ''),
         urunAdi:          cleanTextInput(vals.urunAdi ?? ''),
-        aciklama:         cleanTextInput(vals.aciklama ?? ''),
+        aciklama:         titleCaseAciklama(cleanTextInput(vals.aciklama ?? '')),
         kategori:         cleanTextInput(vals.kategori ?? ''),
         birim:            cleanTextInput(vals.birim ?? '') || 'Adet',
         varsayilanFiyat:  parseFloat(String(vals.varsayilanFiyat).replace(',', '.')) || 0,
@@ -330,8 +331,10 @@ export default function VeriYonetimiSayfasi() {
   const urunKolonlar = [
     { title: 'Ürün Kodu', dataIndex: 'urunKod',  key: 'urunKod',  width: 150,
       render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{v}</span> },
-    { title: 'Ürün Adı',   dataIndex: 'urunAdi',  key: 'urunAdi',  ellipsis: true },
-    { title: 'Açıklama',   dataIndex: 'aciklama', key: 'aciklama', ellipsis: true },
+    { title: 'Ürün Adı',   dataIndex: 'urunAdi',  key: 'urunAdi',  ellipsis: true,
+      render: (v: string) => stripParantez(v) || '—' },
+    { title: 'Açıklama',   dataIndex: 'aciklama', key: 'aciklama', ellipsis: true,
+      render: (_: string, rec: Urun) => formatPdfAciklama(rec.urunAdi, rec.aciklama, rec.urunKod) || '—' },
     { title: 'Kategori',   dataIndex: 'kategori', key: 'kategori', width: 110,
       render: (v: string) => v ? <Tag style={{ fontSize: 11 }}>{v}</Tag> : null },
     { title: 'Birim',      dataIndex: 'birim',    key: 'birim',    width: 65 },

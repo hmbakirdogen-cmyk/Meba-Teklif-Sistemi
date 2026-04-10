@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Card, Form, Input, Select, DatePicker, Button,
+  Card, Form, Input, AutoComplete, Select, DatePicker, Button,
   message, Row, Col
 } from 'antd';
 import { SaveOutlined, EyeOutlined, ArrowLeftOutlined } from '@ant-design/icons';
@@ -14,7 +14,7 @@ import { teklifService } from '../services/teklifService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { sanitizeMultilineText } from '../utils/formatters';
 import { cariService } from '../services/musteriService';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi, TeklifDurum } from '../types';
+import type { Teklif, Cari, TeklifSatiri, TeklifDurum } from '../types';
 import { useKullanici } from '../context/KullaniciContext';
 
 const { Option } = Select;
@@ -59,10 +59,12 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
 
   const [cari, setCari]                 = useState<Cari | null>(mevcut?.cari ?? null);
   const [satirlar, setSatirlar]         = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
-  const [paraBirimi, setParaBirimi]     = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
+  const [paraBirimi, setParaBirimi]     = useState<string>(mevcut?.paraBirimi ?? 'EUR');
   const [durum, setDurum]               = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
   const [notlar, setNotlar]             = useState(mevcut?.notlar ?? '');
   const [kdvOrani, setKdvOrani]         = useState(mevcut?.kdvOrani ?? 0);
+  const [iskontoOrani, setIskontoOrani] = useState(mevcut?.iskontoOrani ?? 0);
+  const [odemeVadesi, setOdemeVadesi]   = useState<string>(mevcut?.odemeVadesi ?? '45 Gün');
   const [contactName, setContactName]   = useState(mevcut?.contactName ?? '');
   const [contactTitle, setContactTitle] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
   const [teklifId] = useState(() => mevcut ? id! : teklifService.teklifIdUret());
@@ -86,8 +88,11 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { araToplam, toplamIndirim, toplamVergi, genelToplam } =
-    hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani);
+  const {
+    araToplam, toplamIndirim,
+    iskontoTutar: _iskontoTutar, iskontoSonrasiToplam: _iskontoSonrasiToplam,
+    kdvTutar: toplamVergi, genelToplam,
+  } = hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani);
 
   function teklifOlustur(): Teklif {
     const tarihVal = form.getFieldValue('tarih');
@@ -104,12 +109,15 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
       toplamVergi,
       genelToplam,
       kdvOrani,
+      iskontoOrani,
+      odemeVadesi,
       notlar,
       olusturmaTarihi: dayjs().toISOString(),
       guncellemeTarihi: dayjs().toISOString(),
       hazirlayanKullaniciId: aktifKullanici?.id,
       hazirlayanAdSoyad: aktifKullanici?.adSoyad,
       hazirlayanRol: aktifKullanici?.rol,
+      gecerlilikSuresi: '1 Hafta',
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
     };
@@ -255,8 +263,9 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           style={DS.card}
           bodyStyle={DS.cardBody}
         >
+          {/* — Satır 1 — */}
           <Row gutter={[16, 0]}>
-            <Col xs={24} sm={6}>
+            <Col xs={24} sm={5}>
               <Form.Item label="Teklif No" style={{ marginBottom: 12 }}>
                 <Input
                   value={teklifNo}
@@ -271,21 +280,52 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={5}>
+            <Col xs={24} sm={4}>
               <Form.Item name="tarih" label="Tarih" style={{ marginBottom: 12 }}>
                 <DatePicker style={{ width: '100%', borderRadius: 6 }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={5}>
-              <Form.Item name="paraBirimi" label="Para Birimi" style={{ marginBottom: 12 }}>
-                <Select style={{ borderRadius: 6 }} onChange={(v: ParaBirimi) => setParaBirimi(v)}>
-                  <Option value="TRY">TRY — ₺</Option>
-                  <Option value="EUR">EUR — €</Option>
-                  <Option value="USD">USD — $</Option>
-                </Select>
+            <Col xs={24} sm={4}>
+              <Form.Item label="Para Birimi" style={{ marginBottom: 12 }}>
+                <AutoComplete
+                  value={paraBirimi}
+                  onChange={setParaBirimi}
+                  options={[
+                    { value: 'EUR', label: 'EUR — €' },
+                    { value: 'USD', label: 'USD — $' },
+                    { value: 'TRY', label: 'TRY — ₺' },
+                    { value: 'GBP', label: 'GBP — £' },
+                    { value: 'CHF', label: 'CHF — ₣' },
+                  ]}
+                  style={{ width: '100%' }}
+                  placeholder="EUR"
+                >
+                  <Input style={{ borderRadius: 6 }} />
+                </AutoComplete>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={8}>
+            <Col xs={24} sm={7}>
+              <Form.Item label="Ödeme Vadesi" style={{ marginBottom: 12 }}>
+                <AutoComplete
+                  value={odemeVadesi}
+                  onChange={setOdemeVadesi}
+                  options={[
+                    { value: 'Peşin' },
+                    { value: '15 Gün' },
+                    { value: '30 Gün' },
+                    { value: '45 Gün' },
+                    { value: '60 Gün' },
+                    { value: '90 Gün' },
+                    { value: '120 Gün' },
+                  ]}
+                  style={{ width: '100%' }}
+                  placeholder="45 Gün"
+                >
+                  <Input style={{ borderRadius: 6 }} />
+                </AutoComplete>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={4}>
               <Form.Item name="durum" label="Durum" style={{ marginBottom: 12 }}>
                 <Select style={{ borderRadius: 6 }} onChange={(v: TeklifDurum) => setDurum(v)}>
                   <Option value="taslak">Taslak</Option>
@@ -297,6 +337,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
               </Form.Item>
             </Col>
           </Row>
+
         </Card>
 
         {/* ── ÜRÜN KALEMLERİ ───────────────────────────────── */}
@@ -323,6 +364,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             paraBirimi={paraBirimi}
             kdvOrani={kdvOrani}
             onKdvOraniChange={setKdvOrani}
+            iskontoOrani={iskontoOrani}
+            onIskontoOraniChange={setIskontoOrani}
           />
         </Card>
 

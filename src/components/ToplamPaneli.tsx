@@ -1,48 +1,77 @@
 import React, { useRef, useState } from 'react';
-import type { ParaBirimi } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 
 interface ToplamPaneliProps {
   araToplam: number;
   toplamIndirim: number;
   toplamVergi: number;
   genelToplam: number;
-  paraBirimi: ParaBirimi;
+  paraBirimi: string;
   kdvOrani: number;
   onKdvOraniChange: (oran: number) => void;
+  iskontoOrani: number;
+  onIskontoOraniChange: (oran: number) => void;
 }
 
 export default function ToplamPaneli({
   araToplam,
   toplamIndirim,
-  toplamVergi,
-  genelToplam,
+  toplamVergi: _toplamVergi,
+  genelToplam: _genelToplam,
   paraBirimi,
   kdvOrani,
   onKdvOraniChange,
+  iskontoOrani,
+  onIskontoOraniChange,
 }: ToplamPaneliProps) {
   const f = (n: number) => formatCurrency(n, paraBirimi);
 
-  // lastRate: kullanıcının en son set ettiği KDV oranı. UI sadece KDV
-  // kapatılıp tekrar açıldığında bu değeri default olarak gösterir.
-  // Render sırasında inline update — useEffect gerek yok (cascading render önlenir).
-  const lastRateRef = useRef(kdvOrani > 0 ? kdvOrani : 20);
-  if (kdvOrani > 0 && kdvOrani !== lastRateRef.current) {
-    lastRateRef.current = kdvOrani;
+  // ── KDV ──────────────────────────────────────────────────────────────────
+  // Son geçerli KDV oranını hatırla; KDV kapatılıp tekrar açıldığında kullanılır
+  const lastKdvRateRef = useRef(kdvOrani > 0 ? kdvOrani : 20);
+  if (kdvOrani > 0 && kdvOrani !== lastKdvRateRef.current) {
+    lastKdvRateRef.current = kdvOrani;
   }
-  const lastRate = lastRateRef.current;
+  const lastKdvRate = lastKdvRateRef.current;
 
-  const [rateEditing, setRateEditing] = useState(false);
-  const [rateDraft, setRateDraft] = useState('');
+  const [kdvRateEditing, setKdvRateEditing] = useState(false);
+  const [kdvRateDraft, setKdvRateDraft] = useState('');
 
-  function commitRate() {
-    const v = parseFloat(rateDraft.replace(',', '.'));
+  function commitKdvRate() {
+    const v = parseFloat(kdvRateDraft.replace(',', '.'));
     if (!isNaN(v) && v > 0 && v <= 100) onKdvOraniChange(Math.round(v * 100) / 100);
-    setRateEditing(false);
+    setKdvRateEditing(false);
   }
 
-  const kdvAktif = kdvOrani > 0;
+  const handleKDV = () => onKdvOraniChange(kdvAktif ? 0 : lastKdvRate);
 
+  // ── İSKONTO ──────────────────────────────────────────────────────────────
+  // KDV ile birebir aynı yapı; fark: prop bazlı oran + toplamdan düşme
+  const lastIskontoRateRef = useRef(10); // default %10
+  if (iskontoOrani > 0 && iskontoOrani !== lastIskontoRateRef.current) {
+    lastIskontoRateRef.current = iskontoOrani;
+  }
+  const lastIskontoRate = lastIskontoRateRef.current;
+
+  const [iskontoRateEditing, setIskontoRateEditing] = useState(false);
+  const [iskontoRateDraft, setIskontoRateDraft] = useState('');
+
+  function commitIskontoRate() {
+    const v = parseFloat(iskontoRateDraft.replace(',', '.'));
+    if (!isNaN(v) && v > 0 && v <= 100) onIskontoOraniChange(Math.round(v * 100) / 100);
+    setIskontoRateEditing(false);
+  }
+
+  const handleIskonto = () => onIskontoOraniChange(iskontoAktif ? 0 : lastIskontoRate);
+
+  // ── Hesaplamalar — ortak fonksiyon (TeklifSablonu ile aynı kaynak) ──────
+  const { iskontoTutar, kdvTutar: hesaplananKdv, genelToplam: hesaplananGenel } =
+    hesaplamaMotoru.teklifToplamlariniHesapla({ araToplam, kdvOrani, iskontoOrani });
+  const kdvAktif     = kdvOrani > 0;
+  const iskontoAktif = iskontoOrani > 0;
+
+  // ── Stiller ──────────────────────────────────────────────────────────────
   const row: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'space-between',
@@ -65,6 +94,49 @@ export default function ToplamPaneli({
     letterSpacing: 0.1,
   };
 
+  // KDV/İskonto satır içi oran input stili — ikisi de ortak kullanır
+  const inlineInputStyle: React.CSSProperties = {
+    width: 36,
+    height: 18,
+    fontSize: 12,
+    padding: '0 4px',
+    border: '1px solid #2563eb',
+    borderRadius: 4,
+    outline: 'none',
+    textAlign: 'center',
+    fontFamily: 'inherit',
+    color: '#0f1f45',
+    verticalAlign: 'middle',
+    boxShadow: '0 0 0 3px rgba(37,99,235,0.10)',
+  };
+
+  const editableRateStyle: React.CSSProperties = {
+    cursor: 'pointer',
+    textDecoration: 'underline dotted',
+    color: '#0f1f45',
+    fontWeight: 600,
+  };
+
+  // Genel Toplam bar'ındaki toggle buton stili — her iki buton da ortak kullanır
+  const toggleBtnStyle = (aktif: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '3px 10px',
+    border: '1px solid rgba(255,255,255,0.25)',
+    borderRadius: 5,
+    background: aktif ? 'rgba(255,255,255,0.15)' : 'transparent',
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: 'pointer',
+    letterSpacing: 0.3,
+    transition: 'background 0.15s',
+    userSelect: 'none',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+    boxShadow: aktif ? 'inset 0 1px 0 rgba(255,255,255,0.10)' : 'none',
+  });
+
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
       <div style={{
@@ -75,69 +147,84 @@ export default function ToplamPaneli({
         background: '#fafbfd',
         boxShadow: '0 1px 3px rgba(15,31,69,0.06)',
       }}>
-        {/* Ara Toplam — yalnızca KDV aktifken */}
-        {kdvAktif && (
+
+        {/* Ara Toplam — KDV veya iskonto aktifken göster */}
+        {(kdvAktif || iskontoAktif) && (
           <div style={row}>
             <span style={lbl}>Ara Toplam</span>
             <span style={val}>{f(araToplam)}</span>
           </div>
         )}
 
-        {/* İndirim — KDV aktif ve indirim > 0 */}
-        {kdvAktif && toplamIndirim > 0 && (
+        {/* İskonto satırı — KDV satırıyla birebir aynı yapı, fark: kırmızı + eksi */}
+        {iskontoAktif && (
+          <div style={row}>
+            <span style={{ ...lbl, color: '#dc2626' }}>
+              (–) İskonto (%
+              {iskontoRateEditing ? (
+                <input
+                  autoFocus
+                  value={iskontoRateDraft}
+                  onChange={(e) => setIskontoRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
+                  onBlur={commitIskontoRate}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitIskontoRate();
+                    if (e.key === 'Escape') setIskontoRateEditing(false);
+                  }}
+                  style={inlineInputStyle}
+                />
+              ) : (
+                <span
+                  onClick={() => { setIskontoRateDraft(String(iskontoOrani)); setIskontoRateEditing(true); }}
+                  title="Oranı değiştirmek için tıklayın"
+                  style={editableRateStyle}
+                >
+                  {iskontoOrani}
+                </span>
+              )}
+              )
+            </span>
+            <span style={{ ...val, color: '#dc2626' }}>– {f(iskontoTutar)}</span>
+          </div>
+        )}
+
+        {/* İndirim — satır bazlı indirim varsa */}
+        {toplamIndirim > 0 && (
           <div style={row}>
             <span style={{ ...lbl, color: '#dc2626' }}>(–) İndirim</span>
             <span style={{ ...val, color: '#dc2626' }}>– {f(toplamIndirim)}</span>
           </div>
         )}
 
-        {/* KDV satırı — yalnızca KDV aktifken */}
+        {/* KDV satırı */}
         {kdvAktif && (
           <div style={{ ...row, borderBottom: '1px solid #d1d9e6' }}>
             <span style={lbl}>
               KDV (%
-              {rateEditing ? (
+              {kdvRateEditing ? (
                 <input
                   autoFocus
-                  value={rateDraft}
-                  onChange={(e) => setRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
-                  onBlur={commitRate}
+                  value={kdvRateDraft}
+                  onChange={(e) => setKdvRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
+                  onBlur={commitKdvRate}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRate();
-                    if (e.key === 'Escape') setRateEditing(false);
+                    if (e.key === 'Enter') commitKdvRate();
+                    if (e.key === 'Escape') setKdvRateEditing(false);
                   }}
-                  style={{
-                    width: 36,
-                    height: 18,
-                    fontSize: 12,
-                    padding: '0 4px',
-                    border: '1px solid #2563eb',
-                    borderRadius: 4,
-                    outline: 'none',
-                    textAlign: 'center',
-                    fontFamily: 'inherit',
-                    color: '#0f1f45',
-                    verticalAlign: 'middle',
-                    boxShadow: '0 0 0 3px rgba(37,99,235,0.10)',
-                  }}
+                  style={inlineInputStyle}
                 />
               ) : (
                 <span
-                  onClick={() => { setRateDraft(String(kdvOrani)); setRateEditing(true); }}
+                  onClick={() => { setKdvRateDraft(String(kdvOrani)); setKdvRateEditing(true); }}
                   title="Oranı değiştirmek için tıklayın"
-                  style={{
-                    cursor: 'pointer',
-                    textDecoration: 'underline dotted',
-                    color: '#0f1f45',
-                    fontWeight: 600,
-                  }}
+                  style={editableRateStyle}
                 >
                   {kdvOrani}
                 </span>
               )}
               )
             </span>
-            <span style={val}>{f(toplamVergi)}</span>
+            <span style={val}>{f(hesaplananKdv)}</span>
           </div>
         )}
 
@@ -151,29 +238,16 @@ export default function ToplamPaneli({
           gap: 10,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <button
-              onClick={() => onKdvOraniChange(kdvAktif ? 0 : lastRate)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '3px 10px',
-                border: '1px solid rgba(255,255,255,0.25)',
-                borderRadius: 5,
-                background: kdvAktif ? 'rgba(255,255,255,0.15)' : 'transparent',
-                color: '#ffffff',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-                letterSpacing: 0.3,
-                transition: 'background 0.15s',
-                userSelect: 'none' as const,
-                whiteSpace: 'nowrap' as const,
-                flexShrink: 0,
-                boxShadow: kdvAktif ? 'inset 0 1px 0 rgba(255,255,255,0.10)' : 'none',
-              }}
-            >
-              {kdvAktif ? `✓ KDV %${kdvOrani}` : `+ KDV %${lastRate}`}
+            {/* KDV toggle butonu */}
+            <button onClick={handleKDV} style={toggleBtnStyle(kdvAktif)}>
+              {kdvAktif ? `✓ KDV %${kdvOrani}` : `+ KDV %${lastKdvRate}`}
             </button>
+
+            {/* İskonto toggle butonu — KDV butonuyla birebir aynı yapı */}
+            <button onClick={handleIskonto} style={toggleBtnStyle(iskontoAktif)}>
+              {iskontoAktif ? `✓ İskonto %${iskontoOrani}` : `+ İskonto %${lastIskontoRate}`}
+            </button>
+
             <span style={{
               fontWeight: 700,
               fontSize: 11,
@@ -193,7 +267,7 @@ export default function ToplamPaneli({
             letterSpacing: 0.2,
             whiteSpace: 'nowrap' as const,
           }}>
-            {f(genelToplam)}
+            {f(hesaplananGenel)}
           </span>
         </div>
       </div>

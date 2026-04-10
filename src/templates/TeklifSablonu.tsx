@@ -1,8 +1,9 @@
 import React from 'react';
-import type { Teklif, ParaBirimi } from '../types';
-import { formatCurrency, formatDate, formatTitleCaseTr, formatAciklama } from '../utils/formatters';
+import type { Teklif } from '../types';
+import { formatCurrency, formatDate, formatTitleCaseTr, formatPdfAciklama, stripParantez } from '../utils/formatters';
+import type { TeklifToplam } from '../services/hesaplamaMotoru';
 
-const SEMBOL: Record<ParaBirimi, string> = { TRY: '₺', EUR: '€', USD: '$' };
+const SEMBOL: Record<string, string> = { TRY: '₺', EUR: '€', USD: '$', GBP: '£', CHF: '₣' };
 
 // ── PDF Tasarım Sabitleri ─────────────────────────────────────────────────────
 const C = {
@@ -73,6 +74,7 @@ const LOGO_OPT_LEFT = -(LOGO_FILE_W      * LOGO.OPT_LEFT_FRAC);                 
 
 interface TeklifSablonuProps {
   teklif: Teklif;
+  totals: TeklifToplam;
 }
 
 // temizleAciklama kaldırıldı — formatAciklama (formatters.ts) ortak kullanılır.
@@ -93,8 +95,13 @@ function TableColgroup() {
   );
 }
 
-export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
-  const sembol = SEMBOL[teklif.paraBirimi];
+export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
+  const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
+  const {
+    araToplam, iskontoOrani, iskontoTutar,
+    iskontoSonrasiToplam: _iskontoSonrasiToplam,
+    kdvOrani, kdvTutar, genelToplam,
+  } = totals;
 
   // Muhatap satırı: isim varsa title-case + hitap, yoksa yetkiliKisi
   const muhatapSatiri = teklif.contactName?.trim()
@@ -409,18 +416,19 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
         <tbody>
           <tr>
             {[
-              { label: 'Para Birimi / Currency',  value: `${teklif.paraBirimi} (${sembol})` },
-              { label: 'Ödeme Vadesi / Payment',  value: '45 Gün Net' },
+              { label: 'Para Birimi / Currency',  value: sembol !== teklif.paraBirimi ? `${teklif.paraBirimi} (${sembol})` : teklif.paraBirimi },
+              { label: 'Ödeme Vadesi / Payment',  value: teklif.odemeVadesi || '45 Gün' },
               { label: 'KDV Oranı / VAT',         value: teklif.kdvOrani > 0 ? `%${teklif.kdvOrani}` : 'Hariç' },
               { label: 'Kur / Exchange Rate',     value: 'TCMB Fatura' },
-            ].map((item, i) => (
+              { label: 'Geçerlilik / Validity', value: teklif.gecerlilikSuresi ?? '1 Hafta' },
+            ].map((item, i, arr) => (
               <td
                 key={i}
                 style={{
                   padding: '7px 10px',
                   textAlign: 'center',
-                  width: '25%',
-                  borderRight: 'none',
+                  width: `${(100 / arr.length).toFixed(2)}%`,
+                  borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
                   borderLeft: 'none',
                   backgroundColor: C.bg,
                 }}
@@ -464,21 +472,20 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
         <thead>
           <tr style={{ backgroundColor: C.navy, color: C.white }}>
             {[
-              { label: 'No',          sub: ''           },
-              { label: 'Marka',       sub: 'Brand'      },
-              { label: 'Ürün Kodu',   sub: 'Item No'    },
-              { label: 'Açıklama',    sub: 'Description' },
-              { label: 'Miktar',      sub: 'Qty'        },
-              { label: 'Birim Fiyat', sub: 'Unit Price'  },
-              { label: 'Toplam',      sub: 'Total'      },
-              { label: 'Teslimat',    sub: 'Delivery'   },
+              { label: '#',           sub: '',            align: 'center' as const },
+              { label: 'Marka',       sub: 'Brand',       align: 'center' as const },
+              { label: 'Ürün Kodu',   sub: 'Item No',     align: 'left'   as const },
+              { label: 'Açıklama',    sub: 'Description', align: 'left'   as const },
+              { label: 'Miktar',      sub: 'Qty',         align: 'right'  as const },
+              { label: 'Birim Fiyat', sub: 'Unit Price',  align: 'right'  as const },
+              { label: 'Toplam',      sub: 'Total',       align: 'right'  as const },
+              { label: 'Teslimat',    sub: 'Delivery',    align: 'center' as const },
             ].map((col, i) => (
               <th
                 key={i}
                 style={{
-                  // Tüm başlıklar: yatay + dikey tam ortalı, uniform padding
                   padding: '6px 6px',
-                  textAlign: 'center',
+                  textAlign: col.align,
                   verticalAlign: 'middle',
                   fontSize: '9px',
                   fontWeight: 'bold',
@@ -497,7 +504,7 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                     fontSize: '7px',
                     opacity: 0.65,
                     marginTop: '1px',
-                    textAlign: 'center',
+                    textAlign: col.align,
                   }}>
                     {col.sub}
                   </span>
@@ -530,12 +537,12 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                 {/* Marka */}
                 <td style={{
                   padding: '5px 6px',
+                  textAlign: 'center',
                   fontSize: '8.5px',
                   color: C.textMid,
                   borderBottom: `1px solid ${C.borderSoft}`,
                   borderRight: 'none',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
+                  whiteSpace: 'nowrap',
                 }}>
                   {satir.marka || '—'}
                 </td>
@@ -565,17 +572,32 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                   wordBreak: 'break-word',
                   overflowWrap: 'break-word',
                 }}>
-                  {satir.urunAdi}
-                  {satir.aciklama && satir.aciklama !== satir.urunAdi && (
-                    <span style={{ display: 'block', fontSize: '7px', opacity: 0.65, marginTop: '1px' }}>
-                      {formatAciklama(satir.aciklama, satir.urunAdi)}
-                    </span>
-                  )}
+                  {stripParantez(satir.urunAdi)}
+                  {(() => {
+                    // Manuel kayıt varsa onu, yoksa otomatik oluşturulan metni kullan
+                    const sat2 = satir.manuelAltAciklama !== undefined
+                      ? satir.manuelAltAciklama
+                      : formatPdfAciklama(satir.urunAdi, satir.aciklama, satir.urunKod);
+                    if (!sat2) return null;
+                    return (
+                      <span style={{
+                        display: 'block',
+                        fontSize: '7px',
+                        opacity: 0.65,
+                        marginTop: '1px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {sat2}
+                      </span>
+                    );
+                  })()}
                 </td>
                 {/* Miktar */}
                 <td style={{
                   padding: '5px 4px',
-                  textAlign: 'center',
+                  textAlign: 'right',
                   fontSize: '9px',
                   color: C.textMid,
                   borderBottom: `1px solid ${C.borderSoft}`,
@@ -626,6 +648,7 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                   borderBottom: `1px solid ${C.borderSoft}`,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}>
                   {satir.teslimTarihi || '—'}
                 </td>
@@ -650,12 +673,12 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
       }}>
         <TableColgroup />
         <tbody>
-          {/* ── Koşullu görünürlük ──                                          */}
-          {/* KDV aktifse (kdvOrani > 0): Ara Toplam → (İndirim) → KDV → Genel  */}
-          {/* KDV yoksa: ara hesap satırları tamamen gizlenir, sadece Genel     */}
-          {/* Toplam render edilir. Hesaplama mantığı zaten araToplam ±        */}
-          {/* indirim + vergi → genelToplam, KDV=0 iken doğrudan ürün toplamı.  */}
-          {teklif.kdvOrani > 0 && (
+          {/* ── Koşullu satırlar: Ara Toplam → İskonto → KDV ──
+               Ara Toplam: KDV veya iskonto varsa gösterilir
+               İskonto: iskontoOrani > 0 ise gösterilir
+               KDV: kdvOrani > 0 ise gösterilir
+               Genel Toplam: her zaman gösterilir                          */}
+          {(kdvOrani > 0 || iskontoOrani > 0 || teklif.toplamIndirim > 0) && (
             <>
               {/* Ara Toplam */}
               <tr>
@@ -678,12 +701,40 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                   fontWeight: '500',
                   whiteSpace: 'nowrap',
                 }}>
-                  {formatCurrency(teklif.araToplam, teklif.paraBirimi)}
+                  {formatCurrency(araToplam, teklif.paraBirimi)}
                 </td>
                 <td style={{ borderBottom: `1px solid ${C.borderSoft}` }} />
               </tr>
 
-              {/* İndirim — sadece > 0 ise */}
+              {/* İskonto — sadece iskontoOrani > 0 ise */}
+              {iskontoOrani > 0 && (
+                <tr>
+                  <td colSpan={6} style={{
+                    padding: '4px 8px 4px 10px',
+                    fontSize: '8.5px',
+                    color: '#b91c1c',
+                    textAlign: 'right',
+                    borderBottom: `1px solid ${C.borderSoft}`,
+                  }}>
+                    (–) İskonto / Discount (%{iskontoOrani})
+                  </td>
+                  <td style={{
+                    padding: '4px 6px',
+                    fontSize: '9px',
+                    color: '#b91c1c',
+                    borderBottom: `1px solid ${C.borderSoft}`,
+                    textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    – {formatCurrency(iskontoTutar, teklif.paraBirimi)}
+                  </td>
+                  <td style={{ borderBottom: `1px solid ${C.borderSoft}` }} />
+                </tr>
+              )}
+
+              {/* İndirim (satır bazlı) — sadece > 0 ise */}
               {teklif.toplamIndirim > 0 && (
                 <tr>
                   <td colSpan={6} style={{
@@ -693,7 +744,7 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                     textAlign: 'right',
                     borderBottom: `1px solid ${C.borderSoft}`,
                   }}>
-                    (–) İndirim / Discount
+                    (–) İndirim / Line Discount
                   </td>
                   <td style={{
                     padding: '4px 6px',
@@ -711,31 +762,33 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
                 </tr>
               )}
 
-              {/* KDV */}
-              <tr>
-                <td colSpan={6} style={{
-                  padding: '4px 8px 4px 10px',
-                  fontSize: '8.5px',
-                  color: C.textMid,
-                  textAlign: 'right',
-                  borderBottom: `1px solid ${C.border}`,
-                }}>
-                  KDV / VAT (%{teklif.kdvOrani})
-                </td>
-                <td style={{
-                  padding: '4px 6px',
-                  fontSize: '9px',
-                  borderBottom: `1px solid ${C.border}`,
-                  textAlign: 'right',
-                  fontVariantNumeric: 'tabular-nums',
-                  color: C.text,
-                  fontWeight: '500',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {formatCurrency(teklif.toplamVergi, teklif.paraBirimi)}
-                </td>
-                <td style={{ borderBottom: `1px solid ${C.border}` }} />
-              </tr>
+              {/* KDV — sadece kdvOrani > 0 ise */}
+              {kdvOrani > 0 && (
+                <tr>
+                  <td colSpan={6} style={{
+                    padding: '4px 8px 4px 10px',
+                    fontSize: '8.5px',
+                    color: C.textMid,
+                    textAlign: 'right',
+                    borderBottom: `1px solid ${C.border}`,
+                  }}>
+                    KDV / VAT (%{kdvOrani})
+                  </td>
+                  <td style={{
+                    padding: '4px 6px',
+                    fontSize: '9px',
+                    borderBottom: `1px solid ${C.border}`,
+                    textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: C.text,
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {formatCurrency(kdvTutar, teklif.paraBirimi)}
+                  </td>
+                  <td style={{ borderBottom: `1px solid ${C.border}` }} />
+                </tr>
+              )}
             </>
           )}
 
@@ -764,7 +817,7 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
               whiteSpace: 'nowrap',
               letterSpacing: '0.1px',
             }}>
-              {formatCurrency(teklif.genelToplam, teklif.paraBirimi)}
+              {formatCurrency(genelToplam, teklif.paraBirimi)}
             </td>
             <td style={{ background: C.navy }} />
           </tr>
@@ -806,10 +859,20 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
         }}>
           Kaşe – İmza / Authorised Signature
         </div>
-        <div style={{ fontSize: '9px', marginTop: '28px', lineHeight: '1.8', color: C.textMid }}>
-          <div style={{ color: C.textMuted }}>Siparişi Veren / Authorised Person</div>
-          <div style={{ fontWeight: 'bold', fontSize: '10px', color: C.navy }}>{teklif.cari.firmaAdi}</div>
-          <div style={{ color: C.textMuted }}>Tarih / Date: _______________</div>
+        <div style={{ display: 'flex', gap: '20px', marginTop: '28px' }}>
+          {/* Müşteri imza alanı */}
+          <div style={{ flex: 1, fontSize: '9px', lineHeight: '1.8', color: C.textMid }}>
+            <div style={{ color: C.textMuted }}>Siparişi Veren / Authorised Person</div>
+            <div style={{ fontWeight: 'bold', fontSize: '10px', color: C.navy }}>{teklif.cari.firmaAdi}</div>
+            <div style={{ color: C.textMuted }}>Tarih / Date: _______________</div>
+          </div>
+          {/* MEBA imza alanı */}
+          <div style={{ flex: 1, fontSize: '9px', lineHeight: '1.8', color: C.textMid }}>
+            <div style={{ color: C.textMuted }}>Düzenleyen / Prepared by</div>
+            <div style={{ fontWeight: 'bold', fontSize: '10px', color: C.navy }}>MEBA Mekanik Ltd. Şti.</div>
+            <div>{teklif.hazirlayanAdSoyad || 'MEBA Mekanik'}</div>
+            <div style={{ color: C.textMuted }}>Tarih / Date: _______________</div>
+          </div>
         </div>
 
         {/* ── FOOTER (navy şerit) — kaşe-imza ile birlikte stamp edilir ── */}
@@ -825,7 +888,7 @@ export default function TeklifSablonu({ teklif }: TeklifSablonuProps) {
           lineHeight: '1.5',
           letterSpacing: '0.1px',
         }}>
-          <div>MEBA Pnömatik Hidrolik Makina &middot; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
+          <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
           <div style={{ fontVariantNumeric: 'tabular-nums' }}>
             Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com
           </div>

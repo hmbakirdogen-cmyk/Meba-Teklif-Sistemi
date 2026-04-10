@@ -40,22 +40,52 @@ export default function AppLayout() {
           borderBottom: '1px solid #1e3060',
         }}
       >
-        {/* ── LOGO — height:100% navbar yüksekliği ile birebir, aspect ratio korunur ── */}
-        <img
-          src="/logo-meba.png"
-          alt="MEBA Mekanik"
-          draggable={false}
+        {/* ── LOGO ─────────────────────────────────────────────────────────────
+             Yapı: dış wrapper (padding) + iç clip wrapper (overflow:hidden) + img.
+             Dış wrapper: yatay padding ile sağ/sol boşluğu dikey boşlukla dengeler;
+               flex hücresi olarak çalışır, komşu elemanlar yalnızca padding miktarı
+               kadar (yaklaşık 10px her yanda) kayar — menü flex:1 ile absorbe eder.
+             İç wrapper: overflow:hidden PNG'nin beyaz kenarlıklarını kırpar;
+               boyutları sabit kalır → logo görünümü hiç değişmez.
+             Img: scale + transformOrigin tamamen korunur. */}
+        <div
           onClick={() => navigate('/teklifler')}
           style={{
-            height: '100%',         // navbar yüksekliğine snap
-            width: 'auto',          // aspect ratio korunur, stretch yok
-            display: 'block',
-            cursor: 'pointer',
             flexShrink: 0,
+            cursor: 'pointer',
             userSelect: 'none',
-            imageRendering: 'auto', // bicubic downsampling — chrome gradyanı net kalır
+            display: 'flex',
+            alignItems: 'center',
+            // Yatay padding — dikey "breathing room" (~9–10 px) ile görsel denge
+            paddingLeft: 10,
+            paddingRight: 10,
           }}
-        />
+        >
+          {/* Kırpma katmanı — overflow:hidden yalnızca bu div'e uygulanır;
+              böylece padding alanı temiz navbar rengi (#0f1f45) gösterir */}
+          <div
+            style={{
+              height: HEADER_H,
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <img
+              src="/logo-meba.png"
+              alt="MEBA Mekanik"
+              draggable={false}
+              style={{
+                height: HEADER_H,
+                width: 'auto',
+                display: 'block',
+                imageRendering: 'auto',
+                transform: 'scale(1.17)',
+                transformOrigin: '42% 0%',
+              }}
+            />
+          </div>
+        </div>
 
         {/* ── NAVIGATION ── */}
         <Menu

@@ -9,6 +9,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import TeklifSablonu from '../templates/TeklifSablonu';
 import { teklifService } from '../services/teklifService';
+import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import type { Teklif } from '../types';
 
 // ── PDF sabitleri ────────────────────────────────────────────────────────────
@@ -294,7 +295,14 @@ export default function TeklifOnizleme() {
         }}
       >
         <div ref={sablonRef}>
-          <TeklifSablonu teklif={teklif} />
+          <TeklifSablonu
+            teklif={teklif}
+            totals={hesaplamaMotoru.teklifToplamlariniHesapla({
+              araToplam:    teklif.araToplam,
+              kdvOrani:     teklif.kdvOrani,
+              iskontoOrani: teklif.iskontoOrani ?? 0,
+            })}
+          />
         </div>
       </div>
 

@@ -25,19 +25,24 @@ export function formatPhone(val: string): string {
   return val.trim();
 }
 
-const PARA_BIRIMI_SEMBOL: Record<ParaBirimi, string> = {
+// ParaBirimi tipi import — kullanılmadığında lint uyarısını bastır
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _PB = ParaBirimi;
+
+const PARA_BIRIMI_SEMBOL: Record<string, string> = {
   TRY: '₺',
   EUR: '€',
   USD: '$',
 };
 
-/** Sayıyı para birimi sembolü ile biçimlendirir: 1.234,56 ₺ */
-export function formatCurrency(tutar: number, pb: ParaBirimi): string {
+/** Sayıyı para birimi sembolü ile biçimlendirir: 1.234,56 ₺
+ *  Bilinmeyen para birimleri için kod direkt sembol olarak kullanılır. */
+export function formatCurrency(tutar: number, pb: string): string {
   const formatted = tutar.toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const sembol = PARA_BIRIMI_SEMBOL[pb];
+  const sembol = PARA_BIRIMI_SEMBOL[pb] ?? pb;
   return pb === 'TRY' ? `${formatted} ${sembol}` : `${sembol} ${formatted}`;
 }
 
@@ -227,56 +232,171 @@ export function cleanProductDescription(text: string, code?: string): string {
   return result.replace(/\s{2,}/g, ' ').trim();
 }
 
+// ─── Parantez temizleme ────────────────────────────────────────────────────────
+
+/**
+ * Metindeki ilk "(" karakterinden itibaren her şeyi siler.
+ * Hem urunAdi hem aciklama alanları için ortak display temizleyici.
+ *   "KOMPAKT SİLİNDİR(MGPM63TF-100Z)SMC" → "KOMPAKT SİLİNDİR"
+ *   "Parantez yok"                        → "Parantez yok"
+ */
+export function stripParantez(text: string): string {
+  if (!text) return '';
+  return text.split('(')[0].trim();
+}
+
 // ─── Açıklama formatlama ───────────────────────────────────────────────────────
 
 /**
  * Ürün açıklamasını standart formata getirir (arayüz + PDF ortak).
  *
  * Kurallar:
+ *   0) İlk "(" karakterinden itibaren her şey kaldırılır — parantez içeriği gösterilmez
  *   1) Tamamen küçük harf (toLowerCase)
  *   2) Ürün adında geçen kelimeler açıklamadan çıkarılır (tekrar engeli)
  *   3) Sonuç trim + çoklu boşluk temizliği
  *
  * Örnekler:
- *   formatAciklama("80x200 Manyetik Yastıklı Silindir", "Manyetik Yastıklı Silindir")
- *     → "80x200"
+ *   formatAciklama("Ø80 mm · 200 mm strok (CP96SDB80-200)", "...")
+ *     → "ø80 mm · 200 mm strok"
  *   formatAciklama("Çift etkili, manyetik sensörlü", "PNÖMATİK SİLİNDİR")
  *     → "çift etkili, manyetik sensörlü"
+ *   formatAciklama("(tümü parantez içinde)")
+ *     → ""
  */
 export function formatAciklama(aciklama: string, urunAdi?: string): string {
   if (!aciklama) return '';
 
-  let result = aciklama.trim();
+  // Kural 0: ilk "(" ve sonrasını kaldır, Türkçe locale lowercase uygula
+  let result = aciklama.split('(')[0].trim().toLocaleLowerCase('tr-TR');
+  if (!result) return '';
 
-  // Ürün adındaki kelimeleri açıklamadan çıkar (case-insensitive)
+  // Ürün adındaki kelimeleri açıklamadan çıkar (case-insensitive, Türkçe)
   if (urunAdi) {
-    // Ürün adını kelimelere böl (3+ karakter olanları al — kısa edatları atla)
     const adKelimeler = urunAdi
       .split(/[\s,;.·\-/()]+/)
       .filter((w) => w.length >= 3)
-      .map((w) => w.toLowerCase());
+      .map((w) => w.toLocaleLowerCase('tr-TR')); // Türkçe İ/I doğru dönüşüm
 
     if (adKelimeler.length > 0) {
-      // Her kelimeyi açıklamadan sil (case-insensitive, kelime sınırı)
       for (const kelime of adKelimeler) {
         const escaped = kelime.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        result = result.replace(new RegExp(escaped, 'gi'), '');
+        // result zaten lowercase olduğundan 'g' yeterli (locale-aware karşılaştırma sorununu önler)
+        result = result.replace(new RegExp(escaped, 'g'), '');
       }
     }
   }
 
-  // Küçük harfe çevir
-  result = result.toLowerCase();
-
   // Temizlik: ardışık ayırıcılar, baştaki/sondaki ayırıcılar, çoklu boşluk
   result = result
-    .replace(/[,;·]{2,}/g, '·')          // ardışık ayırıcılar → tek
-    .replace(/^\s*[,;·\-\s]+/g, '')       // baştaki ayırıcılar
-    .replace(/[,;·\-\s]+\s*$/g, '')       // sondaki ayırıcılar
-    .replace(/\s{2,}/g, ' ')              // çoklu boşluk
+    .replace(/[,;·]{2,}/g, '·')
+    .replace(/^\s*[,;·\-\s]+/g, '')
+    .replace(/[,;·\-\s]+\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
     .trim();
 
   return result;
+}
+
+// ─── Açıklama Title Case ─────────────────────────────────────────────────────
+
+/**
+ * Açıklama metinleri için Türkçe Title Case uygular.
+ *
+ * Kurallar:
+ *   - Her kelimenin ilk harfi büyük, devamı küçük
+ *   - Türkçe "i" → "İ" dönüşümü uygulanır
+ *   - Rakam veya özel sembolle (Ø, /, ·, -) başlayan tokenlar değiştirilmez
+ *   - Bilinen ölçü birimleri (mm, bar, vdc …) tamamen küçük kalır
+ *
+ * Örnekler:
+ *   "ø80 mm · 200 mm strok · manyetik"  → "Ø80 mm · 200 mm Strok · Manyetik"
+ *   "1/4\" bağlantı · 24 vdc"           → "1/4\" Bağlantı · 24 vdc"
+ */
+const BIRIM_KUCUK = new Set([
+  'mm', 'cm', 'm', 'mpa', 'bar', 'hz', 'khz', 'mhz',
+  'nm', 'rpm', 'psi', 'npt', 'bsp', 'pt', 'dn',
+  'g', 'kg', 'lt', 'ml', 'l', 'n', 'kn', 'w', 'kw',
+  'vdc', 'adc', 'ac', 'dc', 'v', 'a',
+]);
+
+export function titleCaseAciklama(text: string): string {
+  if (!text) return '';
+  return text
+    .split(' ')
+    .map((token) => {
+      if (!token) return token;
+      const lower = token.toLowerCase();
+      // Bilinen ölçü birimi → tamamen küçük bırak
+      if (BIRIM_KUCUK.has(lower)) return lower;
+      // Rakam, ölçü sembolü veya özel karakter ile başlıyorsa dokunma
+      if (/^[0-9Øø·/\-+"]/.test(token)) return token;
+      // Türkçe i → İ, diğerleri standart büyük harf
+      const first = lower[0] === 'i' ? 'İ' : lower[0].toUpperCase();
+      return first + lower.slice(1);
+    })
+    .join(' ');
+}
+
+// ─── PDF açıklama — silindir boyut ayrıştırıcı ──────────────────────────────
+
+/**
+ * Pnömatik silindir ürün kodundan çap ve strok değerlerini ayrıştırır.
+ * Desteklenen format örnekleri:
+ *   CP96SDB80-200   → { cap: 80,  strok: 200 }
+ *   MGPM63TF-100Z   → { cap: 63,  strok: 100 }
+ *   MGJ10-20        → { cap: 10,  strok: 20  }
+ *   CP96SDB40-100   → { cap: 40,  strok: 100 }
+ *
+ * Kural: son tire (-) öncesindeki sayı = çap, sonrasındaki sayı = strok.
+ * Makul aralık dışındaki değerler (çap < 4, strok < 1) reddedilir.
+ */
+export function parseSilindir(urunKod: string): { cap: number; strok: number } | null {
+  if (!urunKod) return null;
+  // Son tire grubunu bul: {rakamlar}{isteğe bağlı harfler}-{rakamlar}
+  const m = urunKod.match(/(\d+)[A-Z]*-(\d+)/);
+  if (!m) return null;
+  const cap   = parseInt(m[1], 10);
+  const strok = parseInt(m[2], 10);
+  if (cap < 4 || cap > 500 || strok < 1 || strok > 5000) return null;
+  return { cap, strok };
+}
+
+/**
+ * Tüm arayüz ve PDF açıklama alanları için ortak formatlama fonksiyonu.
+ *
+ * Silindir ürünler  → "Ø{çap} mm · {strok} mm Strok · Manyetik"
+ *                     (ürün kodundan otomatik ayrıştırılır; "sensörlü" kullanılmaz)
+ * Diğer ürünler     → formatAciklama çıktısı, Title Case uygulanmış, 72 kar. kırpılmış
+ *
+ * Her iki durumda da:
+ *   - Türkçe Title Case uygulanır (her kelimenin ilk harfi büyük)
+ *   - Ölçü birimleri (mm, bar, vdc …) küçük kalır
+ *   - Rakam/sembolle başlayan tokenlar değiştirilmez
+ *   - Sonuç tek satır (textOverflow: ellipsis ile kırpılır)
+ */
+export function formatPdfAciklama(
+  urunAdi: string,
+  aciklama: string,
+  urunKod: string,
+): string {
+  const ad = stripParantez(urunAdi);
+  // Türkçe İ/I dönüşümü için toLocaleLowerCase('tr-TR') — 'İ' → 'i' doğru çalışır
+  const isSilindir = ad.toLocaleLowerCase('tr-TR').includes('silindir');
+
+  if (isSilindir) {
+    const dims = parseSilindir(urunKod);
+    if (dims) {
+      return titleCaseAciklama(`Ø${dims.cap} mm · ${dims.strok} mm strok · manyetik`);
+    }
+  }
+
+  // Silindir değil veya boyut ayrıştırılamadı — mevcut açıklamayı formatla
+  const formatted = formatAciklama(aciklama, urunAdi);
+  if (!formatted) return '';
+  // 72 karakteri geçen açıklamaları kırp, ardından Title Case uygula
+  const kırpılmış = formatted.length > 72 ? formatted.slice(0, 70) + '…' : formatted;
+  return titleCaseAciklama(kırpılmış);
 }
 
 // ─── Sayısal giriş yardımcıları ───────────────────────────────────────────────

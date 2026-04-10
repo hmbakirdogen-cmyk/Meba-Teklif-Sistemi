@@ -1,5 +1,6 @@
 import type { Urun } from '../types';
-import { cleanProductDescription } from '../utils/formatters';
+import { cleanProductDescription, titleCaseAciklama } from '../utils/formatters';
+import { referansVeriService } from './referansVeriService';
 
 const STORAGE_KEY = 'teklif_urunler';
 
@@ -74,21 +75,82 @@ function urunleriSifirla(): void {
 }
 
 /**
+ * Temizlenmiş açıklamada marka varlığını kontrol eder ve gerekirse ekler.
+ *
+ * Kurallar:
+ *  1) Kayıtlı markalar listesindeki herhangi bir marka açıklamada varsa → marka korunur.
+ *     Ürünün kendi markası ise aynı zamanda birden fazla geçiyorsa tekilleştirilir.
+ *  2) Hiçbir kayıtlı marka açıklamada yoksa ve ürünün marka alanı doluysa →
+ *     marka açıklamanın başına eklenir.
+ *  3) Açıklama tamamen boşsa ve marka doluysa → açıklama = marka olur.
+ *  4) Büyük/küçük harf duyarsız kontrol; ekleme orijinal büyük/küçük harf korunarak yapılır.
+ */
+function markaKoruVeDuzenle(
+  aciklama: string,
+  urunMarkasi: string,
+  markalar: string[],
+): string {
+  // Kayıtlı markalar arasında açıklamada var olan ilkini bul (case-insensitive)
+  const mevcutMarka = markalar.find((m) =>
+    aciklama.toLowerCase().includes(m.toLowerCase()),
+  );
+
+  if (mevcutMarka) {
+    // Marka zaten mevcut — ürünün markasıyla eşleşiyorsa tekrar sayısını kontrol et
+    if (urunMarkasi && urunMarkasi.toLowerCase() === mevcutMarka.toLowerCase()) {
+      const escaped = urunMarkasi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(escaped, 'gi');
+      const hits = aciklama.match(rx) ?? [];
+      if (hits.length > 1) {
+        // Birden fazla tekrar → hepsini çıkar, başa bir kez ekle
+        const geri = aciklama
+          .replace(rx, '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^[\s\-–·,;]+|[\s\-–·,;]+$/g, '')
+          .trim();
+        return geri ? `${urunMarkasi} ${geri}` : urunMarkasi;
+      }
+    }
+    return aciklama; // marka var ve tekil — dokunma
+  }
+
+  // Açıklamada hiçbir kayıtlı marka yok
+  if (!urunMarkasi) return aciklama;          // eklenecek marka bilgisi de yok
+  if (!aciklama)    return urunMarkasi;        // boş açıklama → sadece marka
+  return `${urunMarkasi} ${aciklama}`;         // başa ekle
+}
+
+/**
  * Mevcut tüm ürünlerin açıklamalarını temizler:
- * Parantez içinde ürün kodu tekrar ediyorsa siler, anlamlı içerik varsa korur.
+ *  - Parantez içinde ürün kodu tekrar ediyorsa siler.
+ *  - Temizlik sonrası açıklamada kayıtlı marka yoksa ürünün marka bilgisini başa ekler.
+ *  - Açıklama tamamen boşsa en azından marka adını yazar.
  * Kaç ürün güncellendi döner.
  */
 function urunAciklamalariniTemizle(): number {
-  const liste = tumUrunleriGetir();
+  const liste   = tumUrunleriGetir();
+  const markalar = referansVeriService.markalar.tumunuGetir();
   let temizlenen = 0;
+
   const guncellenmis = liste.map((u) => {
-    const temiz = cleanProductDescription(u.aciklama, u.urunKod);
-    if (temiz !== u.aciklama) {
+    const urunMarkasi = u.marka?.trim() ?? '';
+
+    // 1) Parantez temizliği
+    const temizAciklama = cleanProductDescription(u.aciklama, u.urunKod);
+
+    // 2) Marka koruması / ekleme
+    const markaAciklama = markaKoruVeDuzenle(temizAciklama, urunMarkasi, markalar);
+
+    // 3) Title Case uygula — her kelime ilk harf büyük, birimler küçük kalır
+    const sonAciklama = titleCaseAciklama(markaAciklama);
+
+    if (sonAciklama !== u.aciklama) {
       temizlenen++;
-      return { ...u, aciklama: temiz };
+      return { ...u, aciklama: sonAciklama };
     }
     return u;
   });
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(guncellenmis));
   return temizlenen;
 }
