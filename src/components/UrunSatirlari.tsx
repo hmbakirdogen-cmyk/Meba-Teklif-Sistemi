@@ -13,6 +13,9 @@ import {
   formatDisplayNumber,
   formatEditableNumber,
 } from '../utils/formatters';
+import { buttonClassNames } from '../styles/buttonStyles';
+import { useColors } from '../hooks/useColors';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const { Option, OptGroup } = Select;
 
@@ -84,7 +87,7 @@ function NumericInput({
         }
       }}
       onFocus={(e) => {
-        e.currentTarget.style.borderColor = '#2563eb';
+        e.currentTarget.style.borderColor = 'var(--input-focus, #2563eb)';
         e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.10)';
         const start = value !== 0 ? formatEditableNumber(value, precision) : '';
         setDraft(start);
@@ -92,7 +95,7 @@ function NumericInput({
         requestAnimationFrame(() => ref.current?.select());
       }}
       onBlur={(e) => {
-        e.currentTarget.style.borderColor = '#d1d9e6';
+        e.currentTarget.style.borderColor = 'var(--input-border)';
         e.currentTarget.style.boxShadow = 'none';
         setEditing(false);
         const raw = draft.trim();
@@ -111,21 +114,21 @@ function NumericInput({
       }}
       onMouseLeave={(e) => {
         if (document.activeElement !== e.currentTarget)
-          e.currentTarget.style.borderColor = '#d1d9e6';
+          e.currentTarget.style.borderColor = 'var(--input-border)';
       }}
       style={{
         width: '100%',
-        height: 26,
-        lineHeight: '24px',
+        height: 30,
+        lineHeight: '28px',
         fontSize: 12,
-        padding: '0 7px',
+        padding: '0 9px',
         textAlign,
-        border: '1px solid #d1d9e6',
-        borderRadius: 5,
+        border: '1px solid var(--input-border)',
+        borderRadius: 8,
         outline: 'none',
         boxSizing: 'border-box',
-        background: '#ffffff',
-        color: '#0f1f45',
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-primary)',
         fontFamily: 'inherit',
         fontVariantNumeric: 'tabular-nums',
         transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -156,16 +159,30 @@ const th = (label: string, align: 'left' | 'right' | 'center' = 'left') => (
 interface UrunSatirlariProps {
   satirlar: TeklifSatiri[];
   paraBirimi: string;
+  satirBazliParaBirimi: boolean;
+  onSatirBazliParaBirimiChange: (aktif: boolean) => void;
   onChange: (satirlar: TeklifSatiri[]) => void;
 }
 
-export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSatirlariProps) {
+export default function UrunSatirlari({
+  satirlar,
+  paraBirimi,
+  satirBazliParaBirimi,
+  onSatirBazliParaBirimiChange,
+  onChange,
+}: UrunSatirlariProps) {
+  const C = useColors();
+  const isMobile = useIsMobile(900);
   const sembol = SEMBOL[paraBirimi] ?? paraBirimi;
+  const PARA_BIRIMI_ETIKETI: Record<string, string> = { TRY: 'TL', EUR: 'EUR', USD: 'USD' };
   const [urunler, setUrunler] = useState<Urun[]>(() => urunService.tumUrunleriGetir());
   const [urunKodArama, setUrunKodArama] = useState<{ satirId: string; deger: string } | null>(null);
   const [markalar] = useState<string[]>(() => referansVeriService.markalar.tumunuGetir());
   const [birimler] = useState<string[]>(() => referansVeriService.birimler.tumunuGetir());
   const [teslimSecenekleri] = useState<string[]>(() => referansVeriService.teslimSecenekleri.tumunuGetir());
+  const [bireyselIskontoAktif, setBireyselIskontoAktif] = useState(
+    () => satirlar.some((s) => s.indirimOrani > 0),
+  );
 
   // ── Enter navigasyon ref'leri ──────────────────────────────────
   type SatirField = 'miktar' | 'birimFiyat' | 'teslimTarihi';
@@ -198,6 +215,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
       urunKod: '',
       urunAdi: '',
       aciklama: '',
+      paraBirimi: hesaplamaMotoru.varsayilanSatirParaBirimi(paraBirimi),
       miktar: 1,
       birim: birimler[0] ?? 'Adet',
       birimFiyat: 0,
@@ -309,7 +327,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
       render: (_: unknown, __: TeklifSatiri, i: number) => (
         <span style={{
           fontSize: 11,
-          color: '#94a3b8',
+          color: C.textFaint,
           fontVariantNumeric: 'tabular-nums',
           fontWeight: 500,
         }}>
@@ -328,7 +346,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
           value={satir.marka || VARSAYILAN_MARKA}
           onChange={(v: string) => guncelle(satir.id, 'marka', v)}
           options={markalar.map((m) => ({ value: m, label: m }))}
-          style={{ width: '100%' }}
+          style={ortakSelectStili}
           dropdownMatchSelectWidth={false}
         />
       ),
@@ -352,7 +370,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
             }}
             showSearch
             size="small"
-            style={{ width: '100%' }}
+            style={ortakSelectStili}
             value={satir.urunKod || undefined}
             placeholder="Kod seçin..."
             optionLabelProp="label"
@@ -383,9 +401,10 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
                       type="dashed"
                       icon={<PlusOutlined />}
                       block
+                      className={buttonClassNames.secondarySmall}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => yeniUrunKodKaydet(satir.id, aramaVal)}
-                      style={{ fontSize: 12, color: '#0f1f45', borderColor: '#d1d9e6' }}
+                      style={{ color: '#0f1f45', borderColor: '#d1d9e6' }}
                     >
                       "{aramaVal}" — yeni ürün kodu olarak kaydet
                     </Button>
@@ -437,11 +456,13 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
           }
           style={{
             fontSize: 11,
-            height: 22,
-            color: '#64748b',
-            borderColor: '#e2e8f0',
-            background: 'transparent',
-            transition: 'border-color 0.15s',
+            height: 30,
+            paddingInline: 10,
+            color: C.textSecondary,
+            borderColor: C.border,
+            background: C.bgSurface,
+            borderRadius: 8,
+            transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
         />
       ),
@@ -473,54 +494,151 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
             value={satir.birim || birimler[0] || 'Adet'}
             onChange={(v: string) => guncelle(satir.id, 'birim', v)}
             options={birimler.map((b) => ({ value: b, label: b }))}
-            style={{ flex: 1, minWidth: 0 }}
+            style={{ ...ortakSelectStili, flex: 1, minWidth: 0 }}
             dropdownMatchSelectWidth={false}
           />
         </div>
       ),
     },
     // ── Birim Fiyat ──────────────────────────────────────────────
+    ...(satirBazliParaBirimi ? [{
+      title: th('Para Birimi', 'center'),
+      key: 'paraBirimi',
+      width: 92,
+      align: 'center' as const,
+      render: (_: unknown, satir: TeklifSatiri) => (
+        <Select
+          size="small"
+          value={hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi)}
+          onChange={(v: 'TRY' | 'EUR' | 'USD') => guncelle(satir.id, 'paraBirimi', v)}
+          options={hesaplamaMotoru.SATIR_PARA_BIRIMLERI.map((pb) => ({
+            value: pb,
+            label: PARA_BIRIMI_ETIKETI[pb],
+          }))}
+          style={ortakSelectStili}
+          dropdownMatchSelectWidth={false}
+        />
+      ),
+    }] : []),
     {
-      title: th(`Birim Fiyat (${sembol})`, 'right'),
+      title: th(satirBazliParaBirimi ? 'Birim Fiyat' : `Birim Fiyat (${sembol})`, 'right'),
       key: 'birimFiyat',
       width: 104,
       align: 'right' as const,
+      render: (_: unknown, satir: TeklifSatiri) => {
+        const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+            <NumericInput
+              value={satir.birimFiyat}
+              onChange={(v) => guncelle(satir.id, 'birimFiyat', v)}
+              precision={2}
+              displayMinDec={2}
+              min={0}
+              placeholder="0,00"
+              textAlign="right"
+              onEnter={() => handleEnter(satir.id, 'birimFiyat')}
+              registerRef={(el) => {
+                if (el) inputRefs.current.set(`${satir.id}:birimFiyat`, el);
+                else inputRefs.current.delete(`${satir.id}:birimFiyat`);
+              }}
+            />
+            {satirBazliParaBirimi && (
+              <span style={{ minWidth: 24, fontSize: 10.5, fontWeight: 700, color: C.textFaint, textAlign: 'right' }}>
+                {PARA_BIRIMI_ETIKETI[satirPb]}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    // ── Bireysel İskonto % — yalnızca iç kullanım, müşteriye gösterilmez ──
+    ...(bireyselIskontoAktif ? [{
+      title: (
+        <Tooltip title="Müşteriye gösterilmez — sadece iç hesaplama" placement="top">
+          <span style={{
+            display: 'block',
+            textAlign: 'center' as const,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: 0.2,
+            color: '#92400e',
+            borderRadius: 3,
+            cursor: 'default',
+          }}>
+            İsk. %
+            <span style={{
+              display: 'block',
+              fontSize: 8.5,
+              fontWeight: 500,
+              color: '#b45309',
+              letterSpacing: 0.1,
+              marginTop: 1,
+            }}>
+              iç kullanım
+            </span>
+          </span>
+        </Tooltip>
+      ),
+      key: 'indirimOrani',
+      width: 72,
+      align: 'center' as const,
+      onHeaderCell: () => ({
+        style: {
+          background: '#fffbeb',
+          borderLeft: '1px dashed #f59e0b',
+          borderRight: '1px dashed #f59e0b',
+        },
+      }),
+      onCell: () => ({
+        style: {
+          background: '#fffdf5',
+          borderLeft: '1px dashed #fde68a',
+          borderRight: '1px dashed #fde68a',
+        },
+      }),
       render: (_: unknown, satir: TeklifSatiri) => (
         <NumericInput
-          value={satir.birimFiyat}
-          onChange={(v) => guncelle(satir.id, 'birimFiyat', v)}
+          value={satir.indirimOrani}
+          onChange={(v) => guncelle(satir.id, 'indirimOrani', v)}
           precision={2}
-          displayMinDec={2}
+          displayMinDec={0}
           min={0}
-          placeholder="0,00"
-          textAlign="right"
-          onEnter={() => handleEnter(satir.id, 'birimFiyat')}
-          registerRef={(el) => {
-            if (el) inputRefs.current.set(`${satir.id}:birimFiyat`, el);
-            else inputRefs.current.delete(`${satir.id}:birimFiyat`);
+          max={100}
+          placeholder="—"
+          textAlign="center"
+          style={{
+            background: 'transparent',
+            borderColor: satir.indirimOrani > 0 ? '#f59e0b' : '#fde68a',
+            color: satir.indirimOrani > 0 ? '#92400e' : '#b45309',
           }}
         />
       ),
-    },
+    }] : []),
     // ── Toplam ───────────────────────────────────────────────────
     {
-      title: th(`Toplam (${sembol})`, 'right'),
+      title: th(satirBazliParaBirimi ? 'Toplam' : `Toplam (${sembol})`, 'right'),
       key: 'satirToplami',
       width: 104,
       align: 'right' as const,
-      render: (_: unknown, satir: TeklifSatiri) => (
-        <span style={{
-          fontWeight: 600,
-          fontSize: 12,
-          display: 'block',
-          textAlign: 'right',
-          color: '#0f1f45',
-          fontVariantNumeric: 'tabular-nums',
-          letterSpacing: 0.1,
-        }}>
-          {satir.satirToplami.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-        </span>
-      ),
+      render: (_: unknown, satir: TeklifSatiri) => {
+        const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi);
+        return (
+          <span style={{
+            fontWeight: 600,
+            fontSize: 12,
+            display: 'block',
+            textAlign: 'right',
+            color: C.textPrimary,
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: 0.1,
+            whiteSpace: 'nowrap',
+          }}>
+            {satir.satirToplami.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+            {satirBazliParaBirimi && ` ${PARA_BIRIMI_ETIKETI[satirPb]}`}
+          </span>
+        );
+      },
     },
     // ── Teslim Tarihi ────────────────────────────────────────────
     {
@@ -534,7 +652,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
           value={satir.teslimTarihi || teslimSecenekleri[0] || '2-3 Gün'}
           onChange={(v: string) => guncelle(satir.id, 'teslimTarihi', v)}
           options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
-          style={{ width: '100%' }}
+          style={ortakSelectStili}
           dropdownMatchSelectWidth={false}
         />
       ),
@@ -551,6 +669,7 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
             danger
             size="small"
             icon={<DeleteOutlined />}
+            className={buttonClassNames.smallActionDanger}
             onClick={() => satirSil(satir.id)}
             style={{ opacity: 0.6 }}
           />
@@ -559,40 +678,196 @@ export default function UrunSatirlari({ satirlar, paraBirimi, onChange }: UrunSa
     },
   ];
 
+  const herhangiIndirimVar = satirlar.some((s) => s.indirimOrani > 0);
+  const satirParaBirimiAciklama = satirBazliParaBirimi
+    ? 'Her satir icin farkli para birimi secebilirsiniz'
+    : '';
+  const ortakSelectStili: CSSProperties = {
+    width: '100%',
+    minHeight: 30,
+  };
+  const tabloYuzeyiStili: CSSProperties = {
+    border: `1px solid ${C.border}`,
+    borderRadius: 14,
+    background: `linear-gradient(180deg, ${C.bgSurface} 0%, ${C.bgElevated} 100%)`,
+    boxShadow: '0 8px 24px rgba(15,31,69,0.06)',
+    overflow: 'hidden',
+  };
+  const ortakKontrolButonStili: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 30,
+    minHeight: 30,
+    padding: '0 12px',
+    fontSize: 11,
+    fontWeight: 600,
+    borderRadius: 7,
+    letterSpacing: 0.2,
+    transition: 'border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  };
+
   return (
-    <div className="urun-tablo">
-      <Table
-        dataSource={satirlar}
-        columns={columns}
-        rowKey="id"
-        pagination={false}
-        size="small"
-        scroll={{ x: 840 }}
-        style={{ marginBottom: 10 }}
-        onRow={(_, idx) => ({
-          style: {
-            background: (idx ?? 0) % 2 === 1 ? '#fafbff' : '#ffffff',
-            transition: 'background 0.1s',
-          },
-        })}
-      />
-      <Button
-        type="dashed"
-        block
-        icon={<PlusOutlined />}
-        onClick={satirEkle}
+    <div className="urun-tablo" style={{ width: '100%' }}>
+
+      {/* ── Üst aksiyon çubuğu ──────────────────────────────── */}
+      <div
         style={{
-          borderRadius: 7,
-          borderColor: '#d1d9e6',
-          color: '#64748b',
-          fontWeight: 500,
-          height: 36,
-          fontSize: 12,
-          letterSpacing: 0.1,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginBottom: 14,
+          flexWrap: 'wrap',
+          gap: 12,
+          alignItems: isMobile ? 'stretch' : 'flex-start',
         }}
       >
-        Kalem Ekle
-      </Button>
+        <Tooltip
+          title="Satır bazlı iç fiyat hesaplama aracı — iskonto müşteriye gösterilmez, PDF'e yansımaz"
+          placement="topRight"
+        >
+        <button
+          type="button"
+          onClick={() => setBireyselIskontoAktif((v) => !v)}
+          style={{
+            ...ortakKontrolButonStili,
+            minWidth: isMobile ? '100%' : 172,
+            border: bireyselIskontoAktif
+              ? '1px dashed #f59e0b'
+              : herhangiIndirimVar
+              ? '1px dashed #f59e0b'
+              : `1px solid ${C.borderInput}`,
+            background: bireyselIskontoAktif ? '#fffbeb' : C.bgSurface,
+            color: bireyselIskontoAktif
+              ? '#92400e'
+              : herhangiIndirimVar
+              ? '#b45309'
+              : C.textSecondary,
+            cursor: 'pointer',
+            boxShadow: bireyselIskontoAktif ? '0 4px 12px rgba(245,158,11,0.12)' : '0 1px 2px rgba(15,31,69,0.04)',
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 700 }}>%</span>
+          İç İskonto Hesabı
+          {!bireyselIskontoAktif && herhangiIndirimVar && (
+            <span style={{
+              display: 'inline-block',
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#f59e0b',
+              marginLeft: 2,
+            }} />
+          )}
+        </button>
+        </Tooltip>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 5,
+            minWidth: 0,
+            flex: isMobile ? '1 1 100%' : '0 1 320px',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => onSatirBazliParaBirimiChange(!satirBazliParaBirimi)}
+            aria-pressed={satirBazliParaBirimi}
+            style={{
+              ...ortakKontrolButonStili,
+              justifyContent: 'flex-start',
+              border: satirBazliParaBirimi ? '1px solid #1e3668' : `1px solid ${C.borderInput}`,
+              background: satirBazliParaBirimi
+                ? 'linear-gradient(135deg, rgba(15,31,69,0.08) 0%, rgba(30,54,104,0.12) 100%)'
+                : C.bgSurface,
+              color: satirBazliParaBirimi ? '#0f1f45' : C.textSecondary,
+              cursor: 'pointer',
+              boxShadow: satirBazliParaBirimi ? '0 6px 14px rgba(15,31,69,0.10)' : '0 1px 2px rgba(15,31,69,0.04)',
+              width: '100%',
+              maxWidth: '100%',
+            }}
+          >
+            <span
+              style={{
+                width: 30,
+                height: 16,
+                borderRadius: 999,
+                background: satirBazliParaBirimi ? '#1e3668' : '#cfd7e3',
+                position: 'relative',
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 2,
+                  left: satirBazliParaBirimi ? 16 : 2,
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  boxShadow: '0 1px 3px rgba(15,23,42,0.18)',
+                  transition: 'left 0.18s ease',
+                }}
+              />
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Satir Bazli Para Birimi Kullan
+            </span>
+          </button>
+          {satirBazliParaBirimi && (
+            <div style={{ fontSize: 11, color: C.textFaint, lineHeight: 1.45, maxWidth: 320, wordBreak: 'break-word', paddingLeft: isMobile ? 2 : 4 }}>
+              {satirParaBirimiAciklama}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={tabloYuzeyiStili}>
+        <Table
+          dataSource={satirlar}
+          columns={columns}
+          rowKey="id"
+          pagination={false}
+          size="small"
+          scroll={{ x: satirBazliParaBirimi ? (bireyselIskontoAktif ? 1100 : 1010) : (bireyselIskontoAktif ? 1000 : 920) }}
+          style={{ marginBottom: 0 }}
+          onRow={(_, idx) => ({
+            style: {
+              background: (idx ?? 0) % 2 === 1 ? C.tableRowAlt : C.tableRow,
+              transition: 'background 0.1s',
+            },
+          })}
+        />
+        <div
+          style={{
+            padding: isMobile ? '12px' : '14px 16px 16px',
+            borderTop: `1px solid ${C.border}`,
+            background: 'linear-gradient(180deg, rgba(15,31,69,0.02) 0%, rgba(15,31,69,0.04) 100%)',
+          }}
+        >
+          <Button
+            type="dashed"
+            block
+            icon={<PlusOutlined />}
+            className={buttonClassNames.secondary}
+            onClick={satirEkle}
+            style={{
+              borderColor: C.borderInput,
+              color: C.textSecondary,
+              height: 38,
+              letterSpacing: 0.1,
+              borderRadius: 10,
+              background: C.bgSurface,
+            }}
+          >
+            Kalem Ekle
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -4,16 +4,14 @@ export interface TeklifSatiri {
   urunKod: string;
   urunAdi: string;
   aciklama: string;
+  paraBirimi?: 'TRY' | 'EUR' | 'USD';
   miktar: number;
   birim: string;
   birimFiyat: number;
   indirimOrani: number;
   teslimTarihi?: string;
   satirToplami: number;
-  /** Kullanıcının elle düzenlediği ikinci satır açıklama (yoksa otomatik üretilir) */
   manuelAltAciklama?: string;
-  /** Bu alanı son güncelleyen kullanıcının adı */
   manuelAciklamaGuncelleyen?: string;
-  /** Son güncelleme zaman damgası (ISO 8601) */
   manuelAciklamaGuncellemeTarihi?: string;
 }

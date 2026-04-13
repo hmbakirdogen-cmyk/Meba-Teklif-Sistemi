@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   Card, Upload, Button, Table, Alert, Typography, Input,
   Space, Divider, Tag, Statistic, Row, Col, Popconfirm, message,
@@ -24,6 +25,7 @@ import {
   stripParantez, formatPdfAciklama, titleCaseAciklama,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
+import { buttonClassNames } from '../styles/buttonStyles';
 
 const { Title, Paragraph } = Typography;
 
@@ -42,6 +44,7 @@ function CariModal({
   onIptal: () => void;
 }) {
   const [form] = Form.useForm();
+  const isMobile = useIsMobile(640);
   const yeni = !cari;
 
   function kaydet() {
@@ -74,7 +77,7 @@ function CariModal({
       onCancel={() => { form.resetFields(); onIptal(); }}
       okText="Kaydet"
       cancelText="İptal"
-      width={560}
+      width={isMobile ? 'calc(100vw - 24px)' : 560}
       afterOpenChange={(open) => {
         if (open && cari) form.setFieldsValue(cari);
         if (open && !cari) form.resetFields();
@@ -143,6 +146,7 @@ function UrunModal({
   onIptal: () => void;
 }) {
   const [form] = Form.useForm();
+  const isMobile = useIsMobile(640);
   const yeni = !urun;
 
   function kaydet() {
@@ -171,7 +175,7 @@ function UrunModal({
       onCancel={() => { form.resetFields(); onIptal(); }}
       okText="Kaydet"
       cancelText="İptal"
-      width={560}
+      width={isMobile ? 'calc(100vw - 24px)' : 560}
       afterOpenChange={(open) => {
         if (open && urun) form.setFieldsValue(urun);
         if (open && !urun) form.resetFields();
@@ -315,14 +319,14 @@ export default function VeriYonetimiSayfasi() {
       title: '', key: 'islem', width: 80, fixed: 'right' as const,
       render: (_: unknown, rec: Cari) => (
         <Space size={4}>
-          <Button size="small" icon={<EditOutlined />}   onClick={() => cariDuzenle(rec)} />
+          <Button size="small" icon={<EditOutlined />} onClick={() => cariDuzenle(rec)} className={buttonClassNames.smallAction} />
           <Popconfirm
             title="Cari silinecek"
             description="Bu işlem geri alınamaz."
             onConfirm={() => cariSil(rec.id)}
             okText="Sil" cancelText="İptal" okButtonProps={{ danger: true }}
           >
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button size="small" danger icon={<DeleteOutlined />} className={buttonClassNames.smallActionDanger} />
           </Popconfirm>
         </Space>
       ),
@@ -345,14 +349,14 @@ export default function VeriYonetimiSayfasi() {
       title: '', key: 'islem', width: 80, fixed: 'right' as const,
       render: (_: unknown, rec: Urun) => (
         <Space size={4}>
-          <Button size="small" icon={<EditOutlined />}   onClick={() => urunDuzenle(rec)} />
+          <Button size="small" icon={<EditOutlined />} onClick={() => urunDuzenle(rec)} className={buttonClassNames.smallAction} />
           <Popconfirm
             title="Ürün silinecek"
             description="Bu işlem geri alınamaz."
             onConfirm={() => urunSil(rec.id)}
             okText="Sil" cancelText="İptal" okButtonProps={{ danger: true }}
           >
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button size="small" danger icon={<DeleteOutlined />} className={buttonClassNames.smallActionDanger} />
           </Popconfirm>
         </Space>
       ),
@@ -364,14 +368,14 @@ export default function VeriYonetimiSayfasi() {
     <div>
       {/* Araç çubuğu */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={cariEkleAc}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={cariEkleAc} className={buttonClassNames.primary}>
           Yeni Cari
         </Button>
         <Upload accept=".xlsx,.xls" showUploadList={false}
           beforeUpload={(f: UploadFile) => cariDosyaOku(f as unknown as File)}>
-          <Button icon={<UploadOutlined />} loading={cariYukleniyor}>Excel'den Aktar</Button>
+          <Button icon={<UploadOutlined />} loading={cariYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
         </Upload>
-        <Button icon={<DownloadOutlined />} onClick={() => cariExcelIndir(cariler)}
+        <Button icon={<DownloadOutlined />} onClick={() => cariExcelIndir(cariler)} className={buttonClassNames.secondary}
           disabled={cariler.length === 0}>
           Excel İndir
         </Button>
@@ -409,14 +413,14 @@ export default function VeriYonetimiSayfasi() {
     <div>
       {/* Araç çubuğu */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={urunEkleAc}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={urunEkleAc} className={buttonClassNames.primary}>
           Yeni Ürün
         </Button>
         <Upload accept=".xlsx,.xls" multiple showUploadList={false}
           beforeUpload={(f: UploadFile) => urunDosyaOku(f as unknown as File)}>
-          <Button icon={<UploadOutlined />} loading={urunYukleniyor}>Excel'den Aktar</Button>
+          <Button icon={<UploadOutlined />} loading={urunYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
         </Upload>
-        <Button icon={<DownloadOutlined />} onClick={() => urunExcelIndir(urunler)}
+        <Button icon={<DownloadOutlined />} onClick={() => urunExcelIndir(urunler)} className={buttonClassNames.secondary}
           disabled={urunler.length === 0}>
           Excel İndir
         </Button>
@@ -431,7 +435,7 @@ export default function VeriYonetimiSayfasi() {
           }}
           okText="Temizle" cancelText="İptal"
         >
-          <Button icon={<ClearOutlined />}>Açıklamaları Temizle</Button>
+          <Button icon={<ClearOutlined />} className={buttonClassNames.secondary}>Açıklamaları Temizle</Button>
         </Popconfirm>
         <Divider type="vertical" style={{ margin: '4px 0' }} />
         <Popconfirm
@@ -440,7 +444,7 @@ export default function VeriYonetimiSayfasi() {
           onConfirm={urunleriSifirla}
           okText="Evet, sıfırla" cancelText="İptal" okButtonProps={{ danger: true }}
         >
-          <Button icon={<ReloadOutlined />} danger>Varsayılana Sıfırla</Button>
+          <Button icon={<ReloadOutlined />} danger className={buttonClassNames.danger}>Varsayılana Sıfırla</Button>
         </Popconfirm>
       </div>
 
@@ -507,9 +511,11 @@ export default function VeriYonetimiSayfasi() {
     </Row>
   );
 
+  const isMobile = useIsMobile(768);
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 12px' : '24px', maxWidth: 1200, margin: '0 auto' }}>
       <Title level={4} style={{ marginBottom: 4 }}>Veri Yönetimi</Title>
       <Paragraph type="secondary" style={{ marginBottom: 20 }}>
         Cari ve ürün verilerini yönetin. Veriler tarayıcıda kalıcı olarak saklanır.
@@ -597,7 +603,7 @@ function ReferansListeKarti({
           onPressEnter={ekle}
           maxLength={60}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={ekle} />
+        <Button type="primary" icon={<PlusOutlined />} onClick={ekle} className={buttonClassNames.iconPrimary} />
       </Space.Compact>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {liste.length === 0 && <span style={{ color: '#9ca3af', fontSize: 12 }}>Henüz kayıt yok.</span>}

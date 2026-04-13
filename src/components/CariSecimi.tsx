@@ -9,6 +9,8 @@ import {
   normalizeEmail,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
+import { buttonClassNames } from '../styles/buttonStyles';
+import { useColors } from '../hooks/useColors';
 
 const { Option } = Select;
 
@@ -18,6 +20,7 @@ interface CariSecimiProps {
 }
 
 export default function CariSecimi({ value, onChange }: CariSecimiProps) {
+  const C = useColors();
   // Lazy initial state — mount'ta bir kez okunur, sonraki değişiklikler
   // yeniCariKaydet içinden manuel setCariler ile tetiklenir.
   const [cariler, setCariler] = useState<Cari[]>(() => cariService.tumCarileriGetir());
@@ -81,7 +84,7 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
             </Option>
           ))}
         </Select>
-        <Button icon={<PlusOutlined />} onClick={() => setModalAcik(true)}>
+        <Button icon={<PlusOutlined />} onClick={() => setModalAcik(true)} className={buttonClassNames.secondary}>
           Yeni Cari
         </Button>
       </Space.Compact>
@@ -90,9 +93,9 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
         <div style={{
           marginTop: 10,
           padding: '10px 14px',
-          background: '#f8fafc',
+          background: C.bgElevated,
           borderRadius: 8,
-          border: '1px solid #e2e8f0',
+          border: `1px solid ${C.border}`,
           lineHeight: 1.6,
         }}>
           {/* Firma adı + kod */}
@@ -100,37 +103,37 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
             <span style={{
               fontSize: 10,
               fontWeight: 700,
-              color: '#94a3b8',
+              color: C.textFaint,
               letterSpacing: 1.0,
               textTransform: 'uppercase',
               fontVariantNumeric: 'tabular-nums',
             }}>
               {value.cariKod}
             </span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f1f45', letterSpacing: -0.2 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, letterSpacing: -0.2 }}>
               {value.firmaAdi}
             </span>
           </div>
           {/* İkincil bilgiler */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px 16px' }}>
             {value.yetkiliKisi && (
-              <span style={{ fontSize: 12, color: '#475569' }}>Sayın {value.yetkiliKisi}</span>
+              <span style={{ fontSize: 12, color: C.textSecondary }}>Sayın {value.yetkiliKisi}</span>
             )}
             {value.telefon && (
-              <span style={{ fontSize: 12, color: '#64748b' }}>{value.telefon}</span>
+              <span style={{ fontSize: 12, color: C.textSecondary }}>{value.telefon}</span>
             )}
             {value.ePosta && (
               <span style={{ fontSize: 12, color: '#2563eb' }}>{value.ePosta}</span>
             )}
             {value.vergiNo && (
-              <span style={{ fontSize: 12, color: '#64748b' }}>
+              <span style={{ fontSize: 12, color: C.textSecondary }}>
                 VKN: {value.vergiNo}
-                {value.vergiDairesi && <span style={{ color: '#94a3b8' }}> — {value.vergiDairesi} V.D.</span>}
+                {value.vergiDairesi && <span style={{ color: C.textFaint }}> — {value.vergiDairesi} V.D.</span>}
               </span>
             )}
           </div>
           {value.adres && (
-            <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11, wordBreak: 'break-word' }}>
+            <div style={{ marginTop: 3, color: C.textFaint, fontSize: 11, wordBreak: 'break-word' }}>
               {value.adres}
             </div>
           )}

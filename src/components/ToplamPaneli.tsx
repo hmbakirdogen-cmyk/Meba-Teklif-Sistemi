@@ -1,34 +1,74 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { formatCurrency } from '../utils/formatters';
-import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
+import { hesaplamaMotoru, type ParaBirimiToplamlari } from '../services/hesaplamaMotoru';
+import { chipButtonClassName } from '../styles/buttonStyles';
+import { useColors } from '../hooks/useColors';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface ToplamPaneliProps {
   araToplam: number;
   toplamIndirim: number;
   paraBirimi: string;
+  satirBazliParaBirimi: boolean;
+  satirParaToplamlari: ParaBirimiToplamlari;
   kdvOrani: number;
   onKdvOraniChange: (oran: number) => void;
   iskontoOrani: number;
   onIskontoOraniChange: (oran: number) => void;
 }
 
+const PB_LABEL: Record<'TRY' | 'EUR' | 'USD', string> = {
+  TRY: 'Turk Lirasi',
+  EUR: 'Euro',
+  USD: 'Amerikan Dolari',
+};
+
+const PB_SHORT: Record<'TRY' | 'EUR' | 'USD', string> = {
+  TRY: 'TL',
+  EUR: 'EUR',
+  USD: 'USD',
+};
+
 export default function ToplamPaneli({
   araToplam,
   toplamIndirim,
   paraBirimi,
+  satirBazliParaBirimi,
+  satirParaToplamlari,
   kdvOrani,
   onKdvOraniChange,
   iskontoOrani,
   onIskontoOraniChange,
 }: ToplamPaneliProps) {
-  const f = (n: number) => formatCurrency(n, paraBirimi);
+  const C = useColors();
+  const isMobile = useIsMobile(900);
+  const formatTek = (n: number) => formatCurrency(n, paraBirimi);
 
-  // ── KDV ──────────────────────────────────────────────────────────────────
-  // Son geçerli KDV oranını hatırla; KDV kapatılıp tekrar açıldığında kullanılır
   const [lastKdvRate, setLastKdvRate] = useState(kdvOrani > 0 ? kdvOrani : 20);
-
   const [kdvRateEditing, setKdvRateEditing] = useState(false);
   const [kdvRateDraft, setKdvRateDraft] = useState('');
+  const [lastIskontoRate, setLastIskontoRate] = useState(iskontoOrani > 0 ? iskontoOrani : 10);
+  const [iskontoRateEditing, setIskontoRateEditing] = useState(false);
+  const [iskontoRateDraft, setIskontoRateDraft] = useState('');
+
+  const toplamlar = hesaplamaMotoru.teklifToplamlariniHesapla({ araToplam, kdvOrani, iskontoOrani });
+  const kdvAktif = kdvOrani > 0;
+  const iskontoAktif = iskontoOrani > 0;
+
+  const paraKartlari = useMemo(
+    () =>
+      (['TRY', 'EUR', 'USD'] as const).map((pb) => ({
+        pb,
+        label: PB_LABEL[pb],
+        short: PB_SHORT[pb],
+        ...hesaplamaMotoru.teklifToplamlariniHesapla({
+          araToplam: satirParaToplamlari[pb],
+          kdvOrani,
+          iskontoOrani,
+        }),
+      })),
+    [satirParaToplamlari, kdvOrani, iskontoOrani],
+  );
 
   function commitKdvRate() {
     const v = parseFloat(kdvRateDraft.replace(',', '.'));
@@ -40,22 +80,6 @@ export default function ToplamPaneli({
     setKdvRateEditing(false);
   }
 
-  const handleKDV = () => {
-    if (kdvAktif) {
-      setLastKdvRate(kdvOrani);
-      onKdvOraniChange(0);
-      return;
-    }
-    onKdvOraniChange(lastKdvRate);
-  };
-
-  // ── İSKONTO ──────────────────────────────────────────────────────────────
-  // KDV ile birebir aynı yapı; fark: prop bazlı oran + toplamdan düşme
-  const [lastIskontoRate, setLastIskontoRate] = useState(iskontoOrani > 0 ? iskontoOrani : 10);
-
-  const [iskontoRateEditing, setIskontoRateEditing] = useState(false);
-  const [iskontoRateDraft, setIskontoRateDraft] = useState('');
-
   function commitIskontoRate() {
     const v = parseFloat(iskontoRateDraft.replace(',', '.'));
     if (!isNaN(v) && v > 0 && v <= 100) {
@@ -66,6 +90,15 @@ export default function ToplamPaneli({
     setIskontoRateEditing(false);
   }
 
+  const handleKDV = () => {
+    if (kdvAktif) {
+      setLastKdvRate(kdvOrani);
+      onKdvOraniChange(0);
+      return;
+    }
+    onKdvOraniChange(lastKdvRate);
+  };
+
   const handleIskonto = () => {
     if (iskontoAktif) {
       setLastIskontoRate(iskontoOrani);
@@ -75,210 +108,339 @@ export default function ToplamPaneli({
     onIskontoOraniChange(lastIskontoRate);
   };
 
-  // ── Hesaplamalar — ortak fonksiyon (TeklifSablonu ile aynı kaynak) ──────
-  const { iskontoTutar, kdvTutar: hesaplananKdv, genelToplam: hesaplananGenel } =
-    hesaplamaMotoru.teklifToplamlariniHesapla({ araToplam, kdvOrani, iskontoOrani });
-  const kdvAktif     = kdvOrani > 0;
-  const iskontoAktif = iskontoOrani > 0;
-
-  // ── Stiller ──────────────────────────────────────────────────────────────
-  const row: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '8px 16px',
-    borderBottom: '1px solid #f0f4f8',
-    fontSize: 13,
-  };
-  const lbl: React.CSSProperties = {
-    fontWeight: 500,
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0.1,
-  };
-  const val: React.CSSProperties = {
-    fontWeight: 500,
-    color: '#0f1f45',
-    fontVariantNumeric: 'tabular-nums',
-    fontSize: 13,
-    letterSpacing: 0.1,
-  };
-
-  // KDV/İskonto satır içi oran input stili — ikisi de ortak kullanır
   const inlineInputStyle: React.CSSProperties = {
-    width: 36,
-    height: 18,
-    fontSize: 12,
+    width: 38,
+    height: 20,
+    fontSize: 11,
     padding: '0 4px',
     border: '1px solid #2563eb',
-    borderRadius: 4,
+    borderRadius: 5,
     outline: 'none',
     textAlign: 'center',
     fontFamily: 'inherit',
-    color: '#0f1f45',
-    verticalAlign: 'middle',
+    color: C.textPrimary,
+    background: C.bgInput,
     boxShadow: '0 0 0 3px rgba(37,99,235,0.10)',
   };
 
   const editableRateStyle: React.CSSProperties = {
     cursor: 'pointer',
     textDecoration: 'underline dotted',
-    color: '#0f1f45',
-    fontWeight: 600,
+    color: C.textPrimary,
+    fontWeight: 700,
   };
 
-  // Genel Toplam bar'ındaki toggle buton stili — her iki buton da ortak kullanır
-  const toggleBtnStyle = (aktif: boolean): React.CSSProperties => ({
-    display: 'inline-flex',
+  const cardStyle: React.CSSProperties = {
+    width: '100%',
+    border: `1px solid ${C.totalsBorder}`,
+    borderRadius: 18,
+    background: `linear-gradient(180deg, ${C.bgSurface} 0%, ${C.totalsPanel} 100%)`,
+    boxShadow: '0 12px 36px rgba(15,31,69,0.08), 0 2px 10px rgba(15,31,69,0.05)',
+    overflow: 'hidden',
+  };
+
+  const sectionPad = isMobile ? '16px 16px 14px' : '18px 20px 16px';
+  const breakdownValueGrid: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gap: isMobile ? 8 : 14,
+    width: '100%',
     alignItems: 'center',
-    padding: '3px 10px',
-    border: '1px solid rgba(255,255,255,0.25)',
-    borderRadius: 5,
-    background: aktif ? 'rgba(255,255,255,0.15)' : 'transparent',
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: 'pointer',
-    letterSpacing: 0.3,
-    transition: 'background 0.15s',
-    userSelect: 'none',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-    boxShadow: aktif ? 'inset 0 1px 0 rgba(255,255,255,0.10)' : 'none',
-  });
+  };
+
+  function breakdownRow(
+    label: React.ReactNode,
+    values: React.ReactNode,
+    opts?: { emphasize?: boolean; borderless?: boolean; negative?: boolean },
+  ) {
+    return (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : satirBazliParaBirimi ? '170px 1fr' : '170px 1fr',
+          gap: isMobile ? 8 : 18,
+          alignItems: 'center',
+          padding: isMobile ? '13px 16px' : '13px 20px',
+          borderBottom: opts?.borderless ? 'none' : `1px solid ${C.totalsRowBorder}`,
+          background: opts?.emphasize ? 'rgba(15,31,69,0.025)' : 'transparent',
+        }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: opts?.negative ? '#b45309' : C.textSecondary,
+            lineHeight: 1.45,
+          }}
+        >
+          {label}
+        </div>
+        <div>{values}</div>
+      </div>
+    );
+  }
+
+  function currencyValueGrid(selector: (item: (typeof paraKartlari)[number]) => number, options?: { negative?: boolean; bold?: boolean }) {
+    return (
+      <div style={breakdownValueGrid}>
+        {paraKartlari.map((item) => (
+          <div
+            key={`${item.pb}-${String(options?.bold)}-${String(options?.negative)}`}
+            style={{
+              display: 'flex',
+              justifyContent: isMobile ? 'space-between' : 'flex-end',
+              alignItems: 'center',
+              gap: 10,
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                display: isMobile ? 'inline-block' : 'none',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.6,
+                color: C.textFaint,
+                textTransform: 'uppercase',
+                flexShrink: 0,
+              }}
+            >
+              {item.short}
+            </span>
+            <span
+              style={{
+                fontSize: options?.bold ? 14 : 13,
+                fontWeight: options?.bold ? 800 : 700,
+                color: options?.negative ? '#c2410c' : C.textPrimary,
+                fontVariantNumeric: 'tabular-nums',
+                whiteSpace: 'nowrap',
+                textAlign: 'right',
+              }}
+            >
+              {options?.negative ? '- ' : ''}{formatCurrency(selector(item), item.pb)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-      <div style={{
-        width: 390,
-        border: '1px solid #e2e8f0',
-        borderRadius: 10,
-        overflow: 'hidden',
-        background: '#fafbfd',
-        boxShadow: '0 1px 3px rgba(15,31,69,0.06)',
-      }}>
-
-        {/* Ara Toplam — KDV veya iskonto aktifken göster */}
-        {(kdvAktif || iskontoAktif) && (
-          <div style={row}>
-            <span style={lbl}>Ara Toplam</span>
-            <span style={val}>{f(araToplam)}</span>
+    <div style={cardStyle}>
+      <div
+        style={{
+          padding: sectionPad,
+          borderBottom: `1px solid ${C.totalsRowBorder}`,
+          background: 'linear-gradient(135deg, rgba(15,31,69,0.03) 0%, rgba(15,31,69,0.00) 100%)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'stretch' : 'center',
+            justifyContent: 'space-between',
+            gap: isMobile ? 14 : 20,
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: C.textFaint,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                marginBottom: 6,
+              }}
+            >
+              {satirBazliParaBirimi ? 'Para Birimine Gore Toplamlar' : 'Genel Toplam'}
+            </div>
+            {satirBazliParaBirimi && (
+              <div
+                style={{
+                  fontSize: isMobile ? 12 : 13,
+                  color: C.textSecondary,
+                  lineHeight: 1.5,
+                  maxWidth: 460,
+                }}
+              >
+                Her para birimi (TL, EUR, USD) icin toplamlar ayri hesaplanir.
+              </div>
+            )}
           </div>
-        )}
 
-        {/* İskonto satırı — KDV satırıyla birebir aynı yapı, fark: kırmızı + eksi */}
-        {iskontoAktif && (
-          <div style={row}>
-            <span style={{ ...lbl, color: '#dc2626' }}>
-              (–) İskonto (%
-              {iskontoRateEditing ? (
-                <input
-                  autoFocus
-                  value={iskontoRateDraft}
-                  onChange={(e) => setIskontoRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
-                  onBlur={commitIskontoRate}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitIskontoRate();
-                    if (e.key === 'Escape') setIskontoRateEditing(false);
+          {satirBazliParaBirimi ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(132px, 1fr))',
+                gap: 12,
+                width: isMobile ? '100%' : 'min(100%, 520px)',
+              }}
+            >
+              {paraKartlari.map((item) => (
+                <div
+                  key={item.pb}
+                  style={{
+                    borderRadius: 14,
+                    padding: isMobile ? '12px 14px' : '14px 15px',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,248,252,0.98) 100%)',
+                    border: `1px solid ${C.border}`,
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 14px rgba(15,31,69,0.04)',
                   }}
-                  style={inlineInputStyle}
-                />
-              ) : (
-                <span
-                  onClick={() => { setIskontoRateDraft(String(iskontoOrani)); setIskontoRateEditing(true); }}
-                  title="Oranı değiştirmek için tıklayın"
-                  style={editableRateStyle}
                 >
-                  {iskontoOrani}
-                </span>
-              )}
-              )
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textFaint, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
+                    {item.short}
+                  </div>
+                  <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: C.textPrimary, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                    {formatCurrency(item.genelToplam, item.pb)}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 4, lineHeight: 1.35 }}>
+                    {item.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                minWidth: isMobile ? '100%' : 260,
+                borderRadius: 16,
+                padding: isMobile ? '15px 16px' : '18px 20px',
+                background: 'linear-gradient(112deg, #0d1b3e 0%, #132448 38%, #1a2f5e 100%)',
+                boxShadow: '0 10px 28px rgba(15,31,69,0.22)',
+                textAlign: isMobile ? 'left' : 'right',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.68)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+                Nihai Tutar
+              </div>
+              <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.08, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {formatTek(toplamlar.genelToplam)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {breakdownRow(
+        'Ara Toplam',
+        satirBazliParaBirimi
+          ? currencyValueGrid((item) => item.araToplam)
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{formatTek(araToplam)}</span></div>,
+      )}
+
+      {iskontoAktif && breakdownRow(
+        <>
+          (-) Iskonto (%
+          {iskontoRateEditing ? (
+            <input
+              autoFocus
+              value={iskontoRateDraft}
+              onChange={(e) => setIskontoRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
+              onBlur={commitIskontoRate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitIskontoRate();
+                if (e.key === 'Escape') setIskontoRateEditing(false);
+              }}
+              style={inlineInputStyle}
+            />
+          ) : (
+            <span
+              onClick={() => { setIskontoRateDraft(String(iskontoOrani)); setIskontoRateEditing(true); }}
+              title="Orani degistirmek icin tiklayin"
+              style={editableRateStyle}
+            >
+              {iskontoOrani}
             </span>
-            <span style={{ ...val, color: '#dc2626' }}>– {f(iskontoTutar)}</span>
-          </div>
-        )}
+          )}
+          )
+        </>,
+        satirBazliParaBirimi
+          ? currencyValueGrid((item) => item.iskontoTutar, { negative: true })
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', fontVariantNumeric: 'tabular-nums' }}>- {formatTek(toplamlar.iskontoTutar)}</span></div>,
+        { negative: true },
+      )}
 
-        {/* İndirim — satır bazlı indirim varsa */}
-        {toplamIndirim > 0 && (
-          <div style={row}>
-            <span style={{ ...lbl, color: '#dc2626' }}>(–) İndirim</span>
-            <span style={{ ...val, color: '#dc2626' }}>– {f(toplamIndirim)}</span>
-          </div>
-        )}
+      {toplamIndirim > 0 && breakdownRow(
+        '(-) Indirim',
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', fontVariantNumeric: 'tabular-nums' }}>- {formatTek(toplamIndirim)}</span></div>,
+        { negative: true },
+      )}
 
-        {/* KDV satırı */}
-        {kdvAktif && (
-          <div style={{ ...row, borderBottom: '1px solid #d1d9e6' }}>
-            <span style={lbl}>
-              KDV (%
-              {kdvRateEditing ? (
-                <input
-                  autoFocus
-                  value={kdvRateDraft}
-                  onChange={(e) => setKdvRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
-                  onBlur={commitKdvRate}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitKdvRate();
-                    if (e.key === 'Escape') setKdvRateEditing(false);
-                  }}
-                  style={inlineInputStyle}
-                />
-              ) : (
-                <span
-                  onClick={() => { setKdvRateDraft(String(kdvOrani)); setKdvRateEditing(true); }}
-                  title="Oranı değiştirmek için tıklayın"
-                  style={editableRateStyle}
-                >
-                  {kdvOrani}
-                </span>
-              )}
-              )
+      {kdvAktif && breakdownRow(
+        <>
+          KDV (%
+          {kdvRateEditing ? (
+            <input
+              autoFocus
+              value={kdvRateDraft}
+              onChange={(e) => setKdvRateDraft(e.target.value.replace(/[^\d.,]/g, ''))}
+              onBlur={commitKdvRate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitKdvRate();
+                if (e.key === 'Escape') setKdvRateEditing(false);
+              }}
+              style={inlineInputStyle}
+            />
+          ) : (
+            <span
+              onClick={() => { setKdvRateDraft(String(kdvOrani)); setKdvRateEditing(true); }}
+              title="Orani degistirmek icin tiklayin"
+              style={editableRateStyle}
+            >
+              {kdvOrani}
             </span>
-            <span style={val}>{f(hesaplananKdv)}</span>
-          </div>
-        )}
+          )}
+          )
+        </>,
+        satirBazliParaBirimi
+          ? currencyValueGrid((item) => item.kdvTutar)
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{formatTek(toplamlar.kdvTutar)}</span></div>,
+      )}
 
-        {/* Genel Toplam */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '11px 16px',
-          background: 'linear-gradient(180deg, #1a2f5e 0%, #0f1f45 100%)',
-          gap: 10,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            {/* KDV toggle butonu */}
-            <button onClick={handleKDV} style={toggleBtnStyle(kdvAktif)}>
+      {breakdownRow(
+        satirBazliParaBirimi ? 'Genel Toplamlar' : 'Genel Toplam',
+        satirBazliParaBirimi
+          ? currencyValueGrid((item) => item.genelToplam, { bold: true })
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{formatTek(toplamlar.genelToplam)}</span></div>,
+        { borderless: true, emphasize: true },
+      )}
+
+      <div
+        style={{
+          padding: isMobile ? '14px 16px 16px' : '16px 20px 20px',
+          borderTop: `1px solid ${C.totalsRowBorder}`,
+          background: 'linear-gradient(180deg, rgba(15,31,69,0.025) 0%, rgba(15,31,69,0.05) 100%)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'stretch' : 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>
+              Hizli Kontroller
+            </div>
+            <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.45 }}>
+              KDV ve iskonto ayarlari teklif yerlesiminden bagimsiz calisir.
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: isMobile ? 'stretch' : 'flex-end', alignItems: 'center' }}>
+            <button onClick={handleKDV} className={chipButtonClassName(kdvAktif)}>
               {kdvAktif ? `✓ KDV %${kdvOrani}` : `+ KDV %${lastKdvRate}`}
             </button>
-
-            {/* İskonto toggle butonu — KDV butonuyla birebir aynı yapı */}
-            <button onClick={handleIskonto} style={toggleBtnStyle(iskontoAktif)}>
-              {iskontoAktif ? `✓ İskonto %${iskontoOrani}` : `+ İskonto %${lastIskontoRate}`}
+            <button onClick={handleIskonto} className={chipButtonClassName(iskontoAktif)}>
+              {iskontoAktif ? `✓ Iskonto %${iskontoOrani}` : `+ Iskonto %${lastIskontoRate}`}
             </button>
-
-            <span style={{
-              fontWeight: 700,
-              fontSize: 11,
-              color: 'rgba(255,255,255,0.70)',
-              letterSpacing: 1.0,
-              textTransform: 'uppercase' as const,
-              whiteSpace: 'nowrap' as const,
-            }}>
-              Genel Toplam
-            </span>
           </div>
-          <span style={{
-            fontWeight: 700,
-            fontSize: 18,
-            color: '#ffffff',
-            fontVariantNumeric: 'tabular-nums',
-            letterSpacing: 0.2,
-            whiteSpace: 'nowrap' as const,
-          }}>
-            {f(hesaplananGenel)}
-          </span>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KULLANICILAR } from '../types/kullanici';
 import type { Kullanici } from '../types/kullanici';
 import { useKullanici } from '../context/useKullanici';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 /* ── Renk yardımcıları ─────────────────────────────────── */
 const gold   = (a: number) => `rgba(185,148,52,${a})`;
@@ -289,6 +290,7 @@ function KullaniciKarti({ kullanici, onSecim }: { kullanici: Kullanici; onSecim:
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const isAdmin = kullanici.rol === 'admin';
+  const isMobile = useIsMobile(480);
 
   const borderColor = hovered || pressed
     ? isAdmin ? 'rgba(195,158,65,0.48)' : 'rgba(75,135,220,0.46)'
@@ -324,7 +326,8 @@ function KullaniciKarti({ kullanici, onSecim }: { kullanici: Kullanici; onSecim:
       onMouseUp={() => setPressed(false)}
       onKeyDown={(e) => e.key === 'Enter' && onSecim(kullanici)}
       style={{
-        width: isAdmin ? 228 : 204,
+        width: isMobile ? '100%' : (isAdmin ? 228 : 204),
+        maxWidth: isAdmin ? 228 : 204,
         padding: '30px 24px 26px',
         borderRadius: 14, cursor: 'pointer',
         border: `1px solid ${borderColor}`,
@@ -381,6 +384,7 @@ function KullaniciKarti({ kullanici, onSecim }: { kullanici: Kullanici; onSecim:
 /* ── Ana Giriş Ekranı ────────────────────────────────────── */
 export default function GirisEkrani() {
   const { girisYap } = useKullanici();
+  const isMobile = useIsMobile(480);
   const [secilenId, setSecilenId] = useState<string | null>(null);
 
   function handleSecim(kullanici: Kullanici) {
@@ -444,7 +448,7 @@ export default function GirisEkrani() {
         position: 'relative',
       }}>
         <div style={{
-          padding: '22px 48px', borderRadius: 18,
+          padding: isMobile ? '14px 28px' : '22px 48px', borderRadius: 18,
           background: 'rgba(7,15,34,0.74)',
           backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)',
           border: `1px solid ${gold(0.12)}`,
@@ -460,7 +464,7 @@ export default function GirisEkrani() {
             src="/logo-meba.png"
             alt="MEBA Mekanik"
             style={{
-              height: 128, width: 'auto', display: 'block',
+              height: isMobile ? 88 : 128, width: 'auto', display: 'block',
               imageRendering: 'auto',
               filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.45))',
             }}
@@ -486,7 +490,7 @@ export default function GirisEkrani() {
 
       {/* ── BAŞLIK ── */}
       <div style={{
-        marginBottom: 42, textAlign: 'center',
+        marginBottom: isMobile ? 28 : 42, textAlign: 'center',
         animation: 'fadeUp 0.46s ease both',
         animationDelay: '0.11s',
       }}>
@@ -499,7 +503,7 @@ export default function GirisEkrani() {
           Pnömatik &nbsp;·&nbsp; Hidrolik &nbsp;·&nbsp; Makina &nbsp;·&nbsp; Mühendislik
         </div>
         <div style={{
-          fontSize: 21, letterSpacing: 1.2,
+          fontSize: isMobile ? 17 : 21, letterSpacing: 1.2,
           color: 'rgba(215,228,248,0.88)',
           fontWeight: 700, lineHeight: 1.25,
           textShadow: '0 1px 4px rgba(0,0,0,0.38)',

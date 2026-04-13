@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { Alert, Button, Space, Spin, message } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -14,14 +15,19 @@ import TeklifSablonu from '../templates/TeklifSablonu';
 import { teklifService } from '../services/teklifService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import type { Teklif } from '../types';
+import { buttonClassNames } from '../styles/buttonStyles';
+import { useColors } from '../hooks/useColors';
+import { useTheme } from '../context/useTheme';
 
+// scale:5 → ~480 DPI eşdeğeri (210mm A4 @ 96dpi × 5 ≈ 3969px)
+// 300 DPI lazer yazıcı: 2480px gerekli → yeterli kalite marjı
 const HTML2CANVAS_OPTIONS = {
   scale: 5,
   useCORS: true,
   logging: false,
   backgroundColor: '#ffffff',
   allowTaint: false,
-  imageTimeout: 0,
+  imageTimeout: 15000,
 };
 
 async function buildPdf(sablonEl: HTMLElement): Promise<jsPDF> {
@@ -81,6 +87,9 @@ export default function TeklifOnizleme() {
   const uretiliyorRef = useRef(false);
   const sonOtomatikUretimRef = useRef<string | null>(null);
 
+  const isMobile = useIsMobile(768);
+  const C = useColors();
+  const { isDark } = useTheme();
   const [teklif, setTeklif] = useState<Teklif | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
@@ -171,8 +180,8 @@ export default function TeklifOnizleme() {
     return (
       <div style={{ padding: 40, maxWidth: 480, margin: '0 auto' }}>
         <Alert type="error" message={hata} style={{ marginBottom: 16 }} />
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/teklifler')}>
-          Listeye Don
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/teklifler')} className={buttonClassNames.secondary}>
+          Listeye Dön
         </Button>
       </div>
     );
@@ -200,11 +209,11 @@ export default function TeklifOnizleme() {
           position: 'sticky',
           top: 0,
           zIndex: 200,
-          background: 'rgba(255,255,255,0.96)',
+          background: isDark ? 'rgba(24,27,37,0.96)' : 'rgba(255,255,255,0.96)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
-          borderBottom: '1px solid #e9ecef',
-          padding: '0 28px',
+          borderBottom: `1px solid ${C.border}`,
+          padding: isMobile ? '0 10px' : '0 28px',
           minHeight: 54,
           display: 'flex',
           alignItems: 'center',
@@ -218,24 +227,24 @@ export default function TeklifOnizleme() {
           <Button
             icon={<ArrowLeftOutlined />}
             size="small"
+            className={buttonClassNames.secondarySmall}
             onClick={() => navigate(`/teklif/${id}`)}
-            style={{ fontWeight: 500 }}
           >
-            Duzenle
+            Düzenle
           </Button>
           <span
             style={{
               fontSize: 12,
-              color: '#6b7280',
+              color: C.textSecondary,
               letterSpacing: 0.3,
-              borderLeft: '1px solid #e5e7eb',
+              borderLeft: `1px solid ${C.border}`,
               paddingLeft: 12,
               minWidth: 0,
             }}
           >
             {teklif.teklifNo}
-            <span style={{ marginLeft: 8, color: '#94a3b8' }}>·</span>
-            <span style={{ marginLeft: 8, color: '#374151', fontWeight: 500 }}>
+            <span style={{ marginLeft: 8, color: C.textFaint }}>·</span>
+            <span style={{ marginLeft: 8, color: C.textPrimary, fontWeight: 500 }}>
               {teklif.cari.firmaAdi}
             </span>
           </span>
@@ -245,6 +254,7 @@ export default function TeklifOnizleme() {
           <Button
             size="small"
             icon={<SaveOutlined />}
+            className={buttonClassNames.secondarySmall}
             onClick={() => {
               teklifService.teklifKaydet(teklif);
               message.success('Teklif kaydedildi.');
@@ -255,6 +265,7 @@ export default function TeklifOnizleme() {
           <Button
             size="small"
             icon={<ReloadOutlined />}
+            className={buttonClassNames.ghostSmall}
             loading={uretiliyor}
             onClick={() => {
               void pdfOlustur();
@@ -262,25 +273,27 @@ export default function TeklifOnizleme() {
           >
             Yenile
           </Button>
-          <Button size="small" icon={<PrinterOutlined />} onClick={yazdir}>
-            Yazdir
+          <Button size="small" icon={<PrinterOutlined />} onClick={yazdir} className={buttonClassNames.ghostSmall}>
+            Yazdır
           </Button>
           <Button
             type="primary"
             size="small"
             icon={<FilePdfOutlined />}
+            className={buttonClassNames.primarySmall}
             loading={uretiliyor && !pdfBlob}
             disabled={!pdfBlob}
             onClick={pdfIndir}
             style={{ background: '#0f1f45', borderColor: '#0f1f45' }}
           >
-            PDF Indir
+            PDF İndir
           </Button>
         </Space>
       </div>
 
       <div
         aria-hidden
+        className="no-print"
         style={{
           position: 'fixed',
           left: '-9999px',
@@ -297,6 +310,7 @@ export default function TeklifOnizleme() {
       </div>
 
       <div
+        className="print-bg"
         style={{
           background: '#525659',
           minHeight: 'calc(100vh - 54px)',
@@ -305,7 +319,7 @@ export default function TeklifOnizleme() {
           padding: '28px 16px 40px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: '210mm' }}>
+        <div className="print-inner" style={{ width: '100%', maxWidth: '210mm' }}>
           <div
             className="no-print"
             style={{
@@ -318,13 +332,14 @@ export default function TeklifOnizleme() {
               letterSpacing: 0.2,
             }}
           >
-            <span>A4 Onizleme</span>
+            <span>A4 Önizleme</span>
             <span style={{ color: 'rgba(255,255,255,0.62)' }}>
-              {uretiliyor || !pdfHazir ? 'PDF hazirlaniyor...' : 'PDF hazir'}
+              {uretiliyor || !pdfHazir ? 'PDF hazırlanıyor...' : 'PDF hazır'}
             </span>
           </div>
 
           <div
+            className="print-target"
             style={{
               width: '210mm',
               minHeight: '297mm',
@@ -342,7 +357,7 @@ export default function TeklifOnizleme() {
             <div className="no-print" style={{ textAlign: 'center', padding: '18px 0 0' }}>
               <Spin size="small" />
               <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 12.5 }}>
-                Indirme icin yuksek kaliteli PDF arka planda hazirlaniyor.
+                İndirme için yüksek kaliteli PDF arka planda hazırlanıyor.
               </div>
             </div>
           )}
@@ -350,10 +365,140 @@ export default function TeklifOnizleme() {
       </div>
 
       <style>{`
+        /* ═══════════════════════════════════════════════════════════════
+           BASKI OPTİMİZASYONU
+           window.print() tarayıcının yerel PDF motorunu kullanır:
+           vektör metin, printer DPI'da render, html2canvas'tan üstün.
+           ═══════════════════════════════════════════════════════════════ */
         @media print {
-          @page { size: A4 portrait; margin: 0; }
-          .no-print { display: none !important; }
-          body { background: #ffffff !important; }
+          /* ── Sayfa boyutu ─────────────────────────────────────────── */
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+
+          /* ── Renk baskısı: tüm arka plan/gradient'ler zorla ─────── */
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-scheme: light only !important;
+          }
+
+          /* ── HTML / Body ─────────────────────────────────────────── */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 210mm !important;
+            background: #ffffff !important;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            text-rendering: geometricPrecision !important;
+          }
+
+          /* ── AppLayout: header ve layout chrome'u gizle ─────────── */
+          .ant-layout-header {
+            display: none !important;
+          }
+          .ant-layout {
+            background: #ffffff !important;
+            min-height: 0 !important;
+          }
+          .ant-layout-content {
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            min-height: 0 !important;
+          }
+
+          /* ── Toolbar, spinner, önizleme etiketi gizle ────────────── */
+          .no-print {
+            display: none !important;
+          }
+
+          /* ── Transform / scale / blur: print'te anlamsız, kaldır ── */
+          * {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+            transition: none !important;
+            animation: none !important;
+            will-change: auto !important;
+          }
+          /* NOT: logo img üzerindeki translateZ(0) GPU hint'ini
+             kaldırmak görsel pozisyonu bozmaz; top/left intact kalır */
+          img {
+            transform: none !important;
+          }
+
+          /* ── Font render kalitesi ────────────────────────────────── */
+          * {
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            text-rendering: geometricPrecision !important;
+            font-feature-settings: "kern" 1, "liga" 1 !important;
+          }
+
+          /* ── Görseller: tam çözünürlük, baskı kalitesi ───────────── */
+          img {
+            image-rendering: -webkit-optimize-contrast !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            max-width: none !important;
+          }
+
+          /* ── Gri arka plan → beyaz ───────────────────────────────── */
+          .print-bg {
+            display: block !important;
+            background: #ffffff !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          /* ── İç wrapper ──────────────────────────────────────────── */
+          .print-inner {
+            display: block !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* ── A4 şablon: gölge/overflow kaldır, sayfa doldur ─────── */
+          .print-target {
+            width: 210mm !important;
+            min-height: 297mm !important;
+            max-width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #ffffff !important;
+            /* overflow:hidden inline stilini override et:
+               multi-page içerik kırpılmasın */
+            overflow: visible !important;
+            page-break-inside: auto;
+            break-inside: auto;
+          }
+
+          /* ── Tablo: başlık tekrarla, satır kırılmasın ────────────── */
+          table {
+            border-collapse: collapse !important;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tfoot {
+            display: table-footer-group !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* ── Kenarlıklar: baskıda görünür ────────────────────────── */
+          td, th {
+            border-color: inherit !important;
+          }
         }
       `}</style>
     </>

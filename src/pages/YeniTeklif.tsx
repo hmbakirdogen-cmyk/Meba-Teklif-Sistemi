@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   Card, Form, Input, AutoComplete, Select, DatePicker, Button,
   message, Row, Col
@@ -16,6 +17,8 @@ import { sanitizeMultilineText } from '../utils/formatters';
 import { cariService } from '../services/musteriService';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum } from '../types';
 import { useKullanici } from '../context/useKullanici';
+import { buttonClassNames } from '../styles/buttonStyles';
+import { useColors } from '../hooks/useColors';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -25,7 +28,7 @@ const DS = {
   card: {
     marginBottom: 16,
     borderRadius: 10,
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--border)',
     boxShadow: '0 1px 3px rgba(15,31,69,0.07), 0 1px 2px rgba(15,31,69,0.04)',
   } as CSSProperties,
   cardBody: { padding: '16px 20px' } as CSSProperties,
@@ -33,11 +36,11 @@ const DS = {
     display: 'block',
     fontSize: 11,
     fontWeight: 700,
-    color: '#64748b',
+    color: 'var(--text-secondary)',
     letterSpacing: 0.9,
     textTransform: 'uppercase' as const,
     padding: '11px 20px 10px',
-    borderBottom: '1px solid #f0f4f8',
+    borderBottom: '1px solid var(--border-subtle)',
   } as CSSProperties,
 };
 // ──────────────────────────────────────────────────────────────────────────────
@@ -51,6 +54,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   const { id } = useParams<{ id: string }>();
   const [form] = Form.useForm();
   const { aktifKullanici } = useKullanici();
+  const isMobile = useIsMobile(768);
+  const C = useColors();
 
   // ── Edit modunda mevcut teklifi bir kez yükle ──
   // AppRouter'da `<YeniTeklifEditor>` `key={id}` ile remount sağladığı için
@@ -59,6 +64,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
 
   const [cari, setCari]                 = useState<Cari | null>(mevcut?.cari ?? null);
   const [satirlar, setSatirlar]         = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
+  const [satirBazliParaBirimi, setSatirBazliParaBirimi] = useState<boolean>(mevcut?.satirBazliParaBirimi ?? false);
   const [paraBirimi, setParaBirimi]     = useState<string>(mevcut?.paraBirimi ?? 'EUR');
   const [durum, setDurum]               = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
   const [notlar, setNotlar]             = useState(mevcut?.notlar ?? '');
@@ -68,7 +74,14 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   const [contactName, setContactName]   = useState(mevcut?.contactName ?? '');
   const [contactTitle, setContactTitle] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
   const [teklifId] = useState(() => mevcut ? id! : teklifService.teklifIdUret());
-  const [teklifNo] = useState(() => mevcut?.teklifNo ?? teklifService.teklifNoUret());
+  const [teklifNo, setTeklifNo] = useState<string>(mevcut?.teklifNo ?? '...');
+
+  useEffect(() => {
+    if (!mevcut) {
+      teklifService.teklifNoUretAsync().then(setTeklifNo).catch(() => setTeklifNo('ERR'));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Antd Form içsel state'ini mount sırasında bir kez senkronize et.
   // form.setFieldsValue React state'i değil — react-hooks/set-state-in-effect
@@ -89,9 +102,12 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   }, []);
 
   const {
-    araToplam, toplamIndirim,
+    araToplam,
     kdvTutar: toplamVergi, genelToplam,
   } = hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani);
+  // Satır bazlı bireysel iskonto araToplam'a zaten dahil — ayrıca gösterilmez.
+  const toplamIndirim = 0;
+  const satirParaToplamlari = hesaplamaMotoru.paraBirimineGoreToplamlar(satirlar, paraBirimi);
 
   function teklifOlustur(): Teklif {
     const tarihVal = form.getFieldValue('tarih');
@@ -99,6 +115,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
       id: teklifId,
       teklifNo,
       tarih: tarihVal ? dayjs(tarihVal).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      satirBazliParaBirimi,
       paraBirimi,
       durum,
       cari: cari!,
@@ -122,6 +139,16 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
     };
   }
 
+  function satirBazliParaBirimiDegistir(aktif: boolean) {
+    setSatirBazliParaBirimi(aktif);
+    if (!aktif) return;
+
+    setSatirlar((onceki) => onceki.map((satir) => ({
+      ...satir,
+      paraBirimi: hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi),
+    })));
+  }
+
   function kaydet() {
     if (!cari) { message.warning('Lütfen cari seçin.'); return; }
     if (satirlar.length === 0) { message.warning('En az bir ürün satırı ekleyin.'); return; }
@@ -138,7 +165,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   }
 
   return (
-    <div style={{ padding: '28px 32px 56px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 12px 40px' : '28px 32px 56px', maxWidth: 1200, margin: '0 auto' }}>
 
       {/* ── BAŞLIK ─────────────────────────────────────────── */}
       <div style={{
@@ -147,17 +174,16 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         gap: 16,
         marginBottom: 28,
         paddingBottom: 22,
-        borderBottom: '1px solid #e8edf4',
+        borderBottom: `1px solid ${C.border}`,
       }}>
         <Button
           icon={<ArrowLeftOutlined />}
+          className={buttonClassNames.secondary}
           onClick={() => navigate('/teklifler')}
           style={{
-            borderRadius: 7,
-            fontWeight: 500,
-            border: '1px solid #d1d9e6',
+            border: `1px solid ${C.borderInput}`,
             boxShadow: '0 1px 2px rgba(15,31,69,0.06)',
-            color: '#475569',
+            color: C.textSecondary,
           }}
         >
           Geri
@@ -166,7 +192,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           <div style={{
             fontSize: 20,
             fontWeight: 700,
-            color: '#0f1f45',
+            color: C.textPrimary,
             letterSpacing: -0.5,
             lineHeight: 1.2,
           }}>
@@ -174,7 +200,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           </div>
           <div style={{
             fontSize: 11,
-            color: '#94a3b8',
+            color: C.textFaint,
             marginTop: 3,
             letterSpacing: 0.8,
             fontWeight: 500,
@@ -211,8 +237,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             <div style={{
               marginTop: 12,
               padding: '10px 14px',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: C.bgElevated,
+              border: `1px solid ${C.border}`,
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
@@ -221,7 +247,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
               <span style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#64748b',
+                color: C.textSecondary,
                 letterSpacing: 0.7,
                 textTransform: 'uppercase',
                 whiteSpace: 'nowrap',
@@ -271,8 +297,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
                   disabled
                   style={{
                     borderRadius: 6,
-                    background: '#f8fafc',
-                    color: '#64748b',
+                    background: C.bgElevated,
+                    color: C.textSecondary,
                     fontWeight: 600,
                     fontVariantNumeric: 'tabular-nums',
                   }}
@@ -349,6 +375,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           <UrunSatirlari
             satirlar={satirlar}
             paraBirimi={paraBirimi}
+            satirBazliParaBirimi={satirBazliParaBirimi}
+            onSatirBazliParaBirimiChange={satirBazliParaBirimiDegistir}
             onChange={setSatirlar}
           />
         </Card>
@@ -359,6 +387,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             araToplam={araToplam}
             toplamIndirim={toplamIndirim}
             paraBirimi={paraBirimi}
+            satirBazliParaBirimi={satirBazliParaBirimi}
+            satirParaToplamlari={satirParaToplamlari}
             kdvOrani={kdvOrani}
             onKdvOraniChange={setKdvOrani}
             iskontoOrani={iskontoOrani}
@@ -384,9 +414,10 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         </Card>
 
         {/* ── EYLEM ÇUBUĞU ─────────────────────────────────── */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
           <Button
             onClick={() => navigate('/teklifler')}
+            className={buttonClassNames.ghost}
             style={{ borderRadius: 7, color: '#64748b' }}
           >
             İptal
@@ -394,11 +425,10 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           <Button
             icon={<SaveOutlined />}
             onClick={kaydet}
+            className={buttonClassNames.secondary}
             style={{
-              borderRadius: 7,
-              fontWeight: 500,
-              border: '1px solid #0f1f45',
-              color: '#0f1f45',
+              border: `1px solid ${C.textPrimary}`,
+              color: C.textPrimary,
               boxShadow: '0 1px 2px rgba(15,31,69,0.08)',
             }}
           >
@@ -408,11 +438,10 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             type="primary"
             icon={<EyeOutlined />}
             onClick={onizle}
+            className={buttonClassNames.primary}
             style={{
               background: 'linear-gradient(180deg, #1a2f5e 0%, #0f1f45 100%)',
               borderColor: '#0f1f45',
-              borderRadius: 7,
-              fontWeight: 600,
               boxShadow: '0 2px 6px rgba(15,31,69,0.30)',
             }}
           >

@@ -1,17 +1,24 @@
 import dayjs from 'dayjs';
 import type { Teklif } from '../types';
-
-const STORAGE_KEY = 'teklif_teklifler';
-const SAYAC_KEY = 'teklif_sayac';
+import { dataStore } from './dataStore';
 
 function normalizeEskiKayit(t: Teklif): Teklif {
-  return { ...t, odemeVadesi: t.odemeVadesi ?? '45 Gün' };
+  const fallbackPb = t.paraBirimi ?? 'TRY';
+  const satirPb = fallbackPb === 'TRY' || fallbackPb === 'EUR' || fallbackPb === 'USD' ? fallbackPb : 'TRY';
+
+  return {
+    ...t,
+    odemeVadesi: t.odemeVadesi ?? '45 Gun',
+    satirBazliParaBirimi: t.satirBazliParaBirimi ?? false,
+    satirlar: (t.satirlar ?? []).map((satir) => ({
+      ...satir,
+      paraBirimi: satir.paraBirimi ?? satirPb,
+    })),
+  };
 }
 
 function tumTeklifleriGetir(): Teklif[] {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  return (JSON.parse(raw) as Teklif[]).map(normalizeEskiKayit);
+  return dataStore.getTeklifler().map(normalizeEskiKayit);
 }
 
 function teklifGetir(id: string): Teklif | undefined {
@@ -19,20 +26,12 @@ function teklifGetir(id: string): Teklif | undefined {
 }
 
 function teklifKaydet(teklif: Teklif): void {
-  const liste = tumTeklifleriGetir();
-  const idx = liste.findIndex((t) => t.id === teklif.id);
   const now = dayjs().toISOString();
-  if (idx >= 0) {
-    liste[idx] = { ...teklif, guncellemeTarihi: now };
-  } else {
-    liste.unshift({ ...teklif, guncellemeTarihi: now });
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(liste));
+  dataStore.upsertTeklif({ ...teklif, guncellemeTarihi: now });
 }
 
 function teklifSil(id: string): void {
-  const liste = tumTeklifleriGetir().filter((t) => t.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(liste));
+  dataStore.deleteTeklif(id);
 }
 
 function teklifKopyala(
@@ -42,10 +41,10 @@ function teklifKopyala(
   const kaynak = teklifGetir(id);
   if (!kaynak) return undefined;
   const now = dayjs().toISOString();
-  const yeni: Teklif = {
+  return {
     ...kaynak,
     id: teklifIdUret(),
-    teklifNo: teklifNoUret(),
+    teklifNo: '---',
     tarih: dayjs().format('YYYY-MM-DD'),
     durum: 'taslak',
     olusturmaTarihi: now,
@@ -56,20 +55,14 @@ function teklifKopyala(
       hazirlayanRol: kullanici.rol,
     }),
   };
-  teklifKaydet(yeni);
-  return yeni;
 }
 
 function teklifIdUret(): string {
   return 't' + Date.now().toString(36);
 }
 
-function teklifNoUret(): string {
-  const yil = dayjs().year();
-  const raw = localStorage.getItem(SAYAC_KEY);
-  const sayac = raw ? parseInt(raw, 10) + 1 : 1;
-  localStorage.setItem(SAYAC_KEY, String(sayac));
-  return `${yil}-${String(sayac).padStart(3, '0')}`;
+function teklifNoUretAsync(): Promise<string> {
+  return dataStore.incrementSayac();
 }
 
 export const teklifService = {
@@ -79,5 +72,5 @@ export const teklifService = {
   teklifSil,
   teklifKopyala,
   teklifIdUret,
-  teklifNoUret,
+  teklifNoUretAsync,
 };
