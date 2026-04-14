@@ -296,7 +296,6 @@ export default function TeklifOnizleme() {
   const [teklif, setTeklif] = useState<Teklif | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfHazir, setPdfHazir] = useState(false);
   const [uretiliyor, setUretiliyor] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
@@ -307,7 +306,6 @@ export default function TeklifOnizleme() {
     // Böylece yeni teklif yüklenirken "İndir" butonu devre dışı kalır
     // ve eski teklife ait PDF kaydedilemez.
     setPdfBlob(null);
-    setPdfBlobUrl(null);
     setPdfHazir(false);
     sonOtomatikUretimRef.current = null; // A→B→A rotasında A için tekrar üretim yapılır
     if (pdfBlobUrlRef.current) {
@@ -335,7 +333,6 @@ export default function TeklifOnizleme() {
     uretiliyorRef.current = true;
     setUretiliyor(true);
     setPdfHazir(false);
-    setPdfBlobUrl(null);
 
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
@@ -348,7 +345,6 @@ export default function TeklifOnizleme() {
       const url = URL.createObjectURL(blob);
       pdfBlobUrlRef.current = url;
       setPdfBlob(blob);
-      setPdfBlobUrl(url);
       setPdfHazir(true);
     } catch (err) {
       console.error('[PDF] buildPdf hatası:', err);

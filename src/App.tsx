@@ -1,12 +1,13 @@
 import { useState, useEffect, Component } from 'react'
 import { useMemo } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
-import { ConfigProvider, Spin, theme as antTheme } from 'antd'
+import { ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
 import { ThemeProvider } from './context/ThemeContext'
 import { useTheme } from './context/useTheme'
+import { getAntdTokens } from './design-system/antdTokens'
 
 /* ── Error Boundary ──────────────────────────────────────── */
 interface EBState { hata: Error | null }
@@ -133,24 +134,7 @@ function ThemedApp() {
   const { isDark } = useTheme();
   const [hazir, setHazir] = useState(false);
   const [hataMsg, setHataMsg] = useState<string | null>(null);
-  const antdTheme = useMemo(
-    () => ({
-      algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
-      token: {
-        colorPrimary: '#1a3a7c',
-        borderRadius: 8,
-        fontFamily: '"Inter", "Arial", sans-serif',
-        colorBgBase: isDark ? '#181b25' : '#ffffff',
-        colorBgContainer: isDark ? '#181b25' : '#ffffff',
-        colorBgElevated: isDark ? '#1c2132' : '#ffffff',
-        colorBgLayout: isDark ? '#0f1117' : '#f5f6fa',
-        colorText: isDark ? '#dde4f0' : '#0f1f45',
-        colorBorder: isDark ? '#242d42' : '#d9d9d9',
-        colorBorderSecondary: isDark ? '#1e2638' : '#f0f0f0',
-      },
-    }),
-    [isDark],
-  );
+  const antdTheme = useMemo(() => getAntdTokens(isDark), [isDark]);
 
   useEffect(() => {
     initDataStore()
