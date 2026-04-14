@@ -236,10 +236,10 @@ export default function AppLayout() {
         />
         {aktifKullanici && (
           <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.borderSubtle}`, marginTop: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, marginBottom: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, marginBottom: 2, letterSpacing: '-0.01em' }}>
               {aktifKullanici.adSoyad}
             </div>
-            <div style={{ fontSize: 11, color: C.textFaint, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: C.textSecondary, fontWeight: 400, marginBottom: 14 }}>
               {aktifKullanici.unvan}
             </div>
             {/* Drawer içi tema toggle */}

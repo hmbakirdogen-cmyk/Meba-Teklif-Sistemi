@@ -34,10 +34,10 @@ const DS = {
   cardBody: { padding: '16px 20px' } as CSSProperties,
   secHead: {
     display: 'block',
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: 10,
+    fontWeight: 500,
     color: 'var(--text-secondary)',
-    letterSpacing: 0.9,
+    letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
     padding: '11px 20px 10px',
     borderBottom: '1px solid var(--border-subtle)',
@@ -104,9 +104,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   const {
     araToplam,
     kdvTutar: toplamVergi, genelToplam,
+    toplamIndirim,
   } = hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani);
-  // Satır bazlı bireysel iskonto araToplam'a zaten dahil — ayrıca gösterilmez.
-  const toplamIndirim = 0;
   const satirParaToplamlari = hesaplamaMotoru.paraBirimineGoreToplamlar(satirlar, paraBirimi);
 
   function teklifOlustur(): Teklif {

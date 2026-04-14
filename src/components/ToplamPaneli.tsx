@@ -167,9 +167,9 @@ export default function ToplamPaneli({
       >
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: opts?.negative ? '#b45309' : C.textSecondary,
+            fontSize: 13,
+            fontWeight: 400,
+            color: opts?.negative ? '#c2410c' : C.textSecondary,
             lineHeight: 1.45,
           }}
         >
@@ -210,7 +210,7 @@ export default function ToplamPaneli({
             <span
               style={{
                 fontSize: options?.bold ? 14 : 13,
-                fontWeight: options?.bold ? 800 : 700,
+                fontWeight: options?.bold ? 700 : 600,
                 color: options?.negative ? '#c2410c' : C.textPrimary,
                 fontVariantNumeric: 'tabular-nums',
                 whiteSpace: 'nowrap',
@@ -246,26 +246,27 @@ export default function ToplamPaneli({
           <div style={{ minWidth: 0 }}>
             <div
               style={{
-                fontSize: 12,
-                fontWeight: 700,
+                fontSize: 10,
+                fontWeight: 500,
                 color: C.textFaint,
-                letterSpacing: 1,
+                letterSpacing: '0.09em',
                 textTransform: 'uppercase',
                 marginBottom: 6,
               }}
             >
-              {satirBazliParaBirimi ? 'Para Birimine Gore Toplamlar' : 'Genel Toplam'}
+              {satirBazliParaBirimi ? 'Para Birimine Göre Toplamlar' : 'Genel Toplam'}
             </div>
             {satirBazliParaBirimi && (
               <div
                 style={{
-                  fontSize: isMobile ? 12 : 13,
+                  fontSize: 12,
                   color: C.textSecondary,
+                  fontWeight: 400,
                   lineHeight: 1.5,
                   maxWidth: 460,
                 }}
               >
-                Her para birimi (TL, EUR, USD) icin toplamlar ayri hesaplanir.
+                Her para birimi (TL, EUR, USD) için toplamlar ayrı hesaplanır.
               </div>
             )}
           </div>
@@ -290,13 +291,13 @@ export default function ToplamPaneli({
                     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 14px rgba(15,31,69,0.04)',
                   }}
                 >
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textFaint, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, fontWeight: 500, color: C.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
                     {item.short}
                   </div>
-                  <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: C.textPrimary, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.textPrimary, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
                     {formatCurrency(item.genelToplam, item.pb)}
                   </div>
-                  <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 4, lineHeight: 1.35 }}>
+                  <div style={{ fontSize: 11, color: C.textSecondary, fontWeight: 400, marginTop: 4, lineHeight: 1.35 }}>
                     {item.label}
                   </div>
                 </div>
@@ -314,10 +315,10 @@ export default function ToplamPaneli({
                 overflow: 'hidden',
               }}
             >
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.68)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+              <div style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,0.60)', letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 6 }}>
                 Nihai Tutar
               </div>
-              <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.08, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: '#ffffff', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', lineHeight: 1.08, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {formatTek(toplamlar.genelToplam)}
               </div>
             </div>
@@ -329,12 +330,12 @@ export default function ToplamPaneli({
         'Ara Toplam',
         satirBazliParaBirimi
           ? currencyValueGrid((item) => item.araToplam)
-          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{formatTek(araToplam)}</span></div>,
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{formatTek(araToplam)}</span></div>,
       )}
 
       {iskontoAktif && breakdownRow(
         <>
-          (-) Iskonto (%
+          (-) İskonto (%
           {iskontoRateEditing ? (
             <input
               autoFocus
@@ -350,7 +351,7 @@ export default function ToplamPaneli({
           ) : (
             <span
               onClick={() => { setIskontoRateDraft(String(iskontoOrani)); setIskontoRateEditing(true); }}
-              title="Orani degistirmek icin tiklayin"
+              title="Oranı değiştirmek için tıklayın"
               style={editableRateStyle}
             >
               {iskontoOrani}
@@ -360,13 +361,13 @@ export default function ToplamPaneli({
         </>,
         satirBazliParaBirimi
           ? currencyValueGrid((item) => item.iskontoTutar, { negative: true })
-          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', fontVariantNumeric: 'tabular-nums' }}>- {formatTek(toplamlar.iskontoTutar)}</span></div>,
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>- {formatTek(toplamlar.iskontoTutar)}</span></div>,
         { negative: true },
       )}
 
       {toplamIndirim > 0 && breakdownRow(
-        '(-) Indirim',
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', fontVariantNumeric: 'tabular-nums' }}>- {formatTek(toplamIndirim)}</span></div>,
+        '(-) İndirim',
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>- {formatTek(toplamIndirim)}</span></div>,
         { negative: true },
       )}
 
@@ -388,7 +389,7 @@ export default function ToplamPaneli({
           ) : (
             <span
               onClick={() => { setKdvRateDraft(String(kdvOrani)); setKdvRateEditing(true); }}
-              title="Orani degistirmek icin tiklayin"
+              title="Oranı değiştirmek için tıklayın"
               style={editableRateStyle}
             >
               {kdvOrani}
@@ -398,14 +399,14 @@ export default function ToplamPaneli({
         </>,
         satirBazliParaBirimi
           ? currencyValueGrid((item) => item.kdvTutar)
-          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{formatTek(toplamlar.kdvTutar)}</span></div>,
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{formatTek(toplamlar.kdvTutar)}</span></div>,
       )}
 
       {breakdownRow(
         satirBazliParaBirimi ? 'Genel Toplamlar' : 'Genel Toplam',
         satirBazliParaBirimi
           ? currencyValueGrid((item) => item.genelToplam, { bold: true })
-          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{formatTek(toplamlar.genelToplam)}</span></div>,
+          : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><span style={{ fontSize: 18, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em' }}>{formatTek(toplamlar.genelToplam)}</span></div>,
         { borderless: true, emphasize: true },
       )}
 
@@ -426,19 +427,19 @@ export default function ToplamPaneli({
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>
-              Hizli Kontroller
+            <div style={{ fontSize: 10, fontWeight: 500, color: C.textFaint, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 4 }}>
+              Hızlı Kontroller
             </div>
-            <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.45 }}>
-              KDV ve iskonto ayarlari teklif yerlesiminden bagimsiz calisir.
+            <div style={{ fontSize: 12, color: C.textSecondary, fontWeight: 400, lineHeight: 1.5 }}>
+              KDV ve iskonto ayarları teklif yerleşiminden bağımsız çalışır.
             </div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: isMobile ? 'stretch' : 'flex-end', alignItems: 'center' }}>
             <button onClick={handleKDV} className={chipButtonClassName(kdvAktif)}>
               {kdvAktif ? `✓ KDV %${kdvOrani}` : `+ KDV %${lastKdvRate}`}
             </button>
-            <button onClick={handleIskonto} className={chipButtonClassName(iskontoAktif)}>
-              {iskontoAktif ? `✓ Iskonto %${iskontoOrani}` : `+ Iskonto %${lastIskontoRate}`}
+            <button onClick={handleIskonto} className={`${chipButtonClassName(iskontoAktif)} app-chip-button--iskonto`}>
+              {iskontoAktif ? `✓ İskonto %${iskontoOrani}` : `+ İskonto %${lastIskontoRate}`}
             </button>
           </div>
         </div>

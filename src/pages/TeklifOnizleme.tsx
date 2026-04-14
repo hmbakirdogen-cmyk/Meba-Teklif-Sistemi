@@ -288,6 +288,7 @@ export default function TeklifOnizleme() {
   const uretiliyorRef = useRef(false);
   const sonOtomatikUretimRef = useRef<string | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const previewContentRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile(768);
   const C = useColors();
@@ -299,8 +300,21 @@ export default function TeklifOnizleme() {
   const [pdfHazir, setPdfHazir] = useState(false);
   const [uretiliyor, setUretiliyor] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
+  const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
+    // ID değiştiğinde eski PDF blob'unu hemen temizle.
+    // Böylece yeni teklif yüklenirken "İndir" butonu devre dışı kalır
+    // ve eski teklife ait PDF kaydedilemez.
+    setPdfBlob(null);
+    setPdfBlobUrl(null);
+    setPdfHazir(false);
+    sonOtomatikUretimRef.current = null; // A→B→A rotasında A için tekrar üretim yapılır
+    if (pdfBlobUrlRef.current) {
+      URL.revokeObjectURL(pdfBlobUrlRef.current);
+      pdfBlobUrlRef.current = null;
+    }
+
     if (!id) {
       setHata('Teklif ID bulunamadi.');
       return;
@@ -365,21 +379,27 @@ export default function TeklifOnizleme() {
     };
   }, []);
 
-  // Önizleme ölçeği: 210mm (A4) ÷ gerçek container genişliği
-  // Container daha dar olduğunda içerik zoom ile küçülür, sağ kenar kesilmez.
+  // Önizleme ölçeği: container genişliği / 210mm (A4)
+  // transform: scale → layout etkilenmez, height ve width manuel hesaplanır.
   useEffect(() => {
-    const el = previewContainerRef.current;
-    if (!el) return;
+    const container = previewContainerRef.current;
+    const content   = previewContentRef.current;
+    if (!container || !content) return;
     const A4_PX = 210 * (96 / 25.4); // ~793.7 px
-    const obs = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      setPreviewScale(Math.min(1, w / A4_PX));
+
+    const obs = new ResizeObserver(() => {
+      const w = container.getBoundingClientRect().width;
+      const h = content.scrollHeight;
+      const s = Math.min(1, w / A4_PX);
+      setPreviewScale(s);
+      setContentHeight(h);
     });
-    obs.observe(el);
+    obs.observe(container);
+    obs.observe(content);
     return () => obs.disconnect();
   }, []);
 
-  function pdfIndir() {
+  async function pdfIndir() {
     if (!pdfBlob || !teklif) return;
 
     // İlk iki kelime Türkçe büyük harf + teklif no
@@ -387,6 +407,27 @@ export default function TeklifOnizleme() {
     const onEk = kelimeler.slice(0, 2).join(' ').toLocaleUpperCase('tr-TR').replace(/[\\/:*?"<>|]/g, '');
     const dosyaAdi = `${onEk} ${teklif.teklifNo}.pdf`;
 
+    // File System Access API: masaüstünden başlayan Kaydet iletişim kutusu
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as Window & { showSaveFilePicker: (opts: object) => Promise<FileSystemFileHandle> })
+          .showSaveFilePicker({
+            suggestedName: dosyaAdi,
+            startIn: 'desktop',
+            types: [{ description: 'PDF Dosyası', accept: { 'application/pdf': ['.pdf'] } }],
+          });
+        const writable = await handle.createWritable();
+        await writable.write(pdfBlob);
+        await writable.close();
+        message.success('PDF masaüstüne kaydedildi.');
+        return;
+      } catch (err) {
+        // Kullanıcı iptal ettiyse sessizce geç; diğer hatalarda fallback
+        if ((err as { name?: string }).name === 'AbortError') return;
+      }
+    }
+
+    // Fallback: klasik <a download> yöntemi
     const url = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
     link.href = url;
@@ -589,60 +630,38 @@ export default function TeklifOnizleme() {
             </span>
           </div>
 
-          {/* zoom wrapper: container < 210mm olduğunda tüm önizlemeyi küçültür */}
-          <div style={{ zoom: previewScale }}>
+          {/* Ölçek wrapper: transform:scale ile kesin kontrol.
+              - Dış div: görsel yüksekliği tutar (contentHeight * scale)
+              - İç div: her zaman 210mm, transformOrigin top-left ile ölçeklenir
+              - overflow:hidden sağ taşmayı keser */}
+          <div style={{
+            overflow: 'hidden',
+            height: contentHeight > 0 ? contentHeight * previewScale : undefined,
+          }}>
+            <div
+              ref={previewContentRef}
+              className="print-target"
+              style={{
+                width: '210mm',
+                minHeight: '297mm',
+                background: '#ffffff',
+                boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
+                transformOrigin: 'top left',
+                transform: previewScale < 1 ? `scale(${previewScale})` : 'none',
+              }}
+            >
+              <TeklifSablonu teklif={teklif} totals={totals} />
+            </div>
+          </div>
 
-            {/* ── PDF hazır: iframe ile birebir önizleme ── */}
-            {pdfHazir && pdfBlobUrl && !isMobile ? (
-              <div
-                className="print-target"
-                style={{
-                  width: '210mm',
-                  boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
-                  background: '#525659',
-                  overflow: 'hidden',
-                }}
-              >
-                <iframe
-                  src={`${pdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-                  style={{
-                    width: '100%',
-                    height: 'calc(100vh - 110px)',
-                    minHeight: '297mm',
-                    border: 'none',
-                    display: 'block',
-                  }}
-                  title="PDF Önizleme"
-                />
+          {(uretiliyor || !pdfHazir) && (
+            <div className="no-print" style={{ textAlign: 'center', padding: '18px 0 0' }}>
+              <Spin size="small" />
+              <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 12.5 }}>
+                Yüksek kaliteli PDF hazırlanıyor…
               </div>
-            ) : (
-              /* ── PDF hazır değil veya mobil: TeklifSablonu canlı önizleme ── */
-              <>
-                <div
-                  className="print-target"
-                  style={{
-                    width: '210mm',
-                    minHeight: '297mm',
-                    background: '#ffffff',
-                    boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <TeklifSablonu teklif={teklif} totals={totals} />
-                </div>
-
-                {(uretiliyor || !pdfHazir) && (
-                  <div className="no-print" style={{ textAlign: 'center', padding: '18px 0 0' }}>
-                    <Spin size="small" />
-                    <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 12.5 }}>
-                      Yüksek kaliteli PDF hazırlanıyor…
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-          </div>{/* zoom wrapper sonu */}
+            </div>
+          )}
         </div>
       </div>
 

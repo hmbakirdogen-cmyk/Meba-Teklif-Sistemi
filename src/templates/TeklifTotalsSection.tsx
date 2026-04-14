@@ -69,63 +69,73 @@ export function TeklifTotalsSection({
       <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
       <tbody>
         {!satirBazliParaBirimi ? (
-          <tr>
-            {/* Sol 6 kolon: döküm + "Genel Toplam" etiketi */}
-            <td colSpan={6} style={{ padding: iskontoOrani > 0 || kdvOrani > 0 ? '5px 0 4px 0' : '5px 0', borderBottom: 'none', borderTop: 'none', verticalAlign: 'bottom' }}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ paddingRight: '6px' }}>
-                  {(iskontoOrani > 0 || kdvOrani > 0) && (
-                    <table style={{ borderCollapse: 'separate', borderSpacing: '0 1px', marginBottom: '4px', tableLayout: 'auto' }}>
-                      <tbody>
-                        <tr>
-                          <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: palette.textSoft, textAlign: 'left', whiteSpace: 'nowrap', padding: '0 12px 0 0' }}>
-                            Ara Toplam
-                          </td>
-                          <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: palette.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', padding: 0, fontWeight: 600 }}>
-                            {formatCurrency(araToplam, teklif.paraBirimi)}
-                          </td>
-                        </tr>
-                        {iskontoOrani > 0 && (
-                          <tr>
-                            <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: palette.textSoft, textAlign: 'left', whiteSpace: 'nowrap', padding: '0 12px 0 0' }}>
-                              {`İskonto %${iskontoOrani}`}
-                            </td>
-                            <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: palette.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', padding: 0, fontWeight: 600 }}>
-                              – {formatCurrency(iskontoTutar, teklif.paraBirimi)}
-                            </td>
-                          </tr>
-                        )}
-                        {kdvOrani > 0 && (
-                          <tr>
-                            <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: palette.textSoft, textAlign: 'left', whiteSpace: 'nowrap', padding: '0 12px 0 0' }}>
-                              {`KDV %${kdvOrani}`}
-                            </td>
-                            <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: palette.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', padding: 0, fontWeight: 600 }}>
-                              + {formatCurrency(kdvTutar, teklif.paraBirimi)}
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-                  {(iskontoOrani > 0 || kdvOrani > 0) && <div style={{ borderTop: '0.75px solid #d0dae4', marginBottom: '4px' }} />}
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: palette.textMid, lineHeight: 1, whiteSpace: 'nowrap' }}>
+          // Tüm finansal değerler "Toplam" sütununa (col 7) native hizalı.
+          // Her satır: colSpan=6 (etiket sağa), col-7 (değer sağa, aynı padding),
+          // col-8 (Teslimat, boş). Nested tablo YOK — virgül hizası garantili.
+          (() => {
+            const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
+            return (
+              <>
+                {hasDetail && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '6px 12px 2px 0', textAlign: 'right', borderBottom: 'none', borderTop: 'none', verticalAlign: 'middle' }}>
+                      <span style={{ fontSize: '9px', lineHeight: 1.3, fontWeight: 500, color: palette.textSoft, whiteSpace: 'nowrap' }}>Ara Toplam</span>
+                    </td>
+                    <td style={{ padding: '6px 6px 2px 6px', textAlign: 'right', borderBottom: 'none', borderTop: 'none', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: '9px', lineHeight: 1.3, color: palette.textMid, fontWeight: 600 }}>
+                      {formatCurrency(araToplam, teklif.paraBirimi)}
+                    </td>
+                    <td style={{ borderBottom: 'none', borderTop: 'none' }} />
+                  </tr>
+                )}
+                {iskontoOrani > 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '2px 12px 2px 0', textAlign: 'right', borderBottom: 'none', borderTop: 'none', verticalAlign: 'middle' }}>
+                      <span style={{ fontSize: '9px', lineHeight: 1.3, fontWeight: 500, color: palette.textSoft, whiteSpace: 'nowrap' }}>{`İskonto %${iskontoOrani}`}</span>
+                    </td>
+                    <td style={{ padding: '2px 6px', textAlign: 'right', borderBottom: 'none', borderTop: 'none', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: '9px', lineHeight: 1.3, color: palette.textMid, fontWeight: 600 }}>
+                      – {formatCurrency(iskontoTutar, teklif.paraBirimi)}
+                    </td>
+                    <td style={{ borderBottom: 'none', borderTop: 'none' }} />
+                  </tr>
+                )}
+                {kdvOrani > 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '2px 12px 2px 0', textAlign: 'right', borderBottom: 'none', borderTop: 'none', verticalAlign: 'middle' }}>
+                      <span style={{ fontSize: '9px', lineHeight: 1.3, fontWeight: 500, color: palette.textSoft, whiteSpace: 'nowrap' }}>{`KDV %${kdvOrani}`}</span>
+                    </td>
+                    <td style={{ padding: '2px 6px', textAlign: 'right', borderBottom: 'none', borderTop: 'none', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: '9px', lineHeight: 1.3, color: palette.textMid, fontWeight: 600 }}>
+                      + {formatCurrency(kdvTutar, teklif.paraBirimi)}
+                    </td>
+                    <td style={{ borderBottom: 'none', borderTop: 'none' }} />
+                  </tr>
+                )}
+                {hasDetail && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '5px 12px 5px 0', borderBottom: 'none', borderTop: 'none' }}>
+                      <div style={{ borderTop: '0.75px solid #d0dae4' }} />
+                    </td>
+                    <td style={{ padding: '5px 6px', borderBottom: 'none', borderTop: 'none' }}>
+                      <div style={{ borderTop: '0.75px solid #d0dae4' }} />
+                    </td>
+                    <td style={{ borderBottom: 'none', borderTop: 'none' }} />
+                  </tr>
+                )}
+                <tr>
+                  <td colSpan={6} style={{ padding: hasDetail ? '4px 12px 6px 0' : '5px 12px 6px 0', textAlign: 'right', borderBottom: 'none', borderTop: 'none', verticalAlign: 'bottom' }}>
+                    <span style={{ fontSize: '8.5px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: palette.textMid, lineHeight: 1.2, whiteSpace: 'nowrap' }}>
                       Genel Toplam
                     </span>
-                  </div>
-                </div>
-              </div>
-            </td>
-            {/* Toplam kolonu — native hiza, padding satırlarla identik */}
-            <td style={{ padding: '5px 6px', textAlign: 'right', verticalAlign: 'bottom', borderBottom: 'none', borderTop: 'none', whiteSpace: 'nowrap' }}>
-              <span style={{ fontSize: genelToplam >= 1000000 ? '14.5px' : '16px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: palette.navy }}>
-                {formatCurrency(genelToplam, teklif.paraBirimi)}
-              </span>
-            </td>
-            {/* Teslimat kolonu — boş */}
-            <td style={{ borderBottom: 'none', borderTop: 'none' }} />
-          </tr>
+                  </td>
+                  <td style={{ padding: hasDetail ? '4px 6px 6px 6px' : '5px 6px', textAlign: 'right', verticalAlign: 'bottom', borderBottom: 'none', borderTop: 'none', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: genelToplam >= 1000000 ? '14px' : '15.5px', fontWeight: 800, lineHeight: 1.08, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: palette.navy }}>
+                      {formatCurrency(genelToplam, teklif.paraBirimi)}
+                    </span>
+                  </td>
+                  <td style={{ borderBottom: 'none', borderTop: 'none' }} />
+                </tr>
+              </>
+            );
+          })()
         ) : (
           <tr>
             <td colSpan={9} style={{ padding: '9px 10px 10px', borderBottom: 'none' }}>

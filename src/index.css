@@ -11,6 +11,24 @@
   --input-border:   #d1d9e6;
   --input-focus:    #2563eb;
   color-scheme: light;
+
+  /* ── Tipografi sistemi CSS değişkenleri ────────────────────────── */
+  /* Font boyutları — 8 katman */
+  --fs-xs:   10px;   /* avatar, timestamp, mini rozet          */
+  --fs-sm:   11px;   /* yardımcı metin, rozet, alt açıklama   */
+  --fs-base: 13px;   /* gövde, tablo hücresi, form, buton     */
+  --fs-md:   14px;   /* hafif vurgu, finansal değer           */
+  --fs-lg:   16px;   /* kart tutarı, özet sayı                */
+  --fs-xl:   20px;   /* bölüm başlığı                         */
+  --fs-2xl:  22px;   /* sayfa başlığı                         */
+  --fs-3xl:  26px;   /* hero rakam                            */
+
+  /* Font kalınlıkları — 5 kontrollü seviye */
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-extrabold: 800;  /* YALNIZCA hero toplam / sayfa başlığı */
 }
 
 [data-theme="dark"] {
@@ -406,28 +424,61 @@ button.app-chip-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 11px;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+  /* KDV — soft mavi tonu (varsayılan) */
+  border: 1.5px solid #93b8e0;
+  background: #eaf2fb;
+  color: #1a4a7a;
 }
 
 button.app-chip-button:hover,
 button.app-chip-button:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
+  background: #d5e7f7;
+  border-color: #6a9fd4;
 }
 
 button.app-chip-button.is-active {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: #2563a8;
+  border-color: #1a4f8e;
+  color: #ffffff;
+}
+
+button.app-chip-button.is-active:hover {
+  background: #1a5099;
+  border-color: #153f7a;
+}
+
+/* İskonto varyantı — soft turuncu/amber tonu */
+button.app-chip-button--iskonto {
+  border-color: #e0aa60;
+  background: #fdf4e7;
+  color: #7a4310;
+}
+
+button.app-chip-button--iskonto:hover,
+button.app-chip-button--iskonto:focus-visible {
+  background: #faebd0;
+  border-color: #cc8c3a;
+}
+
+button.app-chip-button--iskonto.is-active {
+  background: #b45309;
+  border-color: #92400e;
+  color: #ffffff;
+}
+
+button.app-chip-button--iskonto.is-active:hover {
+  background: #9a4507;
+  border-color: #7c3510;
 }
 
 button.app-chip-button:active,
