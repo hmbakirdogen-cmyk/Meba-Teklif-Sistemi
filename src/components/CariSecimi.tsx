@@ -7,6 +7,7 @@ import {
   normalizeProductCode,
   cleanTextInput,
   normalizeEmail,
+  formatCariAdi,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';
@@ -37,7 +38,7 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
       const yeni: Cari = {
         id: cariService.cariIdUret(),
         cariKod: vals.cariKod,
-        firmaAdi: vals.firmaAdi,
+        firmaAdi: formatCariAdi(cleanTextInput(vals.firmaAdi ?? '')),
         yetkiliKisi: vals.yetkiliKisi || '',
         telefon: vals.telefon || '',
         ePosta: vals.ePosta || '',
@@ -80,7 +81,7 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
               <span style={{ color: '#94a3b8', fontSize: 11, marginRight: 8, fontVariantNumeric: 'tabular-nums' }}>
                 [{c.cariKod}]
               </span>
-              <span style={{ fontWeight: 500 }}>{c.firmaAdi}</span>
+              <span style={{ fontWeight: 500 }}>{formatCariAdi(c.firmaAdi)}</span>
             </Option>
           ))}
         </Select>
@@ -111,7 +112,7 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
               {value.cariKod}
             </span>
             <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, letterSpacing: -0.2 }}>
-              {value.firmaAdi}
+              {formatCariAdi(value.firmaAdi)}
             </span>
           </div>
           {/* İkincil bilgiler */}

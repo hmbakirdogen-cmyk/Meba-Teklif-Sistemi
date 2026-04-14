@@ -11,16 +11,17 @@ import {
 } from '@ant-design/icons';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import TeklifSablonu from '../templates/TeklifSablonu';
+import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
 import { teklifService } from '../services/teklifService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import type { Teklif } from '../types';
 import { buttonClassNames } from '../styles/buttonStyles';
+import { formatCariAdi } from '../utils/formatters';
 import { useColors } from '../hooks/useColors';
 import { useTheme } from '../context/useTheme';
 
 // scale:5 → ~480 DPI eşdeğeri (210mm A4 @ 96dpi × 5 ≈ 3969px)
-// 300 DPI lazer yazıcı: 2480px gerekli → yeterli kalite marjı
+// letterRendering: her karakteri ayrı konumlar → metin render kalitesi maksimum
 const HTML2CANVAS_OPTIONS = {
   scale: 5,
   useCORS: true,
@@ -28,52 +29,251 @@ const HTML2CANVAS_OPTIONS = {
   backgroundColor: '#ffffff',
   allowTaint: false,
   imageTimeout: 15000,
+  letterRendering: true,
 };
 
-async function buildPdf(sablonEl: HTMLElement): Promise<jsPDF> {
-  const mainCanvas = await html2canvas(sablonEl, HTML2CANVAS_OPTIONS);
+// Sayfa altında bırakılan nefes alanı (mm) — ilk ve sonraki sayfalar için
+const SAYFA_ALT_BOSLUK_MM = 10;
 
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-    compress: false,
-    precision: 20,
+/** Tüm <tr>'lerin sablonEl'e göre {top, bottom} değerlerini CSS px cinsinden döndürür. */
+function satirSinirlariniAl(sablonEl: HTMLElement) {
+  return Array.from(sablonEl.querySelectorAll<HTMLTableRowElement>('tr')).map((satir) => {
+    let ust = 0;
+    let el: HTMLElement | null = satir;
+    while (el && el !== sablonEl) {
+      ust += el.offsetTop;
+      el = el.offsetParent as HTMLElement | null;
+    }
+    return { ust, alt: ust + satir.offsetHeight };
   });
+}
 
-  const pdfPageW = pdf.internal.pageSize.getWidth();
-  const pdfPageH = pdf.internal.pageSize.getHeight();
-  const mainPxToMm = pdfPageW / mainCanvas.width;
-  const mainTotalH = mainCanvas.height * mainPxToMm;
+/**
+ * Değişken sayfa yüksekliğiyle çalışan akıllı kesim algoritması.
+ * Sayfa 1: page1H  — tam sayfa eksi alt boşluk
+ * Sayfa 2+: page2H — kompakt antet yüksekliği eksi alt boşluk
+ * Satır bütünlüğü korunur (bir satır iki sayfaya bölünmez).
+ * contentEndCssPx: içerik sonu (alt blok dahil edilmez; varsa scrollHeight yerine kullanılır).
+ */
+function sayfaKesimleriniHesapla(
+  sablonEl: HTMLElement,
+  page1HCssPx: number,
+  page2HCssPx: number,
+  contentEndCssPx?: number,
+): number[] {
+  const sinirlar = satirSinirlariniAl(sablonEl);
+  const toplamH = contentEndCssPx ?? sablonEl.scrollHeight;
+  const kesimler: number[] = [];
+  let start = 0;
+  let ilkSayfa = true;
 
-  // 1mm tolerans: pixel→mm dönüşümündeki floating-point kaymasını maskeler.
-  // minHeight:297mm olan template canvas'ı ~297.02mm çıkabilir → 2. sayfa tetiklenip
-  // srcH≈0px olan degenerate canvas oluşur ve exception fırlatır.
-  const TEK_SAYFA_TOLERANS_MM = 1;
+  while (true) {
+    const sayfaH = ilkSayfa ? page1HCssPx : page2HCssPx;
+    const naifBitis = start + sayfaH;
+    if (naifBitis >= toplamH - 1) break;
 
-  if (mainTotalH <= pdfPageH + TEK_SAYFA_TOLERANS_MM) {
-    pdf.addImage(mainCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfPageW, Math.min(mainTotalH, pdfPageH), undefined, 'NONE');
+    const bolunecek = sinirlar.find(
+      (s) => s.ust >= start && s.ust < naifBitis && s.alt > naifBitis,
+    );
+    const sonraki = bolunecek ? bolunecek.ust : naifBitis;
+
+    if (sonraki <= start) {          // sonsuz döngü koruması
+      kesimler.push(naifBitis);
+      start = naifBitis;
+    } else {
+      kesimler.push(sonraki);
+      start = sonraki;
+    }
+    ilkSayfa = false;
+  }
+  return kesimler;
+}
+
+/** Kaynak canvas'tan dikey dilim canvas'ı oluşturur. */
+function dilimCanvas(
+  src: HTMLCanvasElement,
+  startY: number,
+  height: number,
+): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = height;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, startY, src.width, height, 0, 0, src.width, height);
+  }
+  return c;
+}
+
+/**
+ * Kompakt antet + (isteğe bağlı) thead + içerik dilimini tek canvas'ta birleştirir.
+ * Sayfa 2+ için: üstte antet, ardından thead satırı, altında içerik.
+ */
+function sayfaCanvasBirlestir(
+  headerCanvas: HTMLCanvasElement,
+  theadCanvas: HTMLCanvasElement | null,
+  mainCanvas: HTMLCanvasElement,
+  contentStartY: number,
+  contentHeight: number,
+): HTMLCanvasElement {
+  const theadH = theadCanvas ? theadCanvas.height : 0;
+  const c = document.createElement('canvas');
+  c.width = mainCanvas.width;
+  c.height = headerCanvas.height + theadH + contentHeight;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(headerCanvas, 0, 0);
+    if (theadCanvas) {
+      ctx.drawImage(theadCanvas, 0, headerCanvas.height);
+    }
+    ctx.drawImage(
+      mainCanvas,
+      0, contentStartY, mainCanvas.width, contentHeight,
+      0, headerCanvas.height + theadH, mainCanvas.width, contentHeight,
+    );
+  }
+  return c;
+}
+
+async function buildPdf(
+  sablonEl: HTMLElement,
+  kompaktHeaderEl: HTMLElement,
+): Promise<jsPDF> {
+  // Font render kalitesi: tüm fontların tamamen yüklenmesini bekle.
+  // Inter yüklenmeden render edilirse sistem fontu fallback'e düşer.
+  await document.fonts.ready;
+
+  const SCALE = HTML2CANVAS_OPTIONS.scale;
+
+  // ── Alt blok ve thead DOM pozisyonlarını html2canvas'tan ÖNCE ölç ──────
+  // Bu ölçümler footer sabitleme ve thead tekrarı için kullanılır.
+  function olcDomUst(el: HTMLElement): number {
+    let ust = 0;
+    let cur: HTMLElement | null = el;
+    while (cur && cur !== sablonEl) { ust += cur.offsetTop; cur = cur.offsetParent as HTMLElement | null; }
+    return ust;
+  }
+
+  let bbTopCssPx    = 0;
+  let bbHeightCssPx = 0;
+  const bbEl = sablonEl.querySelector<HTMLElement>('#pdf-bottom-block');
+  if (bbEl) { bbTopCssPx = olcDomUst(bbEl); bbHeightCssPx = bbEl.offsetHeight; }
+
+  let theadTopCssPx    = 0;
+  let theadHeightCssPx = 0;
+  const theadEl = sablonEl.querySelector<HTMLElement>('#pdf-thead');
+  if (theadEl) { theadTopCssPx = olcDomUst(theadEl); theadHeightCssPx = theadEl.offsetHeight; }
+
+  // İki canvas eş zamanlı render
+  const [mainCanvas, headerCanvas] = await Promise.all([
+    html2canvas(sablonEl, HTML2CANVAS_OPTIONS),
+    html2canvas(kompaktHeaderEl, HTML2CANVAS_OPTIONS),
+  ]);
+
+  // compress: false — JPEG zaten sıkıştırılmış; FlateDecode üst üste eklemene gerek yok
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: false });
+  const pdfW = pdf.internal.pageSize.getWidth();   // 210 mm
+  const pdfH = pdf.internal.pageSize.getHeight();  // 297 mm
+  const pxToMm = pdfW / mainCanvas.width;
+
+  const toplamHMm  = mainCanvas.height * pxToMm;
+  // Alt bloğun canvas koordinatları
+  const bbStartPx  = Math.min(Math.round(bbTopCssPx    * SCALE), mainCanvas.height);
+  const bbEndPx    = Math.min(Math.round((bbTopCssPx + bbHeightCssPx) * SCALE), mainCanvas.height);
+  const bbHeightPx = Math.max(0, bbEndPx - bbStartPx);
+
+  // ── Tek sayfa ──────────────────────────────────────────────────────
+  // Flex layout (flex:1 içerik + pdf-bottom-block) zaten footer'ı
+  // minHeight:297mm kutusunun altına iter — ek işlem gerekmez.
+  if (toplamHMm <= pdfH + 1) {
+    pdf.addImage(mainCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, Math.min(toplamHMm, pdfH), undefined, 'NONE');
     return pdf;
   }
 
-  const sayfaSayisi = Math.ceil(mainTotalH / pdfPageH);
-  for (let i = 0; i < sayfaSayisi; i += 1) {
-    if (i > 0) pdf.addPage();
-    const srcY = (i * pdfPageH) / mainPxToMm;
-    const sliceH = Math.min(pdfPageH, mainTotalH - i * pdfPageH);
-    const srcH = Math.max(1, Math.round(sliceH / mainPxToMm));
-    const dilimCanvas = document.createElement('canvas');
-    dilimCanvas.width = mainCanvas.width;
-    dilimCanvas.height = srcH;
-    const ctx = dilimCanvas.getContext('2d');
+  // ── Çok sayfalı ────────────────────────────────────────────────────
+  const headerHMm = headerCanvas.height * pxToMm;
 
-    if (ctx) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(mainCanvas, 0, Math.round(srcY), mainCanvas.width, srcH, 0, 0, mainCanvas.width, srcH);
+  // Thead canvas: ana canvas'tan kesilir — sayfa 2+'de tablo başlığı tekrarlanır
+  let theadCanvas: HTMLCanvasElement | null = null;
+  if (theadHeightCssPx > 0) {
+    const thStartPx = Math.min(Math.round(theadTopCssPx * SCALE), mainCanvas.height);
+    const thEndPx   = Math.min(Math.round((theadTopCssPx + theadHeightCssPx) * SCALE), mainCanvas.height);
+    if (thEndPx > thStartPx) {
+      theadCanvas = dilimCanvas(mainCanvas, thStartPx, thEndPx - thStartPx);
     }
+  }
+  const theadHMm = theadCanvas ? theadCanvas.height * pxToMm : 0;
 
-    pdf.addImage(dilimCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfPageW, sliceH, undefined, 'NONE');
+  const page1HCssPx = (pdfH - SAYFA_ALT_BOSLUK_MM)                        / (SCALE * pxToMm);
+  const page2HCssPx = (pdfH - headerHMm - theadHMm - SAYFA_ALT_BOSLUK_MM) / (SCALE * pxToMm);
+
+  // Kesimler yalnızca içerik alanı için hesaplanır; alt blok kapsam dışı.
+  const contentEndCssPx = bbTopCssPx > 0 ? bbTopCssPx : undefined;
+  const kesimlerCssPx   = sayfaKesimleriniHesapla(sablonEl, page1HCssPx, page2HCssPx, contentEndCssPx);
+  const baslangiclар    = [0, ...kesimlerCssPx];
+
+  // Tam sayfa yüksekliği canvas piksel cinsinden
+  const fullPagePx = Math.round(pdfH / pxToMm);
+
+  for (let i = 0; i < baslangiclар.length; i++) {
+    if (i > 0) pdf.addPage();
+
+    const isLastPage  = i === baslangiclар.length - 1;
+    const startCssPx  = baslangiclар[i];
+    const startPx     = Math.round(startCssPx * SCALE);
+    const isPage2Plus = i > 0;
+
+    if (isLastPage && bbHeightPx > 0) {
+      // ── Son sayfa: alt blok sayfanın mutlak altına sabitlenir ──────
+      const headerHPx = isPage2Plus ? headerCanvas.height : 0;
+      const theadHPx  = (isPage2Plus && theadCanvas) ? theadCanvas.height : 0;
+
+      const pageCanvas  = document.createElement('canvas');
+      pageCanvas.width  = mainCanvas.width;
+      pageCanvas.height = fullPagePx;
+      const ctx = pageCanvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+      // Kompakt antet + thead (sayfa 2+)
+      if (isPage2Plus) {
+        ctx.drawImage(headerCanvas, 0, 0);
+        if (theadCanvas) ctx.drawImage(theadCanvas, 0, headerHPx);
+      }
+
+      // İçerik: sayfa başından alt bloğun hemen üstüne kadar
+      const contentStartY = headerHPx + theadHPx;
+      const contentEndPx  = Math.min(bbStartPx, mainCanvas.height);
+      const contentLen    = Math.max(0, contentEndPx - startPx);
+      if (contentLen > 0) {
+        ctx.drawImage(mainCanvas, 0, startPx, mainCanvas.width, contentLen, 0, contentStartY, mainCanvas.width, contentLen);
+      }
+
+      // Alt blok: sayfanın en altına yapıştır
+      ctx.drawImage(mainCanvas, 0, bbStartPx, mainCanvas.width, bbHeightPx, 0, fullPagePx - bbHeightPx, mainCanvas.width, bbHeightPx);
+
+      pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, pdfH, undefined, 'NONE');
+
+    } else {
+      // ── Ara sayfalar ────────────────────────────────────────────────
+      const endCssPx = baslangiclар[i + 1];
+      const endPx    = Math.min(Math.round(endCssPx * SCALE), mainCanvas.height);
+      const slicePx  = Math.max(1, endPx - startPx);
+
+      let sayfaCanvas: HTMLCanvasElement;
+      if (!isPage2Plus) {
+        // Sayfa 1: sadece içerik
+        sayfaCanvas = dilimCanvas(mainCanvas, startPx, slicePx);
+      } else {
+        // Sayfa 2+: kompakt antet + thead + içerik
+        sayfaCanvas = sayfaCanvasBirlestir(headerCanvas, theadCanvas, mainCanvas, startPx, slicePx);
+      }
+      pdf.addImage(sayfaCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sayfaCanvas.height * pxToMm, undefined, 'NONE');
+    }
   }
 
   return pdf;
@@ -83,9 +283,11 @@ export default function TeklifOnizleme() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const sablonRef = useRef<HTMLDivElement>(null);
+  const kompaktHeaderRef = useRef<HTMLDivElement>(null);
   const pdfBlobUrlRef = useRef<string | null>(null);
   const uretiliyorRef = useRef(false);
   const sonOtomatikUretimRef = useRef<string | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile(768);
   const C = useColors();
@@ -93,8 +295,10 @@ export default function TeklifOnizleme() {
   const [teklif, setTeklif] = useState<Teklif | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfHazir, setPdfHazir] = useState(false);
   const [uretiliyor, setUretiliyor] = useState(false);
+  const [previewScale, setPreviewScale] = useState(1);
 
   useEffect(() => {
     if (!id) {
@@ -112,11 +316,12 @@ export default function TeklifOnizleme() {
   }, [id]);
 
   const pdfOlustur = useCallback(async () => {
-    if (!sablonRef.current || !teklif || uretiliyorRef.current) return;
+    if (!sablonRef.current || !kompaktHeaderRef.current || !teklif || uretiliyorRef.current) return;
 
     uretiliyorRef.current = true;
     setUretiliyor(true);
     setPdfHazir(false);
+    setPdfBlobUrl(null);
 
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
@@ -124,11 +329,12 @@ export default function TeklifOnizleme() {
     }
 
     try {
-      const pdf = await buildPdf(sablonRef.current);
+      const pdf = await buildPdf(sablonRef.current, kompaktHeaderRef.current!);
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
       pdfBlobUrlRef.current = url;
       setPdfBlob(blob);
+      setPdfBlobUrl(url);
       setPdfHazir(true);
     } catch (err) {
       console.error('[PDF] buildPdf hatası:', err);
@@ -159,21 +365,60 @@ export default function TeklifOnizleme() {
     };
   }, []);
 
+  // Önizleme ölçeği: 210mm (A4) ÷ gerçek container genişliği
+  // Container daha dar olduğunda içerik zoom ile küçülür, sağ kenar kesilmez.
+  useEffect(() => {
+    const el = previewContainerRef.current;
+    if (!el) return;
+    const A4_PX = 210 * (96 / 25.4); // ~793.7 px
+    const obs = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      setPreviewScale(Math.min(1, w / A4_PX));
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   function pdfIndir() {
     if (!pdfBlob || !teklif) return;
 
+    // İlk iki kelime Türkçe büyük harf + teklif no
+    const kelimeler = teklif.cari.firmaAdi.trim().split(/\s+/);
+    const onEk = kelimeler.slice(0, 2).join(' ').toLocaleUpperCase('tr-TR').replace(/[\\/:*?"<>|]/g, '');
+    const dosyaAdi = `${onEk} ${teklif.teklifNo}.pdf`;
+
+    const url = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(pdfBlob);
-    link.download = `Teklif_${teklif.teklifNo}.pdf`;
+    link.href = url;
+    link.download = dosyaAdi;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
+    URL.revokeObjectURL(url);
     message.success('PDF basariyla indirildi.');
   }
 
   function yazdir() {
-    window.print();
+    // PDF blob varsa: PDF üzerinden baskı → ekran önizlemesi ile birebir aynı çıktı.
+    // Blob yoksa: klasik window.print() fallback.
+    if (!pdfBlob) {
+      window.print();
+      return;
+    }
+    const url = URL.createObjectURL(pdfBlob);
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(iframe);
+    iframe.src = url;
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      // Baskı diyaloğu kapandıktan sonra temizle
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }, 3000);
+    };
   }
 
   if (hata) {
@@ -245,7 +490,7 @@ export default function TeklifOnizleme() {
             {teklif.teklifNo}
             <span style={{ marginLeft: 8, color: C.textFaint }}>·</span>
             <span style={{ marginLeft: 8, color: C.textPrimary, fontWeight: 500 }}>
-              {teklif.cari.firmaAdi}
+              {formatCariAdi(teklif.cari.firmaAdi)}
             </span>
           </span>
         </div>
@@ -291,6 +536,7 @@ export default function TeklifOnizleme() {
         </Space>
       </div>
 
+      {/* ── Gizli render alanı: sablonRef (tam) + kompaktHeaderRef ── */}
       <div
         aria-hidden
         className="no-print"
@@ -307,6 +553,10 @@ export default function TeklifOnizleme() {
         <div ref={sablonRef}>
           <TeklifSablonu teklif={teklif} totals={totals} />
         </div>
+        {/* Kompakt antet: html2canvas ile ayrıca capture edilir */}
+        <div ref={kompaktHeaderRef}>
+          <KompaktAntet teklif={teklif} />
+        </div>
       </div>
 
       <div
@@ -319,7 +569,8 @@ export default function TeklifOnizleme() {
           padding: '28px 16px 40px',
         }}
       >
-        <div className="print-inner" style={{ width: '100%', maxWidth: '210mm' }}>
+        {/* previewContainerRef: ResizeObserver ölçüm noktası */}
+        <div ref={previewContainerRef} className="print-inner" style={{ width: '100%', maxWidth: '210mm' }}>
           <div
             className="no-print"
             style={{
@@ -338,29 +589,60 @@ export default function TeklifOnizleme() {
             </span>
           </div>
 
-          <div
-            className="print-target"
-            style={{
-              width: '210mm',
-              minHeight: '297mm',
-              maxWidth: '100%',
-              margin: '0 auto',
-              background: '#ffffff',
-              boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
-              overflow: 'hidden',
-            }}
-          >
-            <TeklifSablonu teklif={teklif} totals={totals} />
-          </div>
+          {/* zoom wrapper: container < 210mm olduğunda tüm önizlemeyi küçültür */}
+          <div style={{ zoom: previewScale }}>
 
-          {(uretiliyor || !pdfHazir) && (
-            <div className="no-print" style={{ textAlign: 'center', padding: '18px 0 0' }}>
-              <Spin size="small" />
-              <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 12.5 }}>
-                İndirme için yüksek kaliteli PDF arka planda hazırlanıyor.
+            {/* ── PDF hazır: iframe ile birebir önizleme ── */}
+            {pdfHazir && pdfBlobUrl && !isMobile ? (
+              <div
+                className="print-target"
+                style={{
+                  width: '210mm',
+                  boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
+                  background: '#525659',
+                  overflow: 'hidden',
+                }}
+              >
+                <iframe
+                  src={`${pdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                  style={{
+                    width: '100%',
+                    height: 'calc(100vh - 110px)',
+                    minHeight: '297mm',
+                    border: 'none',
+                    display: 'block',
+                  }}
+                  title="PDF Önizleme"
+                />
               </div>
-            </div>
-          )}
+            ) : (
+              /* ── PDF hazır değil veya mobil: TeklifSablonu canlı önizleme ── */
+              <>
+                <div
+                  className="print-target"
+                  style={{
+                    width: '210mm',
+                    minHeight: '297mm',
+                    background: '#ffffff',
+                    boxShadow: '0 20px 48px rgba(15, 23, 42, 0.24)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <TeklifSablonu teklif={teklif} totals={totals} />
+                </div>
+
+                {(uretiliyor || !pdfHazir) && (
+                  <div className="no-print" style={{ textAlign: 'center', padding: '18px 0 0' }}>
+                    <Spin size="small" />
+                    <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 12.5 }}>
+                      Yüksek kaliteli PDF hazırlanıyor…
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+          </div>{/* zoom wrapper sonu */}
         </div>
       </div>
 

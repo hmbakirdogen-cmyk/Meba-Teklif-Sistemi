@@ -22,7 +22,7 @@ import { urunService } from '../services/urunService';
 import type { Cari, Urun } from '../types';
 import {
   normalizeProductCode, cleanTextInput, normalizeEmail,
-  stripParantez, formatPdfAciklama, titleCaseAciklama,
+  stripParantez, formatPdfAciklama, titleCaseAciklama, formatCariAdi,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';
@@ -52,7 +52,7 @@ function CariModal({
       const kayit: Cari = {
         id: cari?.id ?? cariService.cariIdUret(),
         cariKod:       normalizeProductCode(vals.cariKod ?? ''),
-        firmaAdi:      cleanTextInput(vals.firmaAdi ?? ''),
+        firmaAdi:      formatCariAdi(cleanTextInput(vals.firmaAdi ?? '')),
         yetkiliKisi:   cleanTextInput(vals.yetkiliKisi ?? ''),
         telefon:       formatPhone(vals.telefon ?? ''),
         ePosta:        normalizeEmail(vals.ePosta ?? ''),
@@ -310,7 +310,7 @@ export default function VeriYonetimiSayfasi() {
   const cariKolonlar = [
     { title: 'Kod',      dataIndex: 'cariKod',    key: 'cariKod',    width: 90,
       render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748b' }}>{v}</span> },
-    { title: 'Firma Adı',  dataIndex: 'firmaAdi',   key: 'firmaAdi', ellipsis: true },
+    { title: 'Firma Adı',  dataIndex: 'firmaAdi',   key: 'firmaAdi', ellipsis: true, render: (v: string) => formatCariAdi(v) },
     { title: 'Yetkili',    dataIndex: 'yetkiliKisi', key: 'yetkiliKisi', width: 130, ellipsis: true },
     { title: 'Telefon',    dataIndex: 'telefon',     key: 'telefon',   width: 140 },
     { title: 'E-Posta',    dataIndex: 'ePosta',      key: 'ePosta',    ellipsis: true },

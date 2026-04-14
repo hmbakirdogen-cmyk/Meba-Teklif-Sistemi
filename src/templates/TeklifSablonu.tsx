@@ -4,6 +4,7 @@ import { formatCurrency, formatDate, formatDisplayNumber, formatTitleCaseTr, str
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { TeklifTotalsSection } from './TeklifTotalsSection';
+import { formatCariAdi } from '../utils/formatters';
 
 const PARA_BIRIMI_ETIKETI: Record<string, string> = { TRY: 'TL', EUR: 'EUR', USD: 'USD' };
 function firstLine(text: string): string {
@@ -14,19 +15,24 @@ const SEMBOL: Record<string, string> = { TRY: '₺', EUR: '€', USD: '$', GBP: 
 
 // ── PDF Tasarım Sabitleri ─────────────────────────────────────────────────────
 const C = {
-  navy:       '#14274e',   // Oxford Navy — derin kurumsal lacivert
-  navyLight:  '#1e3668',   // Orta lacivert — alt başlık & vurgu
-  navyBorder: '#b6c4d6',   // Lacivert tonlu açık kenarlık
-  accent:     '#1e3668',   // Ürün kodu metin rengi
-  border:     '#e2e6eb',
-  borderSoft: '#edf0f4',
-  rowAlt:     '#f4f7fb',   // Hafif lacivert tonu — çift satır
-  text:       '#1c1c1e',
-  textMid:    '#3a3a3c',
-  textSoft:   '#636366',
-  textMuted:  '#8e8e93',
-  white:      '#ffffff',
-  bg:         '#f1f4f8',   // Hafif lacivert tonu — arka plan alanları
+  navy:        '#1a2f50',   // Koyu lacivert — metin, vurgu
+  navyLight:   '#1e3668',   // İkincil lacivert
+  navyBorder:  '#8eaabf',   // (#b6c4d6 → koyulaştırıldı, baskıda net çizgi)
+  accent:      '#1e3668',   // Ürün kodu
+  border:      '#bfc5cc',   // (#e2e6eb → koyulaştırıldı, baskıda kaybolan çizgiler için)
+  borderSoft:  '#cdd3da',   // (#edf0f4 → koyulaştırıldı)
+  rowAlt:      '#edf0f4',   // (#f5f7fa → hafif zebra, baskıda görünür)
+  text:        '#1c1c1e',
+  textMid:     '#2e2e30',   // (#3a3a3c → daha koyu)
+  textSoft:    '#3c3c42',   // (#636366 → baskıda kaybolmayan koyu gri)
+  textMuted:   '#4a4a52',   // (#8e8e93 → #888 seviyesinden çıkarıldı, belirgin koyu gri)
+  white:       '#ffffff',
+  bg:          '#e5e9ef',   // (#f1f4f8 → ödeme satırı bg, baskıda görünür)
+  // ── Şerit sistemi (tüm mavi şeritlerde tek kaynak) ──────────────────
+  stripeBg:    '#d6e4f5',   // Soft çelik mavi — desatüre, mat, göz yormaz
+  stripeText:  '#1a2f50',   // Koyu lacivert — net, keskin, beyaz değil
+  stripeSub:   '#2d4a61',   // (#4a6680 → koyulaştırıldı, Quotation yazısı baskıda net)
+  stripeSep:   '#b8cfe8',   // Şerit içi ince ayraç (varsa)
 };
 
 // Sütun genişlikleri — içerik bazlı otomatik boyutlandırma
@@ -104,6 +110,89 @@ function TableColgroup({ satirBazliParaBirimi }: { satirBazliParaBirimi: boolean
   );
 }
 
+/**
+ * KompaktAntet — Sayfa 2+ için küçültülmüş antet.
+ * Tam sayfa genişliğinde (210mm) bağımsız olarak render edilir,
+ * ardından PDF motorunda içerik dilimleriyle compositing yapılır.
+ */
+export function KompaktAntet({ teklif }: { teklif: Teklif }) {
+  // S: optH = LOGO_OPT_H × S ≈ metin bloğu yüksekliği
+  // Metin bloğu: 3 satır (9px×1.25 + 7.8px×1.3 × 2) + 2×gap(2px) ≈ 35.5px
+  // S = 35.5 / 64.87 ≈ 0.548
+  const S = 0.548;
+  const logoW  = LOGO_FILE_W      * S;
+  const logoH  = LOGO.FILE_HEIGHT * S;
+  const optW   = LOGO_OPT_W       * S;
+  const optH   = LOGO_OPT_H       * S;
+  const optTop = LOGO_OPT_TOP     * S;
+  const optLeft= LOGO_OPT_LEFT    * S;
+
+  return (
+    <div style={{
+      width: '210mm',
+      boxSizing: 'border-box',
+      padding: '12mm 10mm 0',
+      fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      backgroundColor: '#ffffff',
+      WebkitPrintColorAdjust: 'exact',
+      printColorAdjust: 'exact',
+    } as React.CSSProperties}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingBottom: '3.5mm',
+        borderBottom: `1.5px solid ${C.stripeBg}`,
+      }}>
+        {/* Mini logo — optik bounding box ile kırpılmış */}
+        <div style={{
+          position: 'relative',
+          width: `${optW}px`,
+          height: `${optH}px`,
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}>
+          <img
+            src="/logo-meba.png"
+            alt="MEBA"
+            style={{
+              position: 'absolute',
+              top:  `${optTop}px`,
+              left: `${optLeft}px`,
+              width:  `${logoW}px`,
+              height: `${logoH}px`,
+              maxWidth: 'none',
+              maxHeight: 'none',
+              display: 'block',
+            }}
+          />
+        </div>
+        {/* MEBA firma bilgileri — müşteri bilgisi yok */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: C.navy, letterSpacing: '-0.01em', lineHeight: 1.25 }}>
+            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.
+          </span>
+          <span style={{ fontSize: '7.8px', color: C.textSoft, lineHeight: 1.3 }}>
+            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ
+          </span>
+          <span style={{ fontSize: '7.8px', color: C.textSoft, lineHeight: 1.3 }}>
+            Tel: 0352 502 07 80 &nbsp;·&nbsp; info@mebamekanik.com &nbsp;·&nbsp; www.mebamekanik.com
+          </span>
+        </div>
+        {/* Teklif no + tarih */}
+        <div style={{ flexShrink: 0, textAlign: 'right' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, color: C.navy, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
+            {teklif.teklifNo}
+          </div>
+          <div style={{ fontSize: '7.5px', color: C.textMuted, marginTop: 1, letterSpacing: '0.01em' }}>
+            {formatDate(teklif.tarih)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
   const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
@@ -162,46 +251,34 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <div style={{ flex: 1 }}>
 
       {/* ══ HEADER ══════════════════════════════════════════════ */}
-      {/* Logo + tüm yazılar (Hazırlayan dahil) tek flex container içinde.        */}
-      {/* align-items:flex-end + min-height = LOGO_OPT_H (logonun OPTİK alt       */}
-      {/* sınırı referans). Tüm metinlerin alt bitiş noktası logonun gerçek       */}
-      {/* görsel alt sınırı (MEKANİK badge altı) ile birebir aynı.                */}
-      {/* min-height kullanılır ki içerik taşarsa container otomatik büyüsün.    */}
+      {/* Referans: LOGO_OPT_H — logonun gerçek görsel yüksekliği.  */}
+      {/* alignItems:'stretch' → 3 sütun da bu yüksekliğe gerilir.  */}
+      {/* Sütun 2: space-between → isim üst / adres alt sınıra oturur*/}
+      {/* Sütun 3: space-between → badge üst / tablo alt sınıra oturur*/}
       <div style={{
         display: 'flex',
         alignItems: 'stretch',
         width: '100%',
-        minHeight: `${LOGO_OPT_H}px`,
-        marginBottom: '3px',
-        lineHeight: 'normal',
+        height: `${LOGO_OPT_H}px`,
+        marginBottom: '9px',
         ...noBreak,
       }}>
 
-        {/* Logo — OPTİK bounding box (dış çerçeve değil, gerçek görsel sınırlar) */}
-        {/* PNG'nin üst (~10%) ve alt (~24%) beyaz padding'leri overflow:hidden  */}
-        {/* + negatif top offset ile gizlenir. Wrapper sadece gerçek logonun     */}
-        {/* yazı bölümünü gösterir; alt sınırı = MEKANİK badge'in alt çizgisi.   */}
+        {/* ── Sütun 1: Logo ──────────────────────────────────────── */}
+        {/* Optik clipping wrapper: PNG beyaz boşlukları kesilir,    */}
+        {/* sadece MEBA harfleri + badge görünür.                     */}
         <div style={{
           flex: '0 0 31%',
           maxWidth: '31%',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-start',
-          margin: 0,
-          padding: '0 12px 0 0',
-          lineHeight: 0,
+          paddingRight: '12px',
           boxSizing: 'border-box',
+          lineHeight: 0,
         }}>
-          {/* Optik clipping wrapper — width × height = logonun görsel sınırları */}
           <div style={{
             position: 'relative',
             width: `${LOGO_OPT_W}px`,
             height: `${LOGO_OPT_H}px`,
             overflow: 'hidden',
-            display: 'block',
-            margin: 0,
-            padding: 0,
-            lineHeight: 0,
           }}>
             <img
               src="/logo-meba.png"
@@ -219,112 +296,101 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 transform: 'translateZ(0)',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                padding: 0,
-                margin: 0,
-                lineHeight: 0,
-                verticalAlign: 'bottom',
               }}
             />
           </div>
         </div>
 
-        {/* Şirket Bilgisi — alt bitiş noktası logonun alt sınırı ile birebir */}
+        {/* ── Sütun 2: Firma bilgileri ────────────────────────────── */}
+        {/* space-between → isim grubu logo üst sınırında,            */}
+        {/* adres bloğu logo alt sınırında.                           */}
         <div style={{
           flex: '0 0 37%',
           maxWidth: '37%',
+          paddingRight: '10px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'flex-start',
-          alignItems: 'flex-start',
-          margin: 0,
-          padding: '0 10px 0 0',
-          lineHeight: 'normal',
+          justifyContent: 'space-between',
           boxSizing: 'border-box',
         }}>
-          <div style={{ fontWeight: 700, fontSize: '12.8px', color: C.navy, margin: 0, padding: 0, lineHeight: '1.18', letterSpacing: '-0.01em' }}>
-            MEBA Pnömatik Hidrolik Makina Elektrik
+          {/* Firma isim grubu — logonun üst sınırına oturur */}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '12.8px', color: C.navy, lineHeight: '1.18', letterSpacing: '-0.01em' }}>
+              MEBA Pnömatik Hidrolik Makina Elektrik
+            </div>
+            <div style={{ fontWeight: 600, fontSize: '11.1px', color: C.navyLight, lineHeight: '1.15', letterSpacing: '0.01em' }}>
+              Elektronik Mühendislik San. Tic. Ltd. Şti.
+            </div>
           </div>
-          <div style={{ fontWeight: 600, fontSize: '11.1px', color: C.navyLight, margin: '1px 0 2px 0', padding: 0, lineHeight: '1.15', letterSpacing: '0.01em' }}>
-            Elektronik Mühendislik San. Tic. Ltd. Şti.
-          </div>
-          <div style={{ fontSize: '9.9px', lineHeight: '1.35', color: C.textSoft, margin: 0, padding: 0, letterSpacing: '0.01em' }}>
+          {/* Adres — logonun alt sınırına oturur */}
+          <div style={{ fontSize: '9.9px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
             Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv.<br />
             No:252/D Melikgazi / KAYSERİ
           </div>
         </div>
 
-        {/* Teklif Bilgi Kutusu — "Hazırlayan" satırının alt bitişi logonun alt sınırı ile birebir */}
+        {/* ── Sütun 3: Teklif bilgi bloğu ────────────────────────── */}
+        {/* 175px anchor: badge üstte (logo üst), tablo altta (logo   */}
+        {/* alt). space-between her ikisini sınırlara sabitler.        */}
         <div style={{
           flex: '0 0 32%',
           maxWidth: '32%',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'flex-start',
           alignItems: 'flex-end',
-          textAlign: 'right',
-          margin: 0,
-          padding: 0,
-          lineHeight: 'normal',
           boxSizing: 'border-box',
         }}>
-          {/* ── ANCHOR WRAPPER ──                                              */}
-          {/* Hem TEKLİF başlığı hem "Teklif No" satırı bu wrapper'ın sol       */}
-          {/* kenarını paylaşır → ortak sol referans çizgisi (layout anchor).   */}
-          {/* Sabit width: badge + meta-table aynı genişlikte, aynı x'te başlar.*/}
           <div style={{
             width: '175px',
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'stretch',
-            margin: 0,
-            padding: 0,
+            justifyContent: 'space-between',
+            overflow: 'hidden',
             boxSizing: 'border-box',
           }}>
-            {/* Teklif başlık etiketi — şerit içinde tam ortalı */}
+            {/* TEKLİF başlık etiketi — logo üst sınırına oturur */}
+            {/* 14px @ lh1.2 + 3+3px padding = 22.8px badge yüksekliği */}
             <div style={{
-              background: `linear-gradient(135deg, ${C.navy} 0%, #1e3668 100%)`,
-              color: C.white,
-              padding: '5px 12px',
-              margin: '0 0 4px 0',
-              width: '100%',
-              boxSizing: 'border-box',
+              background: C.stripeBg,
+              padding: '3px 12px',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               lineHeight: 1.2,
             }}>
-              <span style={{ fontWeight: 'bold', fontSize: '13px', letterSpacing: '0.5px' }}>
+              <span style={{ fontWeight: 700, fontSize: '14px', letterSpacing: '0.8px', color: C.stripeText }}>
                 TEKLİF
               </span>
-              <span style={{ fontSize: '8.5px', color: 'rgba(255,255,255,0.65)' }}>
+              <span style={{ fontSize: '9px', color: C.stripeSub, letterSpacing: '0.02em' }}>
                 / Quotation
               </span>
             </div>
-            {/* Teklif meta — width:100% ile aynı anchor'a snap. "Teklif No"    */}
-            {/* hücresinin sol kenarı = badge'in sol kenarı (her ikisi de       */}
-            {/* wrapper'ın x=0 noktası).                                         */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', margin: 0, padding: 0, lineHeight: 1, tableLayout: 'fixed' }}>
+            {/* Teklif meta tablosu — logo alt sınırına oturur         */}
+            {/* Hiyerarşi: Teklif No (güçlü) > Tarih (orta) > Hazırlayan (sade) */}
+            {/* Etiketler küçük+soluk, değerler belirgin — toplam ~38.8px */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
               <colgroup>
                 <col style={{ width: '42%' }} />
                 <col style={{ width: '58%' }} />
               </colgroup>
               <tbody>
                 <tr>
-                  <td style={{ fontSize: '10.1px', color: C.textMuted, padding: '0 0 3px 0', lineHeight: 1.2, letterSpacing: '0.03em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 700, color: C.navy, padding: '0 0 3px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
+                  <td style={{ fontSize: '8px', color: C.textMuted, padding: '0 0 2px 0', lineHeight: 1.2, letterSpacing: '0.04em' }}>Teklif No</td>
+                  <td style={{ fontSize: '10.5px', fontWeight: 700, color: C.navy, padding: '0 0 2px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
                     {teklif.teklifNo}
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '10.1px', color: C.textMuted, padding: '0 0 3px 0', lineHeight: 1.2, letterSpacing: '0.03em' }}>Tarih</td>
-                  <td style={{ fontSize: '11.8px', fontWeight: 600, color: C.text, padding: '0 0 3px 0', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ fontSize: '8px', color: C.textMuted, padding: '0 0 2px 0', lineHeight: 1.2, letterSpacing: '0.04em' }}>Tarih</td>
+                  <td style={{ fontSize: '9.5px', fontWeight: 500, color: C.text, padding: '0 0 2px 0', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
                     {formatDate(teklif.tarih)}
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '10.1px', color: C.textMuted, padding: 0, margin: 0, lineHeight: 1.2, letterSpacing: '0.03em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '11.8px', fontWeight: 600, color: C.text, padding: 0, margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td style={{ fontSize: '8px', color: C.textMuted, padding: 0, lineHeight: 1.2, letterSpacing: '0.04em' }}>Hazırlayan</td>
+                  <td style={{ fontSize: '9px', fontWeight: 500, color: C.textSoft, padding: 0, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {teklif.hazirlayanAdSoyad || 'MEBA Mekanik'}
                   </td>
                 </tr>
@@ -345,7 +411,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         borderBottom: `1px solid ${C.border}`,
         borderLeft: 'none',
         borderRight: 'none',
-        marginBottom: '4px',
+        marginBottom: '9px',
         ...noBreak,
       }}>
         <tbody>
@@ -353,7 +419,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             {/* Gönderen */}
             <td style={{
               width: '50%',
-              padding: '5px 11px',
+              padding: '8px 11px',
               verticalAlign: 'top',
               borderRight: 'none',
               borderLeft: 'none',
@@ -366,6 +432,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 textTransform: 'uppercase',
                 marginBottom: '2px',
               }}>
+                Gönderen / From
               </div>
               <div style={{ fontWeight: 700, fontSize: '12.1px', color: C.navy, marginBottom: '1px', letterSpacing: '-0.01em' }}>
                 MEBA Mekanik Ltd. Şti.
@@ -378,7 +445,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             {/* Alıcı */}
             <td style={{
               width: '50%',
-              padding: '5px 10px',
+              padding: '8px 10px',
               verticalAlign: 'top',
             }}>
               <div style={{
@@ -392,7 +459,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 Alıcı / To
               </div>
               <div style={{ fontWeight: 700, fontSize: '12.1px', color: C.navy, marginBottom: '2px', lineHeight: '1.3', letterSpacing: '-0.01em' }}>
-                {teklif.cari.firmaAdi}
+                {formatCariAdi(teklif.cari.firmaAdi)}
               </div>
               <div style={{ fontSize: '10.3px', lineHeight: '1.38', color: C.textMid, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {muhatapSatiri && (
@@ -491,8 +558,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         tableLayout: 'fixed',
       }}>
         <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
-        <thead>
-          <tr style={{ background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a6a 100%)`, color: C.white }}>
+        <thead id="pdf-thead">
+          <tr>
             {[
               { label: '#',           sub: '',            align: 'center' as const },
               { label: 'Marka',       sub: 'Brand',       align: 'center' as const },
@@ -511,12 +578,15 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   textAlign: col.align,
                   verticalAlign: 'middle',
                   fontSize: '10.6px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   letterSpacing: '0.03em',
+                  color: C.navy,
                   borderRight: 'none',
                   borderLeft: 'none',
+                  borderBottom: '2px solid #5b8aac',
                   lineHeight: '1.3',
                   whiteSpace: 'nowrap',
+                  background: 'transparent',
                 }}
               >
                 {col.label}
@@ -525,7 +595,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     display: 'block',
                     fontWeight: 500,
                     fontSize: '8.4px',
-                    color: 'rgba(255,255,255,0.82)',
+                    color: C.textSoft,
                     marginTop: '2px',
                     textAlign: col.align,
                   }}>
@@ -730,65 +800,84 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             //   Teslimat td             : boş
             // → Genel Toplam rakamı üstteki tüm Toplam sütun değerleriyle AYNI sütun,
             //   AYNI padding, AYNI textAlign — virgül hizası garantili.
+            // Her finansal satır: colSpan=6 (etiket sağa) + Toplam td (rakam sağa) + Teslimat td (boş)
+            // Tüm rakamlar Toplam sütunuyla aynı padding/textAlign → virgül hizası garantili
             const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
+            const tdLabel = (pt: string, pb: string): React.CSSProperties => ({
+              padding: `${pt} 0 ${pb} 0`, textAlign: 'right' as const,
+              borderBottom: 'none', borderTop: 'none', verticalAlign: 'middle',
+            });
+            const tdVal = (pt: string, pb: string): React.CSSProperties => ({
+              padding: `${pt} 6px ${pb} 6px`, textAlign: 'right' as const,
+              borderBottom: 'none', borderTop: 'none', verticalAlign: 'middle',
+              whiteSpace: 'nowrap' as const, fontVariantNumeric: 'tabular-nums' as const,
+            });
+            const tdEmpty: React.CSSProperties = { borderBottom: 'none', borderTop: 'none' };
             return (
-              <tr>
-                {/* Sol 6 kolon: döküm + "Genel Toplam" etiketi */}
-                <td colSpan={6} style={{ padding: hasDetail ? '5px 0 4px 0' : '5px 0', borderBottom: 'none', borderTop: 'none', verticalAlign: 'bottom' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ paddingRight: '6px' }}>
-                      {hasDetail && (
-                        <table style={{ borderCollapse: 'separate', borderSpacing: '0 1px', marginBottom: '4px', tableLayout: 'auto' }}>
-                          <tbody>
-                            <tr>
-                              <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: C.textSoft, textAlign: 'left', whiteSpace: 'nowrap', padding: '0 12px 0 0' }}>
-                                Ara Toplam
-                              </td>
-                              <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', padding: 0, fontWeight: 600 }}>
-                                {formatCurrency(araToplam, teklif.paraBirimi)}
-                              </td>
-                            </tr>
-                            {iskontoOrani > 0 && (
-                              <tr>
-                                <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: C.textSoft, textAlign: 'left', whiteSpace: 'nowrap', padding: '0 12px 0 0' }}>
-                                  {`İskonto %${iskontoOrani}`}
-                                </td>
-                                <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', padding: 0, fontWeight: 600 }}>
-                                  – {formatCurrency(iskontoTutar, teklif.paraBirimi)}
-                                </td>
-                              </tr>
-                            )}
-                            {kdvOrani > 0 && (
-                              <tr>
-                                <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: C.textSoft, textAlign: 'left', whiteSpace: 'nowrap', padding: '0 12px 0 0' }}>
-                                  {`KDV %${kdvOrani}`}
-                                </td>
-                                <td style={{ fontSize: '8.5px', lineHeight: 1.22, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', padding: 0, fontWeight: 600 }}>
-                                  + {formatCurrency(kdvTutar, teklif.paraBirimi)}
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      )}
-                      {hasDetail && <div style={{ borderTop: '0.75px solid #d0dae4', marginBottom: '4px' }} />}
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textMid, lineHeight: 1, whiteSpace: 'nowrap' }}>
-                          Genel Toplam
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                {/* Toplam kolonu — native hiza, padding satırlarla identik */}
-                <td style={{ padding: '5px 6px', textAlign: 'right', verticalAlign: 'bottom', borderBottom: 'none', borderTop: 'none', whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: genelToplam >= 1000000 ? '14.5px' : '16px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: C.navy }}>
-                    {formatCurrency(genelToplam, teklif.paraBirimi)}
-                  </span>
-                </td>
-                {/* Teslimat kolonu — boş */}
-                <td style={{ borderBottom: 'none', borderTop: 'none' }} />
-              </tr>
+              <>
+                {/* Ara Toplam — yalnızca iskonto/KDV varsa */}
+                {hasDetail && (
+                  <tr>
+                    <td colSpan={6} style={tdLabel('6px', '2px')}>
+                      <span style={{ fontSize: '9px', fontWeight: 500, color: C.textSoft, whiteSpace: 'nowrap' }}>Ara Toplam</span>
+                    </td>
+                    <td style={{ ...tdVal('6px', '2px'), fontSize: '9px', fontWeight: 600, color: C.textMid }}>
+                      {formatCurrency(araToplam, teklif.paraBirimi)}
+                    </td>
+                    <td style={tdEmpty} />
+                  </tr>
+                )}
+                {/* İskonto */}
+                {iskontoOrani > 0 && (
+                  <tr>
+                    <td colSpan={6} style={tdLabel('2px', '2px')}>
+                      <span style={{ fontSize: '9px', fontWeight: 500, color: C.textSoft, whiteSpace: 'nowrap' }}>{`İskonto %${iskontoOrani}`}</span>
+                    </td>
+                    <td style={{ ...tdVal('2px', '2px'), fontSize: '9px', fontWeight: 600, color: C.textMid }}>
+                      {`– ${formatCurrency(iskontoTutar, teklif.paraBirimi)}`}
+                    </td>
+                    <td style={tdEmpty} />
+                  </tr>
+                )}
+                {/* KDV */}
+                {kdvOrani > 0 && (
+                  <tr>
+                    <td colSpan={6} style={tdLabel('2px', '2px')}>
+                      <span style={{ fontSize: '9px', fontWeight: 500, color: C.textSoft, whiteSpace: 'nowrap' }}>{`KDV %${kdvOrani}`}</span>
+                    </td>
+                    <td style={{ ...tdVal('2px', '2px'), fontSize: '9px', fontWeight: 600, color: C.textMid }}>
+                      {`+ ${formatCurrency(kdvTutar, teklif.paraBirimi)}`}
+                    </td>
+                    <td style={tdEmpty} />
+                  </tr>
+                )}
+                {/* Ayraç */}
+                {hasDetail && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '4px 0', borderBottom: 'none', borderTop: 'none' }}>
+                      <div style={{ borderTop: '0.75px solid #c8d5e4', marginRight: 0 }} />
+                    </td>
+                    <td style={{ padding: '4px 6px', borderBottom: 'none', borderTop: 'none' }}>
+                      <div style={{ borderTop: '0.75px solid #c8d5e4' }} />
+                    </td>
+                    <td style={tdEmpty} />
+                  </tr>
+                )}
+                {/* Genel Toplam */}
+                <tr>
+                  <td colSpan={6} style={tdLabel('3px', '6px')}>
+                    <span style={{ fontSize: '8.5px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' as const, color: C.textMid, whiteSpace: 'nowrap' }}>
+                      Genel Toplam
+                    </span>
+                  </td>
+                  <td style={{ ...tdVal('3px', '6px') }}>
+                    <span style={{ fontSize: genelToplam >= 1000000 ? '14.5px' : '16px', fontWeight: 800, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: C.navy }}>
+                      {formatCurrency(genelToplam, teklif.paraBirimi)}
+                    </span>
+                  </td>
+                  <td style={tdEmpty} />
+                </tr>
+              </>
             );
           })() : (() => {
             // Çok para birimi — tam genişlik kart dizisi
@@ -947,41 +1036,60 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       )}
 
       {/* ══ KAŞE / İMZA + FOOTER ═════════════════════════════════ */}
-      {/* id="kase-imza-block" → PDF pipeline bu BLOK'u ayrı canvas    */}
-      {/* olarak yakalar ve her sayfanın EN ALTINA stamp eder.          */}
-      {/* Footer (navy bar) bu bloğun İÇİNDE — ikisi birlikte         */}
-      {/* yakalanır, birlikte stamp edilir. Ana içerik doğal flow'da   */}
-      {/* kalır, zorla 297mm'e esnetilmez → 2. sayfa tetiklenmez.     */}
+      {/* pdf-bottom-block: PDF pipeline bu bloğun DOM pozisyonunu      */}
+      {/* ölçer ve son sayfanın mutlak altına sabitler. İçerik alanı    */}
+      {/* (flex:1) biter, bu blok her zaman sayfanın alt kısmında kalır.*/}
       </div>{/* içerik alanı sonu */}
 
-      {/* ── SİPARİŞİ VEREN — footer'ın hemen üstünde, sola hizalı ── */}
-      <div id="kase-imza-block" style={{ display: 'flex', justifyContent: 'flex-start', padding: '6px 0 6px', marginTop: '44px', ...noBreak }}>
-        <div style={{ fontSize: '10.2px', lineHeight: '1.45', color: C.textMid, textAlign: 'left', minWidth: '160px' }}>
-          <div style={{ color: C.textMuted, marginBottom: '8px' }}>Siparişi Veren / Authorised Person</div>
-          <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: '3px', height: '14px' }} />
-          <div style={{ color: C.textMuted, marginBottom: '6px' }}>İsim / Name</div>
-          <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: '3px', height: '14px' }} />
-          <div style={{ color: C.textMuted }}>Tarih / Date</div>
-        </div>
-      </div>
+      <div id="pdf-bottom-block">
 
-      {/* ── FOOTER (navy şerit) — sayfanın en altında ── */}
-      <div style={{
-        marginTop: '20px',
-        borderTop: `1px solid ${C.navyBorder}`,
-        background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a6a 100%)`,
-        color: 'rgba(255,255,255,0.82)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: '8.5px',
-        padding: '6px 9px',
-        lineHeight: '1.55',
-        letterSpacing: '0.02em',
-      }}>
-        <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
-        <div style={{ fontVariantNumeric: 'tabular-nums' }}>
-          Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com
+        {/* ── SİPARİŞİ VEREN — 2 sütunlu kompakt düzen ── */}
+        <div style={{
+          marginTop: '16px',
+          padding: '6px 0 6px',
+          ...noBreak,
+        }}>
+          <div style={{ color: C.textMuted, fontSize: '10.2px', marginBottom: '8px' }}>
+            Siparişi Veren / Authorised Person
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+
+            {/* Sol: İsim + Tarih (%40) — çizgiler sağdan 2cm kısa */}
+            <div style={{ flex: '0 0 40%', fontSize: '10.2px', lineHeight: '1.45', color: C.textMid }}>
+              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '22px' }} />
+              <div style={{ color: C.textMuted, marginBottom: '8px', marginTop: '3px' }}>İsim / Name</div>
+              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '22px' }} />
+              <div style={{ color: C.textMuted, marginTop: '3px' }}>Tarih / Date</div>
+            </div>
+
+            {/* Sağ: İmza — paddingTop ile Tarih çizgisi seviyesine hizalanır */}
+            {/* paddingTop: İsim çizgisi(22) + İsim etiketi bloğu(~26) = ~48px */}
+            <div style={{ flex: '1', fontSize: '10.2px', lineHeight: '1.45', color: C.textMid, paddingTop: '48px' }}>
+              <div style={{ width: '100px', marginLeft: '-2cm', borderBottom: `1px solid ${C.border}`, height: '22px' }} />
+              <div style={{ color: C.textMuted, marginTop: '3px', marginLeft: '-2cm' }}>İmza / Signature</div>
+            </div>
+
+          </div>
         </div>
+
+        {/* ── FOOTER (navy şerit) ── */}
+        <div style={{
+          borderTop: `1px solid ${C.navyBorder}`,
+          background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a6a 100%)`,
+          color: 'rgba(255,255,255,0.82)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: '8.5px',
+          padding: '6px 9px',
+          lineHeight: '1.55',
+          letterSpacing: '0.02em',
+        }}>
+          <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
+          <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+            Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com
+          </div>
+        </div>
+
       </div>
 
     </div>

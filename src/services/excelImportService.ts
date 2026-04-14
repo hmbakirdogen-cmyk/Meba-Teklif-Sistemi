@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import type { Cari, Urun } from '../types';
 import { cariService } from './musteriService';
 import { urunService } from './urunService';
-import { cleanTextInput, normalizeEmail, normalizeProductCode, formatTitleCaseTr, cleanProductDescription } from '../utils/formatters';
+import { cleanTextInput, normalizeEmail, normalizeProductCode, formatCariAdi, cleanProductDescription } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 
 // ── Yardımcı: başlık dizisinde pattern eşleşmesi ──────────────────────────
@@ -135,7 +135,7 @@ export async function cariExcelOku(file: File): Promise<CariImportSonucu> {
     const cari: Cari = {
       id: cariService.cariIdUret(),
       cariKod,
-      firmaAdi: formatTitleCaseTr(firmaAdi),
+      firmaAdi: formatCariAdi(firmaAdi),
       yetkiliKisi: cleanTextInput(cellStr(row, colYetkili)),
       telefon: formatPhone(cellStr(row, colTel)),
       ePosta: normalizeEmail(cellStr(row, colEmail)),

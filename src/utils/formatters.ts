@@ -20,6 +20,23 @@ export function formatPercentage(val: number): string {
   return `%${val.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
+/**
+ * Cari (firma) adı formatlar: SADECE ilk kelime Türkçe büyük harfe çevrilir,
+ * geri kalan kelimeler olduğu gibi korunur.
+ *   "istem elektrik elektronik"  → "İSTEM elektrik elektronik"
+ *   "abc MAKİNA sanayi"          → "ABC MAKİNA sanayi"
+ *   "çelik grup"                 → "ÇELİK grup"
+ */
+export function formatCariAdi(adi: string): string {
+  const trimmed = adi.trim();
+  if (!trimmed) return trimmed;
+  const spaceIdx = trimmed.search(/\s/);
+  if (spaceIdx === -1) {
+    return trimmed.toLocaleUpperCase('tr-TR');
+  }
+  return trimmed.slice(0, spaceIdx).toLocaleUpperCase('tr-TR') + trimmed.slice(spaceIdx);
+}
+
 /** Türkçe'ye özgü başlık büyük harfe dönüştürme (I/İ/ı/i farkları korunur) */
 export function formatTitleCaseTr(text: string): string {
   if (!text) return '';

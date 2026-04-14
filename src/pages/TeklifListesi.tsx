@@ -14,7 +14,7 @@ import {
 import { teklifService } from '../services/teklifService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import type { Teklif, TeklifDurum } from '../types';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate, formatCariAdi } from '../utils/formatters';
 import { useKullanici } from '../context/useKullanici';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { buttonClassNames, tabButtonClassName } from '../styles/buttonStyles';
@@ -169,10 +169,10 @@ export default function TeklifListesi() {
         }}
       >
         <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: C.textPrimary, letterSpacing: -0.5, lineHeight: 1.2 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, letterSpacing: '-0.025em', lineHeight: 1.15 }}>
             Teklif Arşivi
           </div>
-          <div style={{ fontSize: 12, color: C.textFaint, marginTop: 5 }}>
+          <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 5, fontWeight: 400 }}>
             {filtrelenmis.length} teklif gösteriliyor
           </div>
         </div>
@@ -320,9 +320,9 @@ function HeaderCell({
     <div
       style={{
         fontSize: 10,
-        fontWeight: 600,
-        color: 'var(--text-faint)',
-        letterSpacing: 0.6,
+        fontWeight: 500,
+        color: 'var(--text-secondary)',
+        letterSpacing: '0.07em',
         textTransform: 'uppercase',
         ...style,
       }}
@@ -432,9 +432,9 @@ function TeklifKarti({ teklif, benim, durum, navigate, onSil, onKopyala }: Karti
             style={{
               textAlign: 'left',
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 600,
               color: C.textPrimary,
-              letterSpacing: 0.2,
+              letterSpacing: '0.01em',
               lineHeight: 1.2,
               display: 'block',
               marginBottom: 3,
@@ -442,10 +442,10 @@ function TeklifKarti({ teklif, benim, durum, navigate, onSil, onKopyala }: Karti
           >
             {teklif.teklifNo}
           </button>
-          <div style={{ fontSize: 12, color: C.textSecondary, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {teklif.cari.firmaAdi}
+          <div style={{ fontSize: 12, color: C.textSecondary, fontWeight: 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {formatCariAdi(teklif.cari.firmaAdi)}
           </div>
-          <div style={{ fontSize: 10, color: C.textFaint, marginTop: 1, letterSpacing: 0.2 }}>{teklif.cari.cariKod}</div>
+          <div style={{ fontSize: 10, color: C.textFaint, marginTop: 1, letterSpacing: '0.02em' }}>{teklif.cari.cariKod}</div>
         </div>
 
         <div />
