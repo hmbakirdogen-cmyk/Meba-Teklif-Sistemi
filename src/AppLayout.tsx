@@ -51,7 +51,7 @@ export default function AppLayout() {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh', background: C.bgBody }}>
+    <Layout style={{ minHeight: '100vh', background: C.bgBody, backgroundAttachment: 'fixed' }}>
       <Header
         style={{
           display: 'flex',
@@ -146,14 +146,14 @@ export default function AppLayout() {
         </Tooltip>
 
         {/* ── USER AREA ── */}
-        {aktifKullanici && (
+        {aktifKullanici && !isMobile && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: USER_INNER_GAP,
-              paddingLeft: isMobile ? 8 : 16,
-              borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
+              paddingLeft: 16,
+              borderLeft: '1px solid rgba(255,255,255,0.08)',
               flexShrink: 0,
               height: '60%',
             }}
@@ -176,20 +176,18 @@ export default function AppLayout() {
             </div>
 
             {/* İsim — sadece desktop */}
-            {!isMobile && (
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, lineHeight: 1.15 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap' }}>
-                  {aktifKullanici.adSoyad}
-                </div>
-                <div style={{
-                  fontSize: 10,
-                  color: isYonetici ? 'rgba(251,191,36,0.75)' : 'rgba(148,163,184,0.85)',
-                  whiteSpace: 'nowrap', letterSpacing: 0.3,
-                }}>
-                  {aktifKullanici.unvan}
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, lineHeight: 1.15 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                {aktifKullanici.adSoyad}
               </div>
-            )}
+              <div style={{
+                fontSize: 10,
+                color: isYonetici ? 'rgba(251,191,36,0.75)' : 'rgba(148,163,184,0.85)',
+                whiteSpace: 'nowrap', letterSpacing: 0.3,
+              }}>
+                {aktifKullanici.unvan}
+              </div>
+            </div>
 
             {/* Çıkış */}
             <Tooltip title="Çıkış Yap">
@@ -212,7 +210,7 @@ export default function AppLayout() {
             icon={<MenuOutlined />}
             onClick={() => setDrawerOpen(true)}
             className={buttonClassNames.iconGhost}
-            style={{ color: 'rgba(255,255,255,0.85)', fontSize: 18, marginLeft: 4 }}
+            style={{ color: 'rgba(255,255,255,0.85)', fontSize: 18, marginLeft: 2 }}
           />
         )}
       </Header>
@@ -267,7 +265,7 @@ export default function AppLayout() {
         )}
       </Drawer>
 
-      <Content style={{ background: C.bgBody }}>
+      <Content style={{ background: 'transparent' }}>
         <Outlet />
       </Content>
     </Layout>

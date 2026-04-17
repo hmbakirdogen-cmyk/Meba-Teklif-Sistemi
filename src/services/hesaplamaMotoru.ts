@@ -46,7 +46,7 @@ function satirParaBirimiGetir(
 
 function satirToplamHesapla(satir: Omit<TeklifSatiri, 'satirToplami'>): number {
   const brutFiyat = satir.miktar * satir.birimFiyat;
-  return brutFiyat - brutFiyat * (satir.indirimOrani / 100);
+  return brutFiyat - brutFiyat * ((satir.indirimOrani ?? 0) / 100);
 }
 
 function paraBirimineGoreToplamlar(
@@ -73,7 +73,7 @@ function genelToplamHesapla(
 
   for (const satir of satirlar) {
     const brut = satir.miktar * satir.birimFiyat;
-    const indirim = brut * (satir.indirimOrani / 100);
+    const indirim = brut * ((satir.indirimOrani ?? 0) / 100);
     araToplam += brut - indirim;
     toplamIndirim += indirim;
   }

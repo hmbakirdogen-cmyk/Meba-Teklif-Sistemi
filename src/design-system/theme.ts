@@ -53,43 +53,43 @@ export interface ThemeColors {
 
 // ── Light tema ────────────────────────────────────────────────────────────────
 export const lightTheme: ThemeColors = {
-  bgBody:          '#f5f6fa',
+  bgBody:          'linear-gradient(180deg, #f8fafc 0%, #eef3f8 100%)',
   bgSurface:       '#ffffff',
-  bgElevated:      '#f8fafc',
+  bgElevated:      '#f3f7fb',   // kart alt gradient hedefi — biraz daha mavi-gri
   bgInput:         '#ffffff',
   bgHeader:        '#0f1f45',
   bgHeaderBorder:  '#1e3060',
 
-  textPrimary:     '#0f1f45',
-  textSecondary:   '#64748b',
+  textPrimary:     '#1e293b',   // softer than #0f1f45 — daha modern slate
+  textSecondary:   '#475569',   // #64748b'den biraz daha koyu — daha iyi kontrast
   textFaint:       '#94a3b8',
 
-  border:          '#e2e8f0',
-  borderSubtle:    '#f0f4f8',
-  borderInput:     '#d1d9e6',
+  border:          '#dbe3ec',   // daha yumuşak mavi-gri
+  borderSubtle:    '#edf2f7',
+  borderInput:     '#cdd6e3',
   inputFocus:      '#2563eb',
 
-  shadow:          '0 1px 3px rgba(15,31,69,0.07), 0 1px 2px rgba(15,31,69,0.04)',
-  shadowCard:      '0 1px 3px rgba(15,31,69,0.07), 0 1px 2px rgba(15,31,69,0.04)',
+  shadow:          '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.03)',
+  shadowCard:      '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.03), inset 0 1px 0 rgba(255,255,255,0.7)',
 
-  rowAlt:          '#fafbff',
+  rowAlt:          '#f4f8fc',
   tableHead:       '#0f1f45',
   tableHeadText:   '#ffffff',
   tableRow:        '#ffffff',
-  tableRowAlt:     '#fafbff',
-  tableBorder:     '#f0f4f8',
+  tableRowAlt:     '#f4f8fc',
+  tableBorder:     '#e8eef5',
 
-  totalsPanel:     '#fafbfd',
-  totalsBorder:    '#e2e8f0',
-  totalsRowBorder: '#f0f4f8',
+  totalsPanel:     '#f6f9fd',
+  totalsBorder:    '#c6d4e2',   // Genel Toplam kartıyla aynı
+  totalsRowBorder: '#dce8f5',
 
-  cardBorder:      '1px solid #e2e8f0',
-  inputBorder:     '#d1d9e6',
+  cardBorder:      '1px solid #dbe3ec',
+  inputBorder:     '#cdd6e3',
 };
 
 // ── Dark tema — Apple / Linear inspired ──────────────────────────────────────
 export const darkTheme: ThemeColors = {
-  bgBody:          '#0f1117',
+  bgBody:          'linear-gradient(180deg, #0f1117 0%, #090d16 100%)',
   bgSurface:       '#181b25',
   bgElevated:      '#1c2132',
   bgInput:         '#141822',

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Popconfirm, Tooltip, message } from 'antd';
+import { App, Button, Input, Popconfirm, Tooltip } from 'antd';
 import {
   PlusOutlined,
   EyeOutlined,
@@ -82,6 +82,7 @@ function teklifToplamOzeti(teklif: Teklif): string[] {
 type Filtre = 'benim' | 'tumu' | 'digerleri';
 
 export default function TeklifListesi() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const { aktifKullanici } = useKullanici();
   const isMobile = useIsMobile(768);
@@ -507,7 +508,7 @@ function TeklifKarti({ teklif, benim, durum, navigate, onSil, onKopyala }: Karti
             </div>
           ))}
           {teklif.satirBazliParaBirimi && toplamSatirlari.length === 0 && (
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>Satir bazli</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>Satır bazlı</div>
           )}
         </div>
 

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
 import {
-  Card, Form, Input, AutoComplete, Select, DatePicker, Button,
-  message, Row, Col
+  App, Card, Form, Input, AutoComplete, Select, DatePicker, Button,
+  Row, Col
 } from 'antd';
 import { SaveOutlined, EyeOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -20,16 +20,15 @@ import { useKullanici } from '../context/useKullanici';
 import { buttonClassNames } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
 
-const { Option } = Select;
 const { TextArea } = Input;
 
 // ── Design System ─────────────────────────────────────────────────────────────
 const DS = {
   card: {
     marginBottom: 16,
-    borderRadius: 10,
+    borderRadius: 14,
     border: '1px solid var(--border)',
-    boxShadow: '0 1px 3px rgba(15,31,69,0.07), 0 1px 2px rgba(15,31,69,0.04)',
+    boxShadow: '0 1px 3px rgba(15,23,42,0.05), 0 4px 16px rgba(15,23,42,0.04), inset 0 1px 0 rgba(255,255,255,0.7)',
   } as CSSProperties,
   cardBody: { padding: '16px 20px' } as CSSProperties,
   secHead: {
@@ -50,6 +49,7 @@ interface YeniTeklifProps {
 }
 
 export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [form] = Form.useForm();
@@ -75,10 +75,25 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   const [contactTitle, setContactTitle] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
   const [teklifId] = useState(() => mevcut ? id! : teklifService.teklifIdUret());
   const [teklifNo, setTeklifNo] = useState<string>(mevcut?.teklifNo ?? '...');
+  const [teklifNoDurumu, setTeklifNoDurumu] = useState<'hazir' | 'yukleniyor' | 'hata'>(
+    mevcut ? 'hazir' : 'yukleniyor',
+  );
+  const [aktifIslem, setAktifIslem] = useState<'kaydet' | 'onizle' | null>(null);
+  const teklifNoPromiseRef = useRef<Promise<string> | null>(null);
 
   useEffect(() => {
     if (!mevcut) {
-      teklifService.teklifNoUretAsync().then(setTeklifNo).catch(() => setTeklifNo('ERR'));
+      const promise = teklifService.teklifNoUretAsync();
+      teklifNoPromiseRef.current = promise;
+      promise
+        .then((no) => {
+          setTeklifNo(no);
+          setTeklifNoDurumu('hazir');
+        })
+        .catch(() => {
+          setTeklifNo('ERR');
+          setTeklifNoDurumu('hata');
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -108,11 +123,11 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
   } = hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani);
   const satirParaToplamlari = hesaplamaMotoru.paraBirimineGoreToplamlar(satirlar, paraBirimi);
 
-  function teklifOlustur(): Teklif {
+  function teklifOlustur(aktifTeklifNo = teklifNo): Teklif {
     const tarihVal = form.getFieldValue('tarih');
     return {
       id: teklifId,
-      teklifNo,
+      teklifNo: aktifTeklifNo,
       tarih: tarihVal ? dayjs(tarihVal).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
       satirBazliParaBirimi,
       paraBirimi,
@@ -148,18 +163,60 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
     })));
   }
 
-  function kaydet() {
+  async function teklifNoHazirla(): Promise<string | null> {
+    if (mevcut) return teklifNo;
+    if (teklifNoDurumu === 'hazir' && teklifNo !== 'ERR') return teklifNo;
+    if (teklifNoDurumu === 'hata') {
+      message.error('Teklif numarası oluşturulamadı. Lütfen sayfayı yenileyin.');
+      return null;
+    }
+
+    try {
+      const yeniTeklifNo = await teklifNoPromiseRef.current;
+      if (!yeniTeklifNo) {
+        message.error('Teklif numarası oluşturulamadı. Lütfen tekrar deneyin.');
+        return null;
+      }
+      setTeklifNo(yeniTeklifNo);
+      setTeklifNoDurumu('hazir');
+      return yeniTeklifNo;
+    } catch {
+      setTeklifNoDurumu('hata');
+      message.error('Teklif numarası oluşturulamadı. Lütfen sayfayı yenileyin.');
+      return null;
+    }
+  }
+
+  async function kaydet() {
     if (!cari) { message.warning('Lütfen cari seçin.'); return; }
     if (satirlar.length === 0) { message.warning('En az bir ürün satırı ekleyin.'); return; }
-    teklifService.teklifKaydet(teklifOlustur());
+
+    setAktifIslem('kaydet');
+    const aktifTeklifNo = await teklifNoHazirla();
+    if (!aktifTeklifNo) {
+      setAktifIslem(null);
+      return;
+    }
+
+    teklifService.teklifKaydet(teklifOlustur(aktifTeklifNo));
+    setAktifIslem(null);
     message.success('Teklif kaydedildi.');
     navigate('/teklifler');
   }
 
-  function onizle() {
+  async function onizle() {
     if (!cari) { message.warning('Lütfen cari seçin.'); return; }
     if (satirlar.length === 0) { message.warning('En az bir ürün satırı ekleyin.'); return; }
-    teklifService.teklifKaydet(teklifOlustur());
+
+    setAktifIslem('onizle');
+    const aktifTeklifNo = await teklifNoHazirla();
+    if (!aktifTeklifNo) {
+      setAktifIslem(null);
+      return;
+    }
+
+    teklifService.teklifKaydet(teklifOlustur(aktifTeklifNo));
+    setAktifIslem(null);
     navigate(`/teklif/${teklifId}/onizleme`);
   }
 
@@ -207,6 +264,15 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           }}>
             {teklifNo}
           </div>
+          {!duzenleme && (
+            <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 5 }}>
+              {teklifNoDurumu === 'yukleniyor'
+                ? 'Teklif numarası hazırlanıyor.'
+                : teklifNoDurumu === 'hata'
+                  ? 'Teklif numarası alınamadı. Lütfen sayfayı yenileyin.'
+                  : 'Teklif numarası hazır.'}
+            </div>
+          )}
         </div>
       </div>
 
@@ -215,9 +281,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         {/* ── CARİ ─────────────────────────────────────────── */}
         <Card
           title={<span style={DS.secHead}>Cari</span>}
-          styles={{ header: { padding: 0, minHeight: 0, border: 'none' } }}
+          styles={{ header: { padding: 0, minHeight: 0, border: 'none' }, body: DS.cardBody }}
           style={DS.card}
-          bodyStyle={DS.cardBody}
         >
           <CariSecimi
             value={cari}
@@ -272,10 +337,11 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
                   cariService.cariMuhatapGuncelle(cari.id, contactName.trim(), v);
                 }}
                 style={{ width: 84 }}
-              >
-                <Option value="BEY">Bey</Option>
-                <Option value="HANIM">Hanım</Option>
-              </Select>
+                options={[
+                  { value: 'BEY', label: 'Bey' },
+                  { value: 'HANIM', label: 'Hanım' },
+                ]}
+              />
             </div>
           )}
         </Card>
@@ -283,9 +349,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         {/* ── TEKLİF PARAMETRELERİ ──────────────────────────── */}
         <Card
           title={<span style={DS.secHead}>Teklif Parametreleri</span>}
-          styles={{ header: { padding: 0, minHeight: 0, border: 'none' } }}
+          styles={{ header: { padding: 0, minHeight: 0, border: 'none' }, body: DS.cardBody }}
           style={DS.card}
-          bodyStyle={DS.cardBody}
         >
           {/* — Satır 1 — */}
           <Row gutter={[16, 0]}>
@@ -351,13 +416,17 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             </Col>
             <Col xs={24} sm={4}>
               <Form.Item name="durum" label="Durum" style={{ marginBottom: 12 }}>
-                <Select style={{ borderRadius: 6 }} onChange={(v: TeklifDurum) => setDurum(v)}>
-                  <Option value="taslak">Taslak</Option>
-                  <Option value="hazir">Hazır</Option>
-                  <Option value="gonderildi">Gönderildi</Option>
-                  <Option value="onaylandi">Onaylandı</Option>
-                  <Option value="iptal">İptal</Option>
-                </Select>
+                <Select
+                  style={{ borderRadius: 6 }}
+                  onChange={(v: TeklifDurum) => setDurum(v)}
+                  options={[
+                    { value: 'taslak', label: 'Taslak' },
+                    { value: 'hazir', label: 'Hazır' },
+                    { value: 'gonderildi', label: 'Gönderildi' },
+                    { value: 'onaylandi', label: 'Onaylandı' },
+                    { value: 'iptal', label: 'İptal' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -367,9 +436,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         {/* ── ÜRÜN KALEMLERİ ───────────────────────────────── */}
         <Card
           title={<span style={DS.secHead}>Teklif Kalemleri</span>}
-          styles={{ header: { padding: 0, minHeight: 0, border: 'none' } }}
+          styles={{ header: { padding: 0, minHeight: 0, border: 'none' }, body: DS.cardBody }}
           style={DS.card}
-          bodyStyle={DS.cardBody}
         >
           <UrunSatirlari
             satirlar={satirlar}
@@ -381,7 +449,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         </Card>
 
         {/* ── TOPLAM ───────────────────────────────────────── */}
-        <Card style={{ ...DS.card, marginBottom: 16 }} bodyStyle={DS.cardBody}>
+        <Card style={{ ...DS.card, marginBottom: 16 }} styles={{ body: DS.cardBody }}>
           <ToplamPaneli
             araToplam={araToplam}
             toplamIndirim={toplamIndirim}
@@ -398,9 +466,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         {/* ── NOTLAR ───────────────────────────────────────── */}
         <Card
           title={<span style={DS.secHead}>Notlar</span>}
-          styles={{ header: { padding: 0, minHeight: 0, border: 'none' } }}
+          styles={{ header: { padding: 0, minHeight: 0, border: 'none' }, body: DS.cardBody }}
           style={{ ...DS.card, marginBottom: 32 }}
-          bodyStyle={DS.cardBody}
         >
           <TextArea
             rows={3}
@@ -413,11 +480,26 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
         </Card>
 
         {/* ── EYLEM ÇUBUĞU ─────────────────────────────────── */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: isMobile ? 'stretch' : 'center',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: 12,
+            padding: isMobile ? '14px 0 4px' : '8px 0 4px',
+            borderTop: `1px solid ${C.borderSubtle}`,
+          }}
+        >
+          <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>
+            Değişiklikler kayıt ve önizleme sırasında mevcut veri yapısı korunarak işlenir.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
           <Button
             onClick={() => navigate('/teklifler')}
             className={buttonClassNames.ghost}
             style={{ borderRadius: 7, color: '#64748b' }}
+            disabled={aktifIslem !== null}
           >
             İptal
           </Button>
@@ -425,6 +507,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             icon={<SaveOutlined />}
             onClick={kaydet}
             className={buttonClassNames.secondary}
+            loading={aktifIslem === 'kaydet'}
+            disabled={aktifIslem !== null || teklifNoDurumu === 'hata'}
             style={{
               border: `1px solid ${C.textPrimary}`,
               color: C.textPrimary,
@@ -438,6 +522,8 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
             icon={<EyeOutlined />}
             onClick={onizle}
             className={buttonClassNames.primary}
+            loading={aktifIslem === 'onizle'}
+            disabled={aktifIslem !== null || teklifNoDurumu === 'hata'}
             style={{
               background: 'linear-gradient(180deg, #1a2f5e 0%, #0f1f45 100%)',
               borderColor: '#0f1f45',
@@ -446,6 +532,7 @@ export default function YeniTeklif({ duzenleme = false }: YeniTeklifProps) {
           >
             Önizle &amp; PDF
           </Button>
+          </div>
         </div>
 
       </Form>

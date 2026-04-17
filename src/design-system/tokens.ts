@@ -55,36 +55,37 @@ export const FONT_FAMILY = {
 } as const;
 
 // ── Köşe yarıçapı ─────────────────────────────────────────────────────────────
-// 11 standart değer — antd borderRadius=8 ile uyumlu
+// Antd borderRadius=8 ile uyumlu; tabloda md, kartta xl/2xl, büyük panelde 3xl
 export const RADIUS = {
   none:  '0px',
-  xs:    '4px',    // küçük rozet, chip, yoğun liste öğesi
-  sm:    '5px',    // input, kompakt kart
-  md:    '8px',    // antd default — buton, input, genel kart
-  lg:    '10px',   // büyük kart, panel
-  xl:    '11px',   // bölüm bloğu
-  '2xl': '12px',   // modal, yüzen panel
-  '3xl': '14px',   // büyük modal, drawer
-  '4xl': '16px',   // hero kart
+  xs:    '4px',    // küçük rozet, chip
+  sm:    '6px',    // input, kompakt kart
+  md:    '8px',    // buton, input, tablo köşe — antd default
+  lg:    '10px',   // iç kart, kompakt panel
+  xl:    '12px',   // standart kart
+  '2xl': '14px',   // bölüm kartı — birincil kart radius
+  '3xl': '16px',   // büyük bölüm, modal
+  '4xl': '20px',   // hero kart, ana panel
   full:  '9999px', // hap rozet, avatar, toggle
 } as const;
 
-// ── Gölgeler ──────────────────────────────────────────────────────────────────
+// ── Gölgeler — 3 seviye, inset olmadan (inset ayrıca eklenebilir) ─────────────
 export const SHADOW = {
   light: {
-    card:     '0 1px 3px rgba(15,31,69,0.07), 0 1px 2px rgba(15,31,69,0.04)',
-    panel:    '0 2px 8px rgba(15,31,69,0.08)',
-    button:   '0 1px 3px rgba(15,31,69,0.10)',
-    hero:     '0 4px 24px rgba(15,23,42,0.10)',
-    elevated: '0 8px 32px rgba(15,23,42,0.12)',
+    sm:      '0 1px 2px rgba(15,23,42,0.05)',
+    card:    '0 1px 3px rgba(15,23,42,0.05), 0 4px 16px rgba(15,23,42,0.04)',
+    panel:   '0 2px 8px rgba(15,23,42,0.07), 0 8px 24px rgba(15,23,42,0.05)',
+    button:  '0 1px 3px rgba(15,31,69,0.10)',
   },
   dark: {
-    card:     '0 2px 8px rgba(0,0,0,0.4)',
-    panel:    '0 1px 4px rgba(0,0,0,0.5)',
-    button:   '0 1px 6px rgba(0,0,0,0.35)',
-    hero:     '0 4px 24px rgba(0,0,0,0.50)',
-    elevated: '0 8px 32px rgba(0,0,0,0.55)',
+    sm:      '0 1px 2px rgba(0,0,0,0.3)',
+    card:    '0 2px 8px rgba(0,0,0,0.35)',
+    panel:   '0 4px 16px rgba(0,0,0,0.45)',
+    button:  '0 1px 6px rgba(0,0,0,0.35)',
   },
+
+  // İç parlaklık — kart üst kenara eklenen highlight (sadece açık yüzeylerde)
+  inset: 'inset 0 1px 0 rgba(255,255,255,0.8)',
 } as const;
 
 // ── Boşluk sistemi ────────────────────────────────────────────────────────────

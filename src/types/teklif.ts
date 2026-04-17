@@ -3,7 +3,6 @@ import type { TeklifSatiri } from './teklifSatiri';
 
 export type ParaBirimi = 'TRY' | 'EUR' | 'USD';
 export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'iptal';
-export type OdemeVadesi = 'Pesin' | '30 Gun' | '45 Gun' | '60 Gun' | '90 Gun' | '120 Gun';
 
 export interface Teklif {
   id: string;

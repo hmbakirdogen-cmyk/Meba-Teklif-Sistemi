@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import {
-  Card, Upload, Button, Table, Alert, Typography, Input,
-  Space, Divider, Tag, Statistic, Row, Col, Popconfirm, message,
+  App, Card, Upload, Button, Table, Alert, Typography, Input,
+  Space, Divider, Tag, Statistic, Row, Col, Popconfirm,
   Modal, Form, Tabs,
 } from 'antd';
 import {
@@ -43,6 +43,7 @@ function CariModal({
   onKaydet: () => void;
   onIptal: () => void;
 }) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const isMobile = useIsMobile(640);
   const yeni = !cari;
@@ -145,6 +146,7 @@ function UrunModal({
   onKaydet: () => void;
   onIptal: () => void;
 }) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const isMobile = useIsMobile(640);
   const yeni = !urun;
@@ -223,6 +225,7 @@ function UrunModal({
 // Ana Sayfa
 // ─────────────────────────────────────────────────────────────────────────────
 export default function VeriYonetimiSayfasi() {
+  const { message } = App.useApp();
   // ── Veri state ──────────────────────────────────────────────────────────────
   const [cariler, setCariler] = useState<Cari[]>(() => cariService.tumCarileriGetir());
   const [urunler, setUrunler] = useState<Urun[]>(() => urunService.tumUrunleriGetir());
@@ -536,7 +539,7 @@ export default function VeriYonetimiSayfasi() {
         </Col>
       </Row>
 
-      <Card bodyStyle={{ paddingTop: 0 }}>
+      <Card styles={{ body: { paddingTop: 0 } }}>
         <Tabs
           defaultActiveKey="cariler"
           items={[

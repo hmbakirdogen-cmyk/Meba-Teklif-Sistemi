@@ -41,7 +41,7 @@ export function getAntdTokens(isDark: boolean): ThemeConfig {
       colorBgBase:        isDark ? C.bgSurface  : '#ffffff',
       colorBgContainer:   isDark ? C.bgSurface  : '#ffffff',
       colorBgElevated:    isDark ? C.bgElevated : '#ffffff',
-      colorBgLayout:      isDark ? C.bgBody     : '#f5f6fa',
+      colorBgLayout:      isDark ? '#0f1117'    : '#f3f7fb', // gradient değil — solid renk
 
       // ── Metin renkleri ─────────────────────────────────────────────────────
       colorText:          C.textPrimary,
@@ -88,13 +88,11 @@ export function getAntdTokens(isDark: boolean): ThemeConfig {
       },
 
       // ── Table ──────────────────────────────────────────────────────────────
+      // colorBgContainer ve headerBg kaldırıldı — CSS override ile kontrol edilir
       Table: {
         borderRadius:     10,
         fontSize:         13,
-        colorBgContainer: C.bgSurface,
-        headerBg:         C.tableHead,
-        headerColor:      C.tableHeadText,
-        rowHoverBg:       isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,31,69,0.03)',
+        rowHoverBg:       'transparent', // hover CSS'te .urun-tablo tr:hover > td ile yapılır
         borderColor:      C.tableBorder,
       },
 

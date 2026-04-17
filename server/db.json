@@ -1,6 +1,99 @@
 {
   "teklifler": [
     {
+      "id": "tmnzo9hn3",
+      "teklifNo": "2026-047",
+      "tarih": "2026-04-15",
+      "satirBazliParaBirimi": false,
+      "paraBirimi": "EUR",
+      "durum": "taslak",
+      "cari": {
+        "id": "cmnu3c8h83e3",
+        "cariKod": "C-025",
+        "firmaAdi": "Ruhbaş Elk. Elek.otom.taah.san.ve Ti̇c.ltd.sti̇",
+        "yetkiliKisi": "",
+        "telefon": "(0352) 336 32 10",
+        "ePosta": "",
+        "adres": "",
+        "vergiDairesi": "",
+        "vergiNo": ""
+      },
+      "satirlar": [
+        {
+          "id": "smnzo9xc9uuw",
+          "marka": "SMC",
+          "urunKod": "CP96SDB80-200",
+          "urunAdi": "80x200 Manyetik Yastıklı Silindir",
+          "aciklama": "Ø80 mm · 200 mm Strok · Manyetik Sensörlü",
+          "paraBirimi": "EUR",
+          "miktar": 5,
+          "birim": "Adet",
+          "birimFiyat": 98.9,
+          "indirimOrani": 0,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 494.5
+        },
+        {
+          "id": "smnzoa5cymwo",
+          "marka": "SMC",
+          "urunKod": "CP96SDB40-100",
+          "urunAdi": "40x100 Manyetik Yastıklı Silindir",
+          "aciklama": "Ø40 mm · 100 mm Strok · Manyetik Sensörlü",
+          "paraBirimi": "EUR",
+          "miktar": 2,
+          "birim": "Adet",
+          "birimFiyat": 49.45,
+          "indirimOrani": 0,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 98.9
+        },
+        {
+          "id": "smnzoaanrlau",
+          "marka": "SMC",
+          "urunKod": "CP96SDB40-70",
+          "urunAdi": "40x70 Manyetik Yastıklı Silindir",
+          "aciklama": "Ø40 mm · 70 mm Strok · Manyetik Sensörlü",
+          "paraBirimi": "USD",
+          "miktar": 8,
+          "birim": "Adet",
+          "birimFiyat": 48.5,
+          "indirimOrani": 0,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 388
+        },
+        {
+          "id": "smnzoagmjwko",
+          "marka": "SMC",
+          "urunKod": "SY100-30-4A",
+          "urunAdi": "KABLOLU SOKET 30 CM (SY100-30-4A)SMC",
+          "aciklama": "Kablolu Soket 30 Cmsmc",
+          "paraBirimi": "EUR",
+          "miktar": 3,
+          "birim": "Adet",
+          "birimFiyat": 11.23,
+          "indirimOrani": 0,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 33.69
+        }
+      ],
+      "araToplam": 1015.0899999999999,
+      "toplamIndirim": 0,
+      "toplamVergi": 0,
+      "genelToplam": 1015.0899999999999,
+      "kdvOrani": 0,
+      "iskontoOrani": 0,
+      "odemeVadesi": "45 Gün",
+      "notlar": "",
+      "olusturmaTarihi": "2026-04-15T06:33:14.141Z",
+      "guncellemeTarihi": "2026-04-15T11:03:22.602Z",
+      "hazirlayanKullaniciId": "u1",
+      "hazirlayanAdSoyad": "Yusuf Bostancı",
+      "hazirlayanRol": "engineer",
+      "gecerlilikSuresi": "1 Hafta",
+      "contactName": "ahmet",
+      "contactTitle": "BEY"
+    },
+    {
       "id": "tmnww18ec",
       "teklifNo": "2026-041",
       "tarih": "2026-04-13",
@@ -29,9 +122,9 @@
           "miktar": 8,
           "birim": "Adet",
           "birimFiyat": 98.9,
-          "indirimOrani": 50,
+          "indirimOrani": 0,
           "teslimTarihi": "2-3 Gün",
-          "satirToplami": 395.6
+          "satirToplami": 791.2
         },
         {
           "id": "smnww3cygnfu",
@@ -60,20 +153,6 @@
           "indirimOrani": 0,
           "teslimTarihi": "2-3 Gün",
           "satirToplami": 1780
-        },
-        {
-          "id": "smnww9h848vd",
-          "marka": "SMC",
-          "urunKod": "ZCAT2035-0930A",
-          "urunAdi": "FERRITE CORE ITV KABLOSU",
-          "aciklama": "Ferrite Core İtv Kablosu Smc",
-          "paraBirimi": "EUR",
-          "miktar": 1,
-          "birim": "Adet",
-          "birimFiyat": 123664.36,
-          "indirimOrani": 0,
-          "teslimTarihi": "2-3 Gün",
-          "satirToplami": 123664.36
         },
         {
           "id": "smnww9ijl2y6",
@@ -356,20 +435,6 @@
           "satirToplami": 0.99
         },
         {
-          "id": "smnx3cczc87c",
-          "marka": "SMC",
-          "urunKod": "ASV510F-03-12S",
-          "urunAdi": "HIZ AYARLI ÇAB EGZ V.3/8-12mm(ASV510F-03-12S)SMC",
-          "aciklama": "Hiz Ayarli Çab Egz V.3/8-12mmsmc",
-          "paraBirimi": "EUR",
-          "miktar": 44,
-          "birim": "Adet",
-          "birimFiyat": 25.2,
-          "indirimOrani": 0,
-          "teslimTarihi": "2-3 Gün",
-          "satirToplami": 1108.8
-        },
-        {
           "id": "smnx3cdqg0yk",
           "marka": "SMC",
           "urunKod": "ZP2V-A5-03",
@@ -440,19 +505,19 @@
           "satirToplami": 440
         }
       ],
-      "araToplam": 145502.35000000003,
+      "araToplam": 21124.790000000005,
       "toplamIndirim": 0,
       "toplamVergi": 0,
-      "genelToplam": 145502.35000000003,
+      "genelToplam": 21124.790000000005,
       "kdvOrani": 0,
       "iskontoOrani": 0,
       "odemeVadesi": "45 Gün",
       "notlar": "",
       "olusturmaTarihi": "2026-04-13T07:48:14.608Z",
-      "guncellemeTarihi": "2026-04-14T12:39:43.262Z",
-      "hazirlayanKullaniciId": "u1",
-      "hazirlayanAdSoyad": "Yusuf Bostancı",
-      "hazirlayanRol": "engineer",
+      "guncellemeTarihi": "2026-04-17T14:44:18.880Z",
+      "hazirlayanKullaniciId": "u3",
+      "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
+      "hazirlayanRol": "admin",
       "gecerlilikSuresi": "1 Hafta",
       "contactName": "Burak",
       "contactTitle": "BEY"
@@ -717,12 +782,12 @@
           "urunKod": "SY9420-5DZ-03F-Q",
           "urunAdi": "3/8\" 5/3 Egzoz Merkez Çift Bobin Valf",
           "aciklama": "3/8\" bağlantı · 5/3 egzoz merkez · 24 VDC",
-          "miktar": 85,
+          "miktar": 10,
           "birim": "Adet",
-          "birimFiyat": 97,
+          "birimFiyat": 50,
           "indirimOrani": 60,
           "teslimTarihi": "2-3 Gün",
-          "satirToplami": 3298,
+          "satirToplami": 200,
           "paraBirimi": "TRY"
         },
         {
@@ -737,7 +802,7 @@
           "indirimOrani": 0,
           "teslimTarihi": "Stok",
           "satirToplami": 3366,
-          "paraBirimi": "EUR"
+          "paraBirimi": "TRY"
         },
         {
           "id": "smnu6q9ri3ke",
@@ -779,7 +844,7 @@
           "indirimOrani": 0,
           "teslimTarihi": "4-6 Hafta",
           "satirToplami": 22.36,
-          "paraBirimi": "TRY"
+          "paraBirimi": "EUR"
         },
         {
           "id": "smnu6qxmd3uy",
@@ -793,7 +858,7 @@
           "indirimOrani": 0,
           "teslimTarihi": "2-3 Gün",
           "satirToplami": 52.3,
-          "paraBirimi": "EUR"
+          "paraBirimi": "USD"
         },
         {
           "id": "smnu6r7xw29q",
@@ -807,7 +872,7 @@
           "indirimOrani": 0,
           "teslimTarihi": "2-3 Gün",
           "satirToplami": 85.6,
-          "paraBirimi": "USD"
+          "paraBirimi": "EUR"
         },
         {
           "id": "smnu6rm1ggp8",
@@ -821,22 +886,22 @@
           "indirimOrani": 0,
           "teslimTarihi": "2-3 Gün",
           "satirToplami": 25.55,
-          "paraBirimi": "USD"
+          "paraBirimi": "EUR"
         }
       ],
-      "araToplam": 9234.81,
-      "toplamIndirim": 0,
+      "araToplam": 6136.81,
+      "toplamIndirim": 300,
       "toplamVergi": 0,
-      "genelToplam": 9234.81,
+      "genelToplam": 6136.81,
       "kdvOrani": 0,
       "iskontoOrani": 0,
       "odemeVadesi": "30 Gün",
       "notlar": "",
       "olusturmaTarihi": "2026-04-11T08:48:08.142Z",
-      "guncellemeTarihi": "2026-04-14T12:53:53.752Z",
-      "hazirlayanKullaniciId": "u1",
-      "hazirlayanAdSoyad": "Yusuf Bostancı",
-      "hazirlayanRol": "engineer",
+      "guncellemeTarihi": "2026-04-16T15:10:06.610Z",
+      "hazirlayanKullaniciId": "u3",
+      "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
+      "hazirlayanRol": "admin",
       "gecerlilikSuresi": "1 Hafta",
       "contactName": "ali",
       "contactTitle": "BEY"
@@ -1124,7 +1189,9 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": ""
+      "vergiNo": "",
+      "lastContactName": "ahmet",
+      "lastContactTitle": "BEY"
     },
     {
       "id": "cmnu3c8h85r3",
@@ -1733,7 +1800,9 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": ""
+      "vergiNo": "",
+      "lastContactName": "ahmet",
+      "lastContactTitle": "BEY"
     },
     {
       "id": "cmnu3c8h8ihy",
@@ -28679,6 +28748,6 @@
   },
   "sayac": {
     "yil": 2026,
-    "deger": 43
+    "deger": 47
   }
 }

@@ -8,10 +8,11 @@ function normalizeEskiKayit(t: Teklif): Teklif {
 
   return {
     ...t,
-    odemeVadesi: t.odemeVadesi ?? '45 Gun',
+    odemeVadesi: t.odemeVadesi ?? '45 Gün',
     satirBazliParaBirimi: t.satirBazliParaBirimi ?? false,
     satirlar: (t.satirlar ?? []).map((satir) => ({
       ...satir,
+      indirimOrani: satir.indirimOrani ?? 0,
       paraBirimi: satir.paraBirimi ?? satirPb,
     })),
   };

@@ -10,8 +10,21 @@ const PORT    = 3002;
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
+const DB_DEFAULTS = {
+  teklifler: [],
+  cariler: [],
+  urunler: [],
+  referans: { markalar: [], birimler: [], teslimSecenekleri: [] },
+  sayac: { yil: new Date().getFullYear(), deger: 0 },
+};
+
 function readDB() {
-  return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+  try {
+    return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+  } catch (err) {
+    console.warn('[readDB] db.json okunamadı, varsayılan yapı kullanılıyor:', err.message);
+    return { ...DB_DEFAULTS };
+  }
 }
 
 function writeDB(data) {
@@ -257,6 +270,14 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     console.error('[API Error]', err);
     send(res, 500, { error: String(err) });
+  }
+});
+
+server.on('error', (err) => {
+  console.error('[Server Error]', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`  Port ${PORT} zaten kullanımda. Başka bir sunucu çalışıyor olabilir.`);
+    process.exit(1);
   }
 });
 

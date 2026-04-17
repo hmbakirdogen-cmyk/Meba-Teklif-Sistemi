@@ -1,15 +1,31 @@
 /* ── Tema değişkenleri ──────────────────────────────────────────────────────── */
 :root {
-  --bg-body:        #f5f6fa;
+  --bg-body:        linear-gradient(180deg, #f8fafc 0%, #eef3f8 100%);
   --bg-surface:     #ffffff;
-  --bg-elevated:    #f8fafc;
-  --text-primary:   #0f1f45;
-  --text-secondary: #64748b;
+  --bg-elevated:    #f3f7fb;
+  --text-primary:   #1e293b;
+  --text-secondary: #475569;
   --text-faint:     #94a3b8;
-  --border:         #e2e8f0;
-  --border-subtle:  #f0f4f8;
-  --input-border:   #d1d9e6;
+  --border:         #dbe3ec;
+  --border-subtle:  #edf2f7;
+  --input-border:   #cdd6e3;
   --input-focus:    #2563eb;
+  --surface-tint:   rgba(15, 31, 69, 0.04);
+  --btn-primary-top: #19315f;
+  --btn-primary-bottom: #0f1f45;
+  --btn-secondary-bg: rgba(255,255,255,0.92);
+  --btn-secondary-border: #d7dee9;
+  --btn-ghost-bg: rgba(243, 247, 251, 0.76);
+  --tab-active-bg: #ffffff;
+  --tab-active-border: rgba(15, 31, 69, 0.09);
+  --tab-count-bg: #dde6f2;
+  --tab-count-text: #5f6b7d;
+  --chip-info-bg: #eef4fb;
+  --chip-info-border: #b7cae2;
+  --chip-info-text: #1f446b;
+  --chip-warn-bg: #f8f1e5;
+  --chip-warn-border: #d8bb8e;
+  --chip-warn-text: #744314;
   color-scheme: light;
 
   /* ── Tipografi sistemi CSS değişkenleri ────────────────────────── */
@@ -32,33 +48,49 @@
 }
 
 [data-theme="dark"] {
-  --bg-body:        #0f1117;
+  --bg-body:        linear-gradient(180deg, #0f1117 0%, #090d16 100%);
   --bg-surface:     #181b25;
   --bg-elevated:    #1c2132;
   --text-primary:   #dde4f0;
   --text-secondary: #8899b5;
-  --text-faint:     #6b80a0;   /* raised from #4a5c72 — was ~2.5:1, now ~4.4:1 */
+  --text-faint:     #6b80a0;
   --border:         #242d42;
   --border-subtle:  #181f32;
   --input-border:   #2a3650;
   --input-focus:    #3b82f6;
+  --surface-tint:   rgba(255,255,255,0.04);
+  --btn-primary-top: #223a6b;
+  --btn-primary-bottom: #16284f;
+  --btn-secondary-bg: #1c2235;
+  --btn-secondary-border: #2a3650;
+  --btn-ghost-bg: rgba(255,255,255,0.04);
+  --tab-active-bg: #1c2235;
+  --tab-active-border: rgba(255,255,255,0.08);
+  --tab-count-bg: #242d42;
+  --tab-count-text: #7a8da6;
+  --chip-info-bg: #182334;
+  --chip-info-border: #2c4664;
+  --chip-info-text: #a9c5e5;
+  --chip-warn-bg: #231a13;
+  --chip-warn-border: #5b4222;
+  --chip-warn-text: #e4c18c;
   color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+html {
+  min-height: 100%;
+}
 body {
   margin: 0;
   padding: 0;
+  min-height: 100vh;
   font-size: 16px;
   font-family: 'Inter', 'Arial', sans-serif;
   background: var(--bg-body);
+  background-attachment: fixed;
   color: var(--text-primary);
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-html {
-  box-sizing: border-box;
-  font-size: 16px;
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
 input, button, select, textarea {
@@ -160,15 +192,15 @@ button {
 }
 
 .ant-btn-primary {
-  background: linear-gradient(180deg, #172b59 0%, #0f1f45 100%);
-  border-color: #0f1f45;
+  background: linear-gradient(180deg, var(--btn-primary-top) 0%, var(--btn-primary-bottom) 100%);
+  border-color: var(--btn-primary-bottom);
   box-shadow: 0 6px 14px rgba(15, 31, 69, 0.18);
 }
 
 .ant-btn-primary:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn-primary:not(:disabled):not(.ant-btn-disabled):focus-visible {
-  background: linear-gradient(180deg, #1b3367 0%, #132856 100%) !important;
-  border-color: #132856 !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--btn-primary-top) 90%, white 10%) 0%, color-mix(in srgb, var(--btn-primary-bottom) 92%, white 8%) 100%) !important;
+  border-color: color-mix(in srgb, var(--btn-primary-bottom) 92%, white 8%) !important;
   box-shadow: 0 8px 18px rgba(15, 31, 69, 0.22);
 }
 
@@ -281,8 +313,8 @@ button.app-btn.app-btn-small-action,
 button.app-btn-primary,
 .ant-btn.app-btn-primary {
   color: #ffffff;
-  background: linear-gradient(180deg, #172b59 0%, #0f1f45 100%);
-  border-color: #0f1f45;
+  background: linear-gradient(180deg, var(--btn-primary-top) 0%, var(--btn-primary-bottom) 100%);
+  border-color: var(--btn-primary-bottom);
   box-shadow: 0 6px 14px rgba(15, 31, 69, 0.18);
 }
 
@@ -291,16 +323,16 @@ button.app-btn-primary:not(:disabled):focus-visible,
 .ant-btn.app-btn-primary:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn.app-btn-primary:not(:disabled):not(.ant-btn-disabled):focus-visible {
   color: #ffffff !important;
-  background: linear-gradient(180deg, #1b3367 0%, #132856 100%) !important;
-  border-color: #132856 !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--btn-primary-top) 90%, white 10%) 0%, color-mix(in srgb, var(--btn-primary-bottom) 92%, white 8%) 100%) !important;
+  border-color: color-mix(in srgb, var(--btn-primary-bottom) 92%, white 8%) !important;
   box-shadow: 0 8px 18px rgba(15, 31, 69, 0.22);
 }
 
 button.app-btn-secondary,
 .ant-btn.app-btn-secondary {
   color: #233047;
-  background: #ffffff;
-  border-color: #d7dee9;
+  background: var(--btn-secondary-bg);
+  border-color: var(--btn-secondary-border);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
@@ -309,15 +341,15 @@ button.app-btn-secondary:not(:disabled):focus-visible,
 .ant-btn.app-btn-secondary:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn.app-btn-secondary:not(:disabled):not(.ant-btn-disabled):focus-visible {
   color: #0f1f45 !important;
-  border-color: #b8c4d8 !important;
-  background: #ffffff !important;
+  border-color: color-mix(in srgb, var(--btn-secondary-border) 88%, #93a6c2 12%) !important;
+  background: var(--btn-secondary-bg) !important;
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
 }
 
 button.app-btn-ghost,
 .ant-btn.app-btn-ghost {
   color: #5f6b7d;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--btn-ghost-bg);
   border-color: transparent;
   box-shadow: none;
 }
@@ -327,7 +359,7 @@ button.app-btn-ghost:not(:disabled):focus-visible,
 .ant-btn.app-btn-ghost:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn.app-btn-ghost:not(:disabled):not(.ant-btn-disabled):focus-visible {
   color: #0f1f45 !important;
-  background: rgba(15, 31, 69, 0.06) !important;
+  background: color-mix(in srgb, var(--btn-ghost-bg) 76%, rgba(15, 31, 69, 0.08) 24%) !important;
   border-color: transparent !important;
 }
 
@@ -394,8 +426,8 @@ button.app-tab-button:focus-visible {
 
 button.app-tab-button.is-active {
   color: #0f1f45;
-  background: #ffffff;
-  border-color: rgba(15, 31, 69, 0.08);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
@@ -407,8 +439,8 @@ button.app-tab-button.is-active {
   height: 19px;
   padding: 0 6px;
   border-radius: 999px;
-  background: #dde6f2;
-  color: #5f6b7d;
+  background: var(--tab-count-bg);
+  color: var(--tab-count-text);
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
@@ -435,15 +467,15 @@ button.app-chip-button {
   white-space: nowrap;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
   /* KDV — soft mavi tonu (varsayılan) */
-  border: 1.5px solid #93b8e0;
-  background: #eaf2fb;
-  color: #1a4a7a;
+  border: 1.5px solid var(--chip-info-border);
+  background: var(--chip-info-bg);
+  color: var(--chip-info-text);
 }
 
 button.app-chip-button:hover,
 button.app-chip-button:focus-visible {
-  background: #d5e7f7;
-  border-color: #6a9fd4;
+  background: color-mix(in srgb, var(--chip-info-bg) 84%, white 16%);
+  border-color: color-mix(in srgb, var(--chip-info-border) 88%, #7fa4cb 12%);
 }
 
 button.app-chip-button.is-active {
@@ -459,15 +491,15 @@ button.app-chip-button.is-active:hover {
 
 /* İskonto varyantı — soft turuncu/amber tonu */
 button.app-chip-button--iskonto {
-  border-color: #e0aa60;
-  background: #fdf4e7;
-  color: #7a4310;
+  border-color: var(--chip-warn-border);
+  background: var(--chip-warn-bg);
+  color: var(--chip-warn-text);
 }
 
 button.app-chip-button--iskonto:hover,
 button.app-chip-button--iskonto:focus-visible {
-  background: #faebd0;
-  border-color: #cc8c3a;
+  background: color-mix(in srgb, var(--chip-warn-bg) 84%, white 16%);
+  border-color: color-mix(in srgb, var(--chip-warn-border) 88%, #bb8d4f 12%);
 }
 
 button.app-chip-button--iskonto.is-active {
@@ -566,46 +598,90 @@ button.app-btn:active,
   inset-inline: 12px !important;
 }
 
-/* ─ Ürün Kalem Tablosu — header override ──────────────────────────────────── */
+/* ─ Ürün Kalem Tablosu — satır kapsül tasarımı ───────────────────────────────
+   border-spacing: 0 3px → her satır birleşik kapsül, hücreler yatayda bağlı   */
+.urun-tablo .ant-table table {
+  border-collapse: separate !important;
+  border-spacing: 0 3px !important;
+}
+
+/* ── Başlık: birleşik koyu bar ──────────────────────────────────────────────── */
 .urun-tablo .ant-table-thead > tr > th {
-  background: #0f1f45 !important;
+  background: linear-gradient(180deg, #162550 0%, #0f1f45 100%) !important;
   color: #ffffff !important;
   font-size: 11px !important;
   font-weight: 600 !important;
   letter-spacing: 0.2px;
-  padding: 11px 10px !important;
-  border-bottom: 1px solid #1a2f5e !important;
+  padding: 10px 10px !important;
+  border-top: 0.5px solid #1e3668 !important;
+  border-bottom: 0.5px solid #1e3668 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
   white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06) !important;
 }
 .urun-tablo .ant-table-thead > tr > th::before {
   display: none !important;
 }
+.urun-tablo .ant-table-thead .ant-table-cell {
+  overflow: hidden !important;
+}
+.urun-tablo .ant-table-thead > tr > th:first-child {
+  border-left: 0.5px solid #1e3668 !important;
+  border-radius: 8px 0 0 8px !important;
+}
+.urun-tablo .ant-table-thead > tr > th:last-child {
+  border-right: 0.5px solid #1e3668 !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+
+/* ── Satır hücreleri: kapsül satır ─────────────────────────────────────────── */
 .urun-tablo .ant-table-small .ant-table-tbody > tr > td {
-  padding: 8px 10px !important;
+  padding: 9px 10px !important;
+}
+.urun-tablo .ant-table-tbody > tr {
+  box-shadow: 0 2px 6px rgba(20,39,78,0.05) !important;
 }
 .urun-tablo .ant-table-tbody > tr > td {
-  border-bottom: 1px solid #f0f4f8 !important;
+  background: linear-gradient(180deg, #fbfdff 0%, #eef4fb 100%) !important;
+  border-top: 0.5px solid #c6d4e2 !important;
+  border-bottom: 0.5px solid #c6d4e2 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
   vertical-align: middle !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.88) !important;
+  transition: background 0.15s !important;
 }
-.urun-tablo .ant-table-cell {
+.urun-tablo .ant-table-tbody > tr > td:first-child {
+  border-left: 0.5px solid #c6d4e2 !important;
+  border-radius: 8px 0 0 8px !important;
+}
+.urun-tablo .ant-table-tbody > tr > td:last-child {
+  border-right: 0.5px solid #c6d4e2 !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+.urun-tablo .ant-table-tbody .ant-table-cell {
   overflow: visible !important;
 }
-.urun-tablo .ant-table-tbody > tr:last-child > td {
-  border-bottom: none !important;
+
+/* ── Satır hover ────────────────────────────────────────────────────────────── */
+.urun-tablo .ant-table-tbody > tr:hover > td {
+  background: linear-gradient(180deg, #f4f8fe 0%, #e9f0f9 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92) !important;
 }
+.urun-tablo .ant-table-tbody > tr:hover {
+  box-shadow: 0 3px 8px rgba(20,39,78,0.09) !important;
+}
+
 .urun-tablo .ant-table {
-  border-radius: 0 0 14px 14px !important;
+  border-radius: 0 0 16px 16px !important;
 }
 .urun-tablo .ant-table-container {
-  border-radius: 14px !important;
+  border-radius: 16px !important;
   border-inline-start: none !important;
   border-inline-end: none !important;
-}
-.urun-tablo .ant-table-wrapper .ant-table-thead > tr:first-child > th:first-child {
-  border-start-start-radius: 14px !important;
-}
-.urun-tablo .ant-table-wrapper .ant-table-thead > tr:first-child > th:last-child {
-  border-start-end-radius: 14px !important;
 }
 .urun-tablo .ant-table-wrapper .ant-table-body,
 .urun-tablo .ant-table-wrapper .ant-table-content {
@@ -718,17 +794,54 @@ button.app-btn:active,
   color: #93c5fd;
 }
 
-/* ── Ürün tablo — başlık + satır renkleri ───────────────────────────────────── */
+/* ── Ürün tablo — dark mode satır kapsül ───────────────────────────────────── */
 [data-theme="dark"] .urun-tablo .ant-table-thead > tr > th {
-  background: #141a28 !important;
+  background: linear-gradient(180deg, #1a2236 0%, #141a28 100%) !important;
   color: #8899b5 !important;
-  border-bottom: 1px solid #1e2a3e !important;
+  border-top: 0.5px solid #242d42 !important;
+  border-bottom: 0.5px solid #242d42 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-thead > tr > th:first-child {
+  border-left: 0.5px solid #242d42 !important;
+  border-radius: 8px 0 0 8px !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-thead > tr > th:last-child {
+  border-right: 0.5px solid #242d42 !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-tbody > tr {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
 }
 [data-theme="dark"] .urun-tablo .ant-table-tbody > tr > td {
-  border-bottom: 1px solid #1e2638 !important;
+  background: linear-gradient(180deg, #1c2235 0%, #171c2e 100%) !important;
+  border-top: 0.5px solid #242d42 !important;
+  border-bottom: 0.5px solid #242d42 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-tbody > tr > td:first-child {
+  border-left: 0.5px solid #242d42 !important;
+  border-radius: 8px 0 0 8px !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-tbody > tr > td:last-child {
+  border-right: 0.5px solid #242d42 !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-tbody > tr:hover > td {
+  background: linear-gradient(180deg, #202840 0%, #1b2238 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06) !important;
+}
+[data-theme="dark"] .urun-tablo .ant-table-tbody > tr:hover {
+  box-shadow: 0 3px 10px rgba(0,0,0,0.4) !important;
 }
 [data-theme="dark"] .urun-tablo .ant-table-container {
-  border-radius: 8px !important;
+  border-radius: 16px !important;
 }
 
 /* ── Ant Design default button override (dark mode gap) ─────────────────────── */
@@ -995,6 +1108,48 @@ button.app-btn:active,
 [data-theme="dark"] .ant-space-compact .ant-select-selector {
   background: #141822 !important;
   border-color: #2a3650 !important;
+}
+
+/* ── Print media ───────────────────────────────────────────────────────────── */
+@media print {
+  /* Tüm arka plan renk/gradient/görüntüleri tarayıcı ayarından bağımsız yazdır. */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust:         exact !important;
+    color-adjust:               exact !important;
+    /* Yazıcıda sub-pixel font render kalitesini koru */
+    -webkit-font-smoothing:     antialiased !important;
+    -moz-osx-font-smoothing:    grayscale !important;
+    text-rendering:             optimizeLegibility !important;
+  }
+
+  /* Görsellerde maksimum kalite — piksel ölçekleme interpolasyonunu devre dışı bırak */
+  img, canvas, svg {
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+    image-rendering: high-quality !important;
+  }
+
+  .no-print   { display: none !important; }
+  .print-bg   { background: none !important; padding: 0 !important; min-height: unset !important; }
+  .print-inner { width: 100% !important; max-width: none !important; }
+  .print-target {
+    visibility: visible !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+  }
+
+  @page {
+    size: 210mm 297mm;
+    margin: 0;
+    /* Tarayıcı yazdırma ayarlarından bağımsız tam renk baskı */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 
 /* ── Modal close button ─────────────────────────────────────────────────────── */

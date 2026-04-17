@@ -24,7 +24,7 @@ export function makeStyles(C: ThemeColors) {
     // ── Sayfa düzeni ──────────────────────────────────────────────────────────
     page: {
       minHeight: '100vh',
-      background: C.bgBody,
+      background: C.bgBody,  // gradient string — linear-gradient(...)
     } satisfies CSSProperties,
 
     pageInner: {
@@ -38,9 +38,9 @@ export function makeStyles(C: ThemeColors) {
 
     // ── Kart / Panel ──────────────────────────────────────────────────────────
     card: {
-      background: C.bgSurface,
+      background: `linear-gradient(180deg, ${C.bgSurface} 0%, ${C.bgElevated} 100%)`,
       border: C.cardBorder,
-      borderRadius: RADIUS['2xl'],
+      borderRadius: RADIUS['2xl'],   // 14px — birincil kart radius
       boxShadow: C.shadowCard,
       overflow: 'hidden',
     } satisfies CSSProperties,
@@ -159,9 +159,9 @@ export function makeStyles(C: ThemeColors) {
     totalsCard: {
       width: '100%',
       border: `1px solid ${C.totalsBorder}`,
-      borderRadius: RADIUS['4xl'],
+      borderRadius: RADIUS['4xl'],   // 20px
       background: `linear-gradient(180deg, ${C.bgSurface} 0%, ${C.totalsPanel} 100%)`,
-      boxShadow: '0 12px 36px rgba(15,31,69,0.08), 0 2px 10px rgba(15,31,69,0.05)',
+      boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04), inset 0 1px 0 rgba(255,255,255,0.7)',
       overflow: 'hidden',
     } satisfies CSSProperties,
 

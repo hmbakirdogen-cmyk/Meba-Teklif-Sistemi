@@ -1,7 +1,7 @@
 import { useState, useEffect, Component } from 'react'
 import { useMemo } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
-import { ConfigProvider, Spin } from 'antd'
+import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
@@ -60,6 +60,7 @@ function DevSignature() {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      data-html2canvas-ignore="true"
       style={{
         position: 'fixed',
         bottom: 14,
@@ -149,19 +150,19 @@ function ThemedApp() {
   }, []);
 
   return (
-    <ConfigProvider
-      theme={antdTheme}
-    >
-      {hataMsg ? (
-        <ServerErrorScreen msg={hataMsg} onRetry={() => window.location.reload()} />
-      ) : !hazir ? (
-        <LoadingScreen />
-      ) : (
-        <ErrorBoundary>
-          <AppRouter />
-          {import.meta.env.DEV ? <DevSignature /> : null}
-        </ErrorBoundary>
-      )}
+    <ConfigProvider theme={antdTheme}>
+      <AntdApp>
+        {hataMsg ? (
+          <ServerErrorScreen msg={hataMsg} onRetry={() => window.location.reload()} />
+        ) : !hazir ? (
+          <LoadingScreen />
+        ) : (
+          <ErrorBoundary>
+            <AppRouter />
+            {import.meta.env.DEV ? <DevSignature /> : null}
+          </ErrorBoundary>
+        )}
+      </AntdApp>
     </ConfigProvider>
   );
 }

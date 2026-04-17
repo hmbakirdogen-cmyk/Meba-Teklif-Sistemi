@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, Input, Select, Table, Tooltip, message } from 'antd';
+import { App, Button, Input, Select, Table, Tooltip } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, Urun } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
@@ -16,8 +16,6 @@ import {
 import { buttonClassNames } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
 import { useIsMobile } from '../hooks/useIsMobile';
-
-const { Option, OptGroup } = Select;
 
 /** Metni tek satıra düşürür: \n, \r\n, <br>, <br/> ve benzeri tüm ayırıcıları keser. */
 function tekSatir(text: string): string {
@@ -69,7 +67,7 @@ function NumericInput({
   return (
     <input
       ref={(el) => {
-        (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
+        (ref as { current: HTMLInputElement | null }).current = el;
         registerRef?.(el);
       }}
       type="text"
@@ -151,6 +149,8 @@ const th = (label: string, align: 'left' | 'right' | 'center' = 'left') => (
     fontWeight: 600,
     fontSize: 11,
     letterSpacing: 0.2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
   }}>
     {label}
   </span>
@@ -171,6 +171,7 @@ export default function UrunSatirlari({
   onSatirBazliParaBirimiChange,
   onChange,
 }: UrunSatirlariProps) {
+  const { message } = App.useApp();
   const C = useColors();
   const isMobile = useIsMobile(900);
   const sembol = SEMBOL[paraBirimi] ?? paraBirimi;
@@ -317,6 +318,11 @@ export default function UrunSatirlari({
     }
   }
 
+  const ortakSelectStili: CSSProperties = {
+    width: '100%',
+    minHeight: 30,
+  };
+
   const columns = [
     // ── No ───────────────────────────────────────────────────────
     {
@@ -347,7 +353,7 @@ export default function UrunSatirlari({
           onChange={(v: string) => guncelle(satir.id, 'marka', v)}
           options={markalar.map((m) => ({ value: m, label: m }))}
           style={ortakSelectStili}
-          dropdownMatchSelectWidth={false}
+          popupMatchSelectWidth={false}
         />
       ),
     },
@@ -380,7 +386,8 @@ export default function UrunSatirlari({
             }}
             onSearch={(val) => setUrunKodArama({ satirId: satir.id, deger: val })}
             filterOption={(input, option) => {
-              const u = urunler.find((x) => x.urunKod === option?.value);
+              const optVal = (option as { value?: string } | null)?.value;
+              const u = urunler.find((x) => x.urunKod === optVal);
               if (!u) return false;
               const q = input.toLowerCase();
               return (
@@ -389,9 +396,9 @@ export default function UrunSatirlari({
                 (u.kategori || '').toLowerCase().includes(q)
               );
             }}
-            dropdownMatchSelectWidth={false}
-            dropdownStyle={{ minWidth: 340 }}
-            dropdownRender={(menu) => (
+            popupMatchSelectWidth={false}
+            popupStyle={{ minWidth: 340 }}
+            popupRender={(menu) => (
               <>
                 {menu}
                 {kaydetGoster && (
@@ -412,33 +419,32 @@ export default function UrunSatirlari({
                 )}
               </>
             )}
-          >
-            {Array.from(kategoriler.entries()).map(([kat, liste]) => (
-              <OptGroup
-                key={kat}
-                label={
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#0f1f45',
-                    letterSpacing: 0.8,
-                    textTransform: 'uppercase',
-                  }}>
-                    {kat}
-                  </span>
-                }
-              >
-                {liste.map((u) => (
-                  <Option key={u.id} value={u.urunKod} label={u.urunKod}>
+            labelRender={({ value }) => <span>{String(value ?? '')}</span>}
+            options={Array.from(kategoriler.entries()).map(([kat, liste]) => ({
+              label: (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#0f1f45',
+                  letterSpacing: 0.8,
+                  textTransform: 'uppercase',
+                }}>
+                  {kat}
+                </span>
+              ),
+              options: liste.map((u) => ({
+                value: u.urunKod,
+                label: (
+                  <>
                     <span style={{ fontWeight: 600, color: '#0f1f45', fontSize: 12 }}>{u.urunKod}</span>
                     <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 11 }}>
                       {(() => { const s = stripParantez(u.urunAdi); return s.length > 32 ? s.slice(0, 32) + '…' : s; })()}
                     </span>
-                  </Option>
-                ))}
-              </OptGroup>
-            ))}
-          </Select>
+                  </>
+                ),
+              })),
+            }))}
+          />
         );
       },
     },
@@ -495,7 +501,7 @@ export default function UrunSatirlari({
             onChange={(v: string) => guncelle(satir.id, 'birim', v)}
             options={birimler.map((b) => ({ value: b, label: b }))}
             style={{ ...ortakSelectStili, flex: 1, minWidth: 0 }}
-            dropdownMatchSelectWidth={false}
+            popupMatchSelectWidth={false}
           />
         </div>
       ),
@@ -504,7 +510,7 @@ export default function UrunSatirlari({
     ...(satirBazliParaBirimi ? [{
       title: th('Para Birimi', 'center'),
       key: 'paraBirimi',
-      width: 92,
+      width: 110,
       align: 'center' as const,
       render: (_: unknown, satir: TeklifSatiri) => (
         <Select
@@ -516,7 +522,7 @@ export default function UrunSatirlari({
             label: PARA_BIRIMI_ETIKETI[pb],
           }))}
           style={ortakSelectStili}
-          dropdownMatchSelectWidth={false}
+          popupMatchSelectWidth={false}
         />
       ),
     }] : []),
@@ -653,7 +659,7 @@ export default function UrunSatirlari({
           onChange={(v: string) => guncelle(satir.id, 'teslimTarihi', v)}
           options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
           style={ortakSelectStili}
-          dropdownMatchSelectWidth={false}
+          popupMatchSelectWidth={false}
         />
       ),
     },
@@ -680,17 +686,13 @@ export default function UrunSatirlari({
 
   const herhangiIndirimVar = satirlar.some((s) => s.indirimOrani > 0);
   const satirParaBirimiAciklama = satirBazliParaBirimi
-    ? 'Her satir icin farkli para birimi secebilirsiniz'
+    ? 'Her satır için farklı para birimi seçebilirsiniz'
     : '';
-  const ortakSelectStili: CSSProperties = {
-    width: '100%',
-    minHeight: 30,
-  };
   const tabloYuzeyiStili: CSSProperties = {
-    border: `1px solid ${C.border}`,
-    borderRadius: 14,
+    border: `1px solid ${C.totalsBorder}`,
+    borderRadius: 16,
     background: `linear-gradient(180deg, ${C.bgSurface} 0%, ${C.bgElevated} 100%)`,
-    boxShadow: '0 8px 24px rgba(15,31,69,0.06)',
+    boxShadow: C.shadowCard,
     overflow: 'hidden',
   };
   const ortakKontrolButonStili: CSSProperties = {
@@ -815,7 +817,7 @@ export default function UrunSatirlari({
               />
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Satir Bazli Para Birimi Kullan
+              Satır Bazlı Para Birimi Kullan
             </span>
           </button>
           {satirBazliParaBirimi && (
@@ -833,14 +835,9 @@ export default function UrunSatirlari({
           rowKey="id"
           pagination={false}
           size="small"
-          scroll={{ x: satirBazliParaBirimi ? (bireyselIskontoAktif ? 1100 : 1010) : (bireyselIskontoAktif ? 1000 : 920) }}
+          scroll={{ x: satirBazliParaBirimi ? (bireyselIskontoAktif ? 1150 : 1070) : (bireyselIskontoAktif ? 1020 : 960) }}
           style={{ marginBottom: 0 }}
-          onRow={(_, idx) => ({
-            style: {
-              background: (idx ?? 0) % 2 === 1 ? C.tableRowAlt : C.tableRow,
-              transition: 'background 0.1s',
-            },
-          })}
+          onRow={() => ({})}
         />
         <div
           style={{

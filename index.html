@@ -5,6 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MEBA Teklif Yönetimi</title>
+    <!-- Tema flash önleme: React yüklenmeden önce data-theme ayarla -->
+    <script>
+      try {
+        var t = localStorage.getItem('meba_tema') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch(e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
