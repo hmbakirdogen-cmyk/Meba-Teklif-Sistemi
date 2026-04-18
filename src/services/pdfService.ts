@@ -1,7 +1,7 @@
 /**
  * pdfService.ts
  * PDF oluşturma motoru — html2canvas + jsPDF pipeline.
- * TeklifOnizleme.tsx'ten bağımsız; yalnızca DOM referansları alır.
+ * Yalnızca DOM referansları alır.
  * Sayfa kesim algoritması hem PDF hem ekran önizlemesi tarafından paylaşılır.
  */
 

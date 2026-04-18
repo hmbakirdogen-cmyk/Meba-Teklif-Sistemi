@@ -363,14 +363,14 @@ function TeklifKarti({ teklif, benim, durum, navigate, onSil, onKopyala }: Karti
 
   const islemler = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      <Tooltip title="Önizle">
-        <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/teklif/${teklif.id}/onizleme`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
+      <Tooltip title="Aç">
+        <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/teklif/${teklif.id}`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
       </Tooltip>
       <Tooltip title="Düzenle">
         <Button type="text" size="small" icon={<EditOutlined />} onClick={() => navigate(`/teklif/${teklif.id}`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
       </Tooltip>
       <Tooltip title="PDF">
-        <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={() => navigate(`/teklif/${teklif.id}/onizleme`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
+        <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={() => navigate(`/teklif/${teklif.id}`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
       </Tooltip>
       <Tooltip title="Kopyala">
         <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => onKopyala(teklif.id)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
@@ -428,7 +428,7 @@ function TeklifKarti({ teklif, benim, durum, navigate, onSil, onKopyala }: Karti
       >
         <div style={{ minWidth: 0, paddingRight: 12 }}>
           <button
-            onClick={() => navigate(`/teklif/${teklif.id}/onizleme`)}
+            onClick={() => navigate(`/teklif/${teklif.id}`)}
             className={buttonClassNames.link}
             style={{
               textAlign: 'left',

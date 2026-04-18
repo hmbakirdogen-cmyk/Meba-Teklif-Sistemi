@@ -8,7 +8,7 @@ import {
 import {
   UploadOutlined, TeamOutlined, AppstoreOutlined,
   DeleteOutlined, ReloadOutlined, PlusOutlined, TagsOutlined,
-  EditOutlined, DownloadOutlined, ClearOutlined,
+  EditOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import { referansVeriService } from '../services/referansVeriService';
 import type { UploadFile } from 'antd';
@@ -22,7 +22,7 @@ import { urunService } from '../services/urunService';
 import type { Cari, Urun } from '../types';
 import {
   normalizeProductCode, cleanTextInput, normalizeEmail,
-  stripParantez, formatPdfAciklama, titleCaseAciklama, formatCariAdi,
+  stripParantez, formatCariAdi,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';
@@ -157,7 +157,7 @@ function UrunModal({
         id: urun?.id ?? urunService.urunIdUret(),
         urunKod:          normalizeProductCode(vals.urunKod ?? ''),
         urunAdi:          cleanTextInput(vals.urunAdi ?? ''),
-        aciklama:         titleCaseAciklama(cleanTextInput(vals.aciklama ?? '')),
+        aciklama:         cleanTextInput(vals.aciklama ?? ''),
         kategori:         cleanTextInput(vals.kategori ?? ''),
         birim:            cleanTextInput(vals.birim ?? '') || 'Adet',
         varsayilanFiyat:  parseFloat(String(vals.varsayilanFiyat).replace(',', '.')) || 0,
@@ -342,7 +342,7 @@ export default function VeriYonetimiSayfasi() {
     { title: 'Ürün Adı',   dataIndex: 'urunAdi',  key: 'urunAdi',  ellipsis: true,
       render: (v: string) => stripParantez(v) || '—' },
     { title: 'Açıklama',   dataIndex: 'aciklama', key: 'aciklama', ellipsis: true,
-      render: (_: string, rec: Urun) => formatPdfAciklama(rec.urunAdi, rec.aciklama, rec.urunKod) || '—' },
+      render: (v: string) => v || '—' },
     { title: 'Kategori',   dataIndex: 'kategori', key: 'kategori', width: 110,
       render: (v: string) => v ? <Tag style={{ fontSize: 11 }}>{v}</Tag> : null },
     { title: 'Birim',      dataIndex: 'birim',    key: 'birim',    width: 65 },
@@ -427,19 +427,6 @@ export default function VeriYonetimiSayfasi() {
           disabled={urunler.length === 0}>
           Excel İndir
         </Button>
-        <Divider type="vertical" style={{ margin: '4px 0' }} />
-        <Popconfirm
-          title="Açıklamaları temizle"
-          description="Ürün kodunu tekrar eden parantezler silinecek. Devam edilsin mi?"
-          onConfirm={() => {
-            const n = urunService.urunAciklamalariniTemizle();
-            urunListesiYenile();
-            message.success(n > 0 ? `${n} ürün açıklaması temizlendi.` : 'Temizlenecek bir şey bulunamadı.');
-          }}
-          okText="Temizle" cancelText="İptal"
-        >
-          <Button icon={<ClearOutlined />} className={buttonClassNames.secondary}>Açıklamaları Temizle</Button>
-        </Popconfirm>
         <Divider type="vertical" style={{ margin: '4px 0' }} />
         <Popconfirm
           title="Varsayılan listeye dön"

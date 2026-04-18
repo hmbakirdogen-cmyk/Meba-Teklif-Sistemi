@@ -1,0 +1,486 @@
+/**
+ * SagPanel.tsx
+ * ─────────────────────────────────────────────────────────────────
+ * Bağlamsal düzenleme paneli — belgedeki seçili alana göre içerik değişir.
+ * Müşteri, ayarlar, satır detayı ve notlar modları.
+ */
+import React, { useMemo } from 'react';
+import { Select, Input, Button, AutoComplete, DatePicker, InputNumber } from 'antd';
+import {
+  CloseOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  UserOutlined,
+  SettingOutlined,
+  FileTextOutlined,
+  ShoppingCartOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import CariSecimi from './CariSecimi';
+import ToplamPaneli from './ToplamPaneli';
+import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
+import { referansVeriService } from '../services/referansVeriService';
+import { urunService } from '../services/urunService';
+import { useColors } from '../hooks/useColors';
+import type { Cari, TeklifSatiri, TeklifDurum } from '../types';
+import type { PanelModu } from '../hooks/useBelgeState';
+
+const { TextArea } = Input;
+
+interface SagPanelProps {
+  panelModu: PanelModu;
+  onKapat: () => void;
+
+  // Cari
+  cari: Cari | null;
+  onCariDegistir: (cari: Cari) => void;
+  contactName: string;
+  contactTitle: 'BEY' | 'HANIM';
+  onContactNameDegistir: (name: string) => void;
+  onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
+
+  // Satırlar
+  satirlar: TeklifSatiri[];
+  seciliSatirId: string | null;
+  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  onSatirSil: (id: string) => void;
+  onSatirEkle: () => void;
+
+  // Ayarlar
+  tarih: string;
+  onTarihDegistir: (tarih: string) => void;
+  paraBirimi: string;
+  onParaBirimiDegistir: (pb: string) => void;
+  satirBazliParaBirimi: boolean;
+  onSatirBazliDegistir: (aktif: boolean) => void;
+  durum: TeklifDurum;
+  onDurumDegistir: (durum: TeklifDurum) => void;
+  kdvOrani: number;
+  onKdvOraniDegistir: (oran: number) => void;
+  iskontoOrani: number;
+  onIskontoOraniDegistir: (oran: number) => void;
+  odemeVadesi: string;
+  onOdemeVadesiDegistir: (vade: string) => void;
+
+  // Notlar
+  notlar: string;
+  onNotlarDegistir: (notlar: string) => void;
+
+  // Toplam
+  araToplam: number;
+  toplamIndirim: number;
+}
+
+const PANEL_W = 360;
+
+const secHeadStyle = (C: ReturnType<typeof useColors>): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '12px 16px',
+  borderBottom: `1px solid ${C.border}`,
+  background: C.bgElevated,
+  position: 'sticky',
+  top: 0,
+  zIndex: 10,
+});
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  marginBottom: 8,
+};
+
+function PanelBaslik({ icon, baslik, onKapat, C }: { icon: React.ReactNode; baslik: string; onKapat: () => void; C: ReturnType<typeof useColors> }) {
+  return (
+    <div style={secHeadStyle(C)}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: C.textFaint }}>{icon}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary }}>{baslik}</span>
+      </div>
+      <Button type="text" size="small" icon={<CloseOutlined />} onClick={onKapat} />
+    </div>
+  );
+}
+
+export default function SagPanel(props: SagPanelProps) {
+  const C = useColors();
+  const { panelModu } = props;
+
+  if (!panelModu) return null;
+
+  return (
+    <div style={{
+      width: PANEL_W,
+      minWidth: PANEL_W,
+      maxWidth: PANEL_W,
+      height: '100%',
+      borderLeft: `1px solid ${C.border}`,
+      background: C.bgSurface,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+      {panelModu === 'musteri' && <MusteriPaneli {...props} C={C} />}
+      {panelModu === 'ayarlar' && <AyarlarPaneli {...props} C={C} />}
+      {panelModu === 'satir' && <SatirPaneli {...props} C={C} />}
+      {panelModu === 'notlar' && <NotlarPaneli {...props} C={C} />}
+    </div>
+  );
+}
+
+// ── Müşteri Paneli ──────────────────────────────────────────────────────────
+function MusteriPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
+  const { C, cari, onCariDegistir, contactName, contactTitle, onContactNameDegistir, onContactTitleDegistir, onKapat } = props;
+  return (
+    <>
+      <PanelBaslik icon={<UserOutlined />} baslik="Müşteri Bilgileri" onKapat={onKapat} C={C} />
+      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+        <div style={{ ...sectionLabel, color: C.textFaint }}>Cari Seçimi</div>
+        <CariSecimi value={cari} onChange={onCariDegistir} />
+
+        {cari && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ ...sectionLabel, color: C.textFaint }}>Muhatap Kişi</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Input
+                placeholder="İsim"
+                value={contactName}
+                onChange={e => onContactNameDegistir(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <Select
+                value={contactTitle}
+                onChange={onContactTitleDegistir}
+                style={{ width: 100 }}
+                options={[
+                  { label: 'Bey', value: 'BEY' },
+                  { label: 'Hanım', value: 'HANIM' },
+                ]}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── Ayarlar Paneli ──────────────────────────────────────────────────────────
+function AyarlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
+  const {
+    C, tarih, onTarihDegistir, paraBirimi, onParaBirimiDegistir,
+    satirBazliParaBirimi, onSatirBazliDegistir, durum, onDurumDegistir,
+    kdvOrani, onKdvOraniDegistir, iskontoOrani, onIskontoOraniDegistir,
+    odemeVadesi, onOdemeVadesiDegistir, onKapat,
+    satirlar, araToplam, toplamIndirim,
+  } = props;
+
+  const teslimSecenekleri = referansVeriService.teslimSecenekleri.tumunuGetir();
+  const odemeOptions = useMemo(() => [
+    '30 Gün', '45 Gün', '60 Gün', '90 Gün', 'Peşin', 'Proforma',
+    ...teslimSecenekleri.filter(s => !['30 Gün', '45 Gün', '60 Gün', '90 Gün', 'Peşin', 'Proforma'].includes(s)),
+  ].map(v => ({ value: v })), [teslimSecenekleri]);
+
+  const satirParaToplamlari = useMemo(
+    () => hesaplamaMotoru.paraBirimineGoreToplamlar(satirlar, paraBirimi),
+    [satirlar, paraBirimi],
+  );
+
+  return (
+    <>
+      <PanelBaslik icon={<SettingOutlined />} baslik="Teklif Ayarları" onKapat={onKapat} C={C} />
+      <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Tarih */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Tarih</div>
+          <DatePicker
+            value={dayjs(tarih)}
+            onChange={d => d && onTarihDegistir(d.format('YYYY-MM-DD'))}
+            style={{ width: '100%' }}
+            format="DD.MM.YYYY"
+          />
+        </div>
+
+        {/* Durum */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Durum</div>
+          <Select
+            value={durum}
+            onChange={onDurumDegistir}
+            style={{ width: '100%' }}
+            options={[
+              { label: 'Taslak', value: 'taslak' },
+              { label: 'Hazır', value: 'hazir' },
+              { label: 'Gönderildi', value: 'gonderildi' },
+              { label: 'Onaylandı', value: 'onaylandi' },
+              { label: 'İptal', value: 'iptal' },
+            ]}
+          />
+        </div>
+
+        {/* Para Birimi */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Para Birimi</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Select
+              value={paraBirimi}
+              onChange={onParaBirimiDegistir}
+              style={{ width: '100%' }}
+              disabled={satirBazliParaBirimi}
+              options={[
+                { label: 'EUR (€)', value: 'EUR' },
+                { label: 'USD ($)', value: 'USD' },
+                { label: 'TRY (₺)', value: 'TRY' },
+              ]}
+            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textSecondary, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={satirBazliParaBirimi}
+                onChange={e => onSatirBazliDegistir(e.target.checked)}
+              />
+              Satır bazlı para birimi
+            </label>
+          </div>
+        </div>
+
+        {/* Ödeme Vadesi */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Ödeme Vadesi</div>
+          <AutoComplete
+            value={odemeVadesi}
+            onChange={onOdemeVadesiDegistir}
+            options={odemeOptions}
+            style={{ width: '100%' }}
+            placeholder="Ödeme vadesi"
+          />
+        </div>
+
+        {/* Finansal Özet */}
+        <div style={{ marginTop: 4 }}>
+          <ToplamPaneli
+            araToplam={araToplam}
+            toplamIndirim={toplamIndirim}
+            paraBirimi={paraBirimi}
+            satirBazliParaBirimi={satirBazliParaBirimi}
+            satirParaToplamlari={satirParaToplamlari}
+            kdvOrani={kdvOrani}
+            onKdvOraniChange={onKdvOraniDegistir}
+            iskontoOrani={iskontoOrani}
+            onIskontoOraniChange={onIskontoOraniDegistir}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Satır Detay Paneli ──────────────────────────────────────────────────────
+function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
+  const { C, satirlar, seciliSatirId, onSatirGuncelle, onSatirSil, onSatirEkle, onKapat, paraBirimi, satirBazliParaBirimi } = props;
+  const satir = satirlar.find(s => s.id === seciliSatirId);
+  const markalar = referansVeriService.markalar.tumunuGetir();
+  const birimler = referansVeriService.birimler.tumunuGetir();
+  const urunler = urunService.tumUrunleriGetir();
+
+  const satirIdx = satirlar.findIndex(s => s.id === seciliSatirId);
+
+  if (!satir) {
+    return (
+      <>
+        <PanelBaslik icon={<ShoppingCartOutlined />} baslik="Ürün Satırı" onKapat={onKapat} C={C} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, color: C.textFaint }}>
+          <div style={{ fontSize: 13 }}>Belgeden bir satır seçin veya yeni ekleyin</div>
+          <Button type="primary" icon={<PlusOutlined />} onClick={onSatirEkle}>Satır Ekle</Button>
+        </div>
+      </>
+    );
+  }
+
+  const guncelle = (alan: keyof TeklifSatiri, deger: unknown) => onSatirGuncelle(satir.id, alan, deger);
+
+  return (
+    <>
+      <PanelBaslik icon={<ShoppingCartOutlined />} baslik={`Satır #${satirIdx + 1}`} onKapat={onKapat} C={C} />
+      <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Marka */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Marka</div>
+          <Select
+            value={satir.marka}
+            onChange={v => guncelle('marka', v)}
+            style={{ width: '100%' }}
+            showSearch
+            options={markalar.map(m => ({ label: m, value: m }))}
+          />
+        </div>
+
+        {/* Ürün Kodu */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Ürün Kodu</div>
+          <AutoComplete
+            value={satir.urunKod}
+            onChange={v => {
+              guncelle('urunKod', v);
+              const urun = urunler.find(u => u.urunKod === v);
+              if (urun) {
+                guncelle('urunAdi', urun.urunAdi);
+                guncelle('aciklama', urun.aciklama);
+                if (urun.varsayilanFiyat) guncelle('birimFiyat', urun.varsayilanFiyat);
+                if (urun.birim) guncelle('birim', urun.birim);
+              }
+            }}
+            style={{ width: '100%' }}
+            options={urunler.map(u => ({ value: u.urunKod, label: `${u.urunKod} — ${u.urunAdi}` }))}
+            filterOption={(input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()) ||
+              (option?.label?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          />
+        </div>
+
+        {/* Açıklama */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Açıklama</div>
+          <TextArea
+            value={satir.urunAdi}
+            onChange={e => guncelle('urunAdi', e.target.value)}
+            autoSize={{ minRows: 2, maxRows: 5 }}
+          />
+        </div>
+
+        {/* Miktar & Birim */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...sectionLabel, color: C.textFaint }}>Miktar</div>
+            <InputNumber
+              value={satir.miktar}
+              onChange={v => guncelle('miktar', v ?? 0)}
+              style={{ width: '100%' }}
+              min={0}
+              precision={4}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...sectionLabel, color: C.textFaint }}>Birim</div>
+            <Select
+              value={satir.birim}
+              onChange={v => guncelle('birim', v)}
+              style={{ width: '100%' }}
+              options={birimler.map(b => ({ label: b, value: b }))}
+            />
+          </div>
+        </div>
+
+        {/* Para Birimi (satır bazlı) */}
+        {satirBazliParaBirimi && (
+          <div>
+            <div style={{ ...sectionLabel, color: C.textFaint }}>Para Birimi</div>
+            <Select
+              value={satir.paraBirimi ?? paraBirimi}
+              onChange={v => guncelle('paraBirimi', v)}
+              style={{ width: '100%' }}
+              options={[
+                { label: 'EUR (€)', value: 'EUR' },
+                { label: 'USD ($)', value: 'USD' },
+                { label: 'TRY (₺)', value: 'TRY' },
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Birim Fiyat */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Birim Fiyat</div>
+          <InputNumber
+            value={satir.birimFiyat}
+            onChange={v => guncelle('birimFiyat', v ?? 0)}
+            style={{ width: '100%' }}
+            min={0}
+            precision={2}
+            formatter={v => v ? Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : ''}
+          />
+        </div>
+
+        {/* İskonto */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Satır İskontosu (%)</div>
+          <InputNumber
+            value={satir.indirimOrani}
+            onChange={v => guncelle('indirimOrani', v ?? 0)}
+            style={{ width: '100%' }}
+            min={0}
+            max={100}
+            precision={2}
+          />
+        </div>
+
+        {/* Teslimat */}
+        <div>
+          <div style={{ ...sectionLabel, color: C.textFaint }}>Teslimat Süresi</div>
+          <AutoComplete
+            value={satir.teslimTarihi ?? ''}
+            onChange={v => guncelle('teslimTarihi', v)}
+            style={{ width: '100%' }}
+            options={referansVeriService.teslimSecenekleri.tumunuGetir().map(v => ({ value: v }))}
+          />
+        </div>
+
+        {/* Toplam (salt okunur) */}
+        <div style={{
+          padding: '12px 14px',
+          background: C.bgElevated,
+          borderRadius: 10,
+          border: `1px solid ${C.border}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Satır Toplam</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+            {satir.satirToplami.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+
+        {/* Sil butonu */}
+        <Button
+          danger
+          type="text"
+          icon={<DeleteOutlined />}
+          onClick={() => onSatirSil(satir.id)}
+          style={{ marginTop: 8 }}
+        >
+          Satırı Sil
+        </Button>
+      </div>
+
+      {/* Yeni satır ekle butonu */}
+      <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.border}` }}>
+        <Button block type="dashed" icon={<PlusOutlined />} onClick={onSatirEkle}>
+          Yeni Satır Ekle
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ── Notlar Paneli ───────────────────────────────────────────────────────────
+function NotlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
+  const { C, notlar, onNotlarDegistir, onKapat } = props;
+  return (
+    <>
+      <PanelBaslik icon={<FileTextOutlined />} baslik="Notlar" onKapat={onKapat} C={C} />
+      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+        <TextArea
+          value={notlar}
+          onChange={e => onNotlarDegistir(e.target.value)}
+          autoSize={{ minRows: 6, maxRows: 20 }}
+          placeholder="Teklif ile ilgili notlar, özel koşullar veya açıklamalar..."
+        />
+      </div>
+    </>
+  );
+}

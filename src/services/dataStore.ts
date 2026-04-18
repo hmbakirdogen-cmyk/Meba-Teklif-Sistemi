@@ -61,7 +61,7 @@ async function migrasyonDene(): Promise<void> {
       return;
     }
 
-    const result = await api.migrate({
+    await api.migrate({
       teklifler,
       cariler,
       urunler,
@@ -73,11 +73,8 @@ async function migrasyonDene(): Promise<void> {
       sayacDeger,
     });
 
-    if (result.migrated) {
-      console.info('[DataStore] localStorage verisi sunucuya aktarıldı.');
-    }
-  } catch (err) {
-    console.warn('[DataStore] Migrasyon denemesi başarısız:', err);
+  } catch {
+    // migration failure is non-critical
   } finally {
     localStorage.setItem(MIGRATION_FLAG, '1');
   }
@@ -103,7 +100,7 @@ export async function initDataStore(): Promise<void> {
 // ── Fire-and-forget write helper ──────────────────────────────────────────────
 
 function sync(promise: Promise<unknown>): void {
-  promise.catch((err) => console.error('[DataStore sync]', err));
+  promise.catch(() => {});
 }
 
 // ── Public cache accessors ────────────────────────────────────────────────────

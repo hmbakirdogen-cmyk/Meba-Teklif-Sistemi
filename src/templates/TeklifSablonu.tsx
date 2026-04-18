@@ -514,7 +514,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           </div>
         </div>
         {/* Alıcı */}
-        <div style={{
+        <div data-alan="musteri" style={{
           width: '50%',
           padding: '4px 0 8px',
           boxSizing: 'border-box',
@@ -562,7 +562,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </div>
 
       {/* ══ ÖDEME / PARA / KDV / KUR ════════════════════════════ */}
-      <div style={{
+      <div data-alan="ayarlar" style={{
         display: 'flex',
         width: '100%',
         gap: '5px',
@@ -709,6 +709,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             return (
               <tr
                 key={satir.id}
+                data-satir-id={satir.id}
                 style={{
                   // background on <td> via rcCell — html2canvas 1.4.1 skips <tr> backgrounds
                   pageBreakInside: 'avoid',
@@ -1102,7 +1103,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
       {/* ══ NOT ALANI ════════════════════════════════════════════ */}
       {teklif.notlar && (
-        <div style={{
+        <div data-alan="notlar" style={{
           fontSize: '12.9px',
           marginBottom: '16px',
           padding: '10px 13px',

@@ -1,83 +1,6 @@
 {
   "teklifler": [
     {
-      "id": "tmo3enbg9",
-      "teklifNo": "2026-057",
-      "tarih": "2026-04-18",
-      "satirBazliParaBirimi": false,
-      "paraBirimi": "EUR",
-      "durum": "taslak",
-      "cari": {
-        "id": "cmo3cg8mn410",
-        "cariKod": "C-003",
-        "firmaAdi": "Badegül Elekt. Ve Mek. Mak. San. Mustafa Badegül Ve Ort.",
-        "yetkiliKisi": "",
-        "telefon": "0352 321 39 28",
-        "ePosta": "",
-        "adres": "",
-        "vergiDairesi": "",
-        "vergiNo": ""
-      },
-      "satirlar": [
-        {
-          "id": "smo3enj9yb0a",
-          "marka": "SMC",
-          "urunKod": "KQ2F08-02A",
-          "urunAdi": "Series Feduz rakor · Ø8 mm · Rc1/4",
-          "aciklama": "KQ2F Series Series Metric Size One-touch Fittings Female Connector | Applicable Tubing O.D.: Φ8 mm | Connection Thread: Rc1/4 | Thread Material/Surface Treatment: Brass | Made To Order: Standard",
-          "paraBirimi": "EUR",
-          "miktar": 1,
-          "birim": "Adet",
-          "birimFiyat": 0,
-          "indirimOrani": 0,
-          "teslimTarihi": "2-3 Gün",
-          "satirToplami": 0
-        },
-        {
-          "id": "smo3eo1c5i9s",
-          "marka": "SMC",
-          "urunKod": "KQ2L10-01AS",
-          "urunAdi": "dirsek rakor, contali · Ø10 mm · R1/8",
-          "aciklama": "KQ2L Series Metric Size One-touch Fittings Male Elbow With Sealant | Applicable Tubing O.D.: Φ10 mm | Connection Thread: R1/8 | Thread Material/Surface Treatment: Brass | Male Thread Seal Method: With Thread Sealant | Made To Order: Standard",
-          "paraBirimi": "EUR",
-          "miktar": 1,
-          "birim": "Adet",
-          "birimFiyat": 0,
-          "indirimOrani": 0,
-          "teslimTarihi": "2-3 Gün",
-          "satirToplami": 0
-        },
-        {
-          "id": "smo3eprjhz97",
-          "marka": "SMC",
-          "urunKod": "AS2301F-02-08SA",
-          "urunAdi": "Speed Controller With One-touch Fitting/Elbow Type Body Size2.3.4 · Port 1/4 · Ø8 mm",
-          "aciklama": "AS Series Speed Controller With One-touch Fitting/Elbow Type Body Size2.3.4 | Body Size: 1/8,1/4 | Type: Universal | Control Type: Meter-out | Thread Type: R | Port Size: 1/4 | Applicable Tubing O.D.: Φ8 mm | Seal: With Sealant | Made To Order: Standard",
-          "paraBirimi": "EUR",
-          "miktar": 1,
-          "birim": "Adet",
-          "birimFiyat": 0,
-          "indirimOrani": 0,
-          "teslimTarihi": "2-3 Gün",
-          "satirToplami": 0
-        }
-      ],
-      "araToplam": 0,
-      "toplamIndirim": 0,
-      "toplamVergi": 0,
-      "genelToplam": 0,
-      "kdvOrani": 0,
-      "iskontoOrani": 0,
-      "odemeVadesi": "45 Gün",
-      "notlar": "",
-      "olusturmaTarihi": "2026-04-17T21:14:12.906Z",
-      "guncellemeTarihi": "2026-04-17T21:15:10.442Z",
-      "hazirlayanKullaniciId": "u3",
-      "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
-      "hazirlayanRol": "admin",
-      "gecerlilikSuresi": "1 Hafta"
-    },
-    {
       "id": "tmo3cv3fs",
       "teklifNo": "2026-051",
       "tarih": "2026-04-17",
@@ -209,9 +132,7 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": "",
-      "lastContactName": "adil",
-      "lastContactTitle": "BEY"
+      "vergiNo": ""
     },
     {
       "id": "cmo3cg8mnwj1",
@@ -19800,28 +19721,6 @@
       "cariKod": "C-1786",
       "firmaAdi": "Mehmet Polat",
       "yetkiliKisi": "",
-      "telefon": "",
-      "ePosta": "",
-      "adres": "",
-      "vergiDairesi": "",
-      "vergiNo": ""
-    },
-    {
-      "id": "cmo3z26pd54w",
-      "cariKod": "C001",
-      "firmaAdi": "ASDFFG",
-      "yetkiliKisi": "ahmet",
-      "telefon": "(0532) 233 82 84",
-      "ePosta": "hmbakirdogen@gmail.com",
-      "adres": "",
-      "vergiDairesi": "",
-      "vergiNo": ""
-    },
-    {
-      "id": "cmo3zckdt4ip",
-      "cariKod": "AA",
-      "firmaAdi": "SSSSS",
-      "yetkiliKisi": "ass",
       "telefon": "",
       "ePosta": "",
       "adres": "",
@@ -45689,6 +45588,6 @@
   },
   "sayac": {
     "yil": 2026,
-    "deger": 98
+    "deger": 55
   }
 }

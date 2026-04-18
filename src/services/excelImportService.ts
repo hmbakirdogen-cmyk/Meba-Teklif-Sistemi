@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import type { Cari, Urun } from '../types';
 import { cariService } from './musteriService';
 import { urunService } from './urunService';
-import { cleanTextInput, normalizeEmail, normalizeProductCode, formatCariAdi, cleanProductDescription } from '../utils/formatters';
+import { cleanTextInput, normalizeEmail, normalizeProductCode, formatCariAdi } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 
 // ── Yardımcı: başlık dizisinde pattern eşleşmesi ──────────────────────────
@@ -220,7 +220,7 @@ export async function urunExcelOku(file: File, kategoriYedek?: string): Promise<
       id: urunService.urunIdUret(),
       urunKod: urunKod || `U-${Date.now().toString(36)}`,
       urunAdi: urunAdi || urunKod,
-      aciklama: cleanProductDescription(urunAdi, urunKod || undefined),
+      aciklama: urunAdi,
       kategori,
       birim,
       varsayilanFiyat: fiyat,

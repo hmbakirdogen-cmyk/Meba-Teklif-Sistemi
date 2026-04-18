@@ -1,6 +1,4 @@
 import type { Urun } from '../types';
-import { cleanProductDescription, titleCaseAciklama } from '../utils/formatters';
-import { referansVeriService } from './referansVeriService';
 import { dataStore } from './dataStore';
 
 const varsayilanUrunler: Urun[] = [
@@ -50,60 +48,12 @@ function urunIdUret(): string {
   return 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 }
 
-/** Excel'den toplu aktarım — mevcut listenin üzerine yazar */
 function urunleriBulkAktar(yeniUrunler: Urun[]): void {
   dataStore.bulkReplaceUrunler(yeniUrunler);
 }
 
-/** Varsayılan ürün listesini sıfırla */
 function urunleriSifirla(): void {
   dataStore.bulkReplaceUrunler(varsayilanUrunler);
-}
-
-function markaKoruVeDuzenle(aciklama: string, urunMarkasi: string, markalar: string[]): string {
-  const mevcutMarka = markalar.find((m) => aciklama.toLowerCase().includes(m.toLowerCase()));
-
-  if (mevcutMarka) {
-    if (urunMarkasi && urunMarkasi.toLowerCase() === mevcutMarka.toLowerCase()) {
-      const escaped = urunMarkasi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rx      = new RegExp(escaped, 'gi');
-      const hits    = aciklama.match(rx) ?? [];
-      if (hits.length > 1) {
-        const geri = aciklama
-          .replace(rx, '')
-          .replace(/\s{2,}/g, ' ')
-          .replace(/^[\s\-–·,;]+|[\s\-–·,;]+$/g, '')
-          .trim();
-        return geri ? `${urunMarkasi} ${geri}` : urunMarkasi;
-      }
-    }
-    return aciklama;
-  }
-
-  if (!urunMarkasi) return aciklama;
-  if (!aciklama)    return urunMarkasi;
-  return `${urunMarkasi} ${aciklama}`;
-}
-
-function urunAciklamalariniTemizle(): number {
-  const liste   = tumUrunleriGetir();
-  const markalar = referansVeriService.markalar.tumunuGetir();
-  let temizlenen = 0;
-
-  const guncellenmis = liste.map((u) => {
-    const urunMarkasi  = u.marka?.trim() ?? '';
-    const temizAciklama = cleanProductDescription(u.aciklama, u.urunKod);
-    const markaAciklama = markaKoruVeDuzenle(temizAciklama, urunMarkasi, markalar);
-    const sonAciklama   = titleCaseAciklama(markaAciklama);
-    if (sonAciklama !== u.aciklama) {
-      temizlenen++;
-      return { ...u, aciklama: sonAciklama };
-    }
-    return u;
-  });
-
-  dataStore.bulkReplaceUrunler(guncellenmis);
-  return temizlenen;
 }
 
 export const urunService = {
@@ -113,5 +63,4 @@ export const urunService = {
   urunIdUret,
   urunleriBulkAktar,
   urunleriSifirla,
-  urunAciklamalariniTemizle,
 };
