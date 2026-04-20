@@ -26,5 +26,9 @@ dist-ssr
 # Claude Code
 .claude/
 
+# Build / release artifacts
+release/
+build/
+
 # Geçici dosyalar
 project_dump_clean.txt
