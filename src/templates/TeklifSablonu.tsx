@@ -5,48 +5,54 @@ import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru'
 import { formatPhone } from '../utils/phone';
 import { formatCariAdi } from '../utils/formatters';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
+import {
+  CELL_PAD as DOC_CELL_PAD,
+  DOCUMENT_BRAND as DOC_BRAND,
+  DOCUMENT_ROOT_STYLE,
+  FOOTER_BAR_STYLE,
+  NOTES_BOX_STYLE,
+  PARA_BIRIMI_ETIKETI as DOC_PARA_BIRIMI_ETIKETI,
+  SIGNATURE_SECTION_STYLE,
+  SEMBOL as DOC_SEMBOL,
+  TABLE_HEAD_SUBLABEL_STYLE,
+  TABLE_STYLE,
+  TABLE_TITLE_STYLE,
+  TableColgroup as SharedTableColgroup,
+  getTableHeadCellStyle,
+} from './teklifDocumentShared';
 
-const PARA_BIRIMI_ETIKETI: Record<string, string> = { TRY: 'TL', EUR: 'EUR', USD: 'USD' };
+const PARA_BIRIMI_ETIKETI = DOC_PARA_BIRIMI_ETIKETI;
 function firstLine(text: string): string {
   return text.split(/\r?\n/)[0]?.trim() ?? '';
 }
 
-const SEMBOL: Record<string, string> = { TRY: '₺', EUR: '€', USD: '$', GBP: '£', CHF: '₣' };
+const SEMBOL = DOC_SEMBOL;
 
 // ── Marka Mavisi — MEBA logosundaki "BA" harflerinden alınan renk ailesi ─────
 // Teklif badge, genel toplam kartı ve alt şeritlerde ORTAK kullanılır.
 // Premium kahverengi ton ailesi — zengin kakao/konyak gradient.
-const BRAND = {
-  g:         'linear-gradient(180deg, #1a3567 0%, #0d1f45 55%, #060d20 100%)',
-  border:    '#0a1630',
-  shadow:    '0 4px 24px rgba(4,8,24,0.55), 0 1px 8px rgba(4,8,24,0.36)',
-  shadowSm:  '0 2px 10px rgba(4,8,24,0.50)',
-  text:      '#ffffff',
-  textSub:   'rgba(255,255,255,0.88)',
-  textLabel: 'rgba(255,255,255,0.70)',
-  sep:       'rgba(255,255,255,0.25)',
-} as const;
+const BRAND = DOC_BRAND;
 
 // ── PDF Tasarım Sabitleri ─────────────────────────────────────────────────────
 const C = {
-  navy:        '#0c1e3c',   // Ultra derin lacivert — 8K siyaha yakın mavi
-  navyLight:   '#102858',   // İkincil lacivert — derin
-  navyBorder:  '#3a6890',   // Tablo başlık alt çizgisi — doygun, keskin
-  accent:      '#102858',   // Ürün kodu
-  border:      '#9ab8d4',   // Çelik mavi-gri — belirgin kontur
-  borderSoft:  '#b4cce0',   // İkincil border — yumuşak çelik
-  rowAlt:      '#f5f8fc',   // Kalem satır alt zemin — hafif soğuk beyaz
-  text:        '#060608',   // Neredeyse saf siyah — maksimum okunabilirlik
-  textMid:     '#0e0e12',   // Birincil vurgu metni
-  textSoft:    '#181820',   // İkincil metin
-  textMuted:   '#242430',   // Üçüncül metin
-  white:       '#ffffff',
-  bg:          '#dce8f5',   // Not alanı — kurumsal açık mavi zemin
+  navy:        '#1A2B42',   // Derin lacivert — vurgu, başlık
+  navyLight:   '#2E4460',   // İkincil lacivert
+  navyBorder:  '#D5D3CF',   // Tablo başlık alt çizgisi — sıcak gri
+  accent:      '#1A2B42',   // Ürün kodu
+  border:      '#E2E0DC',   // Sıcak açık gri — birincil border
+  borderSoft:  '#EDEBE8',   // İkincil border — çok hafif
+  rowAlt:      '#F7F6F4',   // Kalem satır alt zemin — sıcak kırık beyaz
+  text:        '#2C2C2E',   // Koyu antrasit — ana metin
+  textMid:     '#4A4A4E',   // Birincil gövde metni
+  textSoft:    '#717176',   // İkincil metin
+  textMuted:   '#9B9BA0',   // Üçüncül metin
+  white:       '#FAFAF8',   // Kırık beyaz
+  bg:          '#F7F6F4',   // Not alanı — sıcak açık zemin
   // ── Şerit sistemi ────────────────────────────────────────────────────
-  stripeBg:    '#bed0ea',   // Kurumsal çelik mavi
-  stripeText:  '#0c1e3c',   // Şerit metin — ultra derin lacivert
-  stripeSub:   '#182e4e',   // Alt metin — siyaha yakın lacivert
-  stripeSep:   '#8aaed0',   // Şerit ayraç — belirgin
+  stripeBg:    '#F0EFEC',   // Sıcak nötr zemin
+  stripeText:  '#2C2C2E',   // Şerit metin — antrasit
+  stripeSub:   '#4A4A4E',   // Alt metin
+  stripeSep:   '#E2E0DC',   // Şerit ayraç — sıcak gri
 };
 
 // Sütun genişlikleri — içerik bazlı otomatik boyutlandırma
@@ -94,10 +100,10 @@ const noBreak: React.CSSProperties = {
 // ── Kalem Satır Sistemi ────────────────────────────────────────────────────
 // Her satır ayrı çerçeveli kart — temiz beyaz, ince gri border, hafif gölge
 const ROW_CARD = {
-  bg:        '#ffffff',
-  borderClr: '#aabdd4',
+  bg:        '#FFFFFF',
+  borderClr: '#E8E6E3',
   radius:    '6px',
-  shadow:    '0 1px 4px rgba(10,20,50,0.10)',
+  shadow:    '0 1px 2px rgba(0,0,0,0.03)',
 } as const;
 
 type CellPos = 'first' | 'mid' | 'last';
@@ -192,7 +198,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
       boxSizing: 'border-box',
       padding: '12mm 10mm 0',
       fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#FAFAF8',
       WebkitPrintColorAdjust: 'exact',
       printColorAdjust: 'exact',
     } as React.CSSProperties}>
@@ -289,27 +295,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
     <div
       id="teklif-sablon"
       style={{
-        width: '210mm',
-        minHeight: '297mm',
-        display: 'flex',
-        flexDirection: 'column',
-        margin: '0 auto',
-        backgroundColor: C.white,
-        colorScheme: 'light',
-        fontFamily: '"Inter", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        fontSize: '11.7px',
-        lineHeight: '1.52',
-        letterSpacing: '0.01em',
-        color: C.text,
-        boxSizing: 'border-box',
-        padding: '9mm 10mm 8mm 10mm',
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'geometricPrecision',
-        fontKerning: 'normal',
-        fontOpticalSizing: 'auto',
-        printColorAdjust: 'exact',
-        WebkitPrintColorAdjust: 'exact',
+        ...DOCUMENT_ROOT_STYLE,
       } as React.CSSProperties}
     >
 
@@ -415,7 +401,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           }}>
             {/* TEKLİF başlık etiketi — logo üst sınırına oturur */}
             <div style={{
-              background: BRAND.g,
+              background: BRAND.gradient,
               printColorAdjust: 'exact',
               WebkitPrintColorAdjust: 'exact',
               padding: '5px 14px 6px',
@@ -479,7 +465,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <div style={{
         display: 'flex',
         width: '100%',
-        background: '#ffffff',
+        background: '#FAFAF8',
         marginBottom: '8px',
         columnGap: '16px',
         printColorAdjust: 'exact',
@@ -500,7 +486,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             textTransform: 'uppercase',
             marginBottom: '8px',
             paddingBottom: '5px',
-            borderBottom: `1px solid ${C.border}`,
+            borderBottom: `0.75px solid ${C.border}`,
             lineHeight: 1.2,
           }}>
             Gönderen / From
@@ -527,7 +513,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             textTransform: 'uppercase',
             marginBottom: '8px',
             paddingBottom: '5px',
-            borderBottom: `1px solid ${C.border}`,
+            borderBottom: `0.75px solid ${C.border}`,
             lineHeight: 1.2,
           }}>
             Alıcı / To
@@ -582,10 +568,10 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               flex: 1,
               padding: '7px 10px 8px',
               textAlign: 'center',
-              background: 'linear-gradient(180deg, #edf3fb 0%, #d4e4f5 100%)',
-              border: '1px solid #9ab8d4',
+              background: 'linear-gradient(180deg, #F8F7F5 0%, #F0EFEC 100%)',
+              border: `0.75px solid ${C.border}`,
               borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+              boxShadow: 'none',
               printColorAdjust: 'exact',
               WebkitPrintColorAdjust: 'exact',
             }}
@@ -621,30 +607,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </div>
 
       {/* ══ TEKLİF KALEMLERİ TABLOSU ════════════════════════════ */}
-      <div style={{
-        fontSize: '10px',
-        fontWeight: 700,
-        color: C.textSoft,
-        letterSpacing: '0.11em',
-        textTransform: 'uppercase',
-        marginBottom: '5px',
-      }}>
+      <div style={TABLE_TITLE_STYLE}>
         Teklif Kalemleri / Line Items
       </div>
       {/* Dikey çizgiler kaldırıldı: outer border yerine top+bottom,            */}
       {/* başlık ve hücreler arasındaki dikey ayraçlar da devre dışı.           */}
-      <table style={{
-        width: '100%',
-        borderCollapse: 'separate',
-        borderSpacing: '0 2px',
-        borderLeft: 'none',
-        borderRight: 'none',
-        marginBottom: '0px',
-        tableLayout: 'fixed',
-        printColorAdjust: 'exact',
-        WebkitPrintColorAdjust: 'exact',
-      } as React.CSSProperties}>
-        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+      <table style={TABLE_STYLE}>
+        <SharedTableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
         <thead id="pdf-thead">
           <tr>
             {[
@@ -660,38 +629,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             ].map((col, i) => (
               <th
                 key={i}
-                style={{
-                  padding: '6px 7px',
-                  textAlign: col.align,
-                  verticalAlign: 'middle',
-                  fontSize: ('fontSize' in col ? col.fontSize : undefined) ?? '10.5px',
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  color: C.navy,
-                  background: '#ffffff',
-                  printColorAdjust: 'exact',
-                  WebkitPrintColorAdjust: 'exact',
-                  borderTop: 'none',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  borderBottom: `1.5px solid ${C.navyBorder}`,
-                  borderRadius: 0,
-                  lineHeight: '1.3',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                }}
+                style={getTableHeadCellStyle(col.align)}
               >
                 {col.label}
                 {col.sub && (
-                  <span style={{
-                    display: 'block',
-                    fontWeight: 400,
-                    fontSize: '8.5px',
-                    color: C.textMuted,
-                    marginTop: '1px',
-                    textAlign: col.align,
-                    letterSpacing: '0.02em',
-                  }}>
+                  <span style={{ ...TABLE_HEAD_SUBLABEL_STYLE, textAlign: col.align }}>
                     {col.sub}
                   </span>
                 )}
@@ -718,7 +660,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               >
                 {/* No */}
                 <td style={{
-                  padding: '5px 5px',
+                  padding: DOC_CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
@@ -730,7 +672,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Marka */}
                 <td style={{
-                  padding: '5px 7px',
+                  padding: DOC_CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
@@ -743,7 +685,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Ürün Kodu — asla kırpılmaz; sığmazsa alt satıra geçer */}
                 <td style={{
-                  padding: '5px 7px',
+                  padding: DOC_CELL_PAD,
                   fontSize: '11px',
                   fontWeight: 600,
                   color: C.accent,
@@ -758,7 +700,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Açıklama — esnek; sığmazsa alt satıra geçer, asla kısaltılmaz */}
                 <td style={{
-                  padding: '5px 7px',
+                  padding: DOC_CELL_PAD,
                   fontSize: '11.5px',
                   fontWeight: 500,
                   color: C.textMid,
@@ -772,7 +714,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Miktar */}
                 <td style={{
-                  padding: '5px 5px',
+                  padding: DOC_CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11.5px',
                   color: C.textMid,
@@ -782,10 +724,10 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 }}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-                      <span style={{ width: '50%', textAlign: 'right', paddingRight: '5px', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ width: '50%', textAlign: 'right', paddingRight: '4px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
-                      <span style={{ width: '50%', textAlign: 'right', paddingLeft: '5px', opacity: 0.6, fontSize: '0.85em' }}>
+                      <span style={{ width: '50%', textAlign: 'left', paddingLeft: '4px', opacity: 0.68, fontSize: '0.85em' }}>
                         {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
                       </span>
                     </div>
@@ -793,7 +735,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {satirBazliParaBirimi && (
                   <td style={{
-                    padding: '5px 5px',
+                    padding: DOC_CELL_PAD,
                     textAlign: 'center',
                     verticalAlign: 'middle',
                     fontSize: '11px',
@@ -808,7 +750,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 )}
                 {/* Birim Fiyat — nihai (bireysel iskonto uygulanmış) */}
                 <td style={{
-                  padding: '5px 7px',
+                  padding: DOC_CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
                   fontSize: '11.5px',
@@ -826,7 +768,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Satır Toplam */}
                 <td style={{
-                  padding: '5px 7px',
+                  padding: DOC_CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
                   fontSize: '11.5px',
@@ -842,7 +784,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Teslimat — kısa metin; sığmazsa alt satıra geçer, asla kırpılmaz */}
                 <td style={{
-                  padding: '5px 5px',
+                  padding: DOC_CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
@@ -900,10 +842,10 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
             const kartStyle: React.CSSProperties = {
               boxSizing: 'border-box',
-              border: '1px solid #2a4a8a',
-              borderRadius: '9px',
-              background: 'linear-gradient(180deg, #2e5299 0%, #1e3a72 55%, #122450 100%)',
-              boxShadow: '0 4px 20px rgba(10,24,70,0.28), 0 1px 6px rgba(10,24,70,0.18)',
+              border: '0.75px solid #1A2B42',
+              borderRadius: '8px',
+              background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+              boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
               printColorAdjust: 'exact',
               WebkitPrintColorAdjust: 'exact',
             };
@@ -995,7 +937,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                       {iskontoOrani > 0 && detayRow(`İskonto %${iskontoOrani}`, iskontoTutar, '#fca5a5', '–')}
                       {kdvOrani    > 0 && detayRow(`KDV %${kdvOrani}`,          kdvTutar,     '#86efac', '+')}
                       {/* Ayraç */}
-                      <div style={{ borderTop: `0.75px solid ${BRAND.sep}`, margin: '5px 0 4px' }} />
+                      <div style={{ borderTop: `0.75px solid ${BRAND.separator}`, margin: '5px 0 4px' }} />
                       {/* Alt: PB etiketi (sol) + büyük toplam + hizalama spacer */}
                       <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                         <span style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: BRAND.textSub, lineHeight: 1 }}>
@@ -1035,11 +977,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     width: '100%',
                     boxSizing: 'border-box',
                     minHeight: `${KART_H + 26}px`,
-                    border: '1px solid #2a4a8a',
-                    borderRadius: '9px',
-                    background: 'linear-gradient(180deg, #2e5299 0%, #1e3a72 55%, #122450 100%)',
+                    border: '0.75px solid #1A2B42',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
                     padding: '7px 8px 8px',
-                    boxShadow: '0 4px 20px rgba(10,24,70,0.28), 0 1px 6px rgba(10,24,70,0.18)',
+                    boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
                     printColorAdjust: 'exact',
                     WebkitPrintColorAdjust: 'exact',
                   } as React.CSSProperties}>
@@ -1074,9 +1016,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                           position: 'relative',
                           boxSizing: 'border-box',
                           borderRadius: '12px',
-                          border: '1px solid #c6d4e2',
-                          background: 'linear-gradient(180deg, #ffffff 0%, #f3f7fb 100%)',
-                          boxShadow: '0 4px 20px rgba(20,39,78,0.07), 0 1px 4px rgba(20,39,78,0.04)',
+                          border: '0.75px solid #E8E6E3',
+                          background: '#FFFFFF',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
                           printColorAdjust: 'exact',
                           WebkitPrintColorAdjust: 'exact',
                         } as React.CSSProperties}>
@@ -1103,20 +1045,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
       {/* ══ NOT ALANI ════════════════════════════════════════════ */}
       {teklif.notlar && (
-        <div data-alan="notlar" style={{
-          fontSize: '12.9px',
-          marginBottom: '16px',
-          padding: '10px 13px',
-          border: `0.75px solid ${C.border}`,
-          borderRadius: '6px',
-          lineHeight: '1.72',
-          backgroundColor: C.bg,
-          printColorAdjust: 'exact',
-          WebkitPrintColorAdjust: 'exact',
-          wordBreak: 'break-word',
-          overflowWrap: 'break-word',
-          ...noBreak,
-        } as React.CSSProperties}>
+        <div data-alan="notlar" style={{ ...NOTES_BOX_STYLE, ...noBreak }}>
           <strong style={{ color: C.navy }}>Notlar / Notes:&nbsp;</strong>
           <span style={{ color: C.textMid }}>{teklif.notlar}</span>
         </div>
@@ -1131,11 +1060,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <div id="pdf-bottom-block">
 
         {/* ── SİPARİŞİ VEREN — 2 sütunlu kompakt düzen ── */}
-        <div style={{
-          marginTop: '18px',
-          padding: '7px 0 25px',
-          ...noBreak,
-        }}>
+        <div style={SIGNATURE_SECTION_STYLE}>
           <div style={{ color: C.textMuted, fontSize: '11.7px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '9px' }}>
             Siparişi Veren / Authorised Person
           </div>
@@ -1160,22 +1085,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         </div>
 
         {/* ── FOOTER (navy şerit) ── */}
-        <div id="pdf-page-footer" style={{
-          border: `1px solid ${BRAND.border}`,
-          borderRadius: '9px',
-          background: BRAND.g,
-          boxShadow: BRAND.shadowSm,
-          color: 'rgba(255,255,255,0.88)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '9.8px',
-          fontWeight: 500,
-          padding: '7px 10px',
-          lineHeight: '1.55',
-          letterSpacing: '0.025em',
-          printColorAdjust: 'exact',
-          WebkitPrintColorAdjust: 'exact',
-        } as React.CSSProperties}>
+        <div id="pdf-page-footer" style={FOOTER_BAR_STYLE}>
           <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
           <div style={{ fontVariantNumeric: 'tabular-nums' }}>
             Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com

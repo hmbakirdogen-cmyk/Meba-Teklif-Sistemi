@@ -1,14 +1,9 @@
 /**
  * BelgeInlineEditor.tsx
- * ─────────────────────────────────────────────────────────────────
- * TeklifSablonu'nun interaktif ikizi.
- * Aynı A4 düzenini korur, ancak tıklanan alanlar belge akışı
- * içinde inline genişleyerek düzenleme kontrollerini gösterir.
- *
- * PDF/baskı çıktısında KULLANILMAZ — yalnızca ekranda görünür.
- * html2canvas pipeline için orijinal TeklifSablonu ayrı tutulur.
+ * Teklif belgesi üzerinde doğrudan düzenleme.
+ * PDF pipeline için kullanılmaz — yalnızca ekran görünümü.
  */
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Select, AutoComplete, Input, InputNumber, DatePicker } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -20,8 +15,24 @@ import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { cariService } from '../services/musteriService';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
+import {
+  CELL_PAD as DOC_CELL_PAD,
+  DOCUMENT_ROOT_STYLE,
+  FOOTER_BAR_STYLE,
+  NOTES_BOX_STYLE,
+  PARTY_BODY_STYLE,
+  PARTY_CARD_STYLE,
+  PARTY_GRID_STYLE,
+  PARTY_LABEL_STYLE,
+  PARTY_NAME_STYLE,
+  SETTINGS_GRID_STYLE,
+  SIGNATURE_SECTION_STYLE,
+  TABLE_HEAD_SUBLABEL_STYLE,
+  TABLE_STYLE,
+  TABLE_TITLE_STYLE,
+  getTableHeadCellStyle,
+} from '../templates/teklifDocumentShared';
 
-// ── Aynı sabitler (TeklifSablonu ile birebir) ──
 const PARA_BIRIMI_ETIKETI: Record<string, string> = { TRY: 'TL', EUR: 'EUR', USD: 'USD' };
 function firstLine(text: string): string {
   return text.split(/\r?\n/)[0]?.trim() ?? '';
@@ -29,68 +40,48 @@ function firstLine(text: string): string {
 const SEMBOL: Record<string, string> = { TRY: '₺', EUR: '€', USD: '$', GBP: '£', CHF: '₣' };
 
 const BRAND = {
-  g:         'linear-gradient(180deg, #1a3567 0%, #0d1f45 55%, #060d20 100%)',
-  border:    '#0a1630',
-  shadow:    '0 4px 24px rgba(4,8,24,0.55), 0 1px 8px rgba(4,8,24,0.36)',
-  shadowSm:  '0 2px 10px rgba(4,8,24,0.50)',
+  g:         'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+  border:    '#0E1A2E',
+  shadow:    '0 2px 8px rgba(15,25,40,0.10)',
+  shadowSm:  '0 1px 4px rgba(15,25,40,0.08)',
   text:      '#ffffff',
-  textSub:   'rgba(255,255,255,0.88)',
-  textLabel: 'rgba(255,255,255,0.70)',
-  sep:       'rgba(255,255,255,0.25)',
+  textSub:   'rgba(255,255,255,0.80)',
+  textLabel: 'rgba(255,255,255,0.58)',
+  sep:       'rgba(255,255,255,0.15)',
 } as const;
 
 const C = {
-  navy:        '#0c1e3c',
-  navyLight:   '#102858',
-  navyBorder:  '#3a6890',
-  accent:      '#102858',
-  border:      '#9ab8d4',
-  borderSoft:  '#b4cce0',
-  rowAlt:      '#f5f8fc',
-  text:        '#060608',
-  textMid:     '#0e0e12',
-  textSoft:    '#181820',
-  textMuted:   '#242430',
-  white:       '#ffffff',
-  bg:          '#dce8f5',
-  stripeBg:    '#bed0ea',
-  stripeText:  '#0c1e3c',
-  stripeSub:   '#182e4e',
-  stripeSep:   '#8aaed0',
+  navy:        '#1A2B42',
+  navyLight:   '#2E4460',
+  navyBorder:  '#D5D3CF',
+  accent:      '#1A2B42',
+  border:      '#E2E0DC',
+  borderSoft:  '#EDEBE8',
+  rowAlt:      '#F7F6F4',
+  text:        '#2C2C2E',
+  textMid:     '#4A4A4E',
+  textSoft:    '#717176',
+  textMuted:   '#9B9BA0',
+  white:       '#FAFAF8',
+  bg:          '#F7F6F4',
+  stripeBg:    '#F0EFEC',
+  stripeText:  '#2C2C2E',
+  stripeSub:   '#4A4A4E',
+  stripeSep:   '#E2E0DC',
 };
 
-// ══════════════════════════════════════════════════════════════════
-//  UNIFIED COLUMN SYSTEM
-//  Tek merkezi kolon tanımı — başlık, statik satır ve edit satırı
-//  hepsi bu genişlikleri paylaşır. Kolon ayarı yalnızca buradan yapılır.
-// ══════════════════════════════════════════════════════════════════
+// ══ UNIFIED COLUMN SYSTEM — always 8 columns ══
+// Para birimi sütunu tablodan kaldırıldı; action bar'a taşındı.
 const COL = {
   no:         '4%',
   marka:      '9%',
-  urunKod:    '13%',
-  aciklama:   '27%',
+  urunKod:    '14%',
+  aciklama:   '28%',
   miktar:     '9%',
   birimFiyat: '13%',
-  toplam:     '12%',
-  teslimat:   '13%',
-} as const;
-
-const COL_PB = {
-  no:         '3.5%',
-  marka:      '8%',
-  urunKod:    '12%',
-  aciklama:   '22%',
-  miktar:     '8%',
-  paraBirimi: '8%',
-  birimFiyat: '13%',
   toplam:     '13%',
-  teslimat:   '12.5%',
+  teslimat:   '10%',
 } as const;
-
-// ── Uniform cell padding ──
-// Başlık, statik satır ve edit satırlarında kullanılan TEK padding değeri.
-// Bu değer tüm hücrelerde aynıdır; böylece dikey hizalama garanti edilir.
-const CELL_PAD = '7px 6px';
 
 const noBreak: React.CSSProperties = {
   pageBreakInside: 'avoid',
@@ -98,10 +89,10 @@ const noBreak: React.CSSProperties = {
 };
 
 const ROW_CARD = {
-  bg:        '#ffffff',
-  borderClr: '#aabdd4',
-  radius:    '5px',
-  shadow:    '0 1px 3px rgba(10,20,50,0.08)',
+  bg:        '#FFFFFF',
+  borderClr: '#E8E6E3',
+  radius:    '6px',
+  shadow:    '0 1px 2px rgba(0,0,0,0.03)',
 } as const;
 
 type CellPos = 'first' | 'mid' | 'last';
@@ -139,29 +130,21 @@ const LOGO_OPT_W    = LOGO_FILE_W      * (LOGO.OPT_RIGHT_FRAC - LOGO.OPT_LEFT_FR
 const LOGO_OPT_TOP  = -(LOGO.FILE_HEIGHT * LOGO.OPT_TOP_FRAC);
 const LOGO_OPT_LEFT = -(LOGO_FILE_W      * LOGO.OPT_LEFT_FRAC);
 
-// ══════════════════════════════════════════════════════════════════
-//  UNIFIED FIELD SYSTEM
-//  Tüm veri giriş alanlarının merkezi konfigürasyonu.
-//  Hiçbir alan kendine özel aktif/pasif/focus stili tanımlamaz.
-//  Bu tek kaynaktan beslenir.
-// ══════════════════════════════════════════════════════════════════
+// ══ UNIFIED FIELD SYSTEM ══
 const FIELD = {
   activeOutline: '1px solid rgba(37, 99, 235, 0.18)',
-  activeBg: 'rgba(237, 242, 251, 0.45)',
-  radius: '4px',
-  transition: 'all 0.15s ease',
-  focusLine: 'inset 0 -2px 0 rgba(37, 99, 235, 0.20)',
-  caret: '#1e40af',
+  activeBg:      'rgba(237, 242, 251, 0.45)',
+  radius:        '4px',
+  transition:    'all 0.15s ease',
+  focusLine:     'inset 0 -2px 0 rgba(37, 99, 235, 0.20)',
+  caret:         '#1e40af',
 } as const;
 
-// ══════════════════════════════════════════════════════════════════
-//  UNIFIED FIELD CSS
-//  Ant Design kontrolleri belgenin doğal parçası gibi görünür.
-//  Tüm border, padding, arka plan, ok ikonu kaldırılır.
-//  Tek merkezi CSS — hiçbir alan kendine özel override kullanmaz.
-// ══════════════════════════════════════════════════════════════════
+// ══ UNIFIED FIELD CSS ══
+// Tüm hücreler aynı ghost görünüm sistemi.
+// Ok ikonları (arrow, suffix) edit modunda tamamen gizlenir.
 const FIELD_CSS = `
-/* ═══ BASE: Tüm kontroller belge tipografisini devralır ═══ */
+/* ═══ BASE ═══ */
 .belge-inline .ant-select,
 .belge-inline .ant-input,
 .belge-inline .ant-input-number,
@@ -172,18 +155,16 @@ const FIELD_CSS = `
   line-height: inherit !important;
 }
 
-/* ═══ CARET: Tüm alanlarda aynı imlec rengi ═══ */
+/* ═══ CARET & SELECTION ═══ */
 .belge-inline input,
 .belge-inline textarea {
   caret-color: ${FIELD.caret} !important;
 }
-
-/* ═══ SELECTION: Tüm alanlarda aynı seçim rengi ═══ */
 .belge-inline ::selection {
   background: rgba(37, 99, 235, 0.12);
 }
 
-/* ═══ SELECT: Ghost chrome ═══ */
+/* ═══ SELECT: Ghost ═══ */
 .belge-inline .ant-select-selector {
   padding: 0 !important;
   min-height: 0 !important;
@@ -208,12 +189,14 @@ const FIELD_CSS = `
   height: auto !important;
 }
 
-/* ═══ SELECT OK İKONU: Tüm alanlarda gizli ═══ */
-.belge-inline .ant-select-arrow {
+/* ═══ SELECT: Tüm ok ve suffix ikonları gizli ═══ */
+.belge-inline .ant-select-arrow,
+.belge-inline .ant-select-suffix,
+.belge-inline .ant-select-clear {
   display: none !important;
 }
 
-/* ═══ PLACEHOLDER: Tüm alanlarda aynı görünüm ═══ */
+/* ═══ PLACEHOLDER ═══ */
 .belge-inline .ant-select-selection-placeholder {
   color: #94a3b8 !important;
   opacity: 0.65 !important;
@@ -285,12 +268,12 @@ const FIELD_CSS = `
   resize: none !important;
 }
 
-/* ═══ FOCUS GÖSTERGESİ: Tablo hücreleri ═══ */
+/* ═══ FOCUS: Tablo hücreleri ═══ */
 .belge-inline tr[data-editing] td:focus-within {
   box-shadow: ${FIELD.focusLine} !important;
 }
 
-/* ═══ FOCUS GÖSTERGESİ: Alan grupları (müşteri, notlar, ayarlar) ═══ */
+/* ═══ FOCUS: Alan grupları ═══ */
 .belge-inline .field-group .ant-input:focus,
 .belge-inline .field-group textarea.ant-input:focus {
   box-shadow: ${FIELD.focusLine} !important;
@@ -305,13 +288,12 @@ const FIELD_CSS = `
   border-radius: 0 !important;
 }
 
-/* ═══ CHECKBOX: Doğal görünüm ═══ */
+/* ═══ CHECKBOX ═══ */
 .belge-inline input[type="checkbox"] {
   accent-color: ${FIELD.caret};
 }
 `;
 
-// ── Editing alan tipi ──
 export type EditingAlan =
   | 'musteri'
   | 'ayarlar'
@@ -319,19 +301,16 @@ export type EditingAlan =
   | 'notlar'
   | null;
 
-// ── Props ──
 interface BelgeInlineEditorProps {
   teklif: Teklif;
   totals: TeklifToplam;
   editingAlan: EditingAlan;
   onEditingAlanDegistir: (alan: EditingAlan) => void;
-  // Cari
   onCariDegistir: (cari: Cari) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
   onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
-  // Ayarlar
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: string) => void;
   satirBazliParaBirimi: boolean;
@@ -340,34 +319,29 @@ interface BelgeInlineEditorProps {
   onKdvOraniDegistir: (oran: number) => void;
   onIskontoOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
-  // Satırlar
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatirSil: (id: string) => void;
   onSatirEkle: () => void;
-  // Notlar
   onNotlarDegistir: (notlar: string) => void;
-  // Yeni teklif modu — ilk satır otomatik açık
   yeniTeklif?: boolean;
 }
 
-function TableColgroup({ satirBazliParaBirimi }: { satirBazliParaBirimi: boolean }) {
-  const cols = satirBazliParaBirimi ? COL_PB : COL;
+// ── 8 sütun, sabit ──
+function TableColgroup() {
   return (
     <colgroup>
-      <col style={{ width: cols.no }} />
-      <col style={{ width: cols.marka }} />
-      <col style={{ width: cols.urunKod }} />
-      <col style={{ width: cols.aciklama }} />
-      <col style={{ width: cols.miktar }} />
-      {satirBazliParaBirimi && <col style={{ width: COL_PB.paraBirimi }} />}
-      <col style={{ width: cols.birimFiyat }} />
-      <col style={{ width: cols.toplam }} />
-      <col style={{ width: cols.teslimat }} />
+      <col style={{ width: COL.no }} />
+      <col style={{ width: COL.marka }} />
+      <col style={{ width: COL.urunKod }} />
+      <col style={{ width: COL.aciklama }} />
+      <col style={{ width: COL.miktar }} />
+      <col style={{ width: COL.birimFiyat }} />
+      <col style={{ width: COL.toplam }} />
+      <col style={{ width: COL.teslimat }} />
     </colgroup>
   );
 }
 
-// ── Inline cari arama bileşeni ──
 function InlineCariSecimi({ onSec }: { onSec: (cari: Cari) => void }) {
   const [searchText, setSearchText] = useState('');
   const cariler = useMemo(() => cariService.tumCarileriGetir(), []);
@@ -409,15 +383,25 @@ function InlineCariSecimi({ onSec }: { onSec: (cari: Cari) => void }) {
 
 // ══════════════════════════════════════════════════════════════════
 //  INLINE SATIR EDİTÖRÜ
-//  Statik satırla birebir aynı padding, font ve hizalama kullanır.
-//  Ant Design kontrolleri CSS overrides sayesinde görünmez kabuk
-//  olarak çalışır — metin doğrudan belgeye gömülü gibi görünür.
+//
+//  Değişiklikler:
+//  - Para birimi sütunu kaldırıldı → action bar'a taşındı
+//  - focusCell prop: hangi hücreye odaklanılacağını belirler
+//  - Enter tuşu: soldan sağa hücre navigasyonu, son hücrede yeni satır
+//  - Metin bozulması yok: urunAdi raw değeriyle gösterilir
+//  - suffixIcon={null}: edit modunda ok ikon görünmez
+//  - onFocus select-all: hücreye girilince mevcut değer seçilir
 // ══════════════════════════════════════════════════════════════════
+
+type FocusCell = 'marka' | 'urunKod' | 'aciklama' | 'miktar' | 'birimFiyat' | 'teslimat';
+const CELL_NAV_ORDER: FocusCell[] = ['urunKod', 'aciklama', 'miktar', 'birimFiyat', 'teslimat'];
+
 function InlineSatirEditor({
   satir,
   idx,
   paraBirimi,
   satirBazliParaBirimi,
+  focusCell,
   onGuncelle,
   onSil,
   onEkle,
@@ -426,48 +410,98 @@ function InlineSatirEditor({
   idx: number;
   paraBirimi: string;
   satirBazliParaBirimi: boolean;
+  focusCell?: string;
   onGuncelle: (alan: keyof TeklifSatiri, deger: unknown) => void;
   onSil: () => void;
   onEkle: () => void;
 }) {
-  const markalar = useMemo(() => referansVeriService.markalar.tumunuGetir(), []);
-  const birimler = useMemo(() => referansVeriService.birimler.tumunuGetir(), []);
+  const markalar        = useMemo(() => referansVeriService.markalar.tumunuGetir(), []);
+  const birimler        = useMemo(() => referansVeriService.birimler.tumunuGetir(), []);
   const teslimSecenekleri = useMemo(() => referansVeriService.teslimSecenekleri.tumunuGetir(), []);
-  const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
-  const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const urunler         = useMemo(() => urunService.tumUrunleriGetir(), []);
+  const satirPb         = hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi);
 
+  // ── Hücre referansları ──
+  const markaRef      = useRef<any>(null);
+  const urunKodRef    = useRef<any>(null);
+  const aciklamaRef   = useRef<HTMLInputElement>(null);
+  const miktarRef     = useRef<any>(null);
+  const birimFiyatRef = useRef<any>(null);
+  const teslimatRef   = useRef<any>(null);
+
+  const FOCUS_MAP = useMemo<Record<string, React.RefObject<any>>>(() => ({
+    marka:      markaRef,
+    urunKod:    urunKodRef,
+    aciklama:   aciklamaRef,
+    miktar:     miktarRef,
+    birimFiyat: birimFiyatRef,
+    teslimat:   teslimatRef,
+  }), []);
+
+  // ── İlk odak: mount'ta focusCell prop'a göre ──
   useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 50);
+    const ref = (focusCell && FOCUS_MAP[focusCell]) ?? urunKodRef;
+    const timer = setTimeout(() => {
+      const el = ref.current;
+      if (!el) return;
+      if (typeof el.focus === 'function') el.focus();
+      const input: HTMLInputElement | null =
+        typeof el.querySelector === 'function'
+          ? el.querySelector('input')
+          : el.nodeName === 'INPUT' ? el : null;
+      input?.select?.();
+    }, 50);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Programatik odak ──
+  const focusByName = useCallback((cell: string) => {
+    const ref = FOCUS_MAP[cell];
+    if (!ref) return;
+    setTimeout(() => {
+      const el = ref.current;
+      if (!el) return;
+      if (typeof el.focus === 'function') el.focus();
+      const input: HTMLInputElement | null =
+        typeof el.querySelector === 'function'
+          ? el.querySelector('input')
+          : el.nodeName === 'INPUT' ? el : null;
+      input?.select?.();
+    }, 0);
+  }, [FOCUS_MAP]);
+
+  // ── Enter: sonraki hücreye geç, son hücreden yeni satır ──
+  const handleEnterNav = useCallback((currentCell: FocusCell) => {
+    const i = CELL_NAV_ORDER.indexOf(currentCell);
+    if (i < CELL_NAV_ORDER.length - 1) {
+      focusByName(CELL_NAV_ORDER[i + 1]);
+    } else {
+      onEkle();
+    }
+  }, [focusByName, onEkle]);
+
   const urunKodOptions = useMemo(() =>
-    urunler.map(u => ({
-      value: u.urunKod,
-      label: `${u.urunKod} — ${u.urunAdi}`,
-    })),
+    urunler.map(u => ({ value: u.urunKod, label: `${u.urunKod} — ${u.urunAdi}` })),
   [urunler]);
 
   const handleUrunKodSec = (kod: string) => {
     onGuncelle('urunKod', kod);
     const urun = urunler.find(u => u.urunKod === kod);
     if (urun) {
-      if (!satir.urunAdi) onGuncelle('urunAdi', urun.urunAdi);
+      if (!satir.urunAdi)    onGuncelle('urunAdi',     urun.urunAdi);
       if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
-      if (urun.birim) onGuncelle('birim', urun.birim);
+      if (urun.birim)        onGuncelle('birim',       urun.birim);
     }
+    setTimeout(() => focusByName('aciklama'), 100);
   };
 
-  const colCount = satirBazliParaBirimi ? 9 : 8;
-
-  // ── Hücre stili: statik satırla birebir aynı padding, sadece arka plan farkı ──
-  // Edit satırında hücreler arası ince dikey ayırıcılar eklenir.
-  const editBg = idx % 2 === 0 ? '#fafbfe' : '#f3f6fc';
+  const editBg  = idx % 2 === 0 ? '#fafbfe' : '#f3f6fc';
   const cellSep = `1px solid rgba(154, 184, 212, 0.35)`;
+
   const cell = (pos: CellPos, extra?: React.CSSProperties): React.CSSProperties => ({
     ...rcCell(pos, idx),
-    padding: CELL_PAD,
+    padding: DOC_CELL_PAD,
     verticalAlign: 'middle',
     fontSize: '11px',
     background: editBg,
@@ -477,8 +511,9 @@ function InlineSatirEditor({
 
   return (
     <>
-      {/* Ana düzenleme satırı — tablo sütunlarına tam uyumlu */}
+      {/* ── Ana düzenleme satırı ── */}
       <tr data-editing style={{ ...noBreak }}>
+
         {/* # */}
         <td style={cell('first', { textAlign: 'center', color: C.textMuted, whiteSpace: 'nowrap' })}>
           {String(idx + 1).padStart(2, '0')}
@@ -487,11 +522,13 @@ function InlineSatirEditor({
         {/* Marka */}
         <td style={cell('mid', { textAlign: 'center', color: C.textMid })}>
           <Select
+            ref={markaRef}
             size="small"
             variant="borderless"
+            suffixIcon={null}
             style={{ width: '100%', textAlign: 'center' }}
             value={satir.marka || undefined}
-            onChange={(v) => onGuncelle('marka', v)}
+            onChange={(v) => { onGuncelle('marka', v); setTimeout(() => focusByName('urunKod'), 50); }}
             options={markalar.map(m => ({ value: m, label: m }))}
             placeholder="—"
             popupMatchSelectWidth={false}
@@ -502,7 +539,7 @@ function InlineSatirEditor({
         {/* Ürün Kodu */}
         <td style={cell('mid', { fontWeight: 600, color: C.accent })}>
           <AutoComplete
-            ref={inputRef as any}
+            ref={urunKodRef}
             size="small"
             variant="borderless"
             style={{ width: '100%', fontWeight: 600 }}
@@ -516,18 +553,29 @@ function InlineSatirEditor({
             placeholder="ürün kodu"
             popupMatchSelectWidth={false}
             dropdownStyle={{ minWidth: 300 }}
+            onKeyDown={(e: React.KeyboardEvent) => {
+              if (e.key === 'Enter') {
+                const dropdown = document.querySelector('.ant-select-dropdown:not([style*="display: none"])');
+                if (!dropdown) { e.preventDefault(); handleEnterNav('urunKod'); }
+              }
+            }}
           />
         </td>
 
-        {/* Açıklama */}
+        {/* Açıklama — raw değer, dönüşüm yok */}
         <td style={cell('mid', { fontWeight: 500, color: C.textMid })}>
           <Input
+            ref={aciklamaRef as any}
             size="small"
             variant="borderless"
             style={{ width: '100%', fontWeight: 500 }}
-            value={firstLine(stripParantez(satir.urunAdi))}
+            value={satir.urunAdi}
             onChange={(e) => onGuncelle('urunAdi', e.target.value)}
             placeholder="açıklama"
+            onFocus={(e) => e.target.select()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleEnterNav('aciklama'); }
+            }}
           />
         </td>
 
@@ -535,18 +583,24 @@ function InlineSatirEditor({
         <td style={cell('mid', { color: C.textMid, whiteSpace: 'nowrap' })}>
           <div style={{ display: 'flex', alignItems: 'baseline', width: '100%' }}>
             <InputNumber
+              ref={miktarRef}
               size="small"
               variant="borderless"
-              style={{ flex: 1, minWidth: 0, fontWeight: 500, textAlign: 'right' }}
+              style={{ flex: 1, minWidth: 0, fontWeight: 600, textAlign: 'right', paddingRight: 4 }}
               value={satir.miktar}
               min={0}
               onChange={(v) => onGuncelle('miktar', v ?? 0)}
               controls={false}
+              onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); handleEnterNav('miktar'); }
+              }}
             />
             <Select
               size="small"
               variant="borderless"
-              style={{ flex: '0 0 auto', width: 34, fontSize: '9px', color: C.textMuted, opacity: 0.6 }}
+              suffixIcon={null}
+              style={{ flex: '0 0 auto', width: 40, fontSize: '9px', color: C.textMuted, opacity: 0.72 }}
               value={satir.birim || 'Adet'}
               onChange={(v) => onGuncelle('birim', v)}
               options={birimler.map(b => ({ value: b, label: /^adet$/i.test(b) ? 'Ad.' : b }))}
@@ -556,32 +610,13 @@ function InlineSatirEditor({
           </div>
         </td>
 
-        {/* Para Birimi (satır bazlı) */}
-        {satirBazliParaBirimi && (
-          <td style={cell('mid', { textAlign: 'center', fontWeight: 700 })}>
-            <Select
-              size="small"
-              variant="borderless"
-              style={{ width: '100%', fontWeight: 700, textAlign: 'center' }}
-              value={satirPb}
-              onChange={(v) => onGuncelle('paraBirimi', v)}
-              options={[
-                { value: 'TRY', label: 'TL' },
-                { value: 'EUR', label: 'EUR' },
-                { value: 'USD', label: 'USD' },
-              ]}
-              popupMatchSelectWidth={false}
-              dropdownStyle={{ minWidth: 80 }}
-            />
-          </td>
-        )}
-
         {/* Birim Fiyat */}
         <td style={cell('mid', { textAlign: 'right', color: C.textMid, fontVariantNumeric: 'tabular-nums' })}>
           <InputNumber
+            ref={birimFiyatRef}
             size="small"
             variant="borderless"
-            style={{ width: '100%', textAlign: 'right' }}
+            style={{ width: '100%', textAlign: 'right', fontWeight: 600, paddingRight: 2 }}
             value={satir.birimFiyat || undefined}
             min={0}
             step={0.01}
@@ -590,10 +625,14 @@ function InlineSatirEditor({
             formatter={(v) => v != null ? String(v).replace('.', ',') : ''}
             parser={(v) => Number((v ?? '').replace(',', '.')) as any}
             placeholder="0,00"
+            onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleEnterNav('birimFiyat'); }
+            }}
           />
         </td>
 
-        {/* Satır Toplam — hesaplanan, düzenlenemez */}
+        {/* Satır Toplam — hesaplanan, salt okunur */}
         <td style={cell('mid', { textAlign: 'right', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' })}>
           {satir.satirToplami !== 0
             ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${PARA_BIRIMI_ETIKETI[satirPb]}` : ''}`
@@ -603,8 +642,10 @@ function InlineSatirEditor({
         {/* Teslimat */}
         <td style={cell('last', { textAlign: 'center', color: C.textSoft })}>
           <Select
+            ref={teslimatRef}
             size="small"
             variant="borderless"
+            suffixIcon={null}
             style={{ width: '100%', textAlign: 'center' }}
             value={satir.teslimTarihi || undefined}
             onChange={(v) => onGuncelle('teslimTarihi', v)}
@@ -618,7 +659,7 @@ function InlineSatirEditor({
 
       {/* ── Aksiyon çubuğu ── */}
       <tr>
-        <td colSpan={colCount} style={{ padding: 0, border: 'none', background: 'transparent' }}>
+        <td colSpan={8} style={{ padding: 0, border: 'none', background: 'transparent' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -627,20 +668,6 @@ function InlineSatirEditor({
             color: C.textMuted,
             borderTop: `0.5px dashed ${C.borderSoft}`,
           }}>
-            {/* İskonto */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
-              <span style={{ fontWeight: 600, letterSpacing: '0.02em' }}>İskonto %</span>
-              <InputNumber
-                size="small"
-                variant="borderless"
-                style={{ width: 36, fontSize: '10px', fontWeight: 600, textAlign: 'center' }}
-                value={satir.indirimOrani}
-                min={0} max={100} step={1}
-                onChange={(v) => onGuncelle('indirimOrani', v ?? 0)}
-                controls={false}
-              />
-            </span>
-            <span style={{ flex: 1 }} />
             {/* Satır ekle */}
             <span
               onClick={(e) => { e.stopPropagation(); onEkle(); }}
@@ -655,6 +682,49 @@ function InlineSatirEditor({
             >
               <PlusOutlined style={{ fontSize: 9 }} /> Satır ekle
             </span>
+
+            <span style={{ flex: 1 }} />
+
+            {/* İskonto */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 600, letterSpacing: '0.02em' }}>İskonto %</span>
+              <InputNumber
+                size="small"
+                variant="borderless"
+                style={{ width: 36, fontSize: '10px', fontWeight: 600, textAlign: 'center' }}
+                value={satir.indirimOrani}
+                min={0} max={100} step={1}
+                onChange={(v) => onGuncelle('indirimOrani', v ?? 0)}
+                controls={false}
+                onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+              />
+            </span>
+
+            {/* Para birimi — satır bazlı modda action bar'da gösterilir */}
+            {satirBazliParaBirimi && (
+              <>
+                <span style={{ margin: '0 8px', color: C.borderSoft, userSelect: 'none' }}>|</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: 600, letterSpacing: '0.02em' }}>Para Birimi</span>
+                  <Select
+                    size="small"
+                    variant="borderless"
+                    suffixIcon={null}
+                    style={{ width: 54, fontSize: '10px', fontWeight: 700 }}
+                    value={satirPb}
+                    onChange={(v) => onGuncelle('paraBirimi', v)}
+                    options={[
+                      { value: 'TRY', label: 'TL' },
+                      { value: 'EUR', label: 'EUR' },
+                      { value: 'USD', label: 'USD' },
+                    ]}
+                    popupMatchSelectWidth={false}
+                    dropdownStyle={{ minWidth: 80 }}
+                  />
+                </span>
+              </>
+            )}
+
             {/* Sil */}
             <span
               onClick={(e) => { e.stopPropagation(); onSil(); }}
@@ -705,7 +775,7 @@ export default function BelgeInlineEditor({
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const satirParaToplamlari = hesaplamaMotoru.paraBirimineGoreToplamlar(teklif.satirlar, teklif.paraBirimi);
   const kullanilanParaKartlari = (['TRY', 'EUR', 'USD'] as const)
-    .filter((pb) => teklif.satirlar.some((satir) => hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi) === pb))
+    .filter((pb) => teklif.satirlar.some((s) => hesaplamaMotoru.satirParaBirimiGetir(s, teklif.paraBirimi) === pb))
     .map((pb) => {
       const hesap = hesaplamaMotoru.teklifToplamlariniHesapla({
         araToplam: satirParaToplamlari[pb],
@@ -719,57 +789,44 @@ export default function BelgeInlineEditor({
     ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
     : (teklif.cari.yetkiliKisi || null);
 
-  // Tıklama ile alan seçimi
+  // ── Hangi satır alanı aktif ──
+  const isMusteriEditing  = editingAlan === 'musteri';
+  const isAyarlarEditing  = editingAlan === 'ayarlar';
+  const isNotlarEditing   = editingAlan === 'notlar';
+  const editingSatirId    = editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
+
+  // ── Satır bazlı odak: hangi hücreye ilk odaklanılacak ──
+  const [satirFocusCell, setSatirFocusCell] = useState<string>('urunKod');
+
+  // ── Satır hücresine tıklama: hem satırı açar hem doğru hücreye odaklar ──
+  const handleSatirCellClick = useCallback(
+    (satirId: string, cell: string) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSatirFocusCell(cell);
+      onEditingAlanDegistir(`satir-${satirId}`);
+    },
+    [onEditingAlanDegistir],
+  );
+
   const handleAlanClick = (alan: EditingAlan, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (editingAlan !== alan) {
-      onEditingAlanDegistir(alan);
-    }
+    if (editingAlan !== alan) onEditingAlanDegistir(alan);
   };
 
-  const isMusteriEditing = editingAlan === 'musteri';
-  const isAyarlarEditing = editingAlan === 'ayarlar';
-  const isNotlarEditing = editingAlan === 'notlar';
-  const editingSatirId = editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
-
-  // Inline düzenleme alanı çerçeve stili — tüm alanlarda aynı
   const editFrameStyle = (isActive: boolean): React.CSSProperties => ({
     transition: FIELD.transition,
     borderRadius: FIELD.radius,
-    outline: isActive ? FIELD.activeOutline : undefined,
+    outline:    isActive ? FIELD.activeOutline : undefined,
     background: isActive ? FIELD.activeBg : undefined,
-    cursor: isActive ? 'default' : 'pointer',
+    cursor:     isActive ? 'default' : 'pointer',
   });
 
   return (
     <div
       id="teklif-sablon"
       className="belge-inline"
-      style={{
-        width: '210mm',
-        minHeight: '297mm',
-        display: 'flex',
-        flexDirection: 'column',
-        margin: '0 auto',
-        backgroundColor: C.white,
-        colorScheme: 'light',
-        fontFamily: '"Inter", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        fontSize: '11.7px',
-        lineHeight: '1.52',
-        letterSpacing: '0.01em',
-        color: C.text,
-        boxSizing: 'border-box',
-        padding: '9mm 10mm 8mm 10mm',
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'geometricPrecision',
-        fontKerning: 'normal',
-        fontOpticalSizing: 'auto',
-        printColorAdjust: 'exact',
-        WebkitPrintColorAdjust: 'exact',
-      } as React.CSSProperties}
+      style={{ ...DOCUMENT_ROOT_STYLE } as React.CSSProperties}
     >
-      {/* Unified Field System — tek merkezi CSS */}
       <style>{FIELD_CSS}</style>
 
       <div style={{ flex: 1 }}>
@@ -849,31 +906,28 @@ export default function BelgeInlineEditor({
       </div>
 
       {/* ══ GÖNDEREN / ALICI ══ */}
-      <div style={{ display: 'flex', width: '100%', background: '#ffffff', marginBottom: '10px', columnGap: '20px', ...noBreak }}>
-        {/* Gönderen */}
-        <div style={{ width: '50%', padding: '4px 0 8px', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: '9px', fontWeight: 600, color: C.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '7px', paddingBottom: '5px', borderBottom: `1px solid ${C.border}`, lineHeight: 1.2 }}>
+      <div style={PARTY_GRID_STYLE}>
+        <div style={PARTY_CARD_STYLE}>
+          <div style={PARTY_LABEL_STYLE}>
             Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
           </div>
-          <div style={{ fontWeight: 800, fontSize: '13.5px', color: C.navy, marginBottom: '3px', letterSpacing: '-0.015em', lineHeight: 1.3 }}>MEBA Mekanik Ltd. Şti.</div>
-          <div style={{ fontSize: '11.5px', lineHeight: '1.45', color: C.textMid }}>Tel: {formatPhone('03525020780')}<br />www.mebamekanik.com</div>
+          <div style={PARTY_NAME_STYLE}>MEBA Mekanik Ltd. Şti.</div>
+          <div style={PARTY_BODY_STYLE}>Tel: {formatPhone('03525020780')}<br />www.mebamekanik.com</div>
         </div>
-        {/* Alıcı — tıklanabilir / inline düzenlenebilir */}
         <div
           data-alan="musteri"
           onClick={(e) => handleAlanClick('musteri', e)}
-          style={{ width: '50%', padding: '4px 0 8px', boxSizing: 'border-box', ...editFrameStyle(isMusteriEditing) }}
+          style={{ ...PARTY_CARD_STYLE, ...editFrameStyle(isMusteriEditing) }}
         >
-          <div style={{ fontSize: '9px', fontWeight: 600, color: C.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '7px', paddingBottom: '5px', borderBottom: `1px solid ${C.border}`, lineHeight: 1.2 }}>
+          <div style={PARTY_LABEL_STYLE}>
             Alıcı <span style={{ fontWeight: 400, opacity: 0.6 }}>/ To</span>
           </div>
           {isMusteriEditing ? (
             <div className="field-group" style={{ padding: '2px 0' }}>
               <InlineCariSecimi onSec={(cari) => { onCariDegistir(cari); }} />
-              <div style={{ fontWeight: 800, fontSize: '13.5px', color: C.navy, marginTop: 6, marginBottom: '3px', lineHeight: '1.3', letterSpacing: '-0.015em' }}>
+              <div style={{ ...PARTY_NAME_STYLE, marginTop: 8 }}>
                 {formatCariAdi(teklif.cari.firmaAdi)}
               </div>
-              {/* Muhatap düzenleme */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: '11.5px', color: C.textMid }}>
                 <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>Sayın</span>
                 <Input
@@ -883,10 +937,12 @@ export default function BelgeInlineEditor({
                   value={contactName}
                   onChange={(e) => onContactNameDegistir(e.target.value)}
                   placeholder="muhatap adı"
+                  onFocus={(e) => e.target.select()}
                 />
                 <Select
                   size="small"
                   variant="borderless"
+                  suffixIcon={null}
                   style={{ width: 72, fontSize: '11.5px' }}
                   value={contactTitle}
                   onChange={onContactTitleDegistir}
@@ -895,8 +951,7 @@ export default function BelgeInlineEditor({
                   dropdownStyle={{ minWidth: 90 }}
                 />
               </div>
-              {/* Mevcut cari bilgileri */}
-              <div style={{ fontSize: '11.5px', lineHeight: '1.45', color: C.textMid, marginTop: 4, wordBreak: 'break-word' }}>
+              <div style={{ ...PARTY_BODY_STYLE, marginTop: 6 }}>
                 {(teklif.cari.telefon || teklif.cari.ePosta) && (
                   <div>
                     {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
@@ -912,10 +967,8 @@ export default function BelgeInlineEditor({
             </div>
           ) : (
             <>
-              <div style={{ fontWeight: 800, fontSize: '13.5px', color: C.navy, marginBottom: '3px', lineHeight: '1.3', letterSpacing: '-0.015em' }}>
-                {formatCariAdi(teklif.cari.firmaAdi)}
-              </div>
-              <div style={{ fontSize: '11.5px', lineHeight: '1.45', color: C.textMid, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
+              <div style={PARTY_BODY_STYLE}>
                 {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
                 {(teklif.cari.telefon || teklif.cari.ePosta) && (
                   <div>
@@ -934,11 +987,11 @@ export default function BelgeInlineEditor({
         </div>
       </div>
 
-      {/* ══ AYARLAR ŞERIDI ══ */}
+      {/* ══ AYARLAR ══ */}
       <div
         data-alan="ayarlar"
         onClick={(e) => handleAlanClick('ayarlar', e)}
-        style={{ display: 'flex', width: '100%', gap: '6px', marginBottom: '10px', ...noBreak, ...editFrameStyle(isAyarlarEditing) }}
+        style={{ ...SETTINGS_GRID_STYLE, ...editFrameStyle(isAyarlarEditing) }}
       >
         {(() => {
           const items = [
@@ -953,10 +1006,10 @@ export default function BelgeInlineEditor({
             flex: 1,
             padding: '7px 8px 8px',
             textAlign: 'center',
-            background: 'linear-gradient(180deg, #edf3fb 0%, #d4e4f5 100%)',
-            border: '1px solid #9ab8d4',
+            background: 'linear-gradient(180deg, #F8F7F5 0%, #F0EFEC 100%)',
+            border: `0.75px solid ${C.border}`,
             borderRadius: '7px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            boxShadow: 'none',
             minHeight: 50,
             display: 'flex',
             flexDirection: 'column',
@@ -994,22 +1047,18 @@ export default function BelgeInlineEditor({
                 <div style={labelStyle}>
                   {item.tr}<span style={{ fontWeight: 400, opacity: 0.55, fontSize: '8px' }}> / {item.en}</span>
                 </div>
-                <div style={valueStyle}>
-                  {item.value}
-                </div>
+                <div style={valueStyle}>{item.value}</div>
               </div>
             ));
           }
 
           return items.map((item, i) => (
             <div key={i} className="field-group" style={cardBase}>
-              <div style={{ ...labelStyle, marginBottom: '4px' }}>
-                {item.tr}
-              </div>
+              <div style={{ ...labelStyle, marginBottom: '4px' }}>{item.tr}</div>
               {i === 0 && (
                 <div>
                   <Select
-                    size="small" variant="borderless"
+                    size="small" variant="borderless" suffixIcon={null}
                     style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }}
                     value={teklif.paraBirimi}
                     onChange={onParaBirimiDegistir}
@@ -1024,7 +1073,7 @@ export default function BelgeInlineEditor({
               )}
               {i === 1 && (
                 <Select
-                  size="small" variant="borderless"
+                  size="small" variant="borderless" suffixIcon={null}
                   style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }}
                   value={teklif.odemeVadesi || '45 Gün'}
                   onChange={onOdemeVadesiDegistir}
@@ -1034,7 +1083,7 @@ export default function BelgeInlineEditor({
               )}
               {i === 2 && (
                 <Select
-                  size="small" variant="borderless"
+                  size="small" variant="borderless" suffixIcon={null}
                   style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }}
                   value={teklif.kdvOrani}
                   onChange={onKdvOraniDegistir}
@@ -1042,71 +1091,39 @@ export default function BelgeInlineEditor({
                   popupMatchSelectWidth={80}
                 />
               )}
-              {i === 3 && (
-                <div style={valueStyle}>TCMB Fatura</div>
-              )}
-              {i === 4 && (
-                <div style={valueStyle}>{teklif.gecerlilikSuresi ?? '1 Hafta'}</div>
-              )}
+              {i === 3 && <div style={valueStyle}>TCMB Fatura</div>}
+              {i === 4 && <div style={valueStyle}>{teklif.gecerlilikSuresi ?? '1 Hafta'}</div>}
             </div>
           ));
         })()}
       </div>
 
-      {/* ══ TEKLİF KALEMLERİ TABLOSU ══ */}
-      <div style={{ fontSize: '9.5px', fontWeight: 700, color: C.textSoft, letterSpacing: '0.11em', textTransform: 'uppercase', marginBottom: '6px' }}>
+      {/* ══ TEKLİF KALEMLERİ ══ */}
+      <div style={TABLE_TITLE_STYLE}>
         Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
       </div>
       <table style={{
-        width: '100%', borderCollapse: 'separate', borderSpacing: '0 3px',
+        ...TABLE_STYLE,
         borderLeft: 'none', borderRight: 'none', marginBottom: '0px', tableLayout: 'fixed',
         printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
       } as React.CSSProperties}>
-        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
-        {/* ── Başlık satırı — CELL_PAD ile hizalanmış ── */}
+        <TableColgroup />
         <thead id="pdf-thead">
           <tr>
             {[
-              { label: '#', sub: '', align: 'center' as const },
-              { label: 'Marka', sub: 'Brand', align: 'center' as const },
-              { label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
-              { label: 'Açıklama', sub: 'Description', align: 'left' as const },
-              { label: 'Miktar', sub: 'Qty', align: 'center' as const },
-              ...(satirBazliParaBirimi ? [{ label: 'Para Birimi', sub: 'Currency', align: 'center' as const }] : []),
-              { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
-              { label: 'Toplam', sub: 'Total', align: 'right' as const },
-              { label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
+              { label: '#',           sub: '',           align: 'center' as const },
+              { label: 'Marka',       sub: 'Brand',      align: 'center' as const },
+              { label: 'Ürün Kodu',   sub: 'Item No',    align: 'left'   as const },
+              { label: 'Açıklama',    sub: 'Description',align: 'left'   as const },
+              { label: 'Miktar',      sub: 'Qty',        align: 'center' as const },
+              { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right'  as const },
+              { label: 'Toplam',      sub: 'Total',      align: 'right'  as const },
+              { label: 'Teslimat',    sub: 'Delivery',   align: 'center' as const },
             ].map((col, i) => (
-              <th key={i} style={{
-                padding: CELL_PAD,
-                textAlign: col.align,
-                verticalAlign: 'bottom',
-                fontSize: '10px',
-                fontWeight: 700,
-                letterSpacing: '0.06em',
-                color: C.navy,
-                background: '#ffffff',
-                borderTop: 'none',
-                borderLeft: 'none',
-                borderRight: 'none',
-                borderBottom: `1.5px solid ${C.navyBorder}`,
-                borderRadius: 0,
-                lineHeight: '1.3',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-              }}>
+              <th key={i} style={getTableHeadCellStyle(col.align)}>
                 {col.label}
                 {col.sub && (
-                  <span style={{
-                    display: 'block',
-                    fontWeight: 400,
-                    fontSize: '8px',
-                    color: C.textMuted,
-                    marginTop: '1px',
-                    textAlign: col.align,
-                    letterSpacing: '0.02em',
-                    opacity: 0.7,
-                  }}>
+                  <span style={{ ...TABLE_HEAD_SUBLABEL_STYLE, textAlign: col.align }}>
                     {col.sub}
                   </span>
                 )}
@@ -1116,10 +1133,11 @@ export default function BelgeInlineEditor({
         </thead>
         <tbody>
           <tr aria-hidden="true">
-            <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '4px', padding: 0, border: 'none', background: 'transparent' }} />
+            <td colSpan={8} style={{ height: '4px', padding: 0, border: 'none', background: 'transparent' }} />
           </tr>
+
           {teklif.satirlar.map((satir, idx) => {
-            const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
+            const satirPb  = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
             const isEditing = editingSatirId === satir.id;
 
             if (isEditing) {
@@ -1130,6 +1148,7 @@ export default function BelgeInlineEditor({
                   idx={idx}
                   paraBirimi={teklif.paraBirimi}
                   satirBazliParaBirimi={satirBazliParaBirimi}
+                  focusCell={satirFocusCell}
                   onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
                   onSil={() => onSatirSil(satir.id)}
                   onEkle={onSatirEkle}
@@ -1137,32 +1156,50 @@ export default function BelgeInlineEditor({
               );
             }
 
-            {/* ── Statik satır — CELL_PAD ile başlığa birebir hizalı ── */}
+            // ── Statik satır — hücre bazlı tıklama ──
+            const cellClick = (cell: string) => handleSatirCellClick(satir.id, cell);
+            const tdBase: React.CSSProperties = { cursor: 'pointer' };
+
             return (
-              <tr
-                key={satir.id}
-                data-satir-id={satir.id}
-                onClick={(e) => handleAlanClick(`satir-${satir.id}`, e)}
-                style={{ ...noBreak, cursor: 'pointer' }}
-              >
-                {/* # */}
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx) }}>
+              <tr key={satir.id} data-satir-id={satir.id} style={{ ...noBreak }}>
+
+                {/* # → urunKod odağı */}
+                <td
+                  onClick={cellClick('urunKod')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx) }}
+                >
                   {String(idx + 1).padStart(2, '0')}
                 </td>
+
                 {/* Marka */}
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'normal', wordBreak: 'break-word', ...rcCell('mid', idx) }}>
+                <td
+                  onClick={cellClick('marka')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'normal', wordBreak: 'break-word', ...rcCell('mid', idx) }}
+                >
                   {satir.marka || '—'}
                 </td>
+
                 {/* Ürün Kodu */}
-                <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 600, color: C.accent, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word', verticalAlign: 'middle', letterSpacing: '-0.1px', ...rcCell('mid', idx) }}>
+                <td
+                  onClick={cellClick('urunKod')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, fontSize: '11px', fontWeight: 600, color: C.accent, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word', verticalAlign: 'middle', letterSpacing: '-0.1px', ...rcCell('mid', idx) }}
+                >
                   {satir.urunKod || '—'}
                 </td>
-                {/* Açıklama */}
-                <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 500, color: C.textMid, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word', verticalAlign: 'middle', lineHeight: 1.35, ...rcCell('mid', idx) }}>
+
+                {/* Açıklama — display transform (stripParantez/firstLine) sadece görüntüde */}
+                <td
+                  onClick={cellClick('aciklama')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, fontSize: '11px', fontWeight: 500, color: C.textMid, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word', verticalAlign: 'middle', lineHeight: 1.35, ...rcCell('mid', idx) }}
+                >
                   {firstLine(stripParantez(satir.urunAdi)) || '—'}
                 </td>
+
                 {/* Miktar */}
-                <td style={{ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
+                <td
+                  onClick={cellClick('miktar')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}
+                >
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'baseline' }}>
                       <span style={{ flex: 1, textAlign: 'right', paddingRight: '3px', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
@@ -1170,35 +1207,46 @@ export default function BelgeInlineEditor({
                     </div>
                   ) : '—'}
                 </td>
-                {/* Para Birimi (satır bazlı) */}
-                {satirBazliParaBirimi && (
-                  <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx) }}>
-                    {PARA_BIRIMI_ETIKETI[satirPb]}
-                  </td>
-                )}
+
                 {/* Birim Fiyat */}
-                <td style={{ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
+                <td
+                  onClick={cellClick('birimFiyat')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}
+                >
                   {(() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
-                    return nihai !== 0 ? `${formatDisplayNumber(nihai, 2, 2)}${satirBazliParaBirimi ? ` ${PARA_BIRIMI_ETIKETI[satirPb]}` : ''}` : '—';
+                    return nihai !== 0
+                      ? `${formatDisplayNumber(nihai, 2, 2)}${satirBazliParaBirimi ? ` ${PARA_BIRIMI_ETIKETI[satirPb]}` : ''}`
+                      : '—';
                   })()}
                 </td>
+
                 {/* Toplam */}
-                <td style={{ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
-                  {satir.satirToplami !== 0 ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${PARA_BIRIMI_ETIKETI[satirPb]}` : ''}` : '—'}
+                <td
+                  onClick={cellClick('birimFiyat')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}
+                >
+                  {satir.satirToplami !== 0
+                    ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${PARA_BIRIMI_ETIKETI[satirPb]}` : ''}`
+                    : '—'}
                 </td>
+
                 {/* Teslimat */}
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '10.5px', color: C.textSoft, whiteSpace: 'normal', wordBreak: 'break-word', ...rcCell('last', idx) }}>
+                <td
+                  onClick={cellClick('teslimat')}
+                  style={{ ...tdBase, padding: DOC_CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '10.5px', color: C.textSoft, whiteSpace: 'normal', wordBreak: 'break-word', ...rcCell('last', idx) }}
+                >
                   {satir.teslimTarihi || '—'}
                 </td>
               </tr>
             );
           })}
-          {/* Satır yoksa — "satır ekle" ipucu */}
+
+          {/* Boş liste ipucu */}
           {teklif.satirlar.length === 0 && (
             <tr>
               <td
-                colSpan={satirBazliParaBirimi ? 9 : 8}
+                colSpan={8}
                 onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
                 style={{
                   padding: '14px 7px', textAlign: 'center', fontSize: '11px', color: C.textMuted,
@@ -1214,7 +1262,7 @@ export default function BelgeInlineEditor({
         </tbody>
       </table>
 
-      {/* ══ TOPLAM ALANI ══ */}
+      {/* ══ TOPLAM ══ */}
       <table style={{
         width: '100%', borderCollapse: 'collapse',
         marginTop: satirBazliParaBirimi ? '10px' : '6px', marginBottom: '14px',
@@ -1223,14 +1271,14 @@ export default function BelgeInlineEditor({
         borderBottom: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
         printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
       } as React.CSSProperties}>
-        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+        <TableColgroup />
         <tbody>
           {!satirBazliParaBirimi ? (() => {
             const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
             const kartStyle: React.CSSProperties = {
-              boxSizing: 'border-box', border: '1px solid #2a4a8a', borderRadius: '8px',
-              background: 'linear-gradient(180deg, #2e5299 0%, #1e3a72 55%, #122450 100%)',
-              boxShadow: '0 3px 16px rgba(10,24,70,0.22), 0 1px 4px rgba(10,24,70,0.14)',
+              boxSizing: 'border-box', border: '0.75px solid #1A2B42', borderRadius: '8px',
+              background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+              boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
               printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
             };
             const fmtN = (n: number) => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1295,12 +1343,12 @@ export default function BelgeInlineEditor({
             const KART_W = 220; const KART_H = 86; const KART_GAP = 8;
             return (
               <tr>
-                <td colSpan={9} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
+                <td colSpan={8} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
                   <div style={{
                     width: '100%', boxSizing: 'border-box', minHeight: `${KART_H + 26}px`,
-                    border: '1px solid #2a4a8a', borderRadius: '8px',
-                    background: 'linear-gradient(180deg, #2e5299 0%, #1e3a72 55%, #122450 100%)',
-                    padding: '7px 8px 8px', boxShadow: '0 3px 16px rgba(10,24,70,0.22), 0 1px 4px rgba(10,24,70,0.14)',
+                    border: '0.75px solid #1A2B42', borderRadius: '8px',
+                    background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+                    padding: '7px 8px 8px', boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
                     printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
                   } as React.CSSProperties}>
                     <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: BRAND.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>
@@ -1312,8 +1360,8 @@ export default function BelgeInlineEditor({
                           width: `${KART_W}px`, minWidth: `${KART_W}px`, maxWidth: `${KART_W}px`,
                           height: `${KART_H}px`, minHeight: `${KART_H}px`, maxHeight: `${KART_H}px`,
                           flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '10px',
-                          border: '1px solid #c6d4e2', background: 'linear-gradient(180deg, #ffffff 0%, #f3f7fb 100%)',
-                          boxShadow: '0 3px 14px rgba(20,39,78,0.06), 0 1px 3px rgba(20,39,78,0.03)',
+                          border: '0.75px solid #E8E6E3', background: '#FFFFFF',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
                           printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
                         } as React.CSSProperties}>
                           <FinansalOzetKartIci araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="pdf" />
@@ -1328,14 +1376,12 @@ export default function BelgeInlineEditor({
         </tbody>
       </table>
 
-      {/* ══ NOT ALANI ══ */}
+      {/* ══ NOTLAR ══ */}
       <div
         data-alan="notlar"
         onClick={(e) => handleAlanClick('notlar', e)}
         style={{
-          fontSize: '12.5px', marginBottom: '16px', padding: '10px 14px',
-          border: `0.75px solid ${C.border}`, borderRadius: '6px', lineHeight: '1.65',
-          backgroundColor: C.bg, wordBreak: 'break-word', overflowWrap: 'break-word',
+          ...NOTES_BOX_STYLE,
           minHeight: isNotlarEditing ? 60 : (teklif.notlar ? undefined : 44),
           ...noBreak, ...editFrameStyle(isNotlarEditing),
         } as React.CSSProperties}
@@ -1371,11 +1417,11 @@ export default function BelgeInlineEditor({
         )}
       </div>
 
-      </div>{/* içerik alanı sonu */}
+      </div>
 
       {/* ── KAŞE / İMZA + FOOTER ── */}
       <div id="pdf-bottom-block">
-        <div style={{ marginTop: '18px', padding: '7px 0 25px', ...noBreak }}>
+        <div style={SIGNATURE_SECTION_STYLE}>
           <div style={{ color: C.textMuted, fontSize: '11.7px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '9px' }}>
             Siparişi Veren / Authorised Person
           </div>
@@ -1392,13 +1438,7 @@ export default function BelgeInlineEditor({
             </div>
           </div>
         </div>
-        <div id="pdf-page-footer" style={{
-          border: `1px solid ${BRAND.border}`, borderRadius: '9px', background: BRAND.g,
-          boxShadow: BRAND.shadowSm, color: 'rgba(255,255,255,0.88)',
-          display: 'flex', justifyContent: 'space-between', fontSize: '9.8px', fontWeight: 500,
-          padding: '7px 10px', lineHeight: '1.55', letterSpacing: '0.025em',
-          printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
-        } as React.CSSProperties}>
+        <div id="pdf-page-footer" style={FOOTER_BAR_STYLE}>
           <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
           <div style={{ fontVariantNumeric: 'tabular-nums' }}>Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com</div>
         </div>

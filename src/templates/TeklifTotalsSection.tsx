@@ -112,10 +112,10 @@ export function TeklifTotalsSection({
                 {hasDetail && (
                   <tr>
                     <td colSpan={6} style={{ padding: '5px 12px 5px 0', borderBottom: 'none', borderTop: 'none' }}>
-                      <div style={{ borderTop: '0.75px solid #d0dae4' }} />
+                      <div style={{ borderTop: '0.75px solid #E2E0DC' }} />
                     </td>
                     <td style={{ padding: '5px 6px', borderBottom: 'none', borderTop: 'none' }}>
-                      <div style={{ borderTop: '0.75px solid #d0dae4' }} />
+                      <div style={{ borderTop: '0.75px solid #E2E0DC' }} />
                     </td>
                     <td style={{ borderBottom: 'none', borderTop: 'none' }} />
                   </tr>
@@ -141,11 +141,11 @@ export function TeklifTotalsSection({
             <td colSpan={9} style={{ padding: '9px 10px 10px', borderBottom: 'none' }}>
               <div
                 style={{
-                  border: '0.6px solid #d0dce8',
+                  border: '0.6px solid #E2E0DC',
                   borderRadius: '14px',
-                  background: 'linear-gradient(180deg, #fbfdff 0%, #f0f4f9 100%)',
+                  background: 'linear-gradient(180deg, #FAFAF8 0%, #F7F6F4 100%)',
                   padding: '8px 9px 9px',
-                  boxShadow: '0 2px 12px rgba(20,39,78,0.05)',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
                 }}
               >
                 <div style={{ width: '100%', margin: '0 auto' }}>
@@ -173,9 +173,9 @@ export function TeklifTotalsSection({
                                 display: 'flex',
                                 flexDirection: 'column',
                                 borderRadius: '14px',
-                                border: '0.5px solid #c6d4e2',
-                                background: 'linear-gradient(180deg, #ffffff 0%, #f3f7fb 100%)',
-                                boxShadow: '0 4px 20px rgba(20,39,78,0.07), 0 1px 4px rgba(20,39,78,0.04), inset 0 1px 0 rgba(255,255,255,0.95)',
+                                border: '0.5px solid #E8E6E3',
+                                background: '#FFFFFF',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.95)',
                                 padding: iskontoOrani > 0 || kdvOrani > 0 ? '8px 11px 7px' : '6px 11px 6px',
                                 overflow: 'hidden',
                               }}
@@ -213,7 +213,7 @@ export function TeklifTotalsSection({
                                 {formatCurrency(item.total, item.pb)}
                               </div>
                               {/* Ayraç + Detay satırları */}
-                              {(iskontoOrani > 0 || kdvOrani > 0) && <div style={{ borderTop: '0.75px solid #c8d8e8', margin: '5px 0 4px' }} />}
+                              {(iskontoOrani > 0 || kdvOrani > 0) && <div style={{ borderTop: '0.75px solid #E2E0DC', margin: '5px 0 4px' }} />}
                               {(iskontoOrani > 0 || kdvOrani > 0) && (
                                 <table
                                   style={{

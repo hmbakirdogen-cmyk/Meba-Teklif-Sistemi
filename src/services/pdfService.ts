@@ -225,15 +225,15 @@ export async function buildPdf(
   const kesimlerCssPx = contentEndCssPx
     ? sonSayfaKesiminiAyarla(sablonEl, baseKesimlerCssPx, contentEndCssPx, lastPageHCssPx)
     : baseKesimlerCssPx;
-  const baslangiclар = [0, ...kesimlerCssPx];
+  const baslangiclar = [0, ...kesimlerCssPx];
 
   const fullPagePx = Math.round(pdfH / pxToMm);
 
-  for (let i = 0; i < baslangiclар.length; i++) {
+  for (let i = 0; i < baslangiclar.length; i++) {
     if (i > 0) pdf.addPage();
 
-    const isLastPage  = i === baslangiclар.length - 1;
-    const startCssPx  = baslangiclар[i];
+    const isLastPage  = i === baslangiclar.length - 1;
+    const startCssPx  = baslangiclar[i];
     const startPx     = Math.round(startCssPx * SCALE);
     const isPage2Plus = i > 0;
     // Sayfa 2+: içerik 2 CSS piksel önce başlasın — sub-pixel anti-alias kaybolması önlenir
@@ -272,7 +272,7 @@ export async function buildPdf(
       }
     } else {
       // ── Ara sayfalar ────────────────────────────────────────────────
-      const endCssPx = baslangiclар[i + 1];
+      const endCssPx = baslangiclar[i + 1];
       const endPx    = Math.min(Math.round(endCssPx * SCALE), mainCanvas.height);
       const slicePx  = Math.max(1, endPx - startPx);
       ctx.drawImage(mainCanvas, 0, adjustedStartPx, mainCanvas.width, slicePx, 0, contentStartY, mainCanvas.width, slicePx);

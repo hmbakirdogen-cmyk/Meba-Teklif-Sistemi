@@ -53,38 +53,38 @@ export interface ThemeColors {
 
 // ── Light tema ────────────────────────────────────────────────────────────────
 export const lightTheme: ThemeColors = {
-  bgBody:          'linear-gradient(180deg, #f8fafc 0%, #eef3f8 100%)',
-  bgSurface:       '#ffffff',
-  bgElevated:      '#f3f7fb',   // kart alt gradient hedefi — biraz daha mavi-gri
-  bgInput:         '#ffffff',
-  bgHeader:        '#0f1f45',
-  bgHeaderBorder:  '#1e3060',
+  bgBody:          'linear-gradient(180deg, #FAFAF8 0%, #F4F3F0 100%)',
+  bgSurface:       '#FFFFFF',
+  bgElevated:      '#F7F6F4',
+  bgInput:         '#FFFFFF',
+  bgHeader:        '#1A2B42',
+  bgHeaderBorder:  '#2E4460',
 
-  textPrimary:     '#1e293b',   // softer than #0f1f45 — daha modern slate
-  textSecondary:   '#475569',   // #64748b'den biraz daha koyu — daha iyi kontrast
-  textFaint:       '#94a3b8',
+  textPrimary:     '#2C2C2E',
+  textSecondary:   '#4A4A4E',
+  textFaint:       '#9B9BA0',
 
-  border:          '#dbe3ec',   // daha yumuşak mavi-gri
-  borderSubtle:    '#edf2f7',
-  borderInput:     '#cdd6e3',
-  inputFocus:      '#2563eb',
+  border:          '#E2E0DC',
+  borderSubtle:    '#EDEBE8',
+  borderInput:     '#D5D3CF',
+  inputFocus:      '#1A2B42',
 
-  shadow:          '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.03)',
-  shadowCard:      '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.03), inset 0 1px 0 rgba(255,255,255,0.7)',
+  shadow:          '0 1px 2px rgba(0,0,0,0.03)',
+  shadowCard:      '0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.7)',
 
-  rowAlt:          '#f4f8fc',
-  tableHead:       '#0f1f45',
-  tableHeadText:   '#ffffff',
-  tableRow:        '#ffffff',
-  tableRowAlt:     '#f4f8fc',
-  tableBorder:     '#e8eef5',
+  rowAlt:          '#F7F6F4',
+  tableHead:       '#1A2B42',
+  tableHeadText:   '#FFFFFF',
+  tableRow:        '#FFFFFF',
+  tableRowAlt:     '#F7F6F4',
+  tableBorder:     '#EDEBE8',
 
-  totalsPanel:     '#f6f9fd',
-  totalsBorder:    '#c6d4e2',   // Genel Toplam kartıyla aynı
-  totalsRowBorder: '#dce8f5',
+  totalsPanel:     '#FAFAF8',
+  totalsBorder:    '#E2E0DC',
+  totalsRowBorder: '#EDEBE8',
 
-  cardBorder:      '1px solid #dbe3ec',
-  inputBorder:     '#cdd6e3',
+  cardBorder:      '1px solid #E2E0DC',
+  inputBorder:     '#D5D3CF',
 };
 
 // ── Dark tema — Apple / Linear inspired ──────────────────────────────────────

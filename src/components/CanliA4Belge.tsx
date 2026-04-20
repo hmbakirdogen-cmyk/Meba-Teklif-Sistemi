@@ -132,8 +132,9 @@ export default function CanliA4Belge({
           overflow: 'visible',
           flexShrink: 0,
           background: '#ffffff',
-          boxShadow: '0 2px 12px rgba(15,23,42,0.10), 0 8px 32px rgba(15,23,42,0.08)',
-          borderRadius: 3,
+          border: '1px solid rgba(148, 163, 184, 0.22)',
+          boxShadow: '0 18px 44px rgba(15, 23, 42, 0.10)',
+          borderRadius: 10,
         }}
       >
         <div style={{
