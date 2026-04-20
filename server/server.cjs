@@ -71,6 +71,71 @@ function send(res, status, data) {
 
 // ── Request router ────────────────────────────────────────────────────────────
 
+// ── Generic CRUD factory — DRY handler for teklifler/cariler/urunler ──────────
+function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
+  const basePath = `/api/${collectionKey}`;
+  const itemRegex = new RegExp(`^/api/${collectionKey}/[^/]+$`);
+
+  return {
+    /** GET /api/<collection> */
+    list(url, method) {
+      return url === basePath && method === 'GET';
+    },
+    handleList(res) {
+      return send(res, 200, readDB()[collectionKey]);
+    },
+
+    /** PUT /api/<collection> — bulk replace */
+    bulkReplace(url, method) {
+      return url === basePath && method === 'PUT';
+    },
+    async handleBulkReplace(req, res) {
+      const body = await parseBody(req);
+      const db = readDB();
+      db[collectionKey] = body;
+      writeDB(db);
+      return send(res, 200, body);
+    },
+
+    /** PUT /api/<collection>/:id — upsert single */
+    upsert(url, method) {
+      return itemRegex.test(url) && method === 'PUT';
+    },
+    async handleUpsert(req, res, url) {
+      const id = url.split('/')[3];
+      const body = await parseBody(req);
+      const db = readDB();
+      const arr = db[collectionKey];
+      const idx = arr.findIndex((item) => item.id === id);
+      if (idx >= 0) {
+        arr[idx] = body;
+      } else if (insertMethod === 'unshift') {
+        arr.unshift(body);
+      } else {
+        arr.push(body);
+      }
+      writeDB(db);
+      return send(res, 200, body);
+    },
+
+    /** DELETE /api/<collection>/:id */
+    remove(url, method) {
+      return itemRegex.test(url) && method === 'DELETE';
+    },
+    handleRemove(res, url) {
+      const id = url.split('/')[3];
+      const db = readDB();
+      db[collectionKey] = db[collectionKey].filter((item) => item.id !== id);
+      writeDB(db);
+      return send(res, 200, { ok: true });
+    },
+  };
+}
+
+const teklifCrud = crudRoutes('teklifler', { insertMethod: 'unshift' });
+const cariCrud   = crudRoutes('cariler');
+const urunCrud   = crudRoutes('urunler');
+
 const server = http.createServer(async (req, res) => {
   const { method } = req;
   const url = req.url || '';
@@ -93,112 +158,21 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── TEKLIFLER ─────────────────────────────────────────────────────────────
-
-    if (url === '/api/teklifler' && method === 'GET') {
-      return send(res, 200, readDB().teklifler);
-    }
-
-    // PUT /api/teklifler/:id — upsert (create or update)
-    if (/^\/api\/teklifler\/[^/]+$/.test(url) && method === 'PUT') {
-      const id   = url.split('/')[3];
-      const body = await parseBody(req);
-      const db   = readDB();
-      const idx  = db.teklifler.findIndex((t) => t.id === id);
-      if (idx >= 0) {
-        db.teklifler[idx] = body;
-      } else {
-        db.teklifler.unshift(body);
-      }
-      writeDB(db);
-      return send(res, 200, body);
-    }
-
-    // DELETE /api/teklifler/:id
-    if (/^\/api\/teklifler\/[^/]+$/.test(url) && method === 'DELETE') {
-      const id = url.split('/')[3];
-      const db = readDB();
-      db.teklifler = db.teklifler.filter((t) => t.id !== id);
-      writeDB(db);
-      return send(res, 200, { ok: true });
-    }
+    if (teklifCrud.list(url, method))         return teklifCrud.handleList(res);
+    if (teklifCrud.upsert(url, method))       return await teklifCrud.handleUpsert(req, res, url);
+    if (teklifCrud.remove(url, method))       return teklifCrud.handleRemove(res, url);
 
     // ── CARILER ──────────────────────────────────────────────────────────────
-
-    if (url === '/api/cariler' && method === 'GET') {
-      return send(res, 200, readDB().cariler);
-    }
-
-    // PUT /api/cariler — bulk replace (Excel import)
-    if (url === '/api/cariler' && method === 'PUT') {
-      const body = await parseBody(req);
-      const db   = readDB();
-      db.cariler = body;
-      writeDB(db);
-      return send(res, 200, body);
-    }
-
-    // PUT /api/cariler/:id — upsert single
-    if (/^\/api\/cariler\/[^/]+$/.test(url) && method === 'PUT') {
-      const id   = url.split('/')[3];
-      const body = await parseBody(req);
-      const db   = readDB();
-      const idx  = db.cariler.findIndex((c) => c.id === id);
-      if (idx >= 0) {
-        db.cariler[idx] = body;
-      } else {
-        db.cariler.push(body);
-      }
-      writeDB(db);
-      return send(res, 200, body);
-    }
-
-    // DELETE /api/cariler/:id
-    if (/^\/api\/cariler\/[^/]+$/.test(url) && method === 'DELETE') {
-      const id = url.split('/')[3];
-      const db = readDB();
-      db.cariler = db.cariler.filter((c) => c.id !== id);
-      writeDB(db);
-      return send(res, 200, { ok: true });
-    }
+    if (cariCrud.list(url, method))           return cariCrud.handleList(res);
+    if (cariCrud.bulkReplace(url, method))    return await cariCrud.handleBulkReplace(req, res);
+    if (cariCrud.upsert(url, method))         return await cariCrud.handleUpsert(req, res, url);
+    if (cariCrud.remove(url, method))         return cariCrud.handleRemove(res, url);
 
     // ── URUNLER ──────────────────────────────────────────────────────────────
-
-    if (url === '/api/urunler' && method === 'GET') {
-      return send(res, 200, readDB().urunler);
-    }
-
-    // PUT /api/urunler — bulk replace (Excel import / sıfırla)
-    if (url === '/api/urunler' && method === 'PUT') {
-      const body = await parseBody(req);
-      const db   = readDB();
-      db.urunler = body;
-      writeDB(db);
-      return send(res, 200, body);
-    }
-
-    // PUT /api/urunler/:id — upsert single
-    if (/^\/api\/urunler\/[^/]+$/.test(url) && method === 'PUT') {
-      const id   = url.split('/')[3];
-      const body = await parseBody(req);
-      const db   = readDB();
-      const idx  = db.urunler.findIndex((u) => u.id === id);
-      if (idx >= 0) {
-        db.urunler[idx] = body;
-      } else {
-        db.urunler.push(body);
-      }
-      writeDB(db);
-      return send(res, 200, body);
-    }
-
-    // DELETE /api/urunler/:id
-    if (/^\/api\/urunler\/[^/]+$/.test(url) && method === 'DELETE') {
-      const id = url.split('/')[3];
-      const db = readDB();
-      db.urunler = db.urunler.filter((u) => u.id !== id);
-      writeDB(db);
-      return send(res, 200, { ok: true });
-    }
+    if (urunCrud.list(url, method))           return urunCrud.handleList(res);
+    if (urunCrud.bulkReplace(url, method))    return await urunCrud.handleBulkReplace(req, res);
+    if (urunCrud.upsert(url, method))         return await urunCrud.handleUpsert(req, res, url);
+    if (urunCrud.remove(url, method))         return urunCrud.handleRemove(res, url);
 
     // ── REFERANS ─────────────────────────────────────────────────────────────
 
@@ -206,7 +180,6 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, readDB().referans);
     }
 
-    // PUT /api/referans — replace whole referans object
     if (url === '/api/referans' && method === 'PUT') {
       const body = await parseBody(req);
       const db   = readDB();
@@ -217,7 +190,6 @@ const server = http.createServer(async (req, res) => {
 
     // ── SAYAC ─────────────────────────────────────────────────────────────────
 
-    // POST /api/sayac/increment — atomic increment, returns new value
     if (url === '/api/sayac/increment' && method === 'POST') {
       const db    = readDB();
       const buYil = new Date().getFullYear();
@@ -231,33 +203,21 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── MIGRATION endpoint — frontend pushes its localStorage data once ───────
-    // POST /api/migrate — { teklifler, cariler, urunler, referans, sayacDeger }
     if (url === '/api/migrate' && method === 'POST') {
       const body = await parseBody(req);
       const db   = readDB();
 
-      // Only migrate if server is still at defaults (no user data yet)
       const serverEmpty =
         db.teklifler.length === 0 &&
         db.cariler.length <= 1 &&
         db.urunler.length <= 15;
 
       if (serverEmpty) {
-        if (Array.isArray(body.teklifler) && body.teklifler.length > 0) {
-          db.teklifler = body.teklifler;
-        }
-        if (Array.isArray(body.cariler) && body.cariler.length > 0) {
-          db.cariler = body.cariler;
-        }
-        if (Array.isArray(body.urunler) && body.urunler.length > 0) {
-          db.urunler = body.urunler;
-        }
-        if (body.referans) {
-          db.referans = { ...db.referans, ...body.referans };
-        }
-        if (typeof body.sayacDeger === 'number' && body.sayacDeger > db.sayac.deger) {
-          db.sayac.deger = body.sayacDeger;
-        }
+        if (Array.isArray(body.teklifler) && body.teklifler.length > 0) db.teklifler = body.teklifler;
+        if (Array.isArray(body.cariler) && body.cariler.length > 0)     db.cariler = body.cariler;
+        if (Array.isArray(body.urunler) && body.urunler.length > 0)     db.urunler = body.urunler;
+        if (body.referans) db.referans = { ...db.referans, ...body.referans };
+        if (typeof body.sayacDeger === 'number' && body.sayacDeger > db.sayac.deger) db.sayac.deger = body.sayacDeger;
         writeDB(db);
         return send(res, 200, { migrated: true });
       }

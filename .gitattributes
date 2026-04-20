@@ -1,0 +1,22 @@
+# MEBA Teklif Sistemi — Git satır sonu standardı
+# Windows/macOS/Linux karışık ortamda CRLF sorunlarını önler.
+
+* text=auto eol=lf
+
+# Windows batch dosyaları CRLF kalmalı
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# İkili (binary) dosyalar — diff/merge yapılmaz
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.exe binary
+*.blockmap binary

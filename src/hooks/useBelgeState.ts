@@ -71,6 +71,7 @@ interface BelgeActions {
   // Satırlar
   setSatirlar: (satirlar: TeklifSatiri[]) => void;
   satirEkle: () => void;
+  satirArayaEkle: (afterIndex: number) => void;
   satirSil: (id: string) => void;
   satirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
 
@@ -169,7 +170,7 @@ export function useBelgeState(
       setContactNameState(secilen.lastContactName);
       setContactTitleState(secilen.lastContactTitle ?? 'BEY');
     } else {
-      setContactNameState('');
+      setContactNameState(secilen.yetkiliKisi ?? '');
       setContactTitleState('BEY');
     }
   }, []);
@@ -204,6 +205,29 @@ export function useBelgeState(
       satirToplami: 0,
     };
     setSatirlarState(prev => [...prev, yeni]);
+    setSeciliSatirId(yeni.id);
+  }, [paraBirimi, birimler]);
+
+  const satirArayaEkle = useCallback((afterIndex: number) => {
+    const yeni: TeklifSatiri = {
+      id: hesaplamaMotoru.satirIdUret(),
+      marka: VARSAYILAN_MARKA,
+      urunKod: '',
+      urunAdi: '',
+      aciklama: '',
+      paraBirimi: hesaplamaMotoru.varsayilanSatirParaBirimi(paraBirimi),
+      miktar: 1,
+      birim: birimler[0] ?? 'Adet',
+      birimFiyat: 0,
+      indirimOrani: 0,
+      teslimTarihi: '2-3 Gün',
+      satirToplami: 0,
+    };
+    setSatirlarState(prev => {
+      const next = [...prev];
+      next.splice(afterIndex + 1, 0, yeni);
+      return next;
+    });
     setSeciliSatirId(yeni.id);
   }, [paraBirimi, birimler]);
 
@@ -332,6 +356,7 @@ export function useBelgeState(
     setContactTitle,
     setSatirlar,
     satirEkle,
+    satirArayaEkle,
     satirSil,
     satirGuncelle,
     setParaBirimi,

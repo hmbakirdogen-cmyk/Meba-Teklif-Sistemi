@@ -43,20 +43,35 @@ export default function TeklifEditor() {
     aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol } : null,
   );
 
-  // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve düzenleme moduna al
+  // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve müşteri alanını aç (muhatap odak)
   const yeniTeklif = !id;
+  const muhatapGosterildiRef = useRef(false);
   useEffect(() => {
     if (yeniTeklif && state.cari && state.satirlar.length === 0) {
       state.satirEkle();
+      // Cari seçildikten sonra müşteri panelini aç → muhatap alanına odak gider
+      muhatapGosterildiRef.current = true;
+      setEditingAlan('musteri');
     }
   }, [yeniTeklif, state.cari]);
 
-  // Yeni eklenen satırı otomatik düzenleme moduna al
+  // Yeni eklenen satırı otomatik düzenleme moduna al — sadece müşteri alanı kapatıldıktan sonra
   useEffect(() => {
-    if (yeniTeklif && state.satirlar.length === 1 && editingAlan === null && state.cari) {
+    if (
+      yeniTeklif &&
+      state.satirlar.length === 1 &&
+      editingAlan === null &&
+      state.cari &&
+      !muhatapGosterildiRef.current
+    ) {
       setEditingAlan(`satir-${state.satirlar[0].id}`);
     }
-  }, [yeniTeklif, state.satirlar.length, state.cari]);
+    // Muhatap paneli kapatılınca (editingAlan null'a döndü) satıra geç
+    if (muhatapGosterildiRef.current && editingAlan === null && state.satirlar.length >= 1) {
+      muhatapGosterildiRef.current = false;
+      setEditingAlan(`satir-${state.satirlar[0].id}`);
+    }
+  }, [yeniTeklif, state.satirlar.length, state.cari, editingAlan]);
 
   // ── Teklif nesnesi oluştur (canlı belge için) ──
   const teklifObj: Teklif | null = state.cari ? {
@@ -263,7 +278,6 @@ export default function TeklifEditor() {
           {teklifObj ? (
             <CanliA4Belge
               teklif={teklifObj}
-              panelModu={state.panelModu}
               editingAlan={editingAlan}
               onEditingAlanDegistir={setEditingAlan}
               onCariDegistir={state.setCari}
@@ -275,15 +289,13 @@ export default function TeklifEditor() {
               onParaBirimiDegistir={state.setParaBirimi}
               satirBazliParaBirimi={state.satirBazliParaBirimi}
               onSatirBazliDegistir={state.setSatirBazliParaBirimi}
-              onDurumDegistir={state.setDurum}
               onKdvOraniDegistir={state.setKdvOrani}
-              onIskontoOraniDegistir={state.setIskontoOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onSatirGuncelle={state.satirGuncelle}
               onSatirSil={state.satirSil}
               onSatirEkle={state.satirEkle}
+              onSatirArayaEkle={state.satirArayaEkle}
               onNotlarDegistir={state.setNotlar}
-              yeniTeklif={yeniTeklif}
               sablonRef={sablonRef}
               kompaktHeaderRef={kompaktHeaderRef}
             />
@@ -300,7 +312,7 @@ export default function TeklifEditor() {
               <div style={{ fontSize: 48, opacity: 0.3 }}>📄</div>
               <div style={{ fontSize: 16, fontWeight: 600 }}>Müşteri seçerek başlayın</div>
               <div style={{ fontSize: 13 }}>Bir müşteri seçtiğinizde belge otomatik oluşacak.</div>
-              <div style={{ marginTop: 8, width: 300 }}>
+              <div style={{ marginTop: 8, width: '100%', maxWidth: 520 }}>
                 <CariSecimi value={null} onChange={state.setCari} />
               </div>
             </div>

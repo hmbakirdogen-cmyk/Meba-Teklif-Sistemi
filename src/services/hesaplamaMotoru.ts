@@ -88,6 +88,29 @@ function satirIdUret(): string {
   return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 }
 
+export interface ParaKartiData {
+  pb: DesteklenenSatirParaBirimi;
+  araToplam: number;
+  iskontoTutar: number;
+  kdvTutar: number;
+  total: number;
+}
+
+function kullanilanParaBirimiKartlariniHesapla(
+  satirlar: TeklifSatiri[],
+  teklifParaBirimi: string,
+  kdvOrani: number,
+  iskontoOrani: number,
+): ParaKartiData[] {
+  const toplamlar = paraBirimineGoreToplamlar(satirlar, teklifParaBirimi);
+  return SATIR_PARA_BIRIMLERI
+    .filter((pb) => satirlar.some((s) => satirParaBirimiGetir(s, teklifParaBirimi) === pb))
+    .map((pb) => {
+      const hesap = teklifToplamlariniHesapla({ araToplam: toplamlar[pb], kdvOrani, iskontoOrani });
+      return { pb, araToplam: hesap.araToplam, iskontoTutar: hesap.iskontoTutar, kdvTutar: hesap.kdvTutar, total: hesap.genelToplam };
+    });
+}
+
 export const hesaplamaMotoru = {
   SATIR_PARA_BIRIMLERI,
   satirToplamHesapla,
@@ -97,4 +120,5 @@ export const hesaplamaMotoru = {
   satirParaBirimiGetir,
   varsayilanSatirParaBirimi,
   satirIdUret,
+  kullanilanParaBirimiKartlariniHesapla,
 };

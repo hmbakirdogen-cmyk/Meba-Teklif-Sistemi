@@ -1,178 +1,53 @@
 import React from 'react';
 import type { Teklif } from '../types';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
-import { formatCariAdi } from '../utils/formatters';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
 import {
-  CELL_PAD as DOC_CELL_PAD,
-  DOCUMENT_BRAND as DOC_BRAND,
+  ACIKLAMA_OVERFLOW,
+  CELL_PAD,
+  URUN_KOD_OVERFLOW,
+  DOCUMENT_BRAND,
+  DOCUMENT_COLORS,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
+  LOGO,
+  LOGO_FILE_W,
+  LOGO_OPT_H,
+  LOGO_OPT_W,
+  LOGO_OPT_TOP,
+  LOGO_OPT_LEFT,
+  noBreak,
   NOTES_BOX_STYLE,
-  PARA_BIRIMI_ETIKETI as DOC_PARA_BIRIMI_ETIKETI,
+  PARA_BIRIMI_ETIKETI,
+  PARTY_GRID_STYLE,
+  PARTY_CARD_STYLE,
+  PARTY_LABEL_STYLE,
+  PARTY_NAME_STYLE,
+  PARTY_BODY_STYLE,
+  rcCell,
+  SEMBOL,
+  SETTINGS_GRID_STYLE,
+  SETTINGS_CARD_STYLE,
+  SETTINGS_LABEL_STYLE,
+  SETTINGS_VALUE_STYLE,
   SIGNATURE_SECTION_STYLE,
-  SEMBOL as DOC_SEMBOL,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_STYLE,
   TABLE_TITLE_STYLE,
-  TableColgroup as SharedTableColgroup,
+  TableColgroup,
+  buildSettingsItems,
+  firstLine,
   getTableHeadCellStyle,
 } from './teklifDocumentShared';
 
-const PARA_BIRIMI_ETIKETI = DOC_PARA_BIRIMI_ETIKETI;
-function firstLine(text: string): string {
-  return text.split(/\r?\n/)[0]?.trim() ?? '';
-}
-
-const SEMBOL = DOC_SEMBOL;
-
-// ── Marka Mavisi — MEBA logosundaki "BA" harflerinden alınan renk ailesi ─────
-// Teklif badge, genel toplam kartı ve alt şeritlerde ORTAK kullanılır.
-// Premium kahverengi ton ailesi — zengin kakao/konyak gradient.
-const BRAND = DOC_BRAND;
-
-// ── PDF Tasarım Sabitleri ─────────────────────────────────────────────────────
-const C = {
-  navy:        '#1A2B42',   // Derin lacivert — vurgu, başlık
-  navyLight:   '#2E4460',   // İkincil lacivert
-  navyBorder:  '#D5D3CF',   // Tablo başlık alt çizgisi — sıcak gri
-  accent:      '#1A2B42',   // Ürün kodu
-  border:      '#E2E0DC',   // Sıcak açık gri — birincil border
-  borderSoft:  '#EDEBE8',   // İkincil border — çok hafif
-  rowAlt:      '#F7F6F4',   // Kalem satır alt zemin — sıcak kırık beyaz
-  text:        '#2C2C2E',   // Koyu antrasit — ana metin
-  textMid:     '#4A4A4E',   // Birincil gövde metni
-  textSoft:    '#717176',   // İkincil metin
-  textMuted:   '#9B9BA0',   // Üçüncül metin
-  white:       '#FAFAF8',   // Kırık beyaz
-  bg:          '#F7F6F4',   // Not alanı — sıcak açık zemin
-  // ── Şerit sistemi ────────────────────────────────────────────────────
-  stripeBg:    '#F0EFEC',   // Sıcak nötr zemin
-  stripeText:  '#2C2C2E',   // Şerit metin — antrasit
-  stripeSub:   '#4A4A4E',   // Alt metin
-  stripeSep:   '#E2E0DC',   // Şerit ayraç — sıcak gri
-};
-
-// Sütun genişlikleri — içerik bazlı otomatik boyutlandırma
-// İçerik analizi (190mm kullanılabilir genişlik):
-//   NO        : "01"–"99"            →  3%  ≈  5.7mm
-//   Marka     : "FESTO","BOSCH REX"  →  7%  ≈ 13.3mm
-//   Ürün Kodu : "CP96SDB80-200C"     → 16%  ≈ 30.4mm  — asla kırpılmaz, sarılır
-//   Açıklama  : açık metin (esnek)   → 31%  ≈ 58.9mm  — esnek ana kolon
-//   Miktar    : "100 Adet"           →  6%  ≈ 11.4mm
-//   Birim Fyt : "1.234,56"           → 13%  ≈ 24.7mm
-//   Toplam    : "12.345,67"          → 13%  ≈ 24.7mm
-//   Teslimat  : "5-7 İş Günü"        →  8%  ≈ 15.2mm
-//   Toplam                             97%
-const COL = {
-  no:         '3%',
-  marka:      '7%',
-  urunKod:    '16%',
-  aciklama:   '31%',
-  miktar:     '6%',
-  birimFiyat: '13%',
-  toplam:     '13%',
-  teslimat:   '8%',
-};
-
-// Satır bazlı para birimi aktifken kullanılan sütun genişlikleri.
-// "Para Birimi" başlığı (11 karakter @ 9.8px) 11%'de (≈80px) sığar.
-// Toplam: 3+7+15+26+6+11+12+12+8 = 100%
-const COL_PB = {
-  no:         '3%',
-  marka:      '7%',
-  urunKod:    '15%',
-  aciklama:   '26%',    // daraltıldı: Para Birimi sütununa alan açıldı
-  miktar:     '6%',
-  paraBirimi: '11%',    // "Para Birimi" başlık metninin sığması için
-  birimFiyat: '12%',
-  toplam:     '12%',
-  teslimat:   '8%',
-};
-
-const noBreak: React.CSSProperties = {
-  pageBreakInside: 'avoid',
-  breakInside: 'avoid',
-};
-
-// ── Kalem Satır Sistemi ────────────────────────────────────────────────────
-// Her satır ayrı çerçeveli kart — temiz beyaz, ince gri border, hafif gölge
-const ROW_CARD = {
-  bg:        '#FFFFFF',
-  borderClr: '#E8E6E3',
-  radius:    '6px',
-  shadow:    '0 1px 2px rgba(0,0,0,0.03)',
-} as const;
-
-type CellPos = 'first' | 'mid' | 'last';
-function rcCell(pos: CellPos, idx: number = 0): React.CSSProperties {
-  const b = `0.75px solid ${ROW_CARD.borderClr}`;
-  const r = ROW_CARD.radius;
-  return {
-    // background on <td> (not <tr>) — html2canvas 1.4.1 doesn't render <tr> backgrounds
-    background:              idx % 2 === 0 ? ROW_CARD.bg : C.rowAlt,
-    printColorAdjust:        'exact' as const,
-    WebkitPrintColorAdjust:  'exact' as const,
-    borderTop:               b,
-    borderBottom:            b,
-    borderLeft:              pos === 'first' ? b : 'none',
-    borderRight:             pos === 'last'  ? b : 'none',
-    borderTopLeftRadius:     pos === 'first' ? r : 0,
-    borderBottomLeftRadius:  pos === 'first' ? r : 0,
-    borderTopRightRadius:    pos === 'last'  ? r : 0,
-    borderBottomRightRadius: pos === 'last'  ? r : 0,
-    boxShadow:               pos === 'first' ? ROW_CARD.shadow : 'none',
-  };
-}
-
-// ── LOGO Optik Metrikleri ─────────────────────────────────────────────────────
-// PNG'nin (1858×846) alpha + non-white scan'inden ölçüldü.
-// Logonun gerçek görsel sınırları (MEBA harf üstü → MEKANİK badge altı):
-//   x: 82..1738 px  (4.41% .. 93.54%)
-//   y: 87..646  px  (10.28% .. 76.36%)
-// Yani PNG çerçevesinin sadece ~%66 yüksekliği × ~%89 genişliği gerçek görsel.
-// Hizalamalar bu optik bounding box'a göre yapılır, dış çerçeveye göre değil.
-const LOGO = {
-  PNG_AR:        1858 / 846,     // 2.1962 — dosya en/boy oranı
-  OPT_TOP_FRAC:  87 / 846,       // 0.10284 — üst beyaz padding oranı
-  OPT_BOT_FRAC:  646 / 846,      // 0.76360 — optik içerik alt sınırı (top'tan)
-  OPT_LEFT_FRAC: 82 / 1858,      // 0.04413 — sol beyaz padding oranı
-  OPT_RIGHT_FRAC:1738 / 1858,    // 0.93540 — optik içerik sağ sınırı (left'ten)
-  FILE_HEIGHT:   128,            // SC=1.31 — sütun genişliği dolduracak max (~128px); html2canvas %76 native res
-} as const;
-
-const LOGO_FILE_W   = LOGO.FILE_HEIGHT * LOGO.PNG_AR;                                // ~248.17 px (FILE_HEIGHT=113)
-const LOGO_OPT_H    = LOGO.FILE_HEIGHT * (LOGO.OPT_BOT_FRAC - LOGO.OPT_TOP_FRAC);    // ~74.67 px
-const LOGO_OPT_W    = LOGO_FILE_W      * (LOGO.OPT_RIGHT_FRAC - LOGO.OPT_LEFT_FRAC); // ~221.22 px
-const LOGO_OPT_TOP  = -(LOGO.FILE_HEIGHT * LOGO.OPT_TOP_FRAC);                       // ~-11.62 px
-const LOGO_OPT_LEFT = -(LOGO_FILE_W      * LOGO.OPT_LEFT_FRAC);                      // ~-10.96 px
-// ─────────────────────────────────────────────────────────────────────────────
+const C = DOCUMENT_COLORS;
+const BRAND = DOCUMENT_BRAND;
 
 interface TeklifSablonuProps {
   teklif: Teklif;
   totals: TeklifToplam;
-}
-
-// temizleAciklama kaldırıldı — formatAciklama (formatters.ts) ortak kullanılır.
-
-/** Ortak colgroup — tablo hizalamayı garanti eder */
-function TableColgroup({ satirBazliParaBirimi }: { satirBazliParaBirimi: boolean }) {
-  const cols = satirBazliParaBirimi ? COL_PB : COL;
-  return (
-    <colgroup>
-      <col style={{ width: cols.no }} />
-      <col style={{ width: cols.marka }} />
-      <col style={{ width: cols.urunKod }} />
-      <col style={{ width: cols.aciklama }} />
-      <col style={{ width: cols.miktar }} />
-      {satirBazliParaBirimi && <col style={{ width: COL_PB.paraBirimi }} />}
-      <col style={{ width: cols.birimFiyat }} />
-      <col style={{ width: cols.toplam }} />
-      <col style={{ width: cols.teslimat }} />
-    </colgroup>
-  );
 }
 
 /**
@@ -207,7 +82,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
         alignItems: 'flex-start',
         gap: 10,
         paddingBottom: '3.5mm',
-        borderBottom: `1.5px solid ${C.stripeBg}`,
+        borderBottom: `1.5px solid ${C.panelStrong}`,
       }}>
         {/* Mini logo — optik bounding box ile kırpılmış */}
         <div style={{
@@ -266,25 +141,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
   const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
-  const satirParaToplamlari = hesaplamaMotoru.paraBirimineGoreToplamlar(teklif.satirlar, teklif.paraBirimi);
-  const kullanilanParaKartlari = (['TRY', 'EUR', 'USD'] as const)
-    .filter((pb) => teklif.satirlar.some((satir) => hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi) === pb))
-    .map((pb) => {
-      const hesap = hesaplamaMotoru.teklifToplamlariniHesapla({
-        araToplam: satirParaToplamlari[pb],
-        kdvOrani,
-        iskontoOrani,
-      });
-
-      return {
-        pb,
-        short: PARA_BIRIMI_ETIKETI[pb],
-        araToplam: hesap.araToplam,
-        iskontoTutar: hesap.iskontoTutar,
-        kdvTutar: hesap.kdvTutar,
-        total: hesap.genelToplam,
-      };
-    });
+  const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
+    teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
+  );
 
   // Muhatap satırı: isim varsa title-case + hitap, yoksa yetkiliKisi
   const muhatapSatiri = teklif.contactName?.trim()
@@ -461,67 +320,29 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </div>
 
       {/* ══ GÖNDEREN / ALICI ════════════════════════════════════ */}
-      {/* ROW_CARD tasarım diliyle aynı aileden premium bilgi paneli  */}
-      <div style={{
-        display: 'flex',
-        width: '100%',
-        background: '#FAFAF8',
-        marginBottom: '8px',
-        columnGap: '16px',
-        printColorAdjust: 'exact',
-        WebkitPrintColorAdjust: 'exact',
-        ...noBreak,
-      }}>
+      <div style={PARTY_GRID_STYLE}>
         {/* Gönderen */}
-        <div style={{
-          width: '50%',
-          padding: '4px 0 8px',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{
-            fontSize: '9.5px',
-            fontWeight: 600,
-            color: C.textMuted,
-            letterSpacing: '0.07em',
-            textTransform: 'uppercase',
-            marginBottom: '8px',
-            paddingBottom: '5px',
-            borderBottom: `0.75px solid ${C.border}`,
-            lineHeight: 1.2,
-          }}>
-            Gönderen / From
+        <div style={PARTY_CARD_STYLE}>
+          <div style={PARTY_LABEL_STYLE}>
+            Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
           </div>
-          <div style={{ fontWeight: 800, fontSize: '13.9px', color: C.navy, marginBottom: '2px', letterSpacing: '-0.015em' }}>
+          <div style={PARTY_NAME_STYLE}>
             MEBA Mekanik Ltd. Şti.
           </div>
-          <div style={{ fontSize: '11.8px', lineHeight: '1.38', color: C.textMid }}>
+          <div style={PARTY_BODY_STYLE}>
             Tel: {formatPhone('03525020780')}<br />
             www.mebamekanik.com
           </div>
         </div>
         {/* Alıcı */}
-        <div data-alan="musteri" style={{
-          width: '50%',
-          padding: '4px 0 8px',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{
-            fontSize: '9.5px',
-            fontWeight: 600,
-            color: C.textMuted,
-            letterSpacing: '0.07em',
-            textTransform: 'uppercase',
-            marginBottom: '8px',
-            paddingBottom: '5px',
-            borderBottom: `0.75px solid ${C.border}`,
-            lineHeight: 1.2,
-          }}>
-            Alıcı / To
+        <div data-alan="musteri" style={PARTY_CARD_STYLE}>
+          <div style={PARTY_LABEL_STYLE}>
+            Alıcı <span style={{ fontWeight: 400, opacity: 0.6 }}>/ To</span>
           </div>
-          <div style={{ fontWeight: 800, fontSize: '13.9px', color: C.navy, marginBottom: '2px', lineHeight: '1.3', letterSpacing: '-0.015em' }}>
+          <div style={PARTY_NAME_STYLE}>
             {formatCariAdi(teklif.cari.firmaAdi)}
           </div>
-          <div style={{ fontSize: '11.8px', lineHeight: '1.38', color: C.textMid, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+          <div style={PARTY_BODY_STYLE}>
             {muhatapSatiri && (
               <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>
             )}
@@ -548,60 +369,14 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </div>
 
       {/* ══ ÖDEME / PARA / KDV / KUR ════════════════════════════ */}
-      <div data-alan="ayarlar" style={{
-        display: 'flex',
-        width: '100%',
-        gap: '5px',
-        marginBottom: '8px',
-        ...noBreak,
-      }}>
-        {[
-          { tr: 'Para Birimi',   en: 'Currency',      value: satirBazliParaBirimi ? 'Satır Bazlı' : (sembol !== teklif.paraBirimi ? `${teklif.paraBirimi} (${sembol})` : teklif.paraBirimi) },
-          { tr: 'Ödeme Vadesi',  en: 'Payment',       value: teklif.odemeVadesi || '45 Gün' },
-          { tr: 'KDV Oranı',     en: 'VAT',           value: satirBazliParaBirimi ? 'Satır Bazlı' : (teklif.kdvOrani > 0 ? `%${teklif.kdvOrani}` : 'Hariç') },
-          { tr: 'Kur',           en: 'Exchange Rate',  value: 'TCMB Fatura' },
-          { tr: 'Geçerlilik',    en: 'Validity',      value: teklif.gecerlilikSuresi ?? '1 Hafta' },
-        ].map((item, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              padding: '7px 10px 8px',
-              textAlign: 'center',
-              background: 'linear-gradient(180deg, #F8F7F5 0%, #F0EFEC 100%)',
-              border: `0.75px solid ${C.border}`,
-              borderRadius: '8px',
-              boxShadow: 'none',
-              printColorAdjust: 'exact',
-              WebkitPrintColorAdjust: 'exact',
-            }}
-          >
-            <div style={{
-              fontSize: '9.5px',
-              fontWeight: 700,
-              color: C.textSoft,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              lineHeight: 1.2,
-              marginBottom: '2px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
+      <div data-alan="ayarlar" style={SETTINGS_GRID_STYLE}>
+        {buildSettingsItems(teklif, satirBazliParaBirimi).map((item, i) => (
+          <div key={i} style={SETTINGS_CARD_STYLE}>
+            <div style={SETTINGS_LABEL_STYLE}>
               {item.tr}
-              <span style={{ fontWeight: 400, opacity: 0.65 }}> / {item.en}</span>
+              <span style={{ fontWeight: 400, opacity: 0.55, fontSize: '8px' }}> / {item.en}</span>
             </div>
-            <div style={{
-              fontWeight: 700,
-              fontSize: '13px',
-              color: C.navy,
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              {item.value}
-            </div>
+            <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
           </div>
         ))}
       </div>
@@ -613,7 +388,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       {/* Dikey çizgiler kaldırıldı: outer border yerine top+bottom,            */}
       {/* başlık ve hücreler arasındaki dikey ayraçlar da devre dışı.           */}
       <table style={TABLE_STYLE}>
-        <SharedTableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
         <thead id="pdf-thead">
           <tr>
             {[
@@ -660,7 +435,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               >
                 {/* No */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
@@ -672,62 +447,60 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Marka */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
                   color: C.textMid,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   ...rcCell('mid', idx),
                 }}>
                   {satir.marka || '—'}
                 </td>
-                {/* Ürün Kodu — asla kırpılmaz; sığmazsa alt satıra geçer */}
+                {/* Ürün Kodu — tek satır, içerik kadar geniş */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   fontSize: '11px',
                   fontWeight: 600,
                   color: C.accent,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
                   verticalAlign: 'middle',
                   letterSpacing: '-0.1px',
+                  ...URUN_KOD_OVERFLOW,
                   ...rcCell('mid', idx),
                 }}>
                   {satir.urunKod || '—'}
                 </td>
-                {/* Açıklama — esnek; sığmazsa alt satıra geçer, asla kısaltılmaz */}
+                {/* Açıklama — kalan tüm alan, max 2 satır */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
-                  fontSize: '11.5px',
+                  padding: CELL_PAD,
+                  fontSize: '11px',
                   fontWeight: 500,
                   color: C.textMid,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
                   verticalAlign: 'middle',
+                  lineHeight: 1.35,
+                  ...ACIKLAMA_OVERFLOW,
                   ...rcCell('mid', idx),
                 }}>
                   {firstLine(stripParantez(satir.urunAdi))}
                 </td>
                 {/* Miktar */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   verticalAlign: 'middle',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   color: C.textMid,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx),
                 }}>
                   {satir.miktar !== 0 ? (
-                    <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-                      <span style={{ width: '50%', textAlign: 'right', paddingRight: '4px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    <div style={{ display: 'flex', width: '100%', alignItems: 'baseline', gap: '5px' }}>
+                      <span style={{ flex: 1, textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
-                      <span style={{ width: '50%', textAlign: 'left', paddingLeft: '4px', opacity: 0.68, fontSize: '0.85em' }}>
+                      <span style={{ flex: '0 0 auto', minWidth: '30px', textAlign: 'left', opacity: 0.68, fontSize: '0.85em' }}>
                         {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
                       </span>
                     </div>
@@ -735,7 +508,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {satirBazliParaBirimi && (
                   <td style={{
-                    padding: DOC_CELL_PAD,
+                    padding: CELL_PAD,
                     textAlign: 'center',
                     verticalAlign: 'middle',
                     fontSize: '11px',
@@ -750,10 +523,10 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 )}
                 {/* Birim Fiyat — nihai (bireysel iskonto uygulanmış) */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   color: C.textMid,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
@@ -768,10 +541,10 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 </td>
                 {/* Satır Toplam */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   color: C.navy,
                   whiteSpace: 'nowrap',
@@ -782,15 +555,14 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${PARA_BIRIMI_ETIKETI[satirPb]}` : ''}`
                     : '—'}
                 </td>
-                {/* Teslimat — kısa metin; sığmazsa alt satıra geçer, asla kırpılmaz */}
+                {/* Teslimat */}
                 <td style={{
-                  padding: DOC_CELL_PAD,
+                  padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
                   color: C.textSoft,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
+                  whiteSpace: 'nowrap',
                   ...rcCell('last', idx),
                 }}>
                   {satir.teslimTarihi || '—'}
@@ -818,26 +590,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         WebkitPrintColorAdjust: 'exact',
         ...noBreak,
       } as React.CSSProperties}>
-        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+        <colgroup>
+          <col style={{ width: '56%' }} />
+          <col />
+        </colgroup>
         <tbody>
-          {/* ── Genel Toplam Kartları (her iki mod için ortak) ──────────
-               satirBazliParaBirimi aktifse  → per-currency kartlar
-               satirBazliParaBirimi pasifse  → tek kart (teklif para birimi)
-               Görsel tasarım her iki durumda da birebir aynı.           */}
-          {/* ── Genel Toplam ─────────────────────────────────────────────
-               satirBazliParaBirimi kapalı → tek satır, sağa yaslı kart
-               satirBazliParaBirimi açık  → çok para birimi kart dizisi    */}
           {!satirBazliParaBirimi ? (() => {
-            // Tek para birimi — her iki durum için aynı kart yapısı:
-            //
-            // Tablo sütunları (COL, 8 kolon):
-            //   1:No  2:Marka  3:UrunKod  4:Aciklama  |  5:Miktar  6:BirimFiyat  7:Toplam  8:Teslimat
-            //   3%    6%       14%        30%          |  7%        13%           13%       10%
-            //
-            // colSpan={4} (sütun 1-4) → boş spacer
-            // colSpan={4} (sütun 5-8) → kart (sonuna kadar uzanır)
-            //
-            // Kart paddingRight=7px → Toplam sütunu ile hizalı (ürün td padding: '7px 7px')
             const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
 
             const kartStyle: React.CSSProperties = {
@@ -853,10 +611,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             const fmtN = (n: number) =>
               n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-            // Satır renkleri — açık zemin için koyu varyantlar
             const pbLabel = teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi;
 
-            // ── Detay satırı (3 kolon: etiket | işaret | rakam) ───────────────────────
             const detayRow = (
               label: string, value: number, color: string, sign: '' | '–' | '+',
             ) => {
@@ -872,7 +628,6 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   <span style={{ width: 8, flexShrink: 0, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, color, fontWeight: sign ? 700 : undefined }}>
                     {sign || null}
                   </span>
-                  {/* Rakam: [tam kısım flex:1 sağ-hizalı] + [ondalık 16px sabit] → virgüller aynı eksende */}
                   <span style={{ width: 64, flexShrink: 0, display: 'flex', alignItems: 'baseline' }}>
                     <span style={{ flex: 1, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color, whiteSpace: 'nowrap' }}>
                       {int}
@@ -881,64 +636,42 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                       {dec}
                     </span>
                   </span>
-                  {/* Hizalama spacer — total ile aynı eksen (Teslimat genişliği + Toplam padding) */}
-                  <div style={{ width: 'calc(23.26% + 7px)', flexShrink: 0 }} />
                 </div>
               );
             };
 
             return (
               <tr>
-                {/* Sütun 1-4: boş spacer */}
-                <td colSpan={4} style={{ borderTop: 'none', borderBottom: 'none' }} />
-
-                {/* Sütun 5-8: kart (sayfa sonuna kadar uzanır) */}
-                <td colSpan={4} style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-                  {/* Spacer hesabı:
-                      Teslimat sütunu = COL.teslimat = 10% tablo genişliği
-                      colSpan=4 içeriği = (7+13+13+10)% = 43% tablo genişliği
-                      Teslimat olarak kart içi % = 10/43×100 ≈ 23.26%
-                      + Toplam td sağ padding 7px
-                      → rakam sağ kenarı = Toplam sütunu sağ kenarı − 7px  ✓        */}
+                <td style={{ borderTop: 'none', borderBottom: 'none' }} />
+                <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
                   {!hasDetail ? (
-                    // ── Sade tek-toplam: etiket 2 satır + rakam dikey ortalı ─────
                     <div style={{
                       display: 'flex', alignItems: 'center',
-                      padding: '12px 0 12px 12px',
+                      padding: '12px',
                       ...kartStyle,
                     }}>
-                      {/* Sol: etiket 2 satırda — Türkçe büyük, İngilizce alt metin */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
                         <span style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
                       </div>
-                      {/* Esnek boşluk */}
                       <div style={{ flex: 1 }} />
-                      {/* Rakam dikey ortalı */}
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', flexShrink: 0 }}>
                         <span style={{ fontSize: '9px', color: BRAND.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
                         <span style={{ fontSize: genelToplam >= 1e6 ? '14px' : '17px', fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: BRAND.text, whiteSpace: 'nowrap' }}>
                           {fmtN(genelToplam)}
                         </span>
                       </div>
-                      {/* Hizalama spacer */}
-                      <div style={{ width: '23.26%', flexShrink: 0 }} />
                     </div>
                   ) : (
-                    // ── Detaylı kart: başlık + satırlar + ayraç + toplam ─────────
-                    <div style={{ padding: '8px 0 8px 12px', ...kartStyle }}>
-                      {/* Başlık */}
+                    <div style={{ padding: '8px 12px', ...kartStyle }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '6px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
                         <span style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
                       </div>
-                      {/* Detay satırları */}
                       {detayRow('Ara Toplam', araToplam, BRAND.textSub, '')}
                       {iskontoOrani > 0 && detayRow(`İskonto %${iskontoOrani}`, iskontoTutar, '#fca5a5', '–')}
                       {kdvOrani    > 0 && detayRow(`KDV %${kdvOrani}`,          kdvTutar,     '#86efac', '+')}
-                      {/* Ayraç */}
                       <div style={{ borderTop: `0.75px solid ${BRAND.separator}`, margin: '5px 0 4px' }} />
-                      {/* Alt: PB etiketi (sol) + büyük toplam + hizalama spacer */}
                       <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                         <span style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: BRAND.textSub, lineHeight: 1 }}>
                           {pbLabel}
@@ -950,8 +683,6 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                             {fmtN(genelToplam)}
                           </span>
                         </div>
-                        {/* Hizalama spacer */}
-                        <div style={{ width: 'calc(23.26% + 7px)', flexShrink: 0 }} />
                       </div>
                     </div>
                   )}
@@ -959,19 +690,14 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               </tr>
             );
           })() : (() => {
-            // Çok para birimi — sabit boyutlu kart dizisi
-            // A4 içerik genişliği: 210mm − 2×10mm = ~718px
-            //   <td> padding 10px×2 = 20px → td iç: 698px
-            //   wrapper padding  8px×2 = 16px → wrapper iç: 682px
-            // 3 × 220px + 2 × 8px = 676px ≤ 682px ✓  (6px nefes payı)
             const kartlar  = kullanilanParaKartlari;
-            const KART_W   = 220; // px — sabit genişlik
-            const KART_H   = 86;  // px — sabit yükseklik
-            const KART_GAP = 8;   // px — kartlar arası
+            const KART_W   = 220;
+            const KART_H   = 86;
+            const KART_GAP = 8;
 
             return (
               <tr>
-                <td colSpan={9} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
+                <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
                   {/* Dış çerçeve — sabit yapı, kart sayısına göre değişmez */}
                   <div style={{
                     width: '100%',

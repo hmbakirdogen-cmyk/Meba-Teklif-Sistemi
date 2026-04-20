@@ -14,9 +14,9 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useColors } from '../hooks/useColors';
+import { SEMBOL } from '../templates/teklifDocumentShared';
 
 // ── Sabitler ──────────────────────────────────────────────────────────────────
-const SEMBOL: Record<string, string> = { TRY: '₺', EUR: '€', USD: '$', GBP: '£', CHF: '₣' };
 const PB_SHORT: Record<string, string> = { TRY: 'TL', EUR: 'EUR', USD: 'USD', GBP: 'GBP', CHF: 'CHF' };
 // Screen renkleri (açık zemin)
 const GOLD  = '#8b6a1e';

@@ -10,42 +10,31 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
 import BelgeInlineEditor, { type EditingAlan } from './BelgeInlineEditor';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
-import { DOC_INTERACTION } from '../design-system/documentTokens';
-import type { Teklif, Cari, TeklifSatiri, TeklifDurum } from '../types';
-import type { PanelModu } from '../hooks/useBelgeState';
+
 
 // ── A4 ölçüleri ──
 const A4_W_PX = 210 * (96 / 25.4);  // ~793.7
 
 interface CanliA4BelgeProps {
   teklif: Teklif;
-  panelModu: PanelModu;
   editingAlan: EditingAlan;
   onEditingAlanDegistir: (alan: EditingAlan) => void;
-  // Cari
   onCariDegistir: (cari: Cari) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
   onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
-  // Ayarlar
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: string) => void;
   satirBazliParaBirimi: boolean;
   onSatirBazliDegistir: (aktif: boolean) => void;
-  onDurumDegistir: (durum: TeklifDurum) => void;
   onKdvOraniDegistir: (oran: number) => void;
-  onIskontoOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
-  // Satırlar
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatirSil: (id: string) => void;
   onSatirEkle: () => void;
-  // Notlar
+  onSatirArayaEkle: (afterIndex: number) => void;
   onNotlarDegistir: (notlar: string) => void;
-  // Yeni teklif
-  yeniTeklif?: boolean;
-  // Ref'ler PDF pipeline için
   sablonRef: React.RefObject<HTMLDivElement | null>;
   kompaktHeaderRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -63,15 +52,13 @@ export default function CanliA4Belge({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   onSatirBazliDegistir,
-  onDurumDegistir,
   onKdvOraniDegistir,
-  onIskontoOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
   onSatirSil,
   onSatirEkle,
+  onSatirArayaEkle,
   onNotlarDegistir,
-  yeniTeklif,
   sablonRef,
   kompaktHeaderRef,
 }: CanliA4BelgeProps) {
@@ -158,15 +145,13 @@ export default function CanliA4Belge({
             onParaBirimiDegistir={onParaBirimiDegistir}
             satirBazliParaBirimi={satirBazliParaBirimi}
             onSatirBazliDegistir={onSatirBazliDegistir}
-            onDurumDegistir={onDurumDegistir}
             onKdvOraniDegistir={onKdvOraniDegistir}
-            onIskontoOraniDegistir={onIskontoOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
             onSatirGuncelle={onSatirGuncelle}
             onSatirSil={onSatirSil}
             onSatirEkle={onSatirEkle}
+            onSatirArayaEkle={onSatirArayaEkle}
             onNotlarDegistir={onNotlarDegistir}
-            yeniTeklif={yeniTeklif}
           />
         </div>
       </div>
@@ -174,27 +159,25 @@ export default function CanliA4Belge({
       {/* Hover stil kuralları */}
       <style>{`
         [data-alan="musteri"],
-        [data-alan="ayarlar"],
+        [data-alan^="ayar-"],
         [data-alan="notlar"] {
           cursor: pointer;
-          transition: outline 0.15s, background 0.15s;
+          transition: background 0.18s ease;
         }
         [data-alan="musteri"]:hover,
-        [data-alan="ayarlar"]:hover,
+        [data-alan^="ayar-"]:hover,
         [data-alan="notlar"]:hover {
-          outline: 1.5px dashed ${DOC_INTERACTION.hoverBorder};
-          background: ${DOC_INTERACTION.hoverBg};
+          background: rgba(37, 99, 235, 0.025);
         }
-        [data-satir-id] {
+        [data-satir-id] > td {
           cursor: pointer;
-          transition: outline 0.12s, background 0.12s;
+          transition: background 0.12s ease;
         }
-        [data-satir-id]:hover {
-          outline: 1px solid ${DOC_INTERACTION.hoverBorder};
-          outline-offset: -1px;
+        [data-satir-id] > td:hover {
+          background: rgba(37, 99, 235, 0.045) !important;
         }
         @media print {
-          [data-alan], [data-satir-id] {
+          [data-alan], [data-satir-id] > td {
             outline: none !important;
             background: initial !important;
             cursor: default !important;

@@ -5,9 +5,9 @@
  */
 
 import type { Teklif, Cari, Urun } from '../types';
+import { APP_CONFIG } from '../config';
 
-const hostname = window.location.hostname || 'localhost';
-const BASE = `http://${hostname}:3001/api`;
+const BASE = APP_CONFIG.API_BASE;
 
 // ── Generic helpers ───────────────────────────────────────────────────────────
 

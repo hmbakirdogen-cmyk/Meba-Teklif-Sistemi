@@ -1,6 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { Teklif } from '../types';
 
+export function firstLine(text: string): string {
+  return text.split(/\r?\n/)[0]?.trim() ?? '';
+}
+
 export const PARA_BIRIMI_ETIKETI: Record<string, string> = {
   TRY: 'TL',
   EUR: 'EUR',
@@ -44,47 +48,64 @@ export const DOCUMENT_COLORS = {
   notesBg: '#F7F6F4',
 } as const;
 
+// Sabit sütun genişlikleri — tableLayout:fixed ile kullanılır
 export const DOCUMENT_COLS = {
-  no: '4%',
-  marka: '9%',
-  urunKod: '15%',
-  aciklama: '27%',
-  miktar: '9%',
-  birimFiyat: '13%',
-  toplam: '14%',
-  teslimat: '9%',
+  no:         '3.5%',
+  marka:      '6.5%',
+  urunKod:    '17%',
+  aciklama:   '31%',
+  miktar:     '10%',
+  birimFiyat: '11%',
+  toplam:     '11%',
+  teslimat:   '10%',
 } as const;
 
 export const DOCUMENT_COLS_ROW_CURRENCY = {
-  no: '4%',
-  marka: '8%',
-  urunKod: '14%',
-  aciklama: '21%',
-  miktar: '9%',
-  paraBirimi: '10%',
-  birimFiyat: '12%',
-  toplam: '13%',
-  teslimat: '9%',
+  no:         '3%',
+  marka:      '6%',
+  urunKod:    '15%',
+  aciklama:   '28%',
+  miktar:     '10%',
+  paraBirimi: '7%',
+  birimFiyat: '10%',
+  toplam:     '11%',
+  teslimat:   '10%',
 } as const;
 
 export const CELL_PAD = '8px 8px';
+
+// Ürün kodu: tek satır, içerik genişliği kadar
+export const URUN_KOD_OVERFLOW: CSSProperties = {
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
+// Açıklama: kalan tüm alan, max 2 satır kırpma
+export const ACIKLAMA_OVERFLOW: CSSProperties = {
+  whiteSpace: 'normal',
+  overflow: 'hidden',
+  display: '-webkit-box',
+  WebkitBoxOrient: 'vertical',
+  WebkitLineClamp: 2,
+} as CSSProperties;
 
 export const noBreak: CSSProperties = {
   pageBreakInside: 'avoid',
   breakInside: 'avoid',
 };
 
-const ROW_CARD = {
+export const ROW_CARD = {
   bg: '#FFFFFF',
   borderClr: '#E8E6E3',
   radius: '6px',
   shadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
 } as const;
 
-type CellPos = 'first' | 'mid' | 'last';
+export type CellPos = 'first' | 'mid' | 'last';
 
 export function rcCell(pos: CellPos, idx = 0): CSSProperties {
-  const border = `1px solid ${ROW_CARD.borderClr}`;
+  const border = `0.75px solid ${ROW_CARD.borderClr}`;
   const radius = ROW_CARD.radius;
 
   return {
@@ -147,17 +168,13 @@ export const PARTY_GRID_STYLE: CSSProperties = {
   gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
   gap: '18px',
   width: '100%',
+  marginTop: '18px',
   marginBottom: '14px',
   ...noBreak,
 };
 
 export const PARTY_CARD_STYLE: CSSProperties = {
-  minHeight: 118,
-  padding: '12px 14px 14px',
-  borderRadius: '10px',
-  border: `1px solid ${DOCUMENT_COLORS.border}`,
-  background: '#FFFFFF',
-  boxShadow: '0 1px 4px rgba(0, 0, 0, 0.03)',
+  padding: '0',
   boxSizing: 'border-box',
 };
 
@@ -167,19 +184,19 @@ export const PARTY_LABEL_STYLE: CSSProperties = {
   color: DOCUMENT_COLORS.textMuted,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  marginBottom: '10px',
-  paddingBottom: '7px',
-  borderBottom: `1px solid ${DOCUMENT_COLORS.borderSoft}`,
+  marginBottom: '6px',
+  paddingBottom: '5px',
+  borderBottom: `0.75px solid ${DOCUMENT_COLORS.borderSoft}`,
   lineHeight: 1.2,
 };
 
 export const PARTY_NAME_STYLE: CSSProperties = {
-  fontWeight: 800,
-  fontSize: '13.2px',
+  fontWeight: 700,
+  fontSize: '12.5px',
   color: DOCUMENT_COLORS.navy,
-  marginBottom: '5px',
-  lineHeight: 1.3,
-  letterSpacing: '-0.012em',
+  marginBottom: '3px',
+  lineHeight: 1.35,
+  letterSpacing: '-0.01em',
 };
 
 export const PARTY_BODY_STYLE: CSSProperties = {
@@ -200,28 +217,29 @@ export const SETTINGS_GRID_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_CARD_STYLE: CSSProperties = {
-  minHeight: 62,
-  padding: '10px 10px 11px',
-  borderRadius: '8px',
-  border: `1px solid ${DOCUMENT_COLORS.border}`,
-  background: 'linear-gradient(180deg, #F8F7F5 0%, #F0EFEC 100%)',
-  boxShadow: 'none',
+  padding: '10px 12px',
+  textAlign: 'center',
+  minHeight: 54,
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
   boxSizing: 'border-box',
+  background: '#f8f9fb',
+  border: '1px solid #e3e6ea',
+  borderRadius: '12px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   printColorAdjust: 'exact',
   WebkitPrintColorAdjust: 'exact',
 };
 
 export const SETTINGS_LABEL_STYLE: CSSProperties = {
-  fontSize: '8.8px',
+  fontSize: '9px',
   fontWeight: 700,
-  color: DOCUMENT_COLORS.textMuted,
-  letterSpacing: '0.09em',
+  color: DOCUMENT_COLORS.textSoft,
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
-  lineHeight: 1.25,
-  marginBottom: '5px',
+  lineHeight: 1.2,
+  marginBottom: '3px',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -229,9 +247,9 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
 
 export const SETTINGS_VALUE_STYLE: CSSProperties = {
   fontWeight: 700,
-  fontSize: '12.1px',
+  fontSize: '12.5px',
   color: DOCUMENT_COLORS.navy,
-  lineHeight: 1.35,
+  lineHeight: 1.3,
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -274,8 +292,7 @@ export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSPro
     borderBottom: `0.75px solid ${DOCUMENT_COLORS.navyBorder}`,
     borderRadius: 0,
     lineHeight: 1.28,
-    whiteSpace: 'normal',
-    overflowWrap: 'anywhere',
+    whiteSpace: 'nowrap',
   };
 }
 
@@ -338,28 +355,15 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
         ? 'Satır Bazlı'
         : (sembol !== teklif.paraBirimi ? `${teklif.paraBirimi} (${sembol})` : teklif.paraBirimi),
     },
-    { tr: 'Ödeme', en: 'Payment', value: teklif.odemeVadesi || '45 Gün' },
+    { tr: 'Ödeme Vadesi', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
     {
-      tr: 'KDV',
-      en: 'VAT',
+      tr: 'KDV Oranı',
+      en: 'VAT Rate',
       value: satirBazliParaBirimi ? 'Satır Bazlı' : (teklif.kdvOrani > 0 ? `%${teklif.kdvOrani}` : 'Hariç'),
     },
-    { tr: 'Kur', en: 'Rate', value: 'TCMB Fatura' },
+    { tr: 'Döviz Kuru', en: 'Exchange Rate', value: 'TCMB Fatura' },
     { tr: 'Geçerlilik', en: 'Validity', value: teklif.gecerlilikSuresi ?? '1 Hafta' },
   ];
-}
-
-export function splitMoneyParts(value: number) {
-  const formatted = value.toLocaleString('tr-TR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const commaIndex = formatted.lastIndexOf(',');
-  return {
-    full: formatted,
-    integer: commaIndex >= 0 ? formatted.slice(0, commaIndex) : formatted,
-    decimal: commaIndex >= 0 ? formatted.slice(commaIndex) : '',
-  };
 }
 
 export function TableColgroup({ satirBazliParaBirimi }: { satirBazliParaBirimi: boolean }) {

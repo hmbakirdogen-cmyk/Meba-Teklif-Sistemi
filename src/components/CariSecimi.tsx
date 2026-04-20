@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Select, Button, Modal, Form, Input, Space } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { useState, useMemo } from 'react';
+import { Select, Button, Modal, Form, Input } from 'antd';
+import { PlusOutlined, UserOutlined, SearchOutlined } from '@ant-design/icons';
 import { cariService } from '../services/musteriService';
 import type { Cari } from '../types';
 import {
@@ -13,8 +13,6 @@ import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
 
-const { Option } = Select;
-
 interface CariSecimiProps {
   value?: Cari | null;
   onChange?: (cari: Cari) => void;
@@ -22,14 +20,30 @@ interface CariSecimiProps {
 
 export default function CariSecimi({ value, onChange }: CariSecimiProps) {
   const C = useColors();
-  // Lazy initial state — mount'ta bir kez okunur, sonraki değişiklikler
-  // yeniCariKaydet içinden manuel setCariler ile tetiklenir.
   const [cariler, setCariler] = useState<Cari[]>(() => cariService.tumCarileriGetir());
   const [modalAcik, setModalAcik] = useState(false);
   const [form] = Form.useForm();
 
+  // Hızlı lookup map — O(1) erişim
+  const cariMap = useMemo(() => {
+    const map = new Map<string, Cari>();
+    for (const c of cariler) map.set(c.id, c);
+    return map;
+  }, [cariler]);
+
+  // options dizisi — Select'e props olarak veriliyor
+  const selectOptions = useMemo(() =>
+    cariler.map((c) => ({
+      value: c.id,
+      label: `[${c.cariKod}] ${formatCariAdi(c.firmaAdi)}`,
+      firmaAdiLower: c.firmaAdi.toLocaleLowerCase('tr-TR'),
+      cariKodLower: c.cariKod.toLocaleLowerCase('tr-TR'),
+    })),
+    [cariler],
+  );
+
   function cariSec(id: string) {
-    const cari = cariler.find((c) => c.id === id);
+    const cari = cariMap.get(id);
     if (cari && onChange) onChange(cari);
   }
 
@@ -59,85 +73,134 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
 
   return (
     <>
-      <Space.Compact style={{ width: '100%' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 8px 8px 16px',
+        background: C.bgSurface,
+        borderRadius: 10,
+        border: `1.5px solid ${C.border}`,
+        boxShadow: C.shadow,
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+      }}>
+        <SearchOutlined style={{ color: C.textFaint, fontSize: 15, flexShrink: 0 }} />
         <Select
           showSearch
           placeholder="Cari seçin (firma adı veya cari kod ile arayın)..."
-          style={{ flex: 1 }}
+          variant="borderless"
+          style={{ flex: 1, minWidth: 0, height: 40, fontSize: 14 }}
           value={value?.id}
           onChange={cariSec}
+          popupMatchSelectWidth={false}
+          dropdownStyle={{ minWidth: 560 }}
+          options={selectOptions}
           filterOption={(input, option) => {
-            const cari = cariler.find((c) => c.id === option?.value);
-            if (!cari) return false;
-            const ara = input.toLowerCase();
+            const ara = input.toLocaleLowerCase('tr-TR');
             return (
-              cari.firmaAdi.toLowerCase().includes(ara) ||
-              cari.cariKod.toLowerCase().includes(ara)
+              option?.firmaAdiLower?.startsWith(ara) ||
+              option?.cariKodLower?.startsWith(ara)
+            ) ?? false;
+          }}
+          optionRender={(option) => {
+            const cari = cariMap.get(option.value as string);
+            if (!cari) return null;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
+                <span style={{
+                  color: C.textFaint,
+                  fontSize: 11,
+                  fontVariantNumeric: 'tabular-nums',
+                  flexShrink: 0,
+                }}>
+                  [{cari.cariKod}]
+                </span>
+                <span style={{ fontWeight: 500, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {formatCariAdi(cari.firmaAdi)}
+                </span>
+              </div>
             );
           }}
+          suffixIcon={null}
+        />
+        <Button
+          icon={<PlusOutlined />}
+          onClick={() => setModalAcik(true)}
+          className={buttonClassNames.primary}
+          style={{ borderRadius: 7, fontWeight: 600, flexShrink: 0 }}
         >
-          {cariler.map((c) => (
-            <Option key={c.id} value={c.id}>
-              <span style={{ color: '#94a3b8', fontSize: 11, marginRight: 8, fontVariantNumeric: 'tabular-nums' }}>
-                [{c.cariKod}]
-              </span>
-              <span style={{ fontWeight: 500 }}>{formatCariAdi(c.firmaAdi)}</span>
-            </Option>
-          ))}
-        </Select>
-        <Button icon={<PlusOutlined />} onClick={() => setModalAcik(true)} className={buttonClassNames.secondary}>
           Yeni Cari
         </Button>
-      </Space.Compact>
+      </div>
 
       {value && (
         <div style={{
           marginTop: 10,
-          padding: '10px 14px',
+          padding: '12px 16px',
           background: C.bgElevated,
-          borderRadius: 8,
-          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          border: `1px solid ${C.borderSubtle}`,
           lineHeight: 1.6,
+          display: 'flex',
+          gap: 12,
+          alignItems: 'flex-start',
         }}>
-          {/* Firma adı + kod */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: C.textFaint,
-              letterSpacing: 1.0,
-              textTransform: 'uppercase',
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              {value.cariKod}
-            </span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, letterSpacing: -0.2 }}>
-              {formatCariAdi(value.firmaAdi)}
-            </span>
+          {/* Avatar */}
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: C.bgSurface,
+            border: `1px solid ${C.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            marginTop: 2,
+          }}>
+            <UserOutlined style={{ fontSize: 16, color: C.textFaint }} />
           </div>
-          {/* İkincil bilgiler */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px 16px' }}>
-            {value.yetkiliKisi && (
-              <span style={{ fontSize: 12, color: C.textSecondary }}>Sayın {value.yetkiliKisi}</span>
-            )}
-            {value.telefon && (
-              <span style={{ fontSize: 12, color: C.textSecondary }}>{value.telefon}</span>
-            )}
-            {value.ePosta && (
-              <span style={{ fontSize: 12, color: '#2563eb' }}>{value.ePosta}</span>
-            )}
-            {value.vergiNo && (
-              <span style={{ fontSize: 12, color: C.textSecondary }}>
-                VKN: {value.vergiNo}
-                {value.vergiDairesi && <span style={{ color: C.textFaint }}> — {value.vergiDairesi} V.D.</span>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Firma adı + kod */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: C.textFaint,
+                letterSpacing: 1.0,
+                textTransform: 'uppercase',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {value.cariKod}
               </span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, letterSpacing: -0.2 }}>
+                {formatCariAdi(value.firmaAdi)}
+              </span>
+            </div>
+            {/* İkincil bilgiler */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px 16px' }}>
+              {value.yetkiliKisi && (
+                <span style={{ fontSize: 12, color: C.textSecondary }}>Sayın {value.yetkiliKisi}</span>
+              )}
+              {value.telefon && (
+                <span style={{ fontSize: 12, color: C.textSecondary }}>{value.telefon}</span>
+              )}
+              {value.ePosta && (
+                <span style={{ fontSize: 12, color: '#2563eb' }}>{value.ePosta}</span>
+              )}
+              {value.vergiNo && (
+                <span style={{ fontSize: 12, color: C.textSecondary }}>
+                  VKN: {value.vergiNo}
+                  {value.vergiDairesi && <span style={{ color: C.textFaint }}> — {value.vergiDairesi} V.D.</span>}
+                </span>
+              )}
+            </div>
+            {value.adres && (
+              <div style={{ marginTop: 3, color: C.textFaint, fontSize: 11, wordBreak: 'break-word' }}>
+                {value.adres}
+              </div>
             )}
           </div>
-          {value.adres && (
-            <div style={{ marginTop: 3, color: C.textFaint, fontSize: 11, wordBreak: 'break-word' }}>
-              {value.adres}
-            </div>
-          )}
         </div>
       )}
 
