@@ -372,7 +372,7 @@ export default function TeklifEditor() {
             overflowY: 'auto',
             overflowX: 'hidden',
             padding: '40px 48px 64px',
-            background: '#dde1e6',
+            background: '#E0DDD9',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'flex-start',
@@ -392,7 +392,6 @@ export default function TeklifEditor() {
               onTarihDegistir={state.setTarih}
               onParaBirimiDegistir={state.setParaBirimi}
               satirBazliParaBirimi={state.satirBazliParaBirimi}
-              onSatirBazliDegistir={state.setSatirBazliParaBirimi}
               satirBazliIskonto={state.satirBazliIskonto}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}

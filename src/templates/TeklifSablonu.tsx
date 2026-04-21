@@ -33,6 +33,7 @@ import {
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
   SETTINGS_TR_LABEL_STYLE,
+  SETTINGS_SEP_STYLE,
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
   SIGNATURE_SECTION_STYLE,
@@ -377,6 +378,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           <div key={i} style={SETTINGS_CARD_STYLE}>
             <div style={SETTINGS_LABEL_STYLE}>
               <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+              <span style={SETTINGS_SEP_STYLE}>/</span>
               <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
             </div>
             <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>

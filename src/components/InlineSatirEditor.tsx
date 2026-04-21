@@ -49,10 +49,10 @@ const floatingPanelStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: '2px',
   padding: '3px 4px',
-  background: 'rgba(255,255,255,0.97)',
+  background: 'rgba(250,250,248,0.97)',
   border: `0.75px solid ${C.borderSoft}`,
   borderRadius: '6px',
-  boxShadow: '0 2px 8px rgba(15,25,40,0.10), 0 0 0 1px rgba(0,0,0,0.03)',
+  boxShadow: '0 2px 8px rgba(26,43,66,0.09), 0 0 0 1px rgba(26,43,66,0.04)',
   whiteSpace: 'nowrap',
   backdropFilter: 'blur(8px)',
 };

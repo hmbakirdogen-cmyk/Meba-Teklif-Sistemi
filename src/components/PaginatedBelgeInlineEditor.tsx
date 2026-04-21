@@ -42,6 +42,7 @@ import {
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
   SETTINGS_TR_LABEL_STYLE,
+  SETTINGS_SEP_STYLE,
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
   SIGNATURE_SECTION_STYLE,
@@ -78,7 +79,6 @@ interface PaginatedBelgeInlineEditorProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
-  onSatirBazliDegistir: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
@@ -174,7 +174,6 @@ export default function PaginatedBelgeInlineEditor({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   satirBazliIskonto,
-  onSatirBazliDegistir,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
@@ -432,6 +431,7 @@ export default function PaginatedBelgeInlineEditor({
                     <>
                       <div style={SETTINGS_LABEL_STYLE}>
                         <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+                        <span style={SETTINGS_SEP_STYLE}>/</span>
                         <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
                       </div>
                       <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
@@ -451,30 +451,8 @@ export default function PaginatedBelgeInlineEditor({
 
     return (
       <>
-        <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'flex' : 'none', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span></span>
-          {page.showFullHeader && (
-            <span
-              onClick={(e) => { e.stopPropagation(); onSatirBazliDegistir(!satirBazliParaBirimi); }}
-              title="Satır bazlı para birimi"
-              style={{
-                fontSize: '7.5px',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: satirBazliParaBirimi ? C.accent : C.textMuted,
-                opacity: satirBazliParaBirimi ? 1 : 0.45,
-                cursor: 'pointer',
-                userSelect: 'none',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                background: satirBazliParaBirimi ? 'rgba(37,99,235,0.07)' : 'transparent',
-                border: `0.75px solid ${satirBazliParaBirimi ? 'rgba(37,99,235,0.18)' : 'transparent'}`,
-              }}
-            >
-              € $ ₺ Satır PB
-            </span>
-          )}
+        <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'block' : 'none' }}>
+          Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
         </div>
         <table style={{ ...TABLE_STYLE, marginBottom: 0 } as React.CSSProperties}>
           <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
@@ -683,34 +661,55 @@ export default function PaginatedBelgeInlineEditor({
           <tr>
             <td style={{ borderTop: 'none', borderBottom: 'none' }} />
             <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-              <div style={{ padding: iskontoOrani > 0 || kdvOrani > 0 ? '9px 14px' : '11px 14px', boxSizing: 'border-box', border: '0.75px solid #1A2B42', borderRadius: '8px', background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)', boxShadow: '0 2px 8px rgba(15,25,40,0.10)' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: iskontoOrani > 0 || kdvOrani > 0 ? '6px' : 0 }}>
-                  <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
-                  <span style={{ fontSize: '7.5px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
-                </div>
-                {(iskontoOrani > 0 || kdvOrani > 0) && (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}><span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: BRAND.textSub }}>Ara Toplam</span><span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', fontWeight: 600, color: BRAND.textSub, fontVariantNumeric: 'tabular-nums' }}>{araToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    {iskontoOrani > 0 && <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}><span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: '#fca5a5' }}>İskonto %{iskontoOrani}</span><span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', fontWeight: 600, color: '#fca5a5', fontVariantNumeric: 'tabular-nums' }}>-{iskontoTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
-                    {kdvOrani > 0 && <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}><span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: '#86efac' }}>KDV %{kdvOrani}</span><span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', fontWeight: 600, color: '#86efac', fontVariantNumeric: 'tabular-nums' }}>+{kdvTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
-                    <div style={{ borderTop: `0.75px solid ${BRAND.separator}`, margin: '5px 0 4px' }} />
-                  </>
-                )}
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: '2px' }}>
-                  <span style={{ fontSize: '9px', color: BRAND.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                  <span style={{ fontSize: genelToplam >= 1e6 ? '14px' : '17px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: BRAND.text, whiteSpace: 'nowrap' }}>{genelToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              </div>
+              {(() => {
+                const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
+                const fmtN = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return (
+                  <div style={{ border: `0.75px solid ${C.border}`, borderRadius: '8px', background: '#FFFFFF', overflow: 'hidden' }}>
+                    {hasDetail && (
+                      <div style={{ padding: '8px 14px 6px', background: C.panel, borderBottom: `0.75px solid ${C.border}` }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
+                          <span style={{ flex: 1, fontSize: '8.5px', color: C.textSoft }}>Ara Toplam</span>
+                          <span style={{ fontSize: '8.5px', fontWeight: 600, color: C.textMid, fontVariantNumeric: 'tabular-nums' }}>{fmtN(araToplam)}</span>
+                        </div>
+                        {iskontoOrani > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
+                            <span style={{ flex: 1, fontSize: '8.5px', color: '#92400E' }}>İskonto %{iskontoOrani}</span>
+                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: '#92400E', fontVariantNumeric: 'tabular-nums' }}>– {fmtN(iskontoTutar)}</span>
+                          </div>
+                        )}
+                        {kdvOrani > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                            <span style={{ flex: 1, fontSize: '8.5px', color: '#065F46' }}>KDV %{kdvOrani}</span>
+                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: '#065F46', fontVariantNumeric: 'tabular-nums' }}>+ {fmtN(kdvTutar)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ padding: hasDetail ? '9px 14px' : '11px 14px', display: 'flex', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft }}>Genel Toplam</div>
+                        <div style={{ fontSize: '7.5px', color: C.textMuted }}>Grand Total</div>
+                      </div>
+                      <div style={{ flex: 1 }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                        <span style={{ fontSize: '9px', color: C.textMuted, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
+                        <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: C.navy, whiteSpace: 'nowrap' }}>{fmtN(genelToplam)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </td>
           </tr>
         ) : (
           <tr>
             <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
-              <div style={{ width: '100%', boxSizing: 'border-box', minHeight: '112px', border: '0.75px solid #1A2B42', borderRadius: '8px', background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)', padding: '7px 8px 8px', boxShadow: '0 2px 8px rgba(15,25,40,0.10)' }}>
-                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: BRAND.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>Genel Toplamlar / Grand Total</div>
+              <div style={{ width: '100%', boxSizing: 'border-box', minHeight: '112px', border: `0.75px solid ${C.border}`, borderRadius: '8px', background: C.panel, padding: '7px 8px 8px' }}>
+                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>Genel Toplamlar / Grand Total</div>
                 <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
                   {kullanilanParaKartlari.map((item) => (
-                    <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '10px', border: '0.75px solid #E8E6E3', background: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                    <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '10px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
                       <FinansalOzetKartIci araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="pdf" />
                     </div>
                   ))}

@@ -1,4 +1,4 @@
-﻿import type { CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import type { Teklif } from '../types';
 
 export const DOCUMENT_PAGE = {
@@ -33,33 +33,35 @@ export const SEMBOL: Record<string, string> = {
   CHF: '₣',
 };
 
+// ── Marka renk sistemi — derin sıcak lacivert, kurumsal ──────────────────────
 export const DOCUMENT_BRAND = {
-  gradient: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
-  border: '#0E1A2E',
-  shadow: '0 6px 20px rgba(15, 25, 40, 0.10)',
-  shadowSm: '0 3px 10px rgba(15, 25, 40, 0.08)',
-  text: '#FFFFFF',
-  textSub: 'rgba(255,255,255,0.80)',
+  gradient:  '#1A2B42',
+  border:    '#2E4460',
+  shadow:    '0 2px 8px rgba(26,43,66,0.10)',
+  shadowSm:  '0 1px 4px rgba(26,43,66,0.07)',
+  text:      '#FFFFFF',
+  textSub:   'rgba(255,255,255,0.80)',
   textLabel: 'rgba(255,255,255,0.58)',
   separator: 'rgba(255,255,255,0.15)',
 } as const;
 
+// ── Döküman renk paleti — sıcak nötr, tablo renk diliyle eşleşik ─────────────
 export const DOCUMENT_COLORS = {
-  navy: '#1A2B42',
-  navySoft: '#2E4460',
-  navyBorder: '#D5D3CF',
-  accent: '#1A2B42',
-  border: '#E2E0DC',
-  borderSoft: '#EDEBE8',
-  rowAlt: '#F7F6F4',
-  text: '#2C2C2E',
-  textMid: '#4A4A4E',
-  textSoft: '#717176',
-  textMuted: '#9B9BA0',
-  white: '#FAFAF8',
-  panel: '#F8F7F5',
-  panelStrong: '#F0EFEC',
-  notesBg: '#F7F6F4',
+  navy:        '#1A2B42',   // derin lacivert — başlık, vurgu metin
+  navySoft:    '#2E4460',   // orta lacivert — ikincil vurgu
+  navyBorder:  '#D5D3CF',   // sıcak gri — tablo başlık altı çizgisi
+  accent:      '#1E3A5F',   // etkileşim vurgu tonu
+  border:      '#E2E0DC',   // standart sıcak kenarlık
+  borderSoft:  '#EDEBE8',   // hafif sıcak kenarlık
+  rowAlt:      '#F7F6F4',   // zebra satır arka planı
+  text:        '#2C2C2E',   // birincil metin — sıcak antrasit
+  textMid:     '#4A4A4E',   // ikincil metin
+  textSoft:    '#717176',   // yardımcı metin
+  textMuted:   '#9B9BA0',   // soluk etiket, alt açıklama
+  white:       '#FFFFFF',   // saf beyaz (içerik yüzeyi)
+  panel:       '#F8F7F5',   // panel arka planı
+  panelStrong: '#F0EFEC',   // güçlü panel yüzeyi
+  notesBg:     '#F7F6F4',   // notlar kutusu arka planı
 } as const;
 
 // Sabit sütun genişlikleri — tableLayout:fixed ile kullanılır
@@ -88,14 +90,12 @@ export const DOCUMENT_COLS_ROW_CURRENCY = {
 
 export const CELL_PAD = '5px 8px';
 
-// Ürün kodu: tek satır, içerik genişliği kadar
 export const URUN_KOD_OVERFLOW: CSSProperties = {
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
 };
 
-// Açıklama: kalan tüm alan, max 2 satır kırpma
 export const ACIKLAMA_OVERFLOW: CSSProperties = {
   whiteSpace: 'normal',
   overflow: 'hidden',
@@ -109,11 +109,12 @@ export const noBreak: CSSProperties = {
   breakInside: 'avoid',
 };
 
+// Satır hücresi — düz, çizgi tabanlı (card/yuvarlatma yok)
 export const ROW_CARD = {
-  bg: '#FFFFFF',
+  bg:        '#FFFFFF',
   borderClr: '#E8E6E3',
-  radius: '6px',
-  shadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+  radius:    '6px',
+  shadow:    '0 1px 2px rgba(0, 0, 0, 0.03)',
 } as const;
 
 export type CellPos = 'first' | 'mid' | 'last';
@@ -123,18 +124,18 @@ export function rcCell(pos: CellPos, idx = 0): CSSProperties {
   const radius = ROW_CARD.radius;
 
   return {
-    background: idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
-    printColorAdjust: 'exact',
+    background:             idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
+    printColorAdjust:       'exact',
     WebkitPrintColorAdjust: 'exact',
-    borderTop: border,
-    borderBottom: border,
-    borderLeft: pos === 'first' ? border : 'none',
-    borderRight: pos === 'last' ? border : 'none',
-    borderTopLeftRadius: pos === 'first' ? radius : 0,
+    borderTop:              border,
+    borderBottom:           border,
+    borderLeft:             pos === 'first' ? border : 'none',
+    borderRight:            pos === 'last' ? border : 'none',
+    borderTopLeftRadius:    pos === 'first' ? radius : 0,
     borderBottomLeftRadius: pos === 'first' ? radius : 0,
-    borderTopRightRadius: pos === 'last' ? radius : 0,
+    borderTopRightRadius:   pos === 'last' ? radius : 0,
     borderBottomRightRadius: pos === 'last' ? radius : 0,
-    boxShadow: pos === 'first' ? ROW_CARD.shadow : 'none',
+    boxShadow:              pos === 'first' ? ROW_CARD.shadow : 'none',
   };
 }
 
@@ -159,7 +160,7 @@ export const DOCUMENT_ROOT_STYLE: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   margin: '0 auto',
-  backgroundColor: '#FAFAF8',
+  backgroundColor: '#FFFFFF',
   colorScheme: 'light',
   fontFamily: '"Inter", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   fontSize: '11.7px',
@@ -200,7 +201,7 @@ export const PARTY_LABEL_STYLE: CSSProperties = {
   textTransform: 'uppercase',
   marginBottom: '6px',
   paddingBottom: '5px',
-  borderBottom: `0.75px solid ${DOCUMENT_COLORS.borderSoft}`,
+  borderBottom: `0.75px solid ${DOCUMENT_COLORS.border}`,
   lineHeight: 1.2,
 };
 
@@ -231,9 +232,9 @@ export const SETTINGS_GRID_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_CARD_STYLE: CSSProperties = {
-  padding: '10px 10px',
+  padding: '9px 10px',
   textAlign: 'center',
-  minHeight: 54,
+  minHeight: 52,
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
@@ -241,51 +242,54 @@ export const SETTINGS_CARD_STYLE: CSSProperties = {
   flex: 1,
   boxSizing: 'border-box',
   overflow: 'hidden',
-  background: '#f8f9fb',
-  border: '1px solid #e3e6ea',
-  borderRadius: '12px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+  background: '#FFFFFF',
+  border: `1px solid ${DOCUMENT_COLORS.border}`,
+  borderRadius: '8px',
+  boxShadow: 'none',
   printColorAdjust: 'exact',
   WebkitPrintColorAdjust: 'exact',
 };
 
 export const SETTINGS_LABEL_STYLE: CSSProperties = {
   display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
+  flexDirection: 'row',
+  alignItems: 'baseline',
   justifyContent: 'center',
-  gap: '2px',
+  gap: '3px',
   width: '100%',
   overflow: 'hidden',
+  flexWrap: 'nowrap',
   marginBottom: '3px',
 };
 
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
   fontSize: '8px',
-  fontWeight: 700,
+  fontWeight: 600,
   color: DOCUMENT_COLORS.textSoft,
-  letterSpacing: '0.05em',
+  letterSpacing: '0.07em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  width: '100%',
-  textAlign: 'center',
+  flexShrink: 0,
+};
+
+export const SETTINGS_SEP_STYLE: CSSProperties = {
+  fontSize: '6px',
+  color: DOCUMENT_COLORS.textMuted,
+  lineHeight: 1.2,
+  flexShrink: 0,
+  opacity: 0.5,
+  alignSelf: 'center',
 };
 
 export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
   fontSize: '6.5px',
   fontWeight: 400,
-  color: DOCUMENT_COLORS.textSoft,
-  opacity: 0.6,
-  letterSpacing: '0.5px',
+  color: DOCUMENT_COLORS.textMuted,
+  letterSpacing: '0.03em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  width: '100%',
-  textAlign: 'center',
+  flexShrink: 0,
 };
 
 export const SETTINGS_VALUE_STYLE: CSSProperties = {
@@ -299,12 +303,12 @@ export const SETTINGS_VALUE_STYLE: CSSProperties = {
 };
 
 export const TABLE_TITLE_STYLE: CSSProperties = {
-  fontSize: '9.4px',
-  fontWeight: 700,
+  fontSize: '9px',
+  fontWeight: 600,
   color: DOCUMENT_COLORS.textSoft,
-  letterSpacing: '0.13em',
+  letterSpacing: '0.10em',
   textTransform: 'uppercase',
-  marginBottom: '7px',
+  marginBottom: '6px',
 };
 
 export const TABLE_STYLE: CSSProperties = {
@@ -341,21 +345,20 @@ export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSPro
 
 export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
   display: 'block',
-  fontWeight: 500,
-  fontSize: '7.9px',
+  fontWeight: 400,
+  fontSize: '7.5px',
   color: DOCUMENT_COLORS.textMuted,
   marginTop: '2px',
-  letterSpacing: '0.03em',
+  letterSpacing: '0.02em',
   lineHeight: 1.2,
-  opacity: 0.82,
 };
 
 export const NOTES_BOX_STYLE: CSSProperties = {
   fontSize: '12.1px',
   marginBottom: '16px',
-  padding: '12px 14px',
+  padding: '11px 14px',
   border: `0.75px solid ${DOCUMENT_COLORS.border}`,
-  borderRadius: '8px',
+  borderRadius: '6px',
   lineHeight: 1.68,
   backgroundColor: DOCUMENT_COLORS.notesBg,
   wordBreak: 'break-word',
@@ -370,17 +373,18 @@ export const SIGNATURE_SECTION_STYLE: CSSProperties = {
   ...noBreak,
 };
 
+// Footer — düz koyu (#0F172A), gradyan yok
 export const FOOTER_BAR_STYLE: CSSProperties = {
   border: `0.75px solid ${DOCUMENT_BRAND.border}`,
-  borderRadius: '8px',
+  borderRadius: '6px',
   background: DOCUMENT_BRAND.gradient,
   boxShadow: 'none',
   color: DOCUMENT_BRAND.textSub,
   display: 'flex',
   justifyContent: 'space-between',
-  fontSize: '9.3px',
+  fontSize: '9px',
   fontWeight: 500,
-  padding: '8px 11px',
+  padding: '7px 11px',
   lineHeight: 1.55,
   letterSpacing: '0.02em',
   printColorAdjust: 'exact',

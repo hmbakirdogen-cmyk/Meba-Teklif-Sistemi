@@ -1,28 +1,28 @@
 /* ── Tema değişkenleri ──────────────────────────────────────────────────────── */
 :root {
-  --bg-body:        linear-gradient(180deg, #f8fafc 0%, #eef3f8 100%);
+  --bg-body:        linear-gradient(180deg, #FAFAF8 0%, #F4F3F0 100%);
   --bg-surface:     #ffffff;
-  --bg-elevated:    #f3f7fb;
-  --text-primary:   #1e293b;
-  --text-secondary: #475569;
-  --text-faint:     #94a3b8;
-  --border:         #dbe3ec;
-  --border-subtle:  #edf2f7;
-  --input-border:   #cdd6e3;
-  --input-focus:    #2563eb;
-  --surface-tint:   rgba(15, 31, 69, 0.04);
+  --bg-elevated:    #F7F6F4;
+  --text-primary:   #2C2C2E;
+  --text-secondary: #4A4A4E;
+  --text-faint:     #9B9BA0;
+  --border:         #E2E0DC;
+  --border-subtle:  #EDEBE8;
+  --input-border:   #D5D3CF;
+  --input-focus:    #1A2B42;
+  --surface-tint:   rgba(26, 43, 66, 0.04);
   --btn-primary-top: #19315f;
   --btn-primary-bottom: #0f1f45;
   --btn-secondary-bg: rgba(255,255,255,0.92);
-  --btn-secondary-border: #d7dee9;
-  --btn-ghost-bg: rgba(243, 247, 251, 0.76);
+  --btn-secondary-border: #D5D3CF;
+  --btn-ghost-bg: rgba(240, 239, 236, 0.76);
   --tab-active-bg: #ffffff;
-  --tab-active-border: rgba(15, 31, 69, 0.09);
-  --tab-count-bg: #dde6f2;
-  --tab-count-text: #5f6b7d;
-  --chip-info-bg: #eef4fb;
-  --chip-info-border: #b7cae2;
-  --chip-info-text: #1f446b;
+  --tab-active-border: rgba(26, 43, 66, 0.09);
+  --tab-count-bg: #E8E6E3;
+  --tab-count-text: #4A4A4E;
+  --chip-info-bg: #EFF2F6;
+  --chip-info-border: #C8D0DC;
+  --chip-info-text: #1A2B42;
   --chip-warn-bg: #f8f1e5;
   --chip-warn-border: #d8bb8e;
   --chip-warn-text: #744314;
@@ -172,18 +172,18 @@ button {
 }
 
 .ant-btn-default {
-  color: #233047;
-  border-color: #d7dee9;
+  color: #1A2B42;
+  border-color: #D5D3CF;
   background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 2px rgba(26, 43, 66, 0.05);
 }
 
 .ant-btn-default:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn-default:not(:disabled):not(.ant-btn-disabled):focus-visible {
-  color: #0f1f45 !important;
-  border-color: #b8c4d8 !important;
+  color: #1A2B42 !important;
+  border-color: #C0BCB6 !important;
   background: #ffffff !important;
-  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 3px 10px rgba(26, 43, 66, 0.08);
 }
 
 .ant-btn-default:not(:disabled):not(.ant-btn-disabled):active {
@@ -227,14 +227,14 @@ button {
 .ant-btn-text {
   min-height: 32px;
   padding-inline: 8px;
-  color: #5f6b7d;
+  color: #4A4A4E;
   box-shadow: none;
 }
 
 .ant-btn-text:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn-text:not(:disabled):not(.ant-btn-disabled):focus-visible {
-  color: #0f1f45 !important;
-  background: rgba(15, 31, 69, 0.06) !important;
+  color: #1A2B42 !important;
+  background: rgba(26, 43, 66, 0.06) !important;
 }
 
 .ant-btn-text.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):hover,
@@ -330,25 +330,25 @@ button.app-btn-primary:not(:disabled):focus-visible,
 
 button.app-btn-secondary,
 .ant-btn.app-btn-secondary {
-  color: #233047;
+  color: #1A2B42;
   background: var(--btn-secondary-bg);
   border-color: var(--btn-secondary-border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 2px rgba(26, 43, 66, 0.05);
 }
 
 button.app-btn-secondary:not(:disabled):hover,
 button.app-btn-secondary:not(:disabled):focus-visible,
 .ant-btn.app-btn-secondary:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn.app-btn-secondary:not(:disabled):not(.ant-btn-disabled):focus-visible {
-  color: #0f1f45 !important;
-  border-color: color-mix(in srgb, var(--btn-secondary-border) 88%, #93a6c2 12%) !important;
+  color: #1A2B42 !important;
+  border-color: color-mix(in srgb, var(--btn-secondary-border) 88%, #A8A5A0 12%) !important;
   background: var(--btn-secondary-bg) !important;
-  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 3px 10px rgba(26, 43, 66, 0.08);
 }
 
 button.app-btn-ghost,
 .ant-btn.app-btn-ghost {
-  color: #5f6b7d;
+  color: #4A4A4E;
   background: var(--btn-ghost-bg);
   border-color: transparent;
   box-shadow: none;
@@ -358,8 +358,8 @@ button.app-btn-ghost:not(:disabled):hover,
 button.app-btn-ghost:not(:disabled):focus-visible,
 .ant-btn.app-btn-ghost:not(:disabled):not(.ant-btn-disabled):hover,
 .ant-btn.app-btn-ghost:not(:disabled):not(.ant-btn-disabled):focus-visible {
-  color: #0f1f45 !important;
-  background: color-mix(in srgb, var(--btn-ghost-bg) 76%, rgba(15, 31, 69, 0.08) 24%) !important;
+  color: #1A2B42 !important;
+  background: color-mix(in srgb, var(--btn-ghost-bg) 76%, rgba(26, 43, 66, 0.08) 24%) !important;
   border-color: transparent !important;
 }
 
@@ -393,7 +393,7 @@ button.app-link-button {
 
 button.app-link-button:hover,
 button.app-link-button:focus-visible {
-  color: #0f1f45;
+  color: #1A2B42;
 }
 
 button.app-tab-button {
@@ -406,7 +406,7 @@ button.app-tab-button {
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #5f6b7d;
+  color: #717176;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -421,14 +421,14 @@ button.app-tab-button {
 
 button.app-tab-button:hover,
 button.app-tab-button:focus-visible {
-  color: #0f1f45;
+  color: #1A2B42;
 }
 
 button.app-tab-button.is-active {
-  color: #0f1f45;
+  color: #1A2B42;
   background: var(--tab-active-bg);
   border-color: var(--tab-active-border);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(26, 43, 66, 0.08);
 }
 
 .app-tab-count {
@@ -448,7 +448,7 @@ button.app-tab-button.is-active {
 }
 
 button.app-tab-button.is-active .app-tab-count {
-  background: #0f1f45;
+  background: #1A2B42;
   color: #ffffff;
 }
 
@@ -479,14 +479,14 @@ button.app-chip-button:focus-visible {
 }
 
 button.app-chip-button.is-active {
-  background: #2563a8;
-  border-color: #1a4f8e;
+  background: #1A2B42;
+  border-color: #14213A;
   color: #ffffff;
 }
 
 button.app-chip-button.is-active:hover {
-  background: #1a5099;
-  border-color: #153f7a;
+  background: #243A56;
+  border-color: #1A2B42;
 }
 
 /* İskonto varyantı — soft turuncu/amber tonu */
@@ -607,14 +607,14 @@ button.app-btn:active,
 
 /* ── Başlık: birleşik koyu bar ──────────────────────────────────────────────── */
 .urun-tablo .ant-table-thead > tr > th {
-  background: linear-gradient(180deg, #162550 0%, #0f1f45 100%) !important;
+  background: linear-gradient(180deg, #1A2B42 0%, #16243C 100%) !important;
   color: #ffffff !important;
   font-size: 11px !important;
   font-weight: 600 !important;
   letter-spacing: 0.2px;
   padding: 10px 10px !important;
-  border-top: 0.5px solid #1e3668 !important;
-  border-bottom: 0.5px solid #1e3668 !important;
+  border-top: 0.5px solid #2E4460 !important;
+  border-bottom: 0.5px solid #2E4460 !important;
   border-left: none !important;
   border-right: none !important;
   border-radius: 0 !important;
@@ -628,11 +628,11 @@ button.app-btn:active,
   overflow: hidden !important;
 }
 .urun-tablo .ant-table-thead > tr > th:first-child {
-  border-left: 0.5px solid #1e3668 !important;
+  border-left: 0.5px solid #2E4460 !important;
   border-radius: 8px 0 0 8px !important;
 }
 .urun-tablo .ant-table-thead > tr > th:last-child {
-  border-right: 0.5px solid #1e3668 !important;
+  border-right: 0.5px solid #2E4460 !important;
   border-radius: 0 8px 8px 0 !important;
 }
 
@@ -641,25 +641,25 @@ button.app-btn:active,
   padding: 9px 10px !important;
 }
 .urun-tablo .ant-table-tbody > tr {
-  box-shadow: 0 2px 6px rgba(20,39,78,0.05) !important;
+  box-shadow: 0 1px 3px rgba(26,43,66,0.05) !important;
 }
 .urun-tablo .ant-table-tbody > tr > td {
-  background: linear-gradient(180deg, #fbfdff 0%, #eef4fb 100%) !important;
-  border-top: 0.5px solid #c6d4e2 !important;
-  border-bottom: 0.5px solid #c6d4e2 !important;
+  background: linear-gradient(180deg, #FAFAF8 0%, #F4F3F0 100%) !important;
+  border-top: 0.5px solid #D5D3CF !important;
+  border-bottom: 0.5px solid #D5D3CF !important;
   border-left: none !important;
   border-right: none !important;
   border-radius: 0 !important;
   vertical-align: middle !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.88) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.80) !important;
   transition: background 0.15s !important;
 }
 .urun-tablo .ant-table-tbody > tr > td:first-child {
-  border-left: 0.5px solid #c6d4e2 !important;
+  border-left: 0.5px solid #D5D3CF !important;
   border-radius: 8px 0 0 8px !important;
 }
 .urun-tablo .ant-table-tbody > tr > td:last-child {
-  border-right: 0.5px solid #c6d4e2 !important;
+  border-right: 0.5px solid #D5D3CF !important;
   border-radius: 0 8px 8px 0 !important;
 }
 .urun-tablo .ant-table-tbody .ant-table-cell {
@@ -668,11 +668,11 @@ button.app-btn:active,
 
 /* ── Satır hover ────────────────────────────────────────────────────────────── */
 .urun-tablo .ant-table-tbody > tr:hover > td {
-  background: linear-gradient(180deg, #f4f8fe 0%, #e9f0f9 100%) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92) !important;
+  background: linear-gradient(180deg, #F0EFEC 0%, #ECEAE6 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.70) !important;
 }
 .urun-tablo .ant-table-tbody > tr:hover {
-  box-shadow: 0 3px 8px rgba(20,39,78,0.09) !important;
+  box-shadow: 0 2px 6px rgba(26,43,66,0.08) !important;
 }
 
 .urun-tablo .ant-table {
@@ -686,7 +686,7 @@ button.app-btn:active,
 .urun-tablo .ant-table-wrapper .ant-table-body,
 .urun-tablo .ant-table-wrapper .ant-table-content {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: #D5D3CF transparent;
 }
 .urun-tablo .ant-table-wrapper .ant-table-body::-webkit-scrollbar,
 .urun-tablo .ant-table-wrapper .ant-table-content::-webkit-scrollbar {
@@ -698,7 +698,7 @@ button.app-btn:active,
 }
 .urun-tablo .ant-table-wrapper .ant-table-body::-webkit-scrollbar-thumb,
 .urun-tablo .ant-table-wrapper .ant-table-content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #D5D3CF;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;

@@ -32,6 +32,7 @@ import {
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_GRID_STYLE,
   SETTINGS_LABEL_STYLE,
+  SETTINGS_SEP_STYLE,
   SETTINGS_TR_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
   SIGNATURE_SECTION_STYLE,
@@ -247,6 +248,7 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
           <div key={i} style={SETTINGS_CARD_STYLE}>
             <div style={SETTINGS_LABEL_STYLE}>
               <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+              <span style={SETTINGS_SEP_STYLE}>/</span>
               <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
             </div>
             <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
@@ -403,54 +405,47 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
             <tr>
               <td style={{ borderTop: 'none', borderBottom: 'none' }} />
               <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-                <div style={{
-                  padding: iskontoOrani > 0 || kdvOrani > 0 ? '8px 12px' : '12px',
-                  boxSizing: 'border-box',
-                  border: '0.75px solid #1A2B42',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
-                  boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
-                  printColorAdjust: 'exact',
-                  WebkitPrintColorAdjust: 'exact',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: iskontoOrani > 0 || kdvOrani > 0 ? '6px' : 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
-                    <span style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
-                  </div>
-                  {(iskontoOrani > 0 || kdvOrani > 0) && (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}>
-                        <span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: BRAND.textSub, whiteSpace: 'nowrap', overflow: 'hidden' }}>Ara Toplam</span>
-                        <span style={{ width: 8, flexShrink: 0 }} />
-                        <span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: BRAND.textSub }}>{araToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                {(() => {
+                  const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
+                  const fmtN = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  return (
+                    <div style={{ border: `0.75px solid ${C.border}`, borderRadius: '8px', background: '#FFFFFF', overflow: 'hidden', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
+                      {hasDetail && (
+                        <div style={{ padding: '8px 12px 6px', background: C.panel, borderBottom: `0.75px solid ${C.border}` }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
+                            <span style={{ flex: 1, fontSize: '8px', color: C.textSoft }}>Ara Toplam</span>
+                            <span style={{ fontSize: '8px', fontWeight: 600, color: C.textMid, fontVariantNumeric: 'tabular-nums' }}>{fmtN(araToplam)}</span>
+                          </div>
+                          {iskontoOrani > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
+                              <span style={{ flex: 1, fontSize: '8px', color: '#92400E' }}>İskonto %{iskontoOrani}</span>
+                              <span style={{ fontSize: '8px', fontWeight: 600, color: '#92400E', fontVariantNumeric: 'tabular-nums' }}>– {fmtN(iskontoTutar)}</span>
+                            </div>
+                          )}
+                          {kdvOrani > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                              <span style={{ flex: 1, fontSize: '8px', color: '#065F46' }}>KDV %{kdvOrani}</span>
+                              <span style={{ fontSize: '8px', fontWeight: 600, color: '#065F46', fontVariantNumeric: 'tabular-nums' }}>+ {fmtN(kdvTutar)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ padding: hasDetail ? '9px 12px' : '11px 12px', display: 'flex', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textSoft }}>Genel Toplam</div>
+                          <div style={{ fontSize: '7px', color: C.textMuted }}>Grand Total</div>
+                        </div>
+                        <div style={{ flex: 1 }} />
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                          <span style={{ fontSize: '9px', color: C.textMuted, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
+                          <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: C.navy, whiteSpace: 'nowrap' }}>
+                            {fmtN(genelToplam)}
+                          </span>
+                        </div>
                       </div>
-                      {iskontoOrani > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}>
-                          <span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: '#fca5a5', whiteSpace: 'nowrap', overflow: 'hidden' }}>İskonto %{iskontoOrani}</span>
-                          <span style={{ width: 8, flexShrink: 0, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, color: '#fca5a5', fontWeight: 700 }}>-</span>
-                          <span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#fca5a5' }}>{iskontoTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      )}
-                      {kdvOrani > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}>
-                          <span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: '#86efac', whiteSpace: 'nowrap', overflow: 'hidden' }}>KDV %{kdvOrani}</span>
-                          <span style={{ width: 8, flexShrink: 0, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, color: '#86efac', fontWeight: 700 }}>+</span>
-                          <span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#86efac' }}>{kdvTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      )}
-                      <div style={{ borderTop: `0.75px solid ${BRAND.separator}`, margin: '5px 0 4px' }} />
-                    </>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }} />
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', flexShrink: 0 }}>
-                      <span style={{ fontSize: '9px', color: BRAND.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                      <span style={{ fontSize: genelToplam >= 1e6 ? '14px' : '17px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: BRAND.text, whiteSpace: 'nowrap' }}>
-                        {genelToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </td>
             </tr>
           ) : (
@@ -460,20 +455,19 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                   width: '100%',
                   boxSizing: 'border-box',
                   minHeight: '112px',
-                  border: '0.75px solid #1A2B42',
+                  border: `0.75px solid ${C.border}`,
                   borderRadius: '8px',
-                  background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+                  background: C.panel,
                   padding: '7px 8px 8px',
-                  boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
                   printColorAdjust: 'exact',
                   WebkitPrintColorAdjust: 'exact',
                 }}>
-                  <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: BRAND.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>
+                  <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>
                     Genel Toplamlar / Grand Total
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
                     {kullanilanParaKartlari.map((item) => (
-                      <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: '0.75px solid #E8E6E3', background: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                      <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
                         <FinansalOzetKartIci
                           araToplam={item.araToplam}
                           iskontoOrani={iskontoOrani}

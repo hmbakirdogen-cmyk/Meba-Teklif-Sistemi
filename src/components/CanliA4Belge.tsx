@@ -22,7 +22,6 @@ interface CanliA4BelgeProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
-  onSatirBazliDegistir: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
@@ -62,7 +61,6 @@ export default function CanliA4Belge({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   satirBazliIskonto,
-  onSatirBazliDegistir,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
@@ -222,7 +220,6 @@ export default function CanliA4Belge({
             onParaBirimiDegistir={onParaBirimiDegistir}
             satirBazliParaBirimi={satirBazliParaBirimi}
             satirBazliIskonto={satirBazliIskonto}
-            onSatirBazliDegistir={onSatirBazliDegistir}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
             onSatirGuncelle={onSatirGuncelle}

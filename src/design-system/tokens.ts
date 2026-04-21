@@ -140,10 +140,10 @@ export const SIZE = {
 
 // ── Marka renkleri ────────────────────────────────────────────────────────────
 export const BRAND = {
-  // Ana renk — MEBA kurumsal mavi
-  primary:      '#1a3a7c',
-  primaryLight: '#2563eb',
-  primaryDark:  '#0f2458',
+  // Ana renk — MEBA kurumsal lacivert (sıcak nötr sistem)
+  primary:      '#1A2B42',
+  primaryLight: '#2E4460',
+  primaryDark:  '#111E30',
 
   // Başarı
   success:      '#16a34a',
