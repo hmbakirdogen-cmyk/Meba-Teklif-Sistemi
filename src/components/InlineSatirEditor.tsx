@@ -4,8 +4,8 @@
  * View mode ile aynı hücre iskeletini korur; yalnızca içerik düzenlenebilir hale gelir.
  */
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
-import { PlusOutlined, DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
-import type { TeklifSatiri } from '../types';
+import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
+import type { TeklifSatiri, ParaBirimi } from '../types';
 import { formatDisplayNumber } from '../utils/formatters';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
@@ -25,11 +25,19 @@ import {
 } from './InlineTableRowShared';
 import {
   DOCUMENT_COLORS,
-  SEMBOL,
   noBreak,
 } from '../templates/teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
+type FocusableTarget = {
+  focus?: () => void;
+  querySelector?: (selectors: string) => Element | null;
+  nodeName?: string;
+};
+type SelectFieldRef = React.ComponentRef<typeof InlineTableSelectField>;
+type AutoCompleteFieldRef = React.ComponentRef<typeof InlineTableAutocompleteField>;
+type InputFieldRef = React.ComponentRef<typeof InlineTableInputField>;
+type NumberFieldRef = React.ComponentRef<typeof InlineTableNumberField>;
 
 const floatingPanelStyle: React.CSSProperties = {
   position: 'absolute',
@@ -85,13 +93,12 @@ const CELL_NAV_ORDER: FocusCell[] = ['urunKod', 'aciklama', 'miktar', 'birimFiya
 interface InlineSatirEditorProps {
   satir: TeklifSatiri;
   idx: number;
-  paraBirimi: string;
+  paraBirimi: ParaBirimi;
   satirBazliParaBirimi: boolean;
   focusCell?: string;
   onGuncelle: (alan: keyof TeklifSatiri, deger: unknown) => void;
   onSil: () => void;
   onArayaEkle: () => void;
-  onSatirBazliDegistir?: (aktif: boolean) => void;
 }
 
 export function InlineSatirEditor({
@@ -103,59 +110,62 @@ export function InlineSatirEditor({
   onGuncelle,
   onSil,
   onArayaEkle,
-  onSatirBazliDegistir,
 }: InlineSatirEditorProps) {
   const markalar = useMemo(() => referansVeriService.markalar.tumunuGetir(), []);
-  const birimler = useMemo(() => referansVeriService.birimler.tumunuGetir(), []);
   const teslimSecenekleri = useMemo(() => referansVeriService.teslimSecenekleri.tumunuGetir(), []);
   const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
   const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi);
 
-  const markaRef = useRef<any>(null);
-  const urunKodRef = useRef<any>(null);
-  const aciklamaRef = useRef<any>(null);
-  const miktarRef = useRef<any>(null);
-  const birimFiyatRef = useRef<any>(null);
-  const teslimatRef = useRef<any>(null);
+  const markaRef = useRef<SelectFieldRef>(null);
+  const urunKodRef = useRef<AutoCompleteFieldRef>(null);
+  const aciklamaRef = useRef<InputFieldRef>(null);
+  const miktarRef = useRef<NumberFieldRef>(null);
+  const birimFiyatRef = useRef<NumberFieldRef>(null);
+  const teslimatRef = useRef<SelectFieldRef>(null);
 
-  const focusMap = useMemo<Record<FocusCell, React.RefObject<any>>>(() => ({
-    marka: markaRef,
-    urunKod: urunKodRef,
-    aciklama: aciklamaRef,
-    miktar: miktarRef,
-    birimFiyat: birimFiyatRef,
-    teslimat: teslimatRef,
-  }), []);
+  const focusTarget = useCallback((el: FocusableTarget | null) => {
+    if (!el) return;
+    if (typeof el.focus === 'function') el.focus();
+    const input = (
+      typeof el.querySelector === 'function'
+        ? el.querySelector('input, textarea')
+        : (el.nodeName === 'INPUT' || el.nodeName === 'TEXTAREA') ? (el as unknown as HTMLInputElement | HTMLTextAreaElement) : null
+    ) as HTMLInputElement | HTMLTextAreaElement | null;
+    input?.select?.();
+  }, []);
+
+  const getTargetByCell = useCallback((cell: FocusCell) => {
+    switch (cell) {
+      case 'marka':
+        return markaRef.current as FocusableTarget | null;
+      case 'urunKod':
+        return urunKodRef.current as FocusableTarget | null;
+      case 'aciklama':
+        return aciklamaRef.current as FocusableTarget | null;
+      case 'miktar':
+        return miktarRef.current as FocusableTarget | null;
+      case 'birimFiyat':
+        return birimFiyatRef.current as FocusableTarget | null;
+      case 'teslimat':
+        return teslimatRef.current as FocusableTarget | null;
+      default:
+        return urunKodRef.current as FocusableTarget | null;
+    }
+  }, []);
 
   useEffect(() => {
-    const ref = focusCell ? focusMap[focusCell as FocusCell] ?? urunKodRef : urunKodRef;
+    const target = getTargetByCell((focusCell as FocusCell) ?? 'urunKod');
     const timer = window.setTimeout(() => {
-      const el = ref.current;
-      if (!el) return;
-      if (typeof el.focus === 'function') el.focus();
-      const input: HTMLInputElement | null =
-        typeof el.querySelector === 'function'
-          ? el.querySelector('input, textarea')
-          : el.nodeName === 'INPUT' || el.nodeName === 'TEXTAREA' ? el : null;
-      input?.select?.();
+      focusTarget(target);
     }, 40);
     return () => window.clearTimeout(timer);
-  }, [focusCell, focusMap]);
+  }, [focusCell, getTargetByCell, focusTarget]);
 
   const focusByName = useCallback((cell: FocusCell) => {
-    const ref = focusMap[cell];
-    if (!ref) return;
     window.setTimeout(() => {
-      const el = ref.current;
-      if (!el) return;
-      if (typeof el.focus === 'function') el.focus();
-      const input: HTMLInputElement | null =
-        typeof el.querySelector === 'function'
-          ? el.querySelector('input, textarea')
-          : el.nodeName === 'INPUT' || el.nodeName === 'TEXTAREA' ? el : null;
-      input?.select?.();
+      focusTarget(getTargetByCell(cell));
     }, 0);
-  }, [focusMap]);
+  }, [focusTarget, getTargetByCell]);
 
   const handleEnterNav = useCallback((currentCell: FocusCell) => {
     const index = CELL_NAV_ORDER.indexOf(currentCell);
@@ -265,14 +275,9 @@ export function InlineSatirEditor({
               }
             }}
           />
-          <InlineTableSelectField
-            style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}
-            value={satir.birim || 'Adet'}
-            onChange={(value) => onGuncelle('birim', value)}
-            options={birimler.map((birim) => ({ value: birim, label: formatBirimLabel(birim) }))}
-            popupMatchSelectWidth={false}
-            dropdownStyle={{ minWidth: 110 }}
-          />
+          <div style={ROW_SHELL.quantityUnitWrap}>
+            <span style={ROW_TEXT.quantityUnit}>{formatBirimLabel(satir.birim)}</span>
+          </div>
         </div>
       </RowCell>
 
@@ -291,7 +296,7 @@ export function InlineSatirEditor({
           step={0.01}
           onChange={(value) => onGuncelle('birimFiyat', value ?? 0)}
           formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
-          parser={(value) => Number((value ?? '').replace(',', '.')) as any}
+          parser={(value) => Number((value ?? '').replace(',', '.'))}
           placeholder="0,00"
           onFocus={(e) => (e.target as HTMLInputElement).select?.()}
           onKeyDown={(e) => {
@@ -324,46 +329,6 @@ export function InlineSatirEditor({
         />
 
         <div className="satir-aksiyonlari" style={floatingPanelStyle}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px', padding: '0 2px' }}>
-            {(['TRY', 'EUR', 'USD'] as const).map((pb) => {
-              const active = satirPb === pb;
-              return (
-                <span
-                  key={pb}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onGuncelle('paraBirimi', pb);
-                    if (!satirBazliParaBirimi) onSatirBazliDegistir?.(true);
-                  }}
-                  style={{
-                    cursor: 'pointer',
-                    fontSize: '9px',
-                    fontWeight: active ? 800 : 500,
-                    color: active ? C.accent : C.textMuted,
-                    background: active ? 'rgba(37,99,235,0.08)' : 'transparent',
-                    borderRadius: '3px',
-                    padding: '2px 5px',
-                    lineHeight: 1,
-                    transition: 'all 0.12s',
-                    opacity: active ? 1 : 0.6,
-                    letterSpacing: '0.01em',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!active) e.currentTarget.style.opacity = '1';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) e.currentTarget.style.opacity = '0.6';
-                  }}
-                  title={`Para birimi: ${formatParaBirimiLabel(pb)}`}
-                >
-                  {SEMBOL[pb]}
-                </span>
-              );
-            })}
-          </span>
-
-          <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
-
           <span style={{ ...actionBtnStyle, color: C.textMid }}>
             <PercentageOutlined style={{ fontSize: 9 }} />
             <InlineTableNumberField
@@ -375,24 +340,6 @@ export function InlineSatirEditor({
               onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
               onFocus={(e) => (e.target as HTMLInputElement).select?.()}
             />
-          </span>
-
-          <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
-
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              onArayaEkle();
-            }}
-            style={{ ...actionBtnStyle, color: C.accent }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(16,40,88,0.06)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            <PlusOutlined style={{ fontSize: 8 }} /> Ekle
           </span>
 
           <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />

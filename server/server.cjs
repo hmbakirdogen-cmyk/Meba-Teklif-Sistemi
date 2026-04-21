@@ -4,9 +4,13 @@ const http = require('http');
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
+const { spawn } = require('child_process');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const PORT    = 3001;
+const PDF_ROOT_FOLDER_NAME = 'MEBA MEKANİK TEKLİFLER';
+const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*\u0000-\u001F]/g;
+const MULTIPLE_SPACES_REGEX = /\s+/g;
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -41,6 +45,103 @@ function getLocalIP() {
     }
   }
   return 'localhost';
+}
+
+function normalizeWhitespace(value) {
+  return String(value ?? '').replace(MULTIPLE_SPACES_REGEX, ' ').trim();
+}
+
+function sanitizeWindowsSegment(value, fallback) {
+  const cleaned = normalizeWhitespace(
+    String(value ?? '')
+      .replace(INVALID_WINDOWS_SEGMENT_REGEX, ' ')
+      .replace(/[. ]+$/g, ' '),
+  );
+
+  return cleaned || fallback;
+}
+
+function cariKlasorAdiUret(firmaAdi) {
+  const kelimeler = normalizeWhitespace(firmaAdi).split(' ').filter(Boolean);
+  const kaynak = kelimeler.slice(0, 2).join(' ') || kelimeler.join(' ') || 'TEKLIF';
+  return sanitizeWindowsSegment(kaynak.toLocaleUpperCase('tr-TR'), 'TEKLIF');
+}
+
+function pdfDosyaGovdesiUret(teklif) {
+  const cariKlasorAdi = cariKlasorAdiUret(teklif?.cari?.firmaAdi ?? '');
+  const teklifNo = sanitizeWindowsSegment(String(teklif?.teklifNo ?? '').trim(), '');
+  return teklifNo ? `${cariKlasorAdi} - ${teklifNo}` : cariKlasorAdi;
+}
+
+function masaustuYolunuBul() {
+  const adaylar = [
+    path.join(os.homedir(), 'Desktop'),
+    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'Desktop') : '',
+    process.env.OneDrive ? path.join(process.env.OneDrive, 'Desktop') : '',
+    path.join(os.homedir(), 'OneDrive', 'Desktop'),
+  ].filter(Boolean);
+
+  for (const aday of [...new Set(adaylar)]) {
+    try {
+      if (fs.existsSync(aday) && fs.statSync(aday).isDirectory()) {
+        return aday;
+      }
+    } catch {
+      // Bir sonraki adayi dene
+    }
+  }
+
+  throw new Error('Windows masaustu klasoru bulunamadi.');
+}
+
+function klasoruHazirla(klasorYolu, hataMesaji) {
+  try {
+    fs.mkdirSync(klasorYolu, { recursive: true });
+  } catch {
+    throw new Error(hataMesaji);
+  }
+}
+
+function benzersizDosyaYoluUret(klasorYolu, dosyaGovdesi, uzanti) {
+  let sayac = 1;
+  let dosyaAdi = `${dosyaGovdesi}.${uzanti}`;
+  let tamYol = path.join(klasorYolu, dosyaAdi);
+
+  while (fs.existsSync(tamYol)) {
+    sayac += 1;
+    dosyaAdi = `${dosyaGovdesi} (${sayac}).${uzanti}`;
+    tamYol = path.join(klasorYolu, dosyaAdi);
+  }
+
+  return { dosyaAdi, tamYol };
+}
+
+function dosyaAc(filePath) {
+  try {
+    if (process.platform === 'win32') {
+      const child = spawn('cmd.exe', ['/c', 'start', '', filePath], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      return { acildi: true };
+    }
+
+    if (process.platform === 'darwin') {
+      const child = spawn('open', [filePath], { detached: true, stdio: 'ignore' });
+      child.unref();
+      return { acildi: true };
+    }
+
+    const child = spawn('xdg-open', [filePath], { detached: true, stdio: 'ignore' });
+    child.unref();
+    return { acildi: true };
+  } catch (error) {
+    return {
+      acildi: false,
+      acmaHatasi: error instanceof Error ? error.message : 'PDF dosyasi acilamadi.',
+    };
+  }
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -200,6 +301,100 @@ const server = http.createServer(async (req, res) => {
       db.sayac.deger += 1;
       writeDB(db);
       return send(res, 200, { yil: db.sayac.yil, deger: db.sayac.deger });
+    }
+
+    if (url === '/api/pdf/kaydet-ve-ac' && method === 'POST') {
+      const body = await parseBody(req);
+      const teklif = body?.teklif;
+      const pdfBase64 = typeof body?.pdfBase64 === 'string' ? body.pdfBase64.trim() : '';
+      let kaydedilenDosyaYolu = '';
+      let kaydedilenDosyaAdi = '';
+      let teklifKaydiTamamlandi = false;
+
+      if (!teklif || typeof teklif !== 'object' || typeof teklif.id !== 'string') {
+        return send(res, 400, { error: 'Teklif kaydi bulunamadi.' });
+      }
+
+      if (!pdfBase64) {
+        return send(res, 400, { error: 'PDF verisi alinamadi.' });
+      }
+
+      try {
+        const masaustuYolu = masaustuYolunuBul();
+        const anaKlasorYolu = path.join(masaustuYolu, PDF_ROOT_FOLDER_NAME);
+        const altKlasorYolu = path.join(anaKlasorYolu, cariKlasorAdiUret(teklif?.cari?.firmaAdi ?? ''));
+        const dosyaGovdesi = pdfDosyaGovdesiUret(teklif);
+        const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+        if (pdfBuffer.length === 0) {
+          return send(res, 400, { error: 'PDF verisi gecersiz.' });
+        }
+
+        klasoruHazirla(anaKlasorYolu, 'Ana PDF klasoru olusturulamadi.');
+        klasoruHazirla(altKlasorYolu, 'Cari klasoru olusturulamadi.');
+
+        const { dosyaAdi, tamYol } = benzersizDosyaYoluUret(altKlasorYolu, dosyaGovdesi, 'pdf');
+        kaydedilenDosyaYolu = tamYol;
+        kaydedilenDosyaAdi = dosyaAdi;
+
+        try {
+          fs.writeFileSync(tamYol, pdfBuffer);
+        } catch {
+          throw new Error('PDF dosyasi diske kaydedilemedi.');
+        }
+
+        const pdfOlusturmaTarihi = new Date().toISOString();
+        const db = readDB();
+        const teklifKaydi = {
+          ...teklif,
+          pdfYolu: tamYol,
+          pdfDosyaAdi: dosyaAdi,
+          pdfOlusturmaTarihi,
+          guncellemeTarihi: pdfOlusturmaTarihi,
+        };
+        const teklifIndex = db.teklifler.findIndex((item) => item.id === teklif.id);
+
+        if (teklifIndex >= 0) {
+          db.teklifler[teklifIndex] = teklifKaydi;
+        } else {
+          db.teklifler.unshift(teklifKaydi);
+        }
+
+        try {
+          writeDB(db);
+          teklifKaydiTamamlandi = true;
+        } catch {
+          throw new Error('Teklif kaydi program altyapisina yazilamadi.');
+        }
+
+        const acmaSonucu = dosyaAc(tamYol);
+
+        return send(res, 200, {
+          teklif: teklifKaydi,
+          masaustuYolu,
+          klasorYolu: altKlasorYolu,
+          pdfYolu: tamYol,
+          pdfDosyaAdi: dosyaAdi,
+          acildi: acmaSonucu.acildi,
+          acmaHatasi: acmaSonucu.acmaHatasi,
+        });
+      } catch (error) {
+        const hataMesaji = error instanceof Error ? error.message : 'PDF kayit islemi tamamlanamadi.';
+
+        if (kaydedilenDosyaYolu && !teklifKaydiTamamlandi) {
+          return send(res, 500, {
+            error: `PDF kaydedildi ancak program kaydina islenemedi. ${hataMesaji}`,
+            pdfYolu: kaydedilenDosyaYolu,
+            pdfDosyaAdi: kaydedilenDosyaAdi,
+          });
+        }
+
+        return send(res, 500, {
+          error: hataMesaji,
+          pdfYolu: kaydedilenDosyaYolu || undefined,
+          pdfDosyaAdi: kaydedilenDosyaAdi || undefined,
+        });
+      }
     }
 
     // ── MIGRATION endpoint — frontend pushes its localStorage data once ───────

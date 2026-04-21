@@ -48,30 +48,31 @@ export const ROW_SHELL = {
   quantityWrap: {
     display: 'flex',
     width: '100%',
-    alignItems: 'baseline',
-    gap: '5px',
+    alignItems: 'center',
+    gap: 0,
   } satisfies React.CSSProperties,
   quantityValueWrap: {
-    flex: 1,
+    flex: '0 0 58%',
     minWidth: 0,
-    width: 'auto',
-    textAlign: 'right',
+    textAlign: 'left',
   } satisfies React.CSSProperties,
   /** Edit-mode: AntD InputNumber ile uyumlu — display/width override yok */
   quantityInputStyle: {
-    flex: 1,
+    flex: '0 0 58%',
     minWidth: 0,
-    textAlign: 'right',
+    textAlign: 'left',
     fontWeight: 500,
     fontVariantNumeric: 'tabular-nums',
     color: C.textMid,
     whiteSpace: 'nowrap',
   } satisfies React.CSSProperties,
   quantityUnitWrap: {
-    flex: '0 0 auto',
-    minWidth: '30px',
-    width: 'auto',
-    textAlign: 'left',
+    flex: '1 1 0',
+    minWidth: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingLeft: '8px',
   } satisfies React.CSSProperties,
 } as const;
 
@@ -120,16 +121,16 @@ export const ROW_TEXT = {
     fontVariantNumeric: 'tabular-nums',
     color: C.textMid,
     whiteSpace: 'nowrap',
+    textAlign: 'left',
   } satisfies React.CSSProperties,
   quantityUnit: {
     display: 'block',
-    width: '100%',
-    opacity: 0.55,
-    fontSize: '0.85em',
+    width: 'auto',
+    opacity: 0.6,
+    fontSize: '0.88em',
     color: C.textMid,
     whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    textAlign: 'right',
   } satisfies React.CSSProperties,
   currency: {
     display: 'block',
@@ -172,6 +173,10 @@ export const ROW_TEXT = {
 
 export function formatBirimLabel(value?: string) {
   return /^adet$/i.test(value?.trim() ?? '') || !value ? 'Adet' : value;
+}
+
+export function formatBirimAbbrev(value?: string) {
+  return /^adet$/i.test(value?.trim() ?? '') || !value ? 'Ad.' : value;
 }
 
 export function formatParaBirimiLabel(pb: string) {

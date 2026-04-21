@@ -24,37 +24,58 @@ export const FIELD = {
  *   ant-input-number-input-wrap  → REMOVED
  * ───────────────────────────────────────────────────────────────── */
 export const FIELD_CSS = `
-/* ═══ BASE ═══ */
-/* ant-select-input intentionally excluded: color:inherit would cascade transparent from
-   ant-select-content-has-search-value → selected/typed text invisible */
+/* ══════════════════════════════════════════════════════════════════════
+   TİPOGRAFİ MIRASI — Kural 0
+   Tüm AntD bileşenlerinin her iç elementi tablodan font/renk miras alır.
+   Hiçbir şeyi browser default'una ya da AntD design token'ına bırakma.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Kök elemanlar: font token'larını ve CSS değişkenlerini sıfırla ─── */
 .belge-inline .ant-select,
 .belge-inline .ant-input,
 .belge-inline .ant-input-number,
-.belge-inline .ant-picker,
-.belge-inline .ant-input-number-input,
-.belge-inline .ant-picker-input > input {
-  font-family: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
+.belge-inline .ant-picker {
+  --ant-font-size: inherit;
+  --ant-font-size-sm: inherit;
+  --ant-font-size-lg: inherit;
+  --ant-line-height: inherit;
+  --ant-font-family: inherit;
+  --ant-font-weight: inherit;
+  font: inherit !important;
   color: inherit !important;
-  line-height: inherit !important;
-  letter-spacing: inherit !important;
-  text-rendering: geometricPrecision !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-.belge-inline .ant-select-input {
-  font-family: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  line-height: inherit !important;
   letter-spacing: inherit !important;
   text-rendering: geometricPrecision !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ═══ CARET & SELECTION ═══ */
+/* ─── Tüm iç input / textarea / seçili değer alanları ─── */
+.belge-inline .ant-input,
+.belge-inline .ant-input-number-input,
+.belge-inline .ant-picker-input > input,
+.belge-inline .ant-select-content-value,
+.belge-inline .ant-select-selection-item,
+.belge-inline textarea.ant-input {
+  font: inherit !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Search input (ant-select-input): color inherit YASAK —
+   parent color:transparent olduğunda text kaybolur.
+   Font'un geri kalanı miras alınsın, color AntD CSS var'ından gelsin. ─── */
+.belge-inline .ant-select-input {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: normal !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ CARET & SEÇİM ═══ */
 .belge-inline input,
 .belge-inline textarea {
   caret-color: ${FIELD.caret} !important;
@@ -63,9 +84,30 @@ export const FIELD_CSS = `
   background: rgba(37, 99, 235, 0.12);
 }
 
-/* ═══ SELECT: Ghost ═══ */
-/* v6: ant-select root has display:inline-flex + CSS-var padding/height/border/bg.
-   We also clear the CSS variables so AntD's own CSS reads 0/transparent values. */
+/* ══════════════════════════════════════════════════════════════════════
+   PLACEHOLDER — font: inherit + font-style: normal
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .ant-select-placeholder {
+  font: inherit !important;
+  font-style: normal !important;
+  color: #94a3b8 !important;
+  opacity: 0.50 !important;
+  inset-inline-start: 0 !important;
+  pointer-events: none !important;
+}
+.belge-inline .ant-input::placeholder,
+.belge-inline .ant-input-number-input::placeholder,
+.belge-inline .ant-picker-input > input::placeholder,
+.belge-inline textarea.ant-input::placeholder {
+  font: inherit !important;
+  font-style: normal !important;
+  color: #94a3b8 !important;
+  opacity: 0.50 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SELECT: Ghost + boyut kilidi
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline .ant-select {
   --ant-select-padding-horizontal: 0px !important;
   --ant-select-padding-vertical: 0px !important;
@@ -79,85 +121,48 @@ export const FIELD_CSS = `
   background: transparent !important;
   box-shadow: none !important;
 }
-/* v6: ant-select-content replaces ant-select-selector as the inner container */
 .belge-inline .ant-select-content {
+  font: inherit !important;
   padding: 0 !important;
   margin-inline-end: 0 !important;
   min-height: 0 !important;
   height: auto !important;
-  line-height: inherit !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
-/* v6: single-value display (was ant-select-selection-item in v5) */
-.belge-inline .ant-select-content-value {
-  padding-inline-end: 0 !important;
-  padding-inline-start: 0 !important;
-  line-height: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  letter-spacing: inherit !important;
-  color: inherit !important;
-}
-/* multiple mode tag items still use selection-item */
+.belge-inline .ant-select-content-value,
 .belge-inline .ant-select-selection-item {
-  padding-inline-end: 0 !important;
-  padding-inline-start: 0 !important;
-  line-height: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  letter-spacing: inherit !important;
-  color: inherit !important;
+  padding-inline: 0 !important;
 }
-/* v6: ant-select-input is the search input (was ant-select-selection-search-input).
-   In single mode it is position:absolute inset:0 — keep it so it overlays the value text. */
 .belge-inline .ant-select-input {
   height: auto !important;
   padding: 0 !important;
   margin: 0 !important;
 }
-
-/* ═══ SELECT: suffix / arrow / clear gizle ═══ */
 .belge-inline .ant-select-suffix,
 .belge-inline .ant-select-arrow,
 .belge-inline .ant-select-clear {
   display: none !important;
 }
 
-/* ═══ PLACEHOLDER ═══ */
-/* v6: ant-select-placeholder replaces ant-select-selection-placeholder */
-.belge-inline .ant-select-placeholder {
-  color: #94a3b8 !important;
-  opacity: 0.65 !important;
-  font-style: italic !important;
-  inset-inline-start: 0 !important;
-}
-.belge-inline .ant-input::placeholder,
-.belge-inline .ant-input-number-input::placeholder,
-.belge-inline .ant-picker-input > input::placeholder,
-.belge-inline textarea.ant-input::placeholder {
-  color: #94a3b8 !important;
-  opacity: 0.65 !important;
-  font-style: italic !important;
-}
-
-/* ═══ INPUT: Ghost ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   INPUT: Ghost
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline .ant-input {
   padding: 0 !important;
   height: auto !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  font: inherit !important;
-  letter-spacing: inherit !important;
-  line-height: inherit !important;
   appearance: none !important;
   -webkit-appearance: none !important;
   outline: none !important;
 }
 
-/* ═══ INPUT NUMBER: Ghost ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   INPUT NUMBER: Ghost
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline .ant-input-number {
   padding: 0 !important;
   background: transparent !important;
@@ -167,6 +172,9 @@ export const FIELD_CSS = `
   cursor: text !important;
 }
 .belge-inline .ant-input-number-input {
+  font: inherit !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
   padding: 0 2px !important;
   height: 1.4em !important;
   min-height: 1.4em !important;
@@ -174,22 +182,37 @@ export const FIELD_CSS = `
   min-width: 0 !important;
   cursor: text !important;
   box-sizing: content-box !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
-/* v6: ant-input-number-actions replaces ant-input-number-handler-wrap */
 .belge-inline .ant-input-number-actions,
 .belge-inline .ant-input-number-handler-wrap {
   display: none !important;
 }
 
-/* ═══ AUTOCOMPLETE: ghost + width lock ═══ */
-/* .ant-select-content is the inner container; .ant-select-input is the actual <input> */
+/* ══════════════════════════════════════════════════════════════════════
+   AUTOCOMPLETE: Ghost + genişleme kilidi
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .ant-select-auto-complete {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
 .belge-inline .ant-select-auto-complete .ant-select-content {
   padding: 0 !important;
   overflow: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  position: relative !important;
 }
-/* width: 100% !important overrides any JS-set inline width on the input,
-   preventing column expansion while typing (CSS !important beats inline styles). */
 .belge-inline .ant-select-auto-complete .ant-select-input {
+  font: inherit !important;
+  font-style: normal !important;
+  letter-spacing: inherit !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
@@ -202,28 +225,26 @@ export const FIELD_CSS = `
   box-shadow: none !important;
   appearance: none !important;
   -webkit-appearance: none !important;
-  font-family: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  letter-spacing: inherit !important;
-  line-height: inherit !important;
-  text-rendering: geometricPrecision !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 .belge-inline .ant-select-auto-complete .ant-select-placeholder {
+  font: inherit !important;
+  font-style: normal !important;
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   inset-inline-start: 0 !important;
-  font-family: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  letter-spacing: inherit !important;
-  line-height: inherit !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
   color: inherit !important;
   opacity: 0.48 !important;
-  font-style: normal !important;
+  pointer-events: none !important;
 }
 
-/* ═══ DATEPICKER: Ghost ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   DATEPICKER: Ghost
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline .ant-picker {
   padding: 0 !important;
   background: transparent !important;
@@ -231,29 +252,24 @@ export const FIELD_CSS = `
   box-shadow: none !important;
 }
 .belge-inline .ant-picker-input > input {
-  font-size: inherit !important;
+  font: inherit !important;
 }
 .belge-inline .ant-picker-suffix,
 .belge-inline .ant-picker-clear {
   display: none !important;
 }
 
-/* ═══ TEXTAREA: Ghost ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   TEXTAREA: Ghost
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline textarea.ant-input {
   resize: none !important;
 }
 
-/* ═══ FOCUS: Tablo hücreleri ═══ */
-.belge-inline tr[data-editing] td:focus-within {
-  box-shadow: none !important;
-}
-
-/* ═══ SIZE-SM: AntD v6 küçük boyut sabit yüksekliklerini sıfırla ═══ */
-.belge-inline .ant-select-sm .ant-select-content {
-  height: auto !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-}
+/* ══════════════════════════════════════════════════════════════════════
+   SIZE-SM: AntD v6 sabit yüksekliklerini sıfırla
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .ant-select-sm .ant-select-content,
 .belge-inline .ant-select-sm .ant-select-input {
   height: auto !important;
   min-height: 0 !important;
@@ -274,31 +290,29 @@ export const FIELD_CSS = `
   padding: 0 2px !important;
 }
 
-/* ═══ INLINE TABLE FIELDS ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   INLINE TABLE FIELDS — hücre içi kontroller
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline .inline-table-field {
   width: 100% !important;
   min-width: 0 !important;
   font: inherit !important;
   color: inherit !important;
-  line-height: inherit !important;
   letter-spacing: inherit !important;
 }
-
-/* AntD v6 Select root: inline-flex → block, CSS-var padding/height sıfırla */
+/* Select root: inline-flex → block */
 .belge-inline .inline-table-field.ant-select {
   display: block !important;
   width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
   overflow: hidden !important;
-  /* computed property overrides */
   padding: 0 !important;
   padding-inline: 0 !important;
   padding-block: 0 !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  /* CSS variable overrides (AntD v6 reads these) */
   --ant-select-height: auto !important;
   --ant-select-padding-horizontal: 0px !important;
   --ant-select-padding-vertical: 0px !important;
@@ -306,9 +320,6 @@ export const FIELD_CSS = `
   --ant-select-border-color: transparent !important;
   --ant-select-background-color: transparent !important;
 }
-
-/* ant-select-content: value/search wrapper — AntD v6 uses flex:auto inside inline-flex.
-   After we make parent block, this must also be block + constrained. */
 .belge-inline .inline-table-field .ant-select-content {
   display: block !important;
   width: 100% !important;
@@ -320,7 +331,46 @@ export const FIELD_CSS = `
   margin: 0 !important;
   margin-inline-end: 0 !important;
 }
-
+/* Seçili değer + placeholder: hücrenin tam tipografisini miras al */
+.belge-inline .inline-table-field .ant-select-content-value,
+.belge-inline .inline-table-field .ant-select-placeholder {
+  font: inherit !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
+  text-align: inherit !important;
+  font-style: normal !important;
+}
+/* Search input: color inherit YASAK */
+.belge-inline .inline-table-field .ant-select-input {
+  font: inherit !important;
+  font-style: normal !important;
+  letter-spacing: inherit !important;
+  text-align: inherit !important;
+  min-width: 0 !important;
+}
+/* Ham input / textarea */
+.belge-inline .inline-table-field input:not(.ant-select-input),
+.belge-inline .inline-table-field textarea {
+  font: inherit !important;
+  font-style: normal !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
+  text-align: inherit !important;
+  min-width: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+/* Placeholder: font miras + italic yok */
+.belge-inline .inline-table-field .ant-select-placeholder,
+.belge-inline .inline-table-field input::placeholder,
+.belge-inline .inline-table-field textarea::placeholder {
+  font: inherit !important;
+  font-style: normal !important;
+  opacity: 0.42 !important;
+}
 .belge-inline .inline-table-field.ant-input-number {
   display: block !important;
   height: auto !important;
@@ -330,46 +380,33 @@ export const FIELD_CSS = `
   min-height: 0 !important;
   height: auto !important;
 }
-/* value-display ve placeholder: color inherit (bunlarda transparent override yok) */
-.belge-inline .inline-table-field .ant-select-content-value,
-.belge-inline .inline-table-field .ant-select-placeholder {
-  font: inherit !important;
-  color: inherit !important;
-  line-height: inherit !important;
-  letter-spacing: inherit !important;
-  text-align: inherit !important;
-}
-/* ant-select-input: color inherit YASAK — parent content 'color:transparent' dönemlerde
-   input da transparent olur, seçili metin görünmez. AntD'nin CSS var rengi kalmalı. */
-.belge-inline .inline-table-field .ant-select-input {
-  font: inherit !important;
-  line-height: inherit !important;
-  letter-spacing: inherit !important;
-  text-align: inherit !important;
-  min-width: 0 !important;
-}
-.belge-inline .inline-table-field input:not(.ant-select-input),
-.belge-inline .inline-table-field textarea {
-  font: inherit !important;
-  color: inherit !important;
-  line-height: inherit !important;
-  letter-spacing: inherit !important;
-  text-align: inherit !important;
-  min-width: 0 !important;
-}
-.belge-inline .inline-table-field .ant-select-placeholder,
-.belge-inline .inline-table-field input::placeholder,
-.belge-inline .inline-table-field textarea::placeholder {
-  font-style: normal !important;
-  opacity: 0.42 !important;
-}
 .belge-inline .inline-table-field.ant-input-number .ant-input-number-input {
+  font: inherit !important;
+  font-style: normal !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
   padding: 0 !important;
   height: auto !important;
   min-height: 0 !important;
 }
 
-/* ═══ FOCUS: Alan grupları ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   FOCUS: Sıfır layout değişimi — sadece hafif alt çizgi
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline tr[data-editing] td:focus-within {
+  box-shadow: none !important;
+}
+.belge-inline tr[data-editing] td {
+  vertical-align: middle !important;
+}
+.belge-inline .inline-table-field.ant-input-number:focus-within,
+.belge-inline .inline-table-field.ant-input-number-focused,
+.belge-inline .inline-table-field.ant-select-focused .ant-select-content,
+.belge-inline tr[data-editing] input:focus,
+.belge-inline tr[data-editing] textarea:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
 .belge-inline .field-group .ant-input:focus,
 .belge-inline .field-group textarea.ant-input:focus {
   box-shadow: ${FIELD.focusLine} !important;
@@ -384,9 +421,33 @@ export const FIELD_CSS = `
   border-radius: 0 !important;
 }
 
-/* ═══ CHECKBOX ═══ */
+/* ══════════════════════════════════════════════════════════════════════
+   CHECKBOX
+   ══════════════════════════════════════════════════════════════════════ */
 .belge-inline input[type="checkbox"] {
   accent-color: ${FIELD.caret};
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SATIR-AKSIYONLARI: ghost override — iskonto inputu görünür
+   ══════════════════════════════════════════════════════════════════════ */
+.satir-aksiyonlari .ant-input-number {
+  background: rgba(0,0,0,0.05) !important;
+  border: 0.75px solid rgba(0,0,0,0.12) !important;
+  border-radius: 3px !important;
+  min-width: 28px !important;
+  width: 28px !important;
+}
+.satir-aksiyonlari .ant-input-number-input {
+  height: 16px !important;
+  min-height: 16px !important;
+  padding: 0 3px !important;
+  text-align: center !important;
+  color: #4a4a4e !important;
+  background: transparent !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  font-style: normal !important;
 }
 `;
 

@@ -31,6 +31,10 @@ function teklifKaydet(teklif: Teklif): void {
   dataStore.upsertTeklif({ ...teklif, guncellemeTarihi: now });
 }
 
+function teklifCacheGuncelle(teklif: Teklif): void {
+  dataStore.cacheUpsertTeklif(teklif);
+}
+
 function teklifSil(id: string): void {
   dataStore.deleteTeklif(id);
 }
@@ -70,6 +74,7 @@ export const teklifService = {
   tumTeklifleriGetir,
   teklifGetir,
   teklifKaydet,
+  teklifCacheGuncelle,
   teklifSil,
   teklifKopyala,
   teklifIdUret,

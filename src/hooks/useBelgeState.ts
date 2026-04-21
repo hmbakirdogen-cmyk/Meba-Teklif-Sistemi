@@ -18,7 +18,7 @@ import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import { sanitizeMultilineText } from '../utils/formatters';
-import type { Teklif, Cari, TeklifSatiri, TeklifDurum } from '../types';
+import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi } from '../types';
 import dayjs from 'dayjs';
 
 export type PanelModu = 'musteri' | 'ayarlar' | 'satir' | 'notlar' | null;
@@ -31,7 +31,7 @@ export interface BelgeState {
   tarih: string;
   cari: Cari | null;
   satirlar: TeklifSatiri[];
-  paraBirimi: string;
+  paraBirimi: ParaBirimi;
   satirBazliParaBirimi: boolean;
   durum: TeklifDurum;
   notlar: string;
@@ -76,7 +76,7 @@ interface BelgeActions {
   satirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
 
   // Parametreler
-  setParaBirimi: (pb: string) => void;
+  setParaBirimi: (pb: ParaBirimi) => void;
   setSatirBazliParaBirimi: (aktif: boolean) => void;
   setKdvOrani: (oran: number) => void;
   setIskontoOrani: (oran: number) => void;
@@ -122,7 +122,7 @@ export function useBelgeState(
   const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
   const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ?? null);
   const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
-  const [paraBirimi, setParaBirimiState] = useState(mevcut?.paraBirimi ?? 'EUR');
+  const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
   const [durum, setDurumState] = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
   const [notlar, setNotlarState] = useState(mevcut?.notlar ?? '');
@@ -247,7 +247,7 @@ export function useBelgeState(
     }));
   }, []);
 
-  const setParaBirimi = useCallback((pb: string) => {
+  const setParaBirimi = useCallback((pb: ParaBirimi) => {
     setParaBirimiState(pb);
   }, []);
 

@@ -1,19 +1,13 @@
-/**
- * CanliA4Belge.tsx
- * ─────────────────────────────────────────────────────────────────
- * Canlı düzenlenebilir A4 belge bileşeni.
- *
- * Görünür alan: BelgeInlineEditor (inline düzenleme destekli)
- * Gizli alanlar: TeklifSablonu (PDF pipeline için değiştirilmeden korunur)
- */
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useLayoutEffect } from 'react';
 import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
-import BelgeInlineEditor, { type EditingAlan } from './BelgeInlineEditor';
+import TeklifPagedDocument from '../templates/TeklifPagedDocument';
+import PaginatedBelgeInlineEditor, { type EditingAlan } from './PaginatedBelgeInlineEditor';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
+import { calculateTeklifPagination, type TeklifPaginationResult } from '../services/documentPagination';
+import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
 
-
-// ── A4 ölçüleri ──
-const A4_W_PX = 210 * (96 / 25.4);  // ~793.7
+const A4_W_PX = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
 
 interface CanliA4BelgeProps {
   teklif: Teklif;
@@ -25,7 +19,7 @@ interface CanliA4BelgeProps {
   onContactNameDegistir: (name: string) => void;
   onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
   onTarihDegistir: (tarih: string) => void;
-  onParaBirimiDegistir: (pb: string) => void;
+  onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   onSatirBazliDegistir: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
@@ -38,6 +32,21 @@ interface CanliA4BelgeProps {
   sablonRef: React.RefObject<HTMLDivElement | null>;
   kompaktHeaderRef: React.RefObject<HTMLDivElement | null>;
 }
+
+const FALLBACK_PAGINATION: TeklifPaginationResult = {
+  pages: [{
+    pageNumber: 1,
+    rowStartIndex: 0,
+    rowEndIndex: 0,
+    showFullHeader: true,
+    showCompactHeader: false,
+    showTableHeader: false,
+    includeTotals: true,
+    includeNotes: false,
+    includeSignature: true,
+  }],
+  totalPages: 1,
+};
 
 export default function CanliA4Belge({
   teklif,
@@ -63,7 +72,11 @@ export default function CanliA4Belge({
   kompaktHeaderRef,
 }: CanliA4BelgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [naturalH, setNaturalH] = useState(Math.round(mmToPx(DOCUMENT_PAGE.heightMm)));
+  const [pagination, setPagination] = useState<TeklifPaginationResult>(FALLBACK_PAGINATION);
 
   const totals = useMemo(
     () => hesaplamaMotoru.teklifToplamlariniHesapla({
@@ -74,66 +87,128 @@ export default function CanliA4Belge({
     [teklif.araToplam, teklif.kdvOrani, teklif.iskontoOrani],
   );
 
-  // Ölçekleme
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const el = containerRef.current;
+    if (!el) return;
     const obs = new ResizeObserver(() => {
-      const w = container.getBoundingClientRect().width;
+      const w = el.getBoundingClientRect().width;
       setScale(Math.min(1, w / A4_W_PX));
     });
-    obs.observe(container);
+    obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  // Belgenin dışına tıklama — düzenlemeyi kapat
+  useLayoutEffect(() => {
+    const linearRoot = measureRef.current;
+    const compactHeaderEl = kompaktHeaderRef.current;
+    if (!linearRoot || !compactHeaderEl) return;
+
+    const measure = () => {
+      setPagination(calculateTeklifPagination(linearRoot, compactHeaderEl));
+    };
+
+    const obs = new ResizeObserver(measure);
+    obs.observe(linearRoot);
+    obs.observe(compactHeaderEl);
+    measure();
+    return () => obs.disconnect();
+  }, [teklif, kompaktHeaderRef]);
+
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const h = el.offsetHeight;
+      if (h > 0) setNaturalH(h);
+    };
+
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    measure();
+    return () => obs.disconnect();
+  }, [pagination, editingAlan, teklif]);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onEditingAlanDegistir(null);
-    }
+    if (e.target === e.currentTarget) onEditingAlanDegistir(null);
   };
 
   return (
-    <div ref={containerRef} style={{ width: '100%', maxWidth: '210mm', margin: '0 auto' }}>
-      {/* Gizli ölçüm+render alanı — PDF pipeline için (TeklifSablonu değiştirilmeden) */}
+    <div ref={containerRef} style={{ width: '100%', maxWidth: `${A4_W_PX}px` }}>
       <div
-        ref={sablonRef}
+        ref={measureRef}
         aria-hidden
-        style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm', pointerEvents: 'none', colorScheme: 'light', background: '#fff' }}
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          top: 0,
+          width: '210mm',
+          pointerEvents: 'none',
+          colorScheme: 'light',
+          background: '#fff',
+        }}
       >
         <TeklifSablonu teklif={teklif} totals={totals} />
       </div>
+
+      <div
+        ref={sablonRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          top: 0,
+          width: '210mm',
+          pointerEvents: 'none',
+          colorScheme: 'light',
+          background: '#fff',
+        }}
+      >
+        <TeklifPagedDocument teklif={teklif} totals={totals} pages={pagination.pages} />
+      </div>
+
       <div
         ref={kompaktHeaderRef}
         aria-hidden
-        style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm', pointerEvents: 'none', colorScheme: 'light', background: '#fff' }}
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          top: 0,
+          width: '210mm',
+          pointerEvents: 'none',
+          colorScheme: 'light',
+          background: '#fff',
+        }}
       >
         <KompaktAntet teklif={teklif} />
       </div>
 
-      {/* Görünür belge — inline düzenleme destekli */}
       <div
         onClick={handleBackdropClick}
         style={{
+          position: 'relative',
           width: `${A4_W_PX * scale}px`,
+          height: `${naturalH * scale}px`,
           overflow: 'visible',
-          flexShrink: 0,
-          background: '#ffffff',
-          border: '1px solid rgba(148, 163, 184, 0.22)',
-          boxShadow: '0 18px 44px rgba(15, 23, 42, 0.10)',
-          borderRadius: 10,
         }}
       >
-        <div style={{
-          width: `${A4_W_PX}px`,
-          transformOrigin: 'top left',
-          transform: `scale(${scale})`,
-          background: '#ffffff',
-          colorScheme: 'light',
-        }}>
-          <BelgeInlineEditor
+        <div
+          ref={innerRef}
+          className="belge-screen-view"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `${A4_W_PX}px`,
+            transformOrigin: 'top left',
+            transform: `scale(${scale})`,
+            colorScheme: 'light',
+          }}
+        >
+          <PaginatedBelgeInlineEditor
             teklif={teklif}
             totals={totals}
+            pages={pagination.pages}
             editingAlan={editingAlan}
             onEditingAlanDegistir={onEditingAlanDegistir}
             onCariDegistir={onCariDegistir}
@@ -155,35 +230,6 @@ export default function CanliA4Belge({
           />
         </div>
       </div>
-
-      {/* Hover stil kuralları */}
-      <style>{`
-        [data-alan="musteri"],
-        [data-alan^="ayar-"],
-        [data-alan="notlar"] {
-          cursor: pointer;
-          transition: background 0.18s ease;
-        }
-        [data-alan="musteri"]:hover,
-        [data-alan^="ayar-"]:hover,
-        [data-alan="notlar"]:hover {
-          background: rgba(37, 99, 235, 0.025);
-        }
-        [data-satir-id] > td {
-          cursor: pointer;
-          transition: background 0.12s ease;
-        }
-        [data-satir-id] > td:hover {
-          background: rgba(37, 99, 235, 0.045) !important;
-        }
-        @media print {
-          [data-alan], [data-satir-id] > td {
-            outline: none !important;
-            background: initial !important;
-            cursor: default !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

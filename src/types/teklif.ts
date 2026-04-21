@@ -9,7 +9,7 @@ export interface Teklif {
   teklifNo: string;
   tarih: string;
   satirBazliParaBirimi?: boolean;
-  paraBirimi: string;
+  paraBirimi: ParaBirimi;
   durum: TeklifDurum;
   cari: Cari;
   satirlar: TeklifSatiri[];
@@ -26,6 +26,8 @@ export interface Teklif {
   olusturmaTarihi: string;
   guncellemeTarihi: string;
   pdfYolu?: string;
+  pdfDosyaAdi?: string;
+  pdfOlusturmaTarihi?: string;
   hazirlayanKullaniciId?: string;
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;

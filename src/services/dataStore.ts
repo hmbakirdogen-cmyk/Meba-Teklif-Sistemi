@@ -110,6 +110,11 @@ export const dataStore = {
 
   getTeklifler:   ()            => store.teklifler,
   setTeklifler:   (v: Teklif[]) => { store.teklifler = v; },
+  cacheUpsertTeklif(t: Teklif): void {
+    const idx = store.teklifler.findIndex((x) => x.id === t.id);
+    if (idx >= 0) { store.teklifler[idx] = t; }
+    else { store.teklifler.unshift(t); }
+  },
 
   upsertTeklif(t: Teklif): void {
     const idx = store.teklifler.findIndex((x) => x.id === t.id);

@@ -12,6 +12,7 @@ import {
   DOCUMENT_COLORS,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
+  HIGH_QUALITY_IMAGE_RENDERING,
   LOGO,
   LOGO_FILE_W,
   LOGO_OPT_H,
@@ -31,6 +32,8 @@ import {
   SETTINGS_GRID_STYLE,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
+  SETTINGS_TR_LABEL_STYLE,
+  SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
@@ -104,7 +107,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
               maxWidth: 'none',
               maxHeight: 'none',
               display: 'block',
-              imageRendering:          'high-quality' as any,
+              imageRendering:          HIGH_QUALITY_IMAGE_RENDERING,
               printColorAdjust:        'exact',
               WebkitPrintColorAdjust:  'exact',
             }}
@@ -205,7 +208,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 maxWidth: 'none',
                 maxHeight: 'none',
                 display: 'block',
-                imageRendering:         'high-quality' as any,
+                imageRendering:         HIGH_QUALITY_IMAGE_RENDERING,
                 printColorAdjust:       'exact',
                 WebkitPrintColorAdjust: 'exact',
               }}
@@ -373,8 +376,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         {buildSettingsItems(teklif, satirBazliParaBirimi).map((item, i) => (
           <div key={i} style={SETTINGS_CARD_STYLE}>
             <div style={SETTINGS_LABEL_STYLE}>
-              {item.tr}
-              <span style={{ fontWeight: 400, opacity: 0.55, fontSize: '8px' }}> / {item.en}</span>
+              <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+              <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
             </div>
             <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
           </div>
@@ -496,12 +499,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   ...rcCell('mid', idx),
                 }}>
                   {satir.miktar !== 0 ? (
-                    <div style={{ display: 'flex', width: '100%', alignItems: 'baseline', gap: '5px' }}>
-                      <span style={{ flex: 1, textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
+                      <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
-                      <span style={{ flex: '0 0 auto', minWidth: '30px', textAlign: 'left', opacity: 0.68, fontSize: '0.85em' }}>
-                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
+                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', opacity: 0.6, fontSize: '0.88em', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
+                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Adet' : satir.birim}
                       </span>
                     </div>
                   ) : '—'}
@@ -576,6 +579,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       {/* ══ TOPLAM ALANI ════════════════════════════════════════ */}
       {/* Aynı colgroup → değerler "Toplam" sütununun tam altına düşer */}
       {/* Dikey çizgiler (borderLeft / borderRight) kaldırıldı.       */}
+      <div id="pdf-totals-block">
       <table style={{
         width: '100%',
         borderCollapse: 'collapse',
@@ -768,10 +772,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           })()}
         </tbody>
       </table>
+      </div>
 
       {/* ══ NOT ALANI ════════════════════════════════════════════ */}
       {teklif.notlar && (
-        <div data-alan="notlar" style={{ ...NOTES_BOX_STYLE, ...noBreak }}>
+        <div id="pdf-notes-block" data-alan="notlar" style={{ ...NOTES_BOX_STYLE, ...noBreak }}>
           <strong style={{ color: C.navy }}>Notlar / Notes:&nbsp;</strong>
           <span style={{ color: C.textMid }}>{teklif.notlar}</span>
         </div>
@@ -786,7 +791,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <div id="pdf-bottom-block">
 
         {/* ── SİPARİŞİ VEREN — 2 sütunlu kompakt düzen ── */}
-        <div style={SIGNATURE_SECTION_STYLE}>
+        <div id="pdf-signature-block" style={SIGNATURE_SECTION_STYLE}>
           <div style={{ color: C.textMuted, fontSize: '11.7px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '9px' }}>
             Siparişi Veren / Authorised Person
           </div>

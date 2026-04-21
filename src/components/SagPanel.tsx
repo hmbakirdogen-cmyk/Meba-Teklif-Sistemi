@@ -22,7 +22,7 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
 import { useColors } from '../hooks/useColors';
-import type { Cari, TeklifSatiri, TeklifDurum } from '../types';
+import type { Cari, TeklifSatiri, TeklifDurum, ParaBirimi } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
 
 const { TextArea } = Input;
@@ -49,8 +49,8 @@ interface SagPanelProps {
   // Ayarlar
   tarih: string;
   onTarihDegistir: (tarih: string) => void;
-  paraBirimi: string;
-  onParaBirimiDegistir: (pb: string) => void;
+  paraBirimi: ParaBirimi;
+  onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   onSatirBazliDegistir: (aktif: boolean) => void;
   durum: TeklifDurum;

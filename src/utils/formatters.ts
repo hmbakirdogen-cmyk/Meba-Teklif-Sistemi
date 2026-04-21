@@ -18,13 +18,15 @@ export function formatPercentage(val: number): string {
 }
 
 export function formatCariAdi(adi: string): string {
-  const trimmed = adi.trim();
+  const trimmed = adi.trim().replace(/\s+/g, ' ');
   if (!trimmed) return trimmed;
-  const spaceIdx = trimmed.search(/\s/);
-  if (spaceIdx === -1) {
-    return trimmed.toLocaleUpperCase('tr-TR');
-  }
-  return trimmed.slice(0, spaceIdx).toLocaleUpperCase('tr-TR') + trimmed.slice(spaceIdx);
+  return trimmed.split(' ').map((word, idx) => {
+    if (!word) return word;
+    if (idx === 0) return word.toLocaleUpperCase('tr-TR');
+    const lower = word.toLocaleLowerCase('tr-TR');
+    const first = lower[0] === 'i' ? 'İ' : lower[0].toLocaleUpperCase('tr-TR');
+    return first + lower.slice(1);
+  }).join(' ');
 }
 
 export function formatTitleCaseTr(text: string): string {

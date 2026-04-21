@@ -1,6 +1,20 @@
 import type { CSSProperties } from 'react';
 import type { Teklif } from '../types';
 
+export const DOCUMENT_PAGE = {
+  widthMm: 210,
+  heightMm: 297,
+  paddingTopMm: 9,
+  paddingXmm: 10,
+  paddingBottomMm: 8,
+} as const;
+
+export function mmToPx(mm: number): number {
+  return mm * (96 / 25.4);
+}
+
+export const HIGH_QUALITY_IMAGE_RENDERING = 'high-quality' as unknown as CSSProperties['imageRendering'];
+
 export function firstLine(text: string): string {
   return text.split(/\r?\n/)[0]?.trim() ?? '';
 }
@@ -72,7 +86,7 @@ export const DOCUMENT_COLS_ROW_CURRENCY = {
   teslimat:   '10%',
 } as const;
 
-export const CELL_PAD = '8px 8px';
+export const CELL_PAD = '5px 8px';
 
 // Ürün kodu: tek satır, içerik genişliği kadar
 export const URUN_KOD_OVERFLOW: CSSProperties = {
@@ -140,8 +154,8 @@ export const LOGO_OPT_TOP = -(LOGO.FILE_HEIGHT * LOGO.OPT_TOP_FRAC);
 export const LOGO_OPT_LEFT = -(LOGO_FILE_W * LOGO.OPT_LEFT_FRAC);
 
 export const DOCUMENT_ROOT_STYLE: CSSProperties = {
-  width: '210mm',
-  minHeight: '297mm',
+  width: `${DOCUMENT_PAGE.widthMm}mm`,
+  minHeight: `${DOCUMENT_PAGE.heightMm}mm`,
   display: 'flex',
   flexDirection: 'column',
   margin: '0 auto',
@@ -153,7 +167,7 @@ export const DOCUMENT_ROOT_STYLE: CSSProperties = {
   letterSpacing: '0.01em',
   color: DOCUMENT_COLORS.text,
   boxSizing: 'border-box',
-  padding: '9mm 10mm 8mm',
+  padding: `${DOCUMENT_PAGE.paddingTopMm}mm ${DOCUMENT_PAGE.paddingXmm}mm ${DOCUMENT_PAGE.paddingBottomMm}mm`,
   WebkitFontSmoothing: 'antialiased',
   MozOsxFontSmoothing: 'grayscale',
   textRendering: 'geometricPrecision',
@@ -217,13 +231,16 @@ export const SETTINGS_GRID_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_CARD_STYLE: CSSProperties = {
-  padding: '10px 12px',
+  padding: '10px 10px',
   textAlign: 'center',
   minHeight: 54,
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
+  alignItems: 'center',
+  flex: 1,
   boxSizing: 'border-box',
+  overflow: 'hidden',
   background: '#f8f9fb',
   border: '1px solid #e3e6ea',
   borderRadius: '12px',
@@ -233,16 +250,42 @@ export const SETTINGS_CARD_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_LABEL_STYLE: CSSProperties = {
-  fontSize: '9px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '2px',
+  width: '100%',
+  overflow: 'hidden',
+  marginBottom: '3px',
+};
+
+export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
+  fontSize: '8px',
   fontWeight: 700,
   color: DOCUMENT_COLORS.textSoft,
-  letterSpacing: '0.06em',
+  letterSpacing: '0.05em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
-  marginBottom: '3px',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
+  width: '100%',
+  textAlign: 'center',
+};
+
+export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
+  fontSize: '6.5px',
+  fontWeight: 400,
+  color: DOCUMENT_COLORS.textSoft,
+  opacity: 0.6,
+  letterSpacing: '0.5px',
+  lineHeight: 1.2,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  width: '100%',
+  textAlign: 'center',
 };
 
 export const SETTINGS_VALUE_STYLE: CSSProperties = {
@@ -267,7 +310,7 @@ export const TABLE_TITLE_STYLE: CSSProperties = {
 export const TABLE_STYLE: CSSProperties = {
   width: '100%',
   borderCollapse: 'separate',
-  borderSpacing: '0 4px',
+  borderSpacing: '0 3px',
   borderLeft: 'none',
   borderRight: 'none',
   marginBottom: 0,

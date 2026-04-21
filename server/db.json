@@ -1,6 +1,170 @@
 {
   "teklifler": [
     {
+      "id": "tmo8ef5se",
+      "teklifNo": "2026-326",
+      "tarih": "2026-04-21",
+      "satirBazliParaBirimi": false,
+      "paraBirimi": "EUR",
+      "durum": "taslak",
+      "cari": {
+        "id": "c-0046",
+        "cariKod": "C-0046",
+        "firmaAdi": "ARKOPA AHŞAP PANEL SANAYİ A.Ş",
+        "yetkiliKisi": "",
+        "telefon": "0352 321 26 11",
+        "ePosta": "",
+        "adres": "",
+        "vergiDairesi": "",
+        "vergiNo": ""
+      },
+      "satirlar": [
+        {
+          "id": "smo8ef9m8xsy",
+          "marka": "SMC",
+          "urunKod": "KQ2W02-M3G",
+          "urunAdi": "2 mm / M3 Erkek Dişli Dirsek Bağlantı (Push-In)",
+          "aciklama": "",
+          "paraBirimi": "EUR",
+          "miktar": 1,
+          "birim": "Adet",
+          "birimFiyat": 25.58,
+          "indirimOrani": 30,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 17.906
+        }
+      ],
+      "araToplam": 17.906,
+      "toplamIndirim": 7.6739999999999995,
+      "toplamVergi": 0,
+      "genelToplam": 17.906,
+      "kdvOrani": 0,
+      "iskontoOrani": 0,
+      "odemeVadesi": "45 Gün",
+      "notlar": "",
+      "olusturmaTarihi": "2026-04-21T09:05:37.551Z",
+      "guncellemeTarihi": "2026-04-21T09:06:05.607Z",
+      "hazirlayanKullaniciId": "u2",
+      "hazirlayanAdSoyad": "Furkan Öztürk",
+      "hazirlayanRol": "sales",
+      "gecerlilikSuresi": "1 Hafta",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\ARKOPA AHŞAP\\ARKOPA AHŞAP - 2026-326.pdf",
+      "pdfDosyaAdi": "ARKOPA AHŞAP - 2026-326.pdf",
+      "pdfOlusturmaTarihi": "2026-04-21T09:06:05.607Z"
+    },
+    {
+      "id": "tmo8ednpf",
+      "teklifNo": "2026-324",
+      "tarih": "2026-04-21",
+      "satirBazliParaBirimi": false,
+      "paraBirimi": "EUR",
+      "durum": "taslak",
+      "cari": {
+        "id": "c-0001",
+        "cariKod": "C-0001",
+        "firmaAdi": "TAM GÜÇ ELEKTRİK İNŞ. SAN. VE TİC. LTD. ŞTİ.",
+        "yetkiliKisi": "",
+        "telefon": "0352 336 35 32",
+        "ePosta": "",
+        "adres": "",
+        "vergiDairesi": "",
+        "vergiNo": "",
+        "lastContactName": "veli",
+        "lastContactTitle": "BEY"
+      },
+      "satirlar": [
+        {
+          "id": "smo8edqfkntc",
+          "marka": "SMC",
+          "urunKod": "ISE30A-01-F-G",
+          "urunAdi": "Dijital Basınç Sensörü",
+          "aciklama": "",
+          "paraBirimi": "EUR",
+          "miktar": 1,
+          "birim": "Adet",
+          "birimFiyat": 51.3,
+          "indirimOrani": 20,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 41.04
+        }
+      ],
+      "araToplam": 41.04,
+      "toplamIndirim": 10.26,
+      "toplamVergi": 0,
+      "genelToplam": 41.04,
+      "kdvOrani": 0,
+      "iskontoOrani": 0,
+      "odemeVadesi": "45 Gün",
+      "notlar": "",
+      "olusturmaTarihi": "2026-04-21T09:04:27.459Z",
+      "guncellemeTarihi": "2026-04-21T09:05:00.199Z",
+      "hazirlayanKullaniciId": "u2",
+      "hazirlayanAdSoyad": "Furkan Öztürk",
+      "hazirlayanRol": "sales",
+      "gecerlilikSuresi": "1 Hafta",
+      "contactName": "veli",
+      "contactTitle": "BEY",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\TAM GÜÇ\\TAM GÜÇ - 2026-324.pdf",
+      "pdfDosyaAdi": "TAM GÜÇ - 2026-324.pdf",
+      "pdfOlusturmaTarihi": "2026-04-21T09:05:00.199Z"
+    },
+    {
+      "id": "tmo8ebzqa",
+      "teklifNo": "2026-320",
+      "tarih": "2026-04-21",
+      "satirBazliParaBirimi": false,
+      "paraBirimi": "EUR",
+      "durum": "taslak",
+      "cari": {
+        "id": "c-0001",
+        "cariKod": "C-0001",
+        "firmaAdi": "TAM GÜÇ ELEKTRİK İNŞ. SAN. VE TİC. LTD. ŞTİ.",
+        "yetkiliKisi": "",
+        "telefon": "0352 336 35 32",
+        "ePosta": "",
+        "adres": "",
+        "vergiDairesi": "",
+        "vergiNo": "",
+        "lastContactName": "veli",
+        "lastContactTitle": "BEY"
+      },
+      "satirlar": [
+        {
+          "id": "smo8ec3rxhmm",
+          "marka": "SMC",
+          "urunKod": "CP96SDB50-150",
+          "urunAdi": "50x150 Manyetik Yastıklı Silindir",
+          "aciklama": "",
+          "paraBirimi": "EUR",
+          "miktar": 1,
+          "birim": "Adet",
+          "birimFiyat": 61.2,
+          "indirimOrani": 25,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 45.900000000000006
+        }
+      ],
+      "araToplam": 45.900000000000006,
+      "toplamIndirim": 15.3,
+      "toplamVergi": 0,
+      "genelToplam": 45.900000000000006,
+      "kdvOrani": 0,
+      "iskontoOrani": 0,
+      "odemeVadesi": "45 Gün",
+      "notlar": "",
+      "olusturmaTarihi": "2026-04-21T09:03:09.730Z",
+      "guncellemeTarihi": "2026-04-21T09:03:30.819Z",
+      "hazirlayanKullaniciId": "u3",
+      "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
+      "hazirlayanRol": "admin",
+      "gecerlilikSuresi": "1 Hafta",
+      "contactName": "veli",
+      "contactTitle": "BEY",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\TAM GÜÇ\\TAM GÜÇ - 2026-320.pdf",
+      "pdfDosyaAdi": "TAM GÜÇ - 2026-320.pdf",
+      "pdfOlusturmaTarihi": "2026-04-21T09:03:30.819Z"
+    },
+    {
       "id": "tmo7bw6p3",
       "teklifNo": "2026-294",
       "tarih": "2026-04-20",
@@ -101,7 +265,7 @@
       "odemeVadesi": "45 Gün",
       "notlar": "",
       "olusturmaTarihi": "2026-04-20T15:07:06.855Z",
-      "guncellemeTarihi": "2026-04-20T15:14:52.113Z",
+      "guncellemeTarihi": "2026-04-21T08:49:56.404Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
       "hazirlayanRol": "admin",
@@ -19778,6 +19942,17 @@
       "adres": "",
       "vergiDairesi": "",
       "vergiNo": ""
+    },
+    {
+      "id": "cmo8dlsd5aba",
+      "cariKod": "C001",
+      "firmaAdi": "ASDFFG",
+      "yetkiliKisi": "ass",
+      "telefon": "(0532) 233 82 84",
+      "ePosta": "",
+      "adres": "",
+      "vergiDairesi": "",
+      "vergiNo": ""
     }
   ],
   "urunler": [
@@ -19951,6 +20126,6 @@
   },
   "sayac": {
     "yil": 2026,
-    "deger": 300
+    "deger": 326
   }
 }

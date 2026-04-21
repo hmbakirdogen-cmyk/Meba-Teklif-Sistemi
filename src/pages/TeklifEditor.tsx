@@ -8,20 +8,28 @@
  *
  * Layout: Toolbar (üst) + Canlı A4 Belge (merkez) + Sağ Panel (isteğe bağlı)
  */
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
 import { useKullanici } from '../context/useKullanici';
 import { useColors } from '../hooks/useColors';
 import { useBelgeState, type PanelModu } from '../hooks/useBelgeState';
 import { buildPdf } from '../services/pdfService';
+import { teklifService } from '../services/teklifService';
+import { pdfKaydetVeAc, PdfKayitHatasi } from '../services/pdfKayitService';
 import { formatCariAdi } from '../utils/formatters';
 import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
 import CariSecimi from '../components/CariSecimi';
 import type { Teklif } from '../types';
-import type { EditingAlan } from '../components/BelgeInlineEditor';
+import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
+
+function waitForNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
 
 export default function TeklifEditor() {
   const { id } = useParams<{ id: string }>();
@@ -45,61 +53,91 @@ export default function TeklifEditor() {
 
   // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve müşteri alanını aç (muhatap odak)
   const yeniTeklif = !id;
+  const cari = state.cari;
+  const satirlar = state.satirlar;
+  const satirEkle = state.satirEkle;
   const muhatapGosterildiRef = useRef(false);
   useEffect(() => {
-    if (yeniTeklif && state.cari && state.satirlar.length === 0) {
-      state.satirEkle();
+    if (yeniTeklif && cari && satirlar.length === 0) {
+      satirEkle();
       // Cari seçildikten sonra müşteri panelini aç → muhatap alanına odak gider
       muhatapGosterildiRef.current = true;
       setEditingAlan('musteri');
     }
-  }, [yeniTeklif, state.cari]);
+  }, [yeniTeklif, cari, satirlar.length, satirEkle]);
 
   // Yeni eklenen satırı otomatik düzenleme moduna al — sadece müşteri alanı kapatıldıktan sonra
   useEffect(() => {
     if (
       yeniTeklif &&
-      state.satirlar.length === 1 &&
+      satirlar.length === 1 &&
       editingAlan === null &&
-      state.cari &&
+      cari &&
       !muhatapGosterildiRef.current
     ) {
-      setEditingAlan(`satir-${state.satirlar[0].id}`);
+      setEditingAlan(`satir-${satirlar[0].id}`);
     }
     // Muhatap paneli kapatılınca (editingAlan null'a döndü) satıra geç
-    if (muhatapGosterildiRef.current && editingAlan === null && state.satirlar.length >= 1) {
+    if (muhatapGosterildiRef.current && editingAlan === null && satirlar.length >= 1) {
       muhatapGosterildiRef.current = false;
-      setEditingAlan(`satir-${state.satirlar[0].id}`);
+      setEditingAlan(`satir-${satirlar[0].id}`);
     }
-  }, [yeniTeklif, state.satirlar.length, state.cari, editingAlan]);
+  }, [yeniTeklif, satirlar, cari, editingAlan]);
 
   // ── Teklif nesnesi oluştur (canlı belge için) ──
-  const teklifObj: Teklif | null = state.cari ? {
-    id: state.teklifId,
-    teklifNo: state.teklifNo,
-    tarih: state.tarih,
-    satirBazliParaBirimi: state.satirBazliParaBirimi,
-    paraBirimi: state.paraBirimi,
-    durum: state.durum,
-    cari: state.cari,
-    satirlar: state.satirlar,
-    araToplam: state.araToplam,
-    toplamIndirim: state.toplamIndirim,
-    toplamVergi: state.toplamVergi,
-    genelToplam: state.genelToplam,
-    kdvOrani: state.kdvOrani,
-    iskontoOrani: state.iskontoOrani,
-    odemeVadesi: state.odemeVadesi,
-    notlar: state.notlar,
-    olusturmaTarihi: state.olusturmaTarihi,
-    guncellemeTarihi: new Date().toISOString(),
-    hazirlayanKullaniciId: state.hazirlayanKullaniciId,
-    hazirlayanAdSoyad: state.hazirlayanAdSoyad,
-    hazirlayanRol: state.hazirlayanRol,
-    gecerlilikSuresi: '1 Hafta',
-    contactName: state.contactName.trim() || undefined,
-    contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
-  } : null;
+  const teklifObj: Teklif | null = useMemo(() => {
+    if (!state.cari) return null;
+
+    return {
+      id: state.teklifId,
+      teklifNo: state.teklifNo,
+      tarih: state.tarih,
+      satirBazliParaBirimi: state.satirBazliParaBirimi,
+      paraBirimi: state.paraBirimi,
+      durum: state.durum,
+      cari: state.cari,
+      satirlar: state.satirlar,
+      araToplam: state.araToplam,
+      toplamIndirim: state.toplamIndirim,
+      toplamVergi: state.toplamVergi,
+      genelToplam: state.genelToplam,
+      kdvOrani: state.kdvOrani,
+      iskontoOrani: state.iskontoOrani,
+      odemeVadesi: state.odemeVadesi,
+      notlar: state.notlar,
+      olusturmaTarihi: state.olusturmaTarihi,
+      guncellemeTarihi: new Date().toISOString(),
+      hazirlayanKullaniciId: state.hazirlayanKullaniciId,
+      hazirlayanAdSoyad: state.hazirlayanAdSoyad,
+      hazirlayanRol: state.hazirlayanRol,
+      gecerlilikSuresi: '1 Hafta',
+      contactName: state.contactName.trim() || undefined,
+      contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
+    };
+  }, [
+    state.teklifId,
+    state.teklifNo,
+    state.tarih,
+    state.satirBazliParaBirimi,
+    state.paraBirimi,
+    state.durum,
+    state.cari,
+    state.satirlar,
+    state.araToplam,
+    state.toplamIndirim,
+    state.toplamVergi,
+    state.genelToplam,
+    state.kdvOrani,
+    state.iskontoOrani,
+    state.odemeVadesi,
+    state.notlar,
+    state.olusturmaTarihi,
+    state.hazirlayanKullaniciId,
+    state.hazirlayanAdSoyad,
+    state.hazirlayanRol,
+    state.contactName,
+    state.contactTitle,
+  ]);
 
   // ── Aksiyonlar ──
 
@@ -123,8 +161,20 @@ export default function TeklifEditor() {
   const handlePdfIndir = useCallback(async () => {
     if (!teklifObj || !sablonRef.current || !kompaktHeaderRef.current || uretiliyorRef.current) return;
 
-    if (state.cari && state.satirlar.length > 0) {
-      await state.kaydet();
+    if (!state.cari) {
+      message.warning('Lutfen once bir musteri secin.');
+      return;
+    }
+
+    if (state.satirlar.length === 0) {
+      message.warning('PDF olusturmak icin en az bir urun satiri ekleyin.');
+      return;
+    }
+
+    const kaydedildi = await state.kaydet();
+    if (!kaydedildi) {
+      message.error('Teklif kaydedilemedi. PDF olusturma islemi durduruldu.');
+      return;
     }
 
     uretiliyorRef.current = true;
@@ -134,37 +184,39 @@ export default function TeklifEditor() {
     printImagesRef.current = [];
 
     try {
-      const { pdf, pageImages } = await buildPdf(sablonRef.current, kompaktHeaderRef.current);
+      await waitForNextPaint();
+      const { pdf, pageImages } = await buildPdf(sablonRef.current);
       printImagesRef.current = pageImages;
       const blob = pdf.output('blob');
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
 
-      const dosyaAdi = `${teklifObj.teklifNo} - ${formatCariAdi(teklifObj.cari.firmaAdi)}.pdf`;
-      if ('showSaveFilePicker' in window) {
-        try {
-          const fh = await (window as any).showSaveFilePicker({
-            suggestedName: dosyaAdi,
-            types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }],
-          });
-          const ws = await fh.createWritable();
-          await ws.write(blob);
-          await ws.close();
-          message.success('PDF kaydedildi.');
-          return;
-        } catch (err: any) {
-          if (err?.name === 'AbortError') { return; }
+      const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
+      const sonuc = await pdfKaydetVeAc(blob, kayitliTeklif);
+
+      if (sonuc.kayitYontemi === 'otomatik') {
+        teklifService.teklifCacheGuncelle(sonuc.teklif);
+
+        if (sonuc.acildi) {
+          message.success('PDF kaydedildi, kayit altina alindi ve otomatik olarak acildi.');
+        } else {
+          message.warning(
+            sonuc.acmaHatasi
+              ? `PDF kaydedildi ve kayit altina alindi, ancak otomatik acilamadi. ${sonuc.acmaHatasi}`
+              : 'PDF kaydedildi ve kayit altina alindi, ancak otomatik acma tamamlanamadi.',
+          );
         }
+      } else {
+        message.success(
+          'PDF indirildi. Bu ortamda otomatik masaustu kaydi kullanilamadigi icin tarayici indirmesi kullanildi.',
+        );
       }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = dosyaAdi;
-      a.click();
-      URL.revokeObjectURL(url);
-      message.success('PDF indirildi.');
-    } catch (err) {
-      message.error('PDF oluşturulurken hata oluştu.');
+    } catch (error) {
+      if (error instanceof PdfKayitHatasi) {
+        message.error(error.message);
+      } else {
+        message.error('PDF olusturulurken hata olustu.');
+      }
     } finally {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
@@ -180,7 +232,7 @@ export default function TeklifEditor() {
     try {
       let images = printImagesRef.current;
       if (images.length === 0) {
-        const { pageImages } = await buildPdf(sablonRef.current, kompaktHeaderRef.current);
+        const { pageImages } = await buildPdf(sablonRef.current);
         images = pageImages;
         printImagesRef.current = images;
       }
@@ -249,7 +301,6 @@ export default function TeklifEditor() {
         cariAdi={state.cari ? formatCariAdi(state.cari.firmaAdi) : undefined}
         durum={state.durum}
         uretiliyor={state.uretiliyor}
-        pdfHazir={state.pdfHazir}
         onGeriDon={handleGeriDon}
         onKaydet={handleKaydet}
         onPdfIndir={handlePdfIndir}
@@ -268,10 +319,13 @@ export default function TeklifEditor() {
         <div
           style={{
             flex: 1,
-            overflow: 'auto',
-            padding: '24px 16px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: '40px 48px 64px',
+            background: '#dde1e6',
             display: 'flex',
             justifyContent: 'center',
+            alignItems: 'flex-start',
             position: 'relative',
           }}
         >

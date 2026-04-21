@@ -26,7 +26,6 @@ interface BelgeToolbarProps {
   cariAdi?: string;
   durum: TeklifDurum;
   uretiliyor: boolean;
-  pdfHazir: boolean;
   onGeriDon: () => void;
   onKaydet: () => void;
   onPdfIndir: () => void;
@@ -57,7 +56,6 @@ export default function BelgeToolbar({
   cariAdi,
   durum,
   uretiliyor,
-  pdfHazir: _pdfHazir,
   onGeriDon,
   onKaydet,
   onPdfIndir,

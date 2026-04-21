@@ -15,8 +15,12 @@ type SelectProps = React.ComponentProps<typeof Select>;
 type AutoCompleteProps = React.ComponentProps<typeof AutoComplete>;
 type InputProps = React.ComponentProps<typeof Input>;
 type InputNumberProps = React.ComponentProps<typeof InputNumber>;
+type SelectRef = React.ComponentRef<typeof Select>;
+type AutoCompleteRef = React.ComponentRef<typeof AutoComplete>;
+type InputRefType = React.ComponentRef<typeof Input>;
+type InputNumberRefType = React.ComponentRef<typeof InputNumber>;
 
-export const InlineTableSelectField = React.forwardRef<any, SelectProps>(function InlineTableSelectField(
+export const InlineTableSelectField = React.forwardRef<SelectRef, SelectProps>(function InlineTableSelectField(
   { style, className, popupClassName, popupMatchSelectWidth, ...props },
   ref,
 ) {
@@ -35,7 +39,7 @@ export const InlineTableSelectField = React.forwardRef<any, SelectProps>(functio
   );
 });
 
-export const InlineTableAutocompleteField = React.forwardRef<any, AutoCompleteProps>(function InlineTableAutocompleteField(
+export const InlineTableAutocompleteField = React.forwardRef<AutoCompleteRef, AutoCompleteProps>(function InlineTableAutocompleteField(
   { style, className, popupClassName, popupMatchSelectWidth, ...props },
   ref,
 ) {
@@ -53,7 +57,7 @@ export const InlineTableAutocompleteField = React.forwardRef<any, AutoCompletePr
   );
 });
 
-export const InlineTableInputField = React.forwardRef<any, InputProps>(function InlineTableInputField(
+export const InlineTableInputField = React.forwardRef<InputRefType, InputProps>(function InlineTableInputField(
   { style, className, ...props },
   ref,
 ) {
@@ -69,7 +73,7 @@ export const InlineTableInputField = React.forwardRef<any, InputProps>(function 
   );
 });
 
-export const InlineTableNumberField = React.forwardRef<any, InputNumberProps>(function InlineTableNumberField(
+export const InlineTableNumberField = React.forwardRef<InputNumberRefType, InputNumberProps>(function InlineTableNumberField(
   { style, className, ...props },
   ref,
 ) {

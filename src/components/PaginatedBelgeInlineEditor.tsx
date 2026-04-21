@@ -1,0 +1,817 @@
+import React, { useState, useCallback, useRef } from 'react';
+import { Select, Input, DatePicker } from 'antd';
+import type { InputRef } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez, formatCariAdi } from '../utils/formatters';
+import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
+import { formatPhone } from '../utils/phone';
+import { FinansalOzetKartIci } from './FinansalOzetKartIci';
+import { InlineCariAutocompleteField } from './InlineCariAutocompleteField';
+import {
+  formatBirimLabel,
+  formatParaBirimiLabel,
+  RowCell,
+  ROW_SHELL,
+  ROW_TEXT,
+} from './InlineTableRowShared';
+import {
+  DOCUMENT_BRAND,
+  DOCUMENT_COLORS,
+  DOCUMENT_PAGE,
+  DOCUMENT_ROOT_STYLE,
+  FOOTER_BAR_STYLE,
+  LOGO,
+  LOGO_FILE_W,
+  LOGO_OPT_H,
+  LOGO_OPT_W,
+  LOGO_OPT_TOP,
+  LOGO_OPT_LEFT,
+  HIGH_QUALITY_IMAGE_RENDERING,
+  noBreak,
+  NOTES_BOX_STYLE,
+  PARTY_BODY_STYLE,
+  PARTY_CARD_STYLE,
+  PARTY_GRID_STYLE,
+  PARTY_LABEL_STYLE,
+  PARTY_NAME_STYLE,
+  ROW_CARD,
+  SEMBOL,
+  SETTINGS_GRID_STYLE,
+  SETTINGS_CARD_STYLE,
+  SETTINGS_LABEL_STYLE,
+  SETTINGS_TR_LABEL_STYLE,
+  SETTINGS_EN_LABEL_STYLE,
+  SETTINGS_VALUE_STYLE,
+  SIGNATURE_SECTION_STYLE,
+  TABLE_HEAD_SUBLABEL_STYLE,
+  TABLE_STYLE,
+  TABLE_TITLE_STYLE,
+  TableColgroup,
+  buildSettingsItems,
+  firstLine,
+  getTableHeadCellStyle,
+} from '../templates/teklifDocumentShared';
+import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
+import { InlineSatirEditor } from './InlineSatirEditor';
+import type { TeklifPagePlan } from '../services/documentPagination';
+
+const C = DOCUMENT_COLORS;
+const BRAND = DOCUMENT_BRAND;
+const PAGE_GAP_PX = 24;
+
+export type { EditingAlan } from './belgeInlineConstants';
+
+interface PaginatedBelgeInlineEditorProps {
+  teklif: Teklif;
+  totals: TeklifToplam;
+  pages: TeklifPagePlan[];
+  editingAlan: EditingAlan;
+  onEditingAlanDegistir: (alan: EditingAlan) => void;
+  onCariDegistir: (cari: Cari) => void;
+  contactName: string;
+  contactTitle: 'BEY' | 'HANIM';
+  onContactNameDegistir: (name: string) => void;
+  onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
+  onTarihDegistir: (tarih: string) => void;
+  onParaBirimiDegistir: (pb: ParaBirimi) => void;
+  satirBazliParaBirimi: boolean;
+  onSatirBazliDegistir: (aktif: boolean) => void;
+  onKdvOraniDegistir: (oran: number) => void;
+  onOdemeVadesiDegistir: (vade: string) => void;
+  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  onSatirSil: (id: string) => void;
+  onSatirEkle: () => void;
+  onSatirArayaEkle: (afterIndex: number) => void;
+  onNotlarDegistir: (notlar: string) => void;
+}
+
+function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
+  const S = 0.478;
+  const logoW = LOGO_FILE_W * S;
+  const logoH = LOGO.FILE_HEIGHT * S;
+  const optW = LOGO_OPT_W * S;
+  const optH = LOGO_OPT_H * S;
+  const optTop = LOGO_OPT_TOP * S;
+  const optLeft = LOGO_OPT_LEFT * S;
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingBottom: '3.5mm',
+        borderBottom: `1.5px solid ${C.panelStrong}`,
+      }}>
+        <div style={{ position: 'relative', width: `${optW}px`, height: `${optH}px`, overflow: 'hidden', flexShrink: 0 }}>
+          <img
+            src="/logo-meba.png"
+            alt="MEBA"
+            style={{
+              position: 'absolute',
+              top: `${optTop}px`,
+              left: `${optLeft}px`,
+              width: `${logoW}px`,
+              height: `${logoH}px`,
+              maxWidth: 'none',
+              maxHeight: 'none',
+              display: 'block',
+              imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
+              printColorAdjust: 'exact',
+              WebkitPrintColorAdjust: 'exact',
+            }}
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: '10.4px', fontWeight: 800, color: C.navy, letterSpacing: '-0.015em', lineHeight: 1.25 }}>
+            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.
+          </span>
+          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
+            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ
+          </span>
+          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
+            Tel: 0352 502 07 80 | info@mebamekanik.com | www.mebamekanik.com
+          </span>
+        </div>
+        <div style={{ flexShrink: 0, textAlign: 'right' }}>
+          <div style={{ fontSize: '10.4px', fontWeight: 700, color: C.navy, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
+            {teklif.teklifNo}
+          </div>
+          <div style={{ fontSize: '8.6px', color: C.textMuted, marginTop: 1, letterSpacing: '0.01em' }}>
+            {formatDate(teklif.tarih)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
+  return (
+    <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
+      <div>MEBA Pnömatik Hidrolik Makina | KAYSERİ | info@mebamekanik.com</div>
+      <div style={{ fontVariantNumeric: 'tabular-nums' }}>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
+      <div style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>Sayfa {pageNumber} / {totalPages}</div>
+    </div>
+  );
+}
+
+export default function PaginatedBelgeInlineEditor({
+  teklif,
+  totals,
+  pages,
+  editingAlan,
+  onEditingAlanDegistir,
+  onCariDegistir,
+  contactName,
+  contactTitle,
+  onContactNameDegistir,
+  onContactTitleDegistir,
+  onTarihDegistir,
+  onParaBirimiDegistir,
+  satirBazliParaBirimi,
+  onSatirBazliDegistir,
+  onKdvOraniDegistir,
+  onOdemeVadesiDegistir,
+  onSatirGuncelle,
+  onSatirSil,
+  onSatirEkle,
+  onSatirArayaEkle,
+  onNotlarDegistir,
+}: PaginatedBelgeInlineEditorProps) {
+  const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
+  const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
+  const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
+    teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
+  );
+
+  const muhatapSatiri = teklif.contactName?.trim()
+    ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
+    : (teklif.cari.yetkiliKisi || null);
+
+  const isMusteriEditing = editingAlan === 'musteri';
+  const isAnyAyarEditing = editingAlan?.startsWith('ayar-') ?? false;
+  const isNotlarEditing = editingAlan === 'notlar';
+  const editingSatirId = editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
+
+  const muhatapRef = useRef<InputRef>(null);
+  const [cariSearchText, setCariSearchText] = useState(() => formatCariAdi(teklif.cari.firmaAdi));
+
+  const [satirFocusCell, setSatirFocusCell] = useState<string>('urunKod');
+
+  const handleSatirCellClick = useCallback(
+    (satirId: string, cell: string) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSatirFocusCell(cell);
+      onEditingAlanDegistir(`satir-${satirId}`);
+    },
+    [onEditingAlanDegistir],
+  );
+
+  const handleAlanClick = (alan: EditingAlan, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (alan === 'musteri' && editingAlan !== alan) {
+      setCariSearchText(formatCariAdi(teklif.cari.firmaAdi));
+    }
+    if (editingAlan !== alan) onEditingAlanDegistir(alan);
+  };
+
+  const editFrameStyle = (isEditing: boolean): React.CSSProperties => ({
+    transition: 'background 0.18s ease',
+    cursor: isEditing ? 'default' : 'pointer',
+    ...(isEditing ? { background: 'rgba(237, 242, 251, 0.35)' } : {}),
+  });
+
+  const renderFirstPageHeader = () => (
+    <>
+      <div style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        width: '100%',
+        height: `${LOGO_OPT_H}px`,
+        marginBottom: '10px',
+        ...noBreak,
+      }}>
+        <div style={{ flex: '0 0 37%', maxWidth: '37%', paddingRight: '8px', boxSizing: 'border-box', lineHeight: 0 }}>
+          <div style={{ position: 'relative', width: `${LOGO_OPT_W}px`, height: `${LOGO_OPT_H}px`, overflow: 'hidden' }}>
+            <img src="/logo-meba.png" alt="MEBA Mekanik" style={{
+              position: 'absolute', top: `${LOGO_OPT_TOP}px`, left: `${LOGO_OPT_LEFT}px`,
+              width: `${LOGO_FILE_W}px`, height: `${LOGO.FILE_HEIGHT}px`,
+              maxWidth: 'none', maxHeight: 'none', display: 'block',
+              imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
+              printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
+            }} />
+          </div>
+        </div>
+        <div style={{ flex: '0 0 31%', maxWidth: '31%', paddingRight: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+          <div style={{ fontWeight: 800, fontSize: '11.5px', color: C.navy, lineHeight: '1.25', letterSpacing: '-0.012em' }}>
+            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik<br />San. Tic. Ltd. Şti.
+          </div>
+          <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
+            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv.<br />No:252/D Melikgazi / KAYSERİ
+          </div>
+        </div>
+        <div style={{ flex: '0 0 32%', maxWidth: '32%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', boxSizing: 'border-box' }}>
+          <div style={{ width: '202px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', boxSizing: 'border-box' }}>
+            <div style={{
+              background: BRAND.gradient, printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
+              padding: '5px 14px 6px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px',
+              lineHeight: 1.2, borderRadius: '9px', border: `1px solid ${BRAND.border}`, boxShadow: BRAND.shadowSm,
+            }}>
+              <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '0.8px', color: BRAND.text }}>TEKLİF</span>
+              <span style={{ fontSize: '10.4px', color: BRAND.textSub, letterSpacing: '0.02em' }}>/ Quotation</span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
+              <colgroup><col style={{ width: '42%' }} /><col style={{ width: '58%' }} /></colgroup>
+              <tbody>
+                <tr>
+                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.2, letterSpacing: '0.04em' }}>Teklif No</td>
+                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>{teklif.teklifNo}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.2, letterSpacing: '0.04em' }}>Tarih</td>
+                  <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.2, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {isAnyAyarEditing ? (
+                      <DatePicker
+                        size="small"
+                        variant="borderless"
+                        value={dayjs(teklif.tarih)}
+                        onChange={(d) => d && onTarihDegistir(d.format('YYYY-MM-DD'))}
+                        format="DD.MM.YYYY"
+                        style={{ fontSize: '10.9px', padding: 0, width: 110 }}
+                        allowClear={false}
+                      />
+                    ) : formatDate(teklif.tarih)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: 0, lineHeight: 1.2, letterSpacing: '0.04em' }}>Hazırlayan</td>
+                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: 0, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{teklif.hazirlayanAdSoyad || 'MEBA Mekanik'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div style={PARTY_GRID_STYLE}>
+        <div style={PARTY_CARD_STYLE}>
+          <div style={PARTY_LABEL_STYLE}>
+            Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
+          </div>
+          <div style={PARTY_NAME_STYLE}>MEBA Mekanik Ltd. Şti.</div>
+          <div style={PARTY_BODY_STYLE}>Tel: {formatPhone('03525020780')}<br />www.mebamekanik.com</div>
+        </div>
+        <div data-alan="musteri" onClick={(e) => handleAlanClick('musteri', e)} style={{ ...PARTY_CARD_STYLE, ...editFrameStyle(isMusteriEditing) }}>
+          <div style={PARTY_LABEL_STYLE}>
+            Alıcı <span style={{ fontWeight: 400, opacity: 0.6 }}>/ To</span>
+          </div>
+          {isMusteriEditing ? (
+            <div className="field-group" style={{ padding: '2px 0' }}>
+              <div style={{ ...PARTY_NAME_STYLE, marginBottom: 6 }}>
+                <InlineCariAutocompleteField
+                  autoFocus
+                  style={{ width: '100%' }}
+                  value={cariSearchText}
+                  onChange={setCariSearchText}
+                  onCariSelect={(cari) => {
+                    if (cari) {
+                      setCariSearchText(formatCariAdi(cari.firmaAdi));
+                      onCariDegistir(cari);
+                      setTimeout(() => muhatapRef.current?.focus(), 50);
+                    }
+                  }}
+                  placeholder={formatCariAdi(teklif.cari.firmaAdi) || 'Firma adı veya cari kod...'}
+                  popupMinWidth={300}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11.5px', color: C.textMid }}>
+                <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>Sayın</span>
+                <Input
+                  ref={muhatapRef}
+                  size="small"
+                  variant="borderless"
+                  style={{ flex: 1, fontSize: '11.5px', fontWeight: 500, maxWidth: 160 }}
+                  value={contactName}
+                  onChange={(e) => onContactNameDegistir(e.target.value)}
+                  placeholder="muhatap adı"
+                  onFocus={(e) => e.target.select()}
+                />
+                <Select
+                  size="small"
+                  variant="borderless"
+                  suffixIcon={null}
+                  style={{ width: 72, fontSize: '11.5px' }}
+                  value={contactTitle}
+                  onChange={onContactTitleDegistir}
+                  options={[{ value: 'BEY', label: 'Bey' }, { value: 'HANIM', label: 'Hanım' }]}
+                  popupMatchSelectWidth={false}
+                  dropdownStyle={{ minWidth: 90 }}
+                />
+              </div>
+              <div style={{ ...PARTY_BODY_STYLE, marginTop: 6 }}>
+                {(teklif.cari.telefon || teklif.cari.ePosta) && (
+                  <div>
+                    {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
+                    {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
+                    {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
+                  </div>
+                )}
+                {teklif.cari.vergiNo && (
+                  <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
+                )}
+                {teklif.cari.adres && <div>{teklif.cari.adres}</div>}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
+              <div style={PARTY_BODY_STYLE}>
+                {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
+                {(teklif.cari.telefon || teklif.cari.ePosta) && (
+                  <div>
+                    {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
+                    {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
+                    {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
+                  </div>
+                )}
+                {teklif.cari.vergiNo && (
+                  <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
+                )}
+                {teklif.cari.adres && <div>{teklif.cari.adres}</div>}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {(() => {
+        const ayarAlanIds = ['ayar-paraBirimi', 'ayar-odemeVadesi', 'ayar-kdvOrani', 'ayar-kur', 'ayar-gecerlilik'] as const;
+        const items = buildSettingsItems(teklif, satirBazliParaBirimi);
+
+        return (
+          <div style={SETTINGS_GRID_STYLE}>
+            {items.map((item, i) => {
+              const alanId = ayarAlanIds[i];
+              const isEditing = editingAlan === alanId;
+
+              return (
+                <div
+                  key={alanId}
+                  data-alan={alanId}
+                  onClick={(e) => handleAlanClick(alanId, e)}
+                  style={{
+                    ...SETTINGS_CARD_STYLE,
+                    cursor: isEditing ? 'default' : 'pointer',
+                    transition: 'background 0.18s ease, box-shadow 0.18s ease',
+                    ...(isEditing ? { background: '#eef2fb', boxShadow: '0 1px 3px rgba(37,99,235,0.10)' } : {}),
+                  }}
+                >
+                  {isEditing ? (
+                    <div className="field-group">
+                      <div style={{ ...SETTINGS_LABEL_STYLE, marginBottom: '4px' }}>
+                        <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+                      </div>
+                      {i === 0 && (
+                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }} value={teklif.paraBirimi} onChange={onParaBirimiDegistir} options={[{ value: 'TRY', label: 'TL' }, { value: 'EUR', label: 'EUR' }, { value: 'USD', label: 'USD' }]} popupMatchSelectWidth={100} />
+                      )}
+                      {i === 1 && (
+                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }} value={teklif.odemeVadesi || '45 Gün'} onChange={onOdemeVadesiDegistir} options={['Peşin', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün'].map((v) => ({ value: v, label: v }))} popupMatchSelectWidth={100} />
+                      )}
+                      {i === 2 && (
+                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }} value={teklif.kdvOrani} onChange={onKdvOraniDegistir} options={[{ value: 0, label: 'Hariç' }, { value: 1, label: '%1' }, { value: 10, label: '%10' }, { value: 20, label: '%20' }]} popupMatchSelectWidth={80} />
+                      )}
+                      {i === 3 && <div style={SETTINGS_VALUE_STYLE}>TCMB Fatura</div>}
+                      {i === 4 && <div style={SETTINGS_VALUE_STYLE}>{teklif.gecerlilikSuresi ?? '1 Hafta'}</div>}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={SETTINGS_LABEL_STYLE}>
+                        <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+                        <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
+                      </div>
+                      <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+    </>
+  );
+
+  const renderTable = (page: TeklifPagePlan) => {
+    if (!page.showTableHeader) return null;
+
+    return (
+      <>
+        <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'flex' : 'none', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span></span>
+          {page.showFullHeader && (
+            <span
+              onClick={(e) => { e.stopPropagation(); onSatirBazliDegistir(!satirBazliParaBirimi); }}
+              title="Satır bazlı para birimi"
+              style={{
+                fontSize: '7.5px',
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: satirBazliParaBirimi ? C.accent : C.textMuted,
+                opacity: satirBazliParaBirimi ? 1 : 0.45,
+                cursor: 'pointer',
+                userSelect: 'none',
+                padding: '2px 7px',
+                borderRadius: '4px',
+                background: satirBazliParaBirimi ? 'rgba(37,99,235,0.07)' : 'transparent',
+                border: `0.75px solid ${satirBazliParaBirimi ? 'rgba(37,99,235,0.18)' : 'transparent'}`,
+              }}
+            >
+              € $ ₺ Satır PB
+            </span>
+          )}
+        </div>
+        <table style={{ ...TABLE_STYLE, marginBottom: 0 } as React.CSSProperties}>
+          <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+          <thead>
+            <tr>
+              {[
+                { label: '#', sub: '', align: 'center' as const },
+                { label: 'Marka', sub: 'Brand', align: 'center' as const },
+                { label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
+                { label: 'Açıklama', sub: 'Description', align: 'left' as const },
+                { label: 'Miktar', sub: 'Qty', align: 'center' as const },
+                ...(satirBazliParaBirimi ? [{ label: 'Para Birimi', sub: 'Currency', align: 'center' as const }] : []),
+                { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
+                { label: 'Toplam', sub: 'Total', align: 'right' as const },
+                { label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
+              ].map((col, i) => (
+                <th key={i} style={getTableHeadCellStyle(col.align)}>
+                  {col.label}
+                  {col.sub && <span style={{ ...TABLE_HEAD_SUBLABEL_STYLE, textAlign: col.align }}>{col.sub}</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr aria-hidden="true">
+              <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '4px', padding: 0, border: 'none', background: 'transparent' }} />
+            </tr>
+            {teklif.satirlar.slice(page.rowStartIndex, page.rowEndIndex).map((satir, localIndex) => {
+              const idx = page.rowStartIndex + localIndex;
+              const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
+              const isEditing = editingSatirId === satir.id;
+              const colCount = satirBazliParaBirimi ? 9 : 8;
+
+              const insertIndicator = (
+                <tr key={`insert-${satir.id}`} className="satir-araya-ekle-zone" style={{ height: 0 }}>
+                  <td colSpan={colCount} style={{ padding: 0, border: 'none', position: 'relative', height: 0, overflow: 'visible' }}>
+                    <div
+                      className="satir-araya-ekle-btn"
+                      onClick={(e) => { e.stopPropagation(); onSatirArayaEkle(idx); }}
+                      style={{
+                        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+                        zIndex: 45, display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '1px 10px', borderRadius: 10,
+                        background: 'rgba(37,99,235,0.07)', border: `1px solid ${C.accent}`,
+                        color: C.accent, fontSize: '9px', fontWeight: 700, cursor: 'pointer',
+                        opacity: 0, transition: 'opacity 0.18s',
+                        pointerEvents: 'none', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <PlusOutlined style={{ fontSize: 8 }} /> Araya ekle
+                    </div>
+                  </td>
+                </tr>
+              );
+
+              if (isEditing) {
+                return (
+                  <React.Fragment key={satir.id}>
+                    <InlineSatirEditor
+                      satir={satir}
+                      idx={idx}
+                      paraBirimi={teklif.paraBirimi}
+                      satirBazliParaBirimi={satirBazliParaBirimi}
+                      focusCell={satirFocusCell}
+                      onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                      onSil={() => onSatirSil(satir.id)}
+                      onArayaEkle={() => onSatirArayaEkle(idx)}
+                    />
+                    {insertIndicator}
+                  </React.Fragment>
+                );
+              }
+
+              const cellClick = (cell: string) => handleSatirCellClick(satir.id, cell);
+
+              return (
+                <React.Fragment key={satir.id}>
+                  <tr data-satir-id={satir.id} style={{ ...noBreak }}>
+                    <RowCell idx={idx} pos="first" onClick={cellClick('urunKod')} style={{ ...ROW_TEXT.no, cursor: 'pointer' }}>
+                      {String(idx + 1).padStart(2, '0')}
+                    </RowCell>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} style={{ cursor: 'pointer' }}>
+                      <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
+                    </RowCell>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} style={{ cursor: 'pointer' }}>
+                      <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
+                    </RowCell>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} style={{ cursor: 'pointer' }}>
+                      <span style={ROW_TEXT.description}>{firstLine(stripParantez(satir.urunAdi)) || '-'}</span>
+                    </RowCell>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} style={{ cursor: 'pointer' }}>
+                      {satir.miktar !== 0 ? (
+                        <div style={ROW_SHELL.quantityWrap}>
+                          <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
+                          <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimLabel(satir.birim)}</span>
+                        </div>
+                      ) : '-'}
+                    </RowCell>
+                    {satirBazliParaBirimi && (
+                      <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
+                        <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
+                      </RowCell>
+                    )}
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
+                      <span style={ROW_TEXT.price}>{(() => {
+                        const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
+                        return nihai !== 0
+                          ? `${formatDisplayNumber(nihai, 2, 2)}${satirBazliParaBirimi ? ` ${formatParaBirimiLabel(satirPb)}` : ''}`
+                          : '-';
+                      })()}</span>
+                    </RowCell>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
+                      <span style={ROW_TEXT.total}>
+                        {satir.satirToplami !== 0
+                          ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${formatParaBirimiLabel(satirPb)}` : ''}`
+                          : '-'}
+                      </span>
+                    </RowCell>
+                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} style={{ position: 'relative', cursor: 'pointer' }}>
+                      <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
+                      {(satir.indirimOrani || 0) > 0 && (
+                        <span style={{ position: 'absolute', top: 2, right: 2, fontSize: '7.5px', fontWeight: 700, color: C.accent, background: 'rgba(37,99,235,0.08)', borderRadius: '3px', padding: '1px 3px', lineHeight: 1, letterSpacing: '0.02em', pointerEvents: 'none' }}>
+                          -{satir.indirimOrani}%
+                        </span>
+                      )}
+                      <div className="belge-satir-hover-actions" style={{ position: 'absolute', right: -2, top: '50%', transform: 'translateY(-50%)', zIndex: 40, display: 'flex', gap: '2px' }}>
+                        <span
+                          onClick={(e) => { e.stopPropagation(); onSatirSil(satir.id); }}
+                          style={{
+                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 20, height: 20, borderRadius: '4px',
+                            background: 'rgba(255,255,255,0.95)', border: `0.75px solid ${C.borderSoft}`,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)', color: '#b91c1c', fontSize: '9px',
+                          }}
+                          title="Satırı sil"
+                        >
+                          <DeleteOutlined />
+                        </span>
+                      </div>
+                    </RowCell>
+                  </tr>
+                  {insertIndicator}
+                </React.Fragment>
+              );
+            })}
+            {page.pageNumber === pages.length && teklif.satirlar.length === 0 && (
+              <tr>
+                <td
+                  colSpan={satirBazliParaBirimi ? 9 : 8}
+                  onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
+                  style={{
+                    padding: '14px 7px', textAlign: 'center', fontSize: '11px', color: C.textMuted,
+                    cursor: 'pointer', border: `1px dashed ${C.borderSoft}`, borderRadius: ROW_CARD.radius,
+                    background: 'rgba(37, 99, 235, 0.02)',
+                  }}
+                >
+                  <PlusOutlined style={{ marginRight: 6, fontSize: 11 }} />
+                  İlk kalem satırını eklemek için tıklayın
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && (
+          <div
+            className="belge-kalem-ekle-bar"
+            onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 5,
+              padding: '5px 0',
+              cursor: 'pointer',
+              fontSize: '9.5px',
+              fontWeight: 600,
+              color: C.accent,
+              letterSpacing: '0.01em',
+              opacity: 0.55,
+              userSelect: 'none',
+              transition: 'opacity 0.18s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.55'; }}
+          >
+            <PlusOutlined style={{ fontSize: 9 }} /> Yeni kalem ekle
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderTotals = () => (
+    <table style={{
+      width: '100%', borderCollapse: 'collapse',
+      marginTop: satirBazliParaBirimi ? '10px' : '6px', marginBottom: '14px',
+      tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
+      borderTop: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
+      borderBottom: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
+      printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
+    } as React.CSSProperties}>
+      <colgroup><col style={{ width: '56%' }} /><col /></colgroup>
+      <tbody>
+        {!satirBazliParaBirimi ? (
+          <tr>
+            <td style={{ borderTop: 'none', borderBottom: 'none' }} />
+            <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
+              <div style={{ padding: iskontoOrani > 0 || kdvOrani > 0 ? '9px 14px' : '11px 14px', boxSizing: 'border-box', border: '0.75px solid #1A2B42', borderRadius: '8px', background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)', boxShadow: '0 2px 8px rgba(15,25,40,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: iskontoOrani > 0 || kdvOrani > 0 ? '6px' : 0 }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
+                  <span style={{ fontSize: '7.5px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
+                </div>
+                {(iskontoOrani > 0 || kdvOrani > 0) && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}><span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: BRAND.textSub }}>Ara Toplam</span><span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', fontWeight: 600, color: BRAND.textSub, fontVariantNumeric: 'tabular-nums' }}>{araToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    {iskontoOrani > 0 && <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}><span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: '#fca5a5' }}>İskonto %{iskontoOrani}</span><span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', fontWeight: 600, color: '#fca5a5', fontVariantNumeric: 'tabular-nums' }}>-{iskontoTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
+                    {kdvOrani > 0 && <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}><span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color: '#86efac' }}>KDV %{kdvOrani}</span><span style={{ width: 80, textAlign: 'right', fontSize: '8.5px', fontWeight: 600, color: '#86efac', fontVariantNumeric: 'tabular-nums' }}>+{kdvTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
+                    <div style={{ borderTop: `0.75px solid ${BRAND.separator}`, margin: '5px 0 4px' }} />
+                  </>
+                )}
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: '2px' }}>
+                  <span style={{ fontSize: '9px', color: BRAND.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
+                  <span style={{ fontSize: genelToplam >= 1e6 ? '14px' : '17px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: BRAND.text, whiteSpace: 'nowrap' }}>{genelToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+        ) : (
+          <tr>
+            <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
+              <div style={{ width: '100%', boxSizing: 'border-box', minHeight: '112px', border: '0.75px solid #1A2B42', borderRadius: '8px', background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)', padding: '7px 8px 8px', boxShadow: '0 2px 8px rgba(15,25,40,0.10)' }}>
+                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: BRAND.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>Genel Toplamlar / Grand Total</div>
+                <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
+                  {kullanilanParaKartlari.map((item) => (
+                    <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '10px', border: '0.75px solid #E8E6E3', background: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                      <FinansalOzetKartIci araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="pdf" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+
+  const renderNotes = () => (
+    <div
+      data-alan="notlar"
+      onClick={(e) => handleAlanClick('notlar', e)}
+      style={{ ...NOTES_BOX_STYLE, minHeight: isNotlarEditing ? 60 : (teklif.notlar ? undefined : 44), ...noBreak, ...editFrameStyle(isNotlarEditing) } as React.CSSProperties}
+    >
+      {isNotlarEditing ? (
+        <div className="field-group">
+          <div style={{ fontSize: '8.5px', fontWeight: 700, color: C.navy, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.7 }}>
+            Notlar <span style={{ fontWeight: 400, opacity: 0.6 }}>/ Notes</span>
+          </div>
+          <Input.TextArea autoFocus variant="borderless" value={teklif.notlar} onChange={(e) => onNotlarDegistir(e.target.value)} autoSize={{ minRows: 2, maxRows: 8 }} style={{ fontSize: '12.5px', lineHeight: '1.65', color: C.textMid, padding: 0 }} placeholder="Not ekleyin..." />
+        </div>
+      ) : teklif.notlar ? (
+        <>
+          <strong style={{ color: C.navy, fontSize: '11px', letterSpacing: '0.02em' }}>Notlar / Notes:&nbsp;</strong>
+          <span style={{ color: C.textMid }}>{teklif.notlar}</span>
+        </>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 24 }}>
+          <span style={{ color: C.textMuted, fontStyle: 'italic', fontSize: '11px', opacity: 0.65 }}>Not eklemek için tıklayın...</span>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="belge-inline">
+      <style>{FIELD_CSS}{`
+        .satir-aksiyonlari { pointer-events: auto; }
+        .belge-satir-hover-actions { opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+        tr:hover > td > .belge-satir-hover-actions,
+        tr:focus-within > td > .belge-satir-hover-actions { opacity: 1; pointer-events: auto; }
+        .belge-inline-cari-dropdown .ant-select-item { font-family: inherit; font-size: 11.5px; line-height: 1.35; letter-spacing: -0.01em; color: ${C.textMid}; }
+        .belge-inline-cari-dropdown .ant-select-item-option { padding: 6px 10px; }
+        .belge-inline-cari-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) { background: rgba(237, 242, 251, 0.92); }
+        .belge-inline-cari-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) { background: rgba(226, 232, 240, 0.96); }
+        .belge-inline-table-dropdown .ant-select-item { font-family: inherit; font-size: 11px; line-height: 1.35; letter-spacing: inherit; color: ${C.textMid}; }
+        .belge-inline-table-dropdown .ant-select-item-option { padding: 5px 8px; }
+        .belge-inline-table-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) { background: rgba(237, 242, 251, 0.9); }
+        .belge-inline-table-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) { background: rgba(226, 232, 240, 0.94); color: ${C.navy}; }
+        .satir-araya-ekle-zone { pointer-events: none; }
+        .satir-araya-ekle-zone:hover { pointer-events: auto; }
+        .satir-araya-ekle-zone:hover .satir-araya-ekle-btn,
+        tr[data-satir-id]:hover + .satir-araya-ekle-zone .satir-araya-ekle-btn { opacity: 1 !important; pointer-events: auto !important; }
+      `}</style>
+
+      {pages.map((page) => (
+        <div
+          key={page.pageNumber}
+          id={page.pageNumber === 1 ? 'teklif-sablon' : undefined}
+          style={{
+            ...DOCUMENT_ROOT_STYLE,
+            height: `${DOCUMENT_PAGE.heightMm}mm`,
+            minHeight: `${DOCUMENT_PAGE.heightMm}mm`,
+            overflow: 'hidden',
+            marginBottom: page.pageNumber < pages.length ? `${PAGE_GAP_PX}px` : 0,
+          } as React.CSSProperties}
+        >
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ minHeight: 0 }}>
+            {page.showFullHeader && renderFirstPageHeader()}
+            {page.showCompactHeader && <CompactHeaderBlock teklif={teklif} />}
+            {renderTable(page)}
+            {page.includeTotals && renderTotals()}
+            {page.includeNotes && renderNotes()}
+            </div>
+            {page.includeSignature && (
+              <div style={{ marginTop: 'auto' }}>
+                <div style={SIGNATURE_SECTION_STYLE}>
+                  <div style={{ color: C.textMuted, fontSize: '11.7px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '9px' }}>
+                    Siparişi Veren / Authorised Person
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
+                    <div style={{ flex: '0 0 40%', fontSize: '11.7px', lineHeight: '1.45', color: C.textMid }}>
+                      <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
+                      <div style={{ color: C.textMuted, marginBottom: '9px', marginTop: '3px' }}>İsim / Name</div>
+                      <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
+                      <div style={{ color: C.textMuted, marginTop: '3px' }}>Tarih / Date</div>
+                    </div>
+                    <div style={{ flex: '1', fontSize: '11.7px', lineHeight: '1.45', color: C.textMid, paddingTop: '54px' }}>
+                      <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
+                      <div style={{ color: C.textMuted, marginTop: '3px', marginLeft: '-2cm' }}>İmza / Signature</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <FooterBlock teklif={teklif} pageNumber={page.pageNumber} totalPages={pages.length} />
+        </div>
+      ))}
+    </div>
+  );
+}
