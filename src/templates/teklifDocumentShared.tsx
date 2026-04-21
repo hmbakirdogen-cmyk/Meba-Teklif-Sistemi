@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+﻿import type { CSSProperties } from 'react';
 import type { Teklif } from '../types';
 
 export const DOCUMENT_PAGE = {

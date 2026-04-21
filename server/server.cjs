@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const PORT    = 3001;
-const PDF_ROOT_FOLDER_NAME = 'MEBA MEKANİK TEKLİFLER';
+const PDF_ROOT_FOLDER_NAME = 'MEBA MEKAN\u0130K TEKL\u0130FLER';
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*\u0000-\u001F]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
 
@@ -142,6 +142,80 @@ function dosyaAc(filePath) {
       acmaHatasi: error instanceof Error ? error.message : 'PDF dosyasi acilamadi.',
     };
   }
+}
+
+function escapePowerShellLiteral(value) {
+  return String(value ?? '').replace(/'/g, "''");
+}
+
+function mailKonuUret(teklif) {
+  return `Teklif - ${teklif.teklifNo} - ${cariKlasorAdiUret(teklif?.cari?.firmaAdi ?? '')}`;
+}
+
+function mailGovdesiUret(teklif) {
+  const kisi = normalizeWhitespace(teklif?.contactName ?? '');
+  const hitap = kisi ? `Sayin ${kisi},` : 'Merhaba,';
+
+  return [
+    hitap,
+    '',
+    'Ilgili teklif dosyaniz ekte sunulmustur.',
+    '',
+    'Iyi calismalar dileriz.',
+    '',
+    'MEBA Mekanik',
+  ].join('\r\n');
+}
+
+function outlookTaslagiAc({ aliciEposta, konu, govde, ekDosyaYolu }) {
+  if (process.platform !== 'win32') {
+    return {
+      epostaHazirlandi: false,
+      epostaHatasi: 'Outlook taslagi yalnizca Windows ortaminda hazirlanabilir.',
+      epostaTaslakYontemi: null,
+    };
+  }
+
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    '$outlook = New-Object -ComObject Outlook.Application',
+    '$mail = $outlook.CreateItem(0)',
+    `$mail.To = '${escapePowerShellLiteral(aliciEposta)}'`,
+    `$mail.Subject = '${escapePowerShellLiteral(konu)}'`,
+    `$mail.Body = '${escapePowerShellLiteral(govde)}'`,
+    `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
+    '$mail.Display()',
+  ].join('; ');
+
+  const result = spawn('powershell.exe', ['-NoProfile', '-STA', '-Command', script], {
+    stdio: 'ignore',
+  });
+
+  return new Promise((resolve) => {
+    result.on('error', () => {
+      resolve({
+        epostaHazirlandi: false,
+        epostaHatasi: 'Outlook gonderi penceresi acilamadi.',
+        epostaTaslakYontemi: null,
+      });
+    });
+
+    result.on('exit', (code) => {
+      if (code === 0) {
+        resolve({
+          epostaHazirlandi: true,
+          epostaTaslakYontemi: 'outlook',
+        });
+        return;
+      }
+
+      resolve({
+        epostaHazirlandi: false,
+        epostaHatasi: 'Outlook gonderi penceresi acilamadi.',
+        epostaTaslakYontemi: null,
+      });
+    });
+  });
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -303,10 +377,11 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { yil: db.sayac.yil, deger: db.sayac.deger });
     }
 
-    if (url === '/api/pdf/kaydet-ve-ac' && method === 'POST') {
+    if ((url === '/api/teklif/disa-aktar' || url === '/api/pdf/kaydet-ve-ac') && method === 'POST') {
       const body = await parseBody(req);
       const teklif = body?.teklif;
       const pdfBase64 = typeof body?.pdfBase64 === 'string' ? body.pdfBase64.trim() : '';
+      const hedef = body?.hedef === 'email' ? 'email' : 'pdf';
       let kaydedilenDosyaYolu = '';
       let kaydedilenDosyaAdi = '';
       let teklifKaydiTamamlandi = false;
@@ -367,7 +442,31 @@ const server = http.createServer(async (req, res) => {
           throw new Error('Teklif kaydi program altyapisina yazilamadi.');
         }
 
-        const acmaSonucu = dosyaAc(tamYol);
+        const aliciEposta = normalizeWhitespace(teklif?.cari?.ePosta ?? '');
+        const mailKonu = mailKonuUret(teklif);
+        const mailGovdesi = mailGovdesiUret(teklif);
+        const acmaSonucu = hedef === 'pdf'
+          ? dosyaAc(tamYol)
+          : { acildi: false };
+        const epostaSonucu = hedef === 'email'
+          ? (
+            aliciEposta
+              ? await outlookTaslagiAc({
+                aliciEposta,
+                konu: mailKonu,
+                govde: mailGovdesi,
+                ekDosyaYolu: tamYol,
+              })
+              : {
+                epostaHazirlandi: false,
+                epostaHatasi: 'Alici icin e-mail adresi bulunamadi.',
+                epostaTaslakYontemi: null,
+              }
+          )
+          : {
+            epostaHazirlandi: false,
+            epostaTaslakYontemi: null,
+          };
 
         return send(res, 200, {
           teklif: teklifKaydi,
@@ -375,8 +474,14 @@ const server = http.createServer(async (req, res) => {
           klasorYolu: altKlasorYolu,
           pdfYolu: tamYol,
           pdfDosyaAdi: dosyaAdi,
-          acildi: acmaSonucu.acildi,
-          acmaHatasi: acmaSonucu.acmaHatasi,
+          dosyaAcildi: acmaSonucu.acildi,
+          dosyaAcmaHatasi: acmaSonucu.acmaHatasi,
+          epostaHazirlandi: epostaSonucu.epostaHazirlandi,
+          epostaHatasi: epostaSonucu.epostaHatasi,
+          epostaTaslakYontemi: epostaSonucu.epostaTaslakYontemi,
+          aliciEposta: aliciEposta || undefined,
+          mailKonu: hedef === 'email' ? mailKonu : undefined,
+          mailGovdesi: hedef === 'email' ? mailGovdesi : undefined,
         });
       } catch (error) {
         const hataMesaji = error instanceof Error ? error.message : 'PDF kayit islemi tamamlanamadi.';

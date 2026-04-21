@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+﻿import React, { useState, useCallback, useRef } from 'react';
 import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -77,6 +77,7 @@ interface PaginatedBelgeInlineEditorProps {
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
+  satirBazliIskonto: boolean;
   onSatirBazliDegistir: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
@@ -172,6 +173,7 @@ export default function PaginatedBelgeInlineEditor({
   onTarihDegistir,
   onParaBirimiDegistir,
   satirBazliParaBirimi,
+  satirBazliIskonto,
   onSatirBazliDegistir,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
@@ -536,6 +538,7 @@ export default function PaginatedBelgeInlineEditor({
                       idx={idx}
                       paraBirimi={teklif.paraBirimi}
                       satirBazliParaBirimi={satirBazliParaBirimi}
+                      satirBazliIskonto={satirBazliIskonto}
                       focusCell={satirFocusCell}
                       onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
                       onSil={() => onSatirSil(satir.id)}

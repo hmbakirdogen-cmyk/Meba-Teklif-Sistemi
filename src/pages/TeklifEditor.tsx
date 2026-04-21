@@ -16,7 +16,12 @@ import { useColors } from '../hooks/useColors';
 import { useBelgeState, type PanelModu } from '../hooks/useBelgeState';
 import { buildPdf } from '../services/pdfService';
 import { teklifService } from '../services/teklifService';
-import { pdfKaydetVeAc, PdfKayitHatasi } from '../services/pdfKayitService';
+import {
+  teklifDisaAktar,
+  type TeklifDisaAktarimHedefi,
+  type TeklifDisaAktarimSonucu,
+  TeklifDisaAktarimHatasi,
+} from '../services/pdfKayitService';
 import { formatCariAdi } from '../utils/formatters';
 import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
@@ -158,7 +163,55 @@ export default function TeklifEditor() {
     }
   }, [state, message]);
 
-  const handlePdfIndir = useCallback(async () => {
+  const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu) => {
+    if (sonuc.hedef === 'pdf') {
+      if (sonuc.kayitYontemi === 'tarayici') {
+        message.success('PDF indirildi. Bu ortamda otomatik masaustu kaydi kullanilamadigi icin tarayici indirmesi kullanildi.');
+        return;
+      }
+
+      if (sonuc.dosyaAcildi) {
+        message.success('PDF kaydedildi, kayit altina alindi ve otomatik olarak acildi.');
+        return;
+      }
+
+      message.warning(
+        sonuc.dosyaAcmaHatasi
+          ? `PDF kaydedildi ve kayit altina alindi, ancak otomatik acilamadi. ${sonuc.dosyaAcmaHatasi}`
+          : 'PDF kaydedildi ve kayit altina alindi, ancak otomatik acma tamamlanamadi.',
+      );
+      return;
+    }
+
+    if (sonuc.kayitYontemi === 'tarayici') {
+      if (sonuc.epostaTaslakYontemi === 'mailto') {
+        message.warning(
+          'PDF indirildi ve mail taslagi acildi. Tarayici ortaminda PDF eki otomatik eklenemedigi icin eki elle kontrol etmeniz gerekebilir.',
+        );
+        return;
+      }
+
+      message.warning(
+        sonuc.epostaHatasi
+          ? `PDF indirildi, ancak mail taslagi hazirlanamadi. ${sonuc.epostaHatasi}`
+          : 'PDF indirildi, ancak mail taslagi hazirlanamadi.',
+      );
+      return;
+    }
+
+    if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'outlook') {
+      message.success('Teklif kaydedildi, arsive islendi ve Outlook gonderi penceresi hazirlandi.');
+      return;
+    }
+
+    message.warning(
+      sonuc.epostaHatasi
+        ? `PDF kaydedildi ve kayit altina alindi, ancak e-mail taslagi hazirlanamadi. ${sonuc.epostaHatasi}`
+        : 'PDF kaydedildi ve kayit altina alindi, ancak e-mail taslagi hazirlanamadi.',
+    );
+  }, [message]);
+
+  const handleDisaAktar = useCallback(async (hedef: TeklifDisaAktarimHedefi) => {
     if (!teklifObj || !sablonRef.current || !kompaktHeaderRef.current || uretiliyorRef.current) return;
 
     if (!state.cari) {
@@ -192,36 +245,32 @@ export default function TeklifEditor() {
       state.setPdfHazir(true);
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
-      const sonuc = await pdfKaydetVeAc(blob, kayitliTeklif);
-
-      if (sonuc.kayitYontemi === 'otomatik') {
-        teklifService.teklifCacheGuncelle(sonuc.teklif);
-
-        if (sonuc.acildi) {
-          message.success('PDF kaydedildi, kayit altina alindi ve otomatik olarak acildi.');
-        } else {
-          message.warning(
-            sonuc.acmaHatasi
-              ? `PDF kaydedildi ve kayit altina alindi, ancak otomatik acilamadi. ${sonuc.acmaHatasi}`
-              : 'PDF kaydedildi ve kayit altina alindi, ancak otomatik acma tamamlanamadi.',
-          );
-        }
-      } else {
-        message.success(
-          'PDF indirildi. Bu ortamda otomatik masaustu kaydi kullanilamadigi icin tarayici indirmesi kullanildi.',
-        );
-      }
+      const sonuc = await teklifDisaAktar(blob, kayitliTeklif, hedef);
+      teklifService.teklifCacheGuncelle(sonuc.teklif);
+      showExportMessage(sonuc);
     } catch (error) {
-      if (error instanceof PdfKayitHatasi) {
+      if (error instanceof TeklifDisaAktarimHatasi) {
         message.error(error.message);
       } else {
-        message.error('PDF olusturulurken hata olustu.');
+        message.error(
+          hedef === 'email'
+            ? 'E-mail gonderim akisi hazirlanirken hata olustu.'
+            : 'PDF olusturulurken hata olustu.',
+        );
       }
     } finally {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message]);
+  }, [teklifObj, state, message, showExportMessage]);
+
+  const handlePdfIndir = useCallback(async () => {
+    await handleDisaAktar('pdf');
+  }, [handleDisaAktar]);
+
+  const handleEMailGonder = useCallback(async () => {
+    await handleDisaAktar('email');
+  }, [handleDisaAktar]);
 
   const handleYazdir = useCallback(async () => {
     if (!teklifObj || !sablonRef.current || !kompaktHeaderRef.current || uretiliyorRef.current) return;
@@ -304,6 +353,7 @@ export default function TeklifEditor() {
         onGeriDon={handleGeriDon}
         onKaydet={handleKaydet}
         onPdfIndir={handlePdfIndir}
+        onEMailGonder={handleEMailGonder}
         onYazdir={handleYazdir}
         onSatirEkle={state.satirEkle}
         onPanelAc={handlePanelAc}
@@ -343,6 +393,7 @@ export default function TeklifEditor() {
               onParaBirimiDegistir={state.setParaBirimi}
               satirBazliParaBirimi={state.satirBazliParaBirimi}
               onSatirBazliDegistir={state.setSatirBazliParaBirimi}
+              satirBazliIskonto={state.satirBazliIskonto}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onSatirGuncelle={state.satirGuncelle}
@@ -394,6 +445,8 @@ export default function TeklifEditor() {
           onParaBirimiDegistir={state.setParaBirimi}
           satirBazliParaBirimi={state.satirBazliParaBirimi}
           onSatirBazliDegistir={state.setSatirBazliParaBirimi}
+          satirBazliIskonto={state.satirBazliIskonto}
+          onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           durum={state.durum}
           onDurumDegistir={state.setDurum}
           kdvOrani={state.kdvOrani}

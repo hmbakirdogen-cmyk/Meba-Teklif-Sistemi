@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FinansalOzetKartIci — Finansal özet kart iç yapısı
  *
  * 'pdf' variant: A4/html2canvas için küçük ölçek, absolute-positioned alt bölüm

@@ -53,6 +53,8 @@ interface SagPanelProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   onSatirBazliDegistir: (aktif: boolean) => void;
+  satirBazliIskonto: boolean;
+  onSatirBazliIskontoDegistir: (aktif: boolean) => void;
   durum: TeklifDurum;
   onDurumDegistir: (durum: TeklifDurum) => void;
   kdvOrani: number;
@@ -172,7 +174,9 @@ function MusteriPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> 
 function AyarlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
   const {
     C, tarih, onTarihDegistir, paraBirimi, onParaBirimiDegistir,
-    satirBazliParaBirimi, onSatirBazliDegistir, durum, onDurumDegistir,
+    satirBazliParaBirimi, onSatirBazliDegistir,
+    satirBazliIskonto, onSatirBazliIskontoDegistir,
+    durum, onDurumDegistir,
     kdvOrani, onKdvOraniDegistir, iskontoOrani, onIskontoOraniDegistir,
     odemeVadesi, onOdemeVadesiDegistir, onKapat,
     satirlar, araToplam, toplamIndirim,
@@ -244,6 +248,14 @@ function AyarlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> 
               />
               Satır bazlı para birimi
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textSecondary, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={satirBazliIskonto}
+                onChange={e => onSatirBazliIskontoDegistir(e.target.checked)}
+              />
+              Satır bazlı iskonto
+            </label>
           </div>
         </div>
 
@@ -280,7 +292,7 @@ function AyarlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> 
 
 // ── Satır Detay Paneli ──────────────────────────────────────────────────────
 function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
-  const { C, satirlar, seciliSatirId, onSatirGuncelle, onSatirSil, onSatirEkle, onKapat, paraBirimi, satirBazliParaBirimi } = props;
+  const { C, satirlar, seciliSatirId, onSatirGuncelle, onSatirSil, onSatirEkle, onKapat, paraBirimi, satirBazliParaBirimi, satirBazliIskonto } = props;
   const satir = satirlar.find(s => s.id === seciliSatirId);
   const markalar = referansVeriService.markalar.tumunuGetir();
   const birimler = referansVeriService.birimler.tumunuGetir();
@@ -405,18 +417,20 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
           />
         </div>
 
-        {/* İskonto */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Satır İskontosu (%)</div>
-          <InputNumber
-            value={satir.indirimOrani}
-            onChange={v => guncelle('indirimOrani', v ?? 0)}
-            style={{ width: '100%' }}
-            min={0}
-            max={100}
-            precision={2}
-          />
-        </div>
+        {/* İskonto — yalnız satır bazlı iskonto aktifse görünür */}
+        {satirBazliIskonto && (
+          <div>
+            <div style={{ ...sectionLabel, color: C.textFaint }}>Satır İskontosu (%)</div>
+            <InputNumber
+              value={satir.indirimOrani}
+              onChange={v => guncelle('indirimOrani', v ?? 0)}
+              style={{ width: '100%' }}
+              min={0}
+              max={100}
+              precision={2}
+            />
+          </div>
+        )}
 
         {/* Teslimat */}
         <div>

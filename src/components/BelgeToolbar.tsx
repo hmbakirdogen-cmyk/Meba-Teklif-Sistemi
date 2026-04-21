@@ -11,6 +11,7 @@ import {
   SaveOutlined,
   PrinterOutlined,
   FilePdfOutlined,
+  MailOutlined,
   PlusOutlined,
   SettingOutlined,
   FileTextOutlined,
@@ -29,6 +30,7 @@ interface BelgeToolbarProps {
   onGeriDon: () => void;
   onKaydet: () => void;
   onPdfIndir: () => void;
+  onEMailGonder: () => void;
   onYazdir: () => void;
   onSatirEkle: () => void;
   onPanelAc: (mod: PanelModu) => void;
@@ -59,6 +61,7 @@ export default function BelgeToolbar({
   onGeriDon,
   onKaydet,
   onPdfIndir,
+  onEMailGonder,
   onYazdir,
   onSatirEkle,
   onPanelAc,
@@ -70,11 +73,11 @@ export default function BelgeToolbar({
       display: 'flex',
       alignItems: 'center',
       gap: 10,
-      padding: '8px 16px',
+      padding: '10px 18px',
       borderBottom: `1px solid ${C.border}`,
       background: C.bgSurface,
       flexShrink: 0,
-      minHeight: 48,
+      minHeight: 56,
       flexWrap: 'wrap',
     }}>
       {/* Sol: Geri + Teklif bilgisi */}
@@ -107,7 +110,9 @@ export default function BelgeToolbar({
             — {cariAdi}
           </span>
         )}
-        <Tag color={DURUM_RENK[durum]} style={{ margin: 0 }}>{DURUM_ETIKET[durum]}</Tag>
+        <Tag color={DURUM_RENK[durum]} style={{ margin: 0, borderRadius: 999, fontWeight: 600 }}>
+          {DURUM_ETIKET[durum]}
+        </Tag>
       </div>
 
       <div style={{ flex: 1 }} />
@@ -160,6 +165,14 @@ export default function BelgeToolbar({
           loading={uretiliyor}
         >
           PDF
+        </Button>
+        <Button
+          icon={<MailOutlined />}
+          onClick={onEMailGonder}
+          loading={uretiliyor}
+          className={buttonClassNames.secondary}
+        >
+          E-Mail Gönder
         </Button>
       </Space>
     </div>

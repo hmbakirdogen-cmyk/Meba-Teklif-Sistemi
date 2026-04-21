@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo, useLayoutEffect } from 'react';
+﻿import React, { useRef, useEffect, useState, useMemo, useLayoutEffect } from 'react';
 import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
 import TeklifPagedDocument from '../templates/TeklifPagedDocument';
 import PaginatedBelgeInlineEditor, { type EditingAlan } from './PaginatedBelgeInlineEditor';
@@ -21,6 +21,7 @@ interface CanliA4BelgeProps {
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
+  satirBazliIskonto: boolean;
   onSatirBazliDegistir: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
@@ -60,6 +61,7 @@ export default function CanliA4Belge({
   onTarihDegistir,
   onParaBirimiDegistir,
   satirBazliParaBirimi,
+  satirBazliIskonto,
   onSatirBazliDegistir,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
@@ -219,6 +221,7 @@ export default function CanliA4Belge({
             onTarihDegistir={onTarihDegistir}
             onParaBirimiDegistir={onParaBirimiDegistir}
             satirBazliParaBirimi={satirBazliParaBirimi}
+            satirBazliIskonto={satirBazliIskonto}
             onSatirBazliDegistir={onSatirBazliDegistir}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}

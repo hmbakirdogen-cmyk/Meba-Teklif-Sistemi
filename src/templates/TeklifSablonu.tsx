@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import type { Teklif } from '../types';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';

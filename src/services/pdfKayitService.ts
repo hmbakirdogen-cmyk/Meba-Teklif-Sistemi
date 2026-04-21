@@ -4,26 +4,35 @@ import type { Teklif } from '../types';
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
 
-export type PdfKayitYontemi = 'otomatik' | 'tarayici';
+export type TeklifDisaAktarimHedefi = 'pdf' | 'email';
+export type TeklifDisaAktarimYontemi = 'otomatik' | 'tarayici';
+export type EpostaTaslakYontemi = 'outlook' | 'mailto' | null;
 
-export interface PdfKayitSonucu {
+export interface TeklifDisaAktarimSonucu {
+  hedef: TeklifDisaAktarimHedefi;
   teklif: Teklif;
   pdfYolu: string;
   pdfDosyaAdi: string;
   klasorYolu: string;
   masaustuYolu: string;
-  acildi: boolean;
-  acmaHatasi?: string;
-  kayitYontemi: PdfKayitYontemi;
+  kayitYontemi: TeklifDisaAktarimYontemi;
+  dosyaAcildi: boolean;
+  dosyaAcmaHatasi?: string;
+  epostaHazirlandi: boolean;
+  epostaHatasi?: string;
+  epostaTaslakYontemi: EpostaTaslakYontemi;
+  aliciEposta?: string;
+  mailKonu?: string;
+  mailGovdesi?: string;
 }
 
-export class PdfKayitHatasi extends Error {
+export class TeklifDisaAktarimHatasi extends Error {
   pdfYolu?: string;
   pdfDosyaAdi?: string;
 
   constructor(message: string, options?: { pdfYolu?: string; pdfDosyaAdi?: string }) {
     super(message);
-    this.name = 'PdfKayitHatasi';
+    this.name = 'TeklifDisaAktarimHatasi';
     this.pdfYolu = options?.pdfYolu;
     this.pdfDosyaAdi = options?.pdfDosyaAdi;
   }
@@ -53,6 +62,27 @@ function buildFallbackFileName(teklif: Teklif): string {
   return teklifNo ? `${cariStem} - ${teklifNo}.pdf` : `${cariStem}.pdf`;
 }
 
+function buildMailSubject(teklif: Teklif): string {
+  const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
+  return `Teklif - ${teklif.teklifNo} - ${cariStem}`;
+}
+
+function buildMailBody(teklif: Teklif): string {
+  const hitap = teklif.contactName?.trim()
+    ? `Sayin ${teklif.contactName.trim()},`
+    : 'Merhaba,';
+
+  return [
+    hitap,
+    '',
+    'Ilgili teklif dosyaniz ekte sunulmustur.',
+    '',
+    'Iyi calismalar dileriz.',
+    '',
+    'MEBA Mekanik',
+  ].join('\n');
+}
+
 function browserDownload(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -60,6 +90,16 @@ function browserDownload(blob: Blob, fileName: string): void {
   anchor.download = fileName;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function openMailtoDraft(aliciEposta: string, konu: string, govde: string): boolean {
+  try {
+    const url = `mailto:${encodeURIComponent(aliciEposta)}?subject=${encodeURIComponent(konu)}&body=${encodeURIComponent(govde)}`;
+    window.location.href = url;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -81,24 +121,89 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-export async function pdfKaydetVeAc(
+function buildFallbackResult(
   blob: Blob,
   teklif: Teklif,
-): Promise<PdfKayitSonucu> {
+  hedef: TeklifDisaAktarimHedefi,
+): TeklifDisaAktarimSonucu {
+  const fallbackFileName = buildFallbackFileName(teklif);
+  const aliciEposta = teklif.cari?.ePosta?.trim() || undefined;
+  const mailKonu = buildMailSubject(teklif);
+  const mailGovdesi = buildMailBody(teklif);
+
+  browserDownload(blob, fallbackFileName);
+
+  if (hedef === 'email') {
+    if (!aliciEposta) {
+      return {
+        hedef,
+        teklif,
+        pdfYolu: '',
+        pdfDosyaAdi: fallbackFileName,
+        klasorYolu: '',
+        masaustuYolu: '',
+        kayitYontemi: 'tarayici',
+        dosyaAcildi: false,
+        epostaHazirlandi: false,
+        epostaHatasi: 'Alici icin e-mail adresi bulunamadi.',
+        epostaTaslakYontemi: null,
+        mailKonu,
+        mailGovdesi,
+      };
+    }
+
+    const acildi = openMailtoDraft(aliciEposta, mailKonu, mailGovdesi);
+    return {
+      hedef,
+      teklif,
+      pdfYolu: '',
+      pdfDosyaAdi: fallbackFileName,
+      klasorYolu: '',
+      masaustuYolu: '',
+      kayitYontemi: 'tarayici',
+      dosyaAcildi: false,
+      epostaHazirlandi: acildi,
+      epostaHatasi: acildi ? 'Tarayici taslagi acildi, ancak PDF eki otomatik eklenemedi.' : 'Mail taslagi acilamadi.',
+      epostaTaslakYontemi: acildi ? 'mailto' : null,
+      aliciEposta,
+      mailKonu,
+      mailGovdesi,
+    };
+  }
+
+  return {
+    hedef,
+    teklif,
+    pdfYolu: '',
+    pdfDosyaAdi: fallbackFileName,
+    klasorYolu: '',
+    masaustuYolu: '',
+    kayitYontemi: 'tarayici',
+    dosyaAcildi: false,
+    epostaHazirlandi: false,
+    epostaTaslakYontemi: null,
+  };
+}
+
+export async function teklifDisaAktar(
+  blob: Blob,
+  teklif: Teklif,
+  hedef: TeklifDisaAktarimHedefi,
+): Promise<TeklifDisaAktarimSonucu> {
   const pdfBase64 = await blobToBase64(blob);
 
   try {
-    const response = await fetch(`${APP_CONFIG.API_BASE}/pdf/kaydet-ve-ac`, {
+    const response = await fetch(`${APP_CONFIG.API_BASE}/teklif/disa-aktar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teklif, pdfBase64 }),
+      body: JSON.stringify({ teklif, pdfBase64, hedef }),
     });
 
-    const payload = await response.json() as Partial<PdfKayitSonucu> & { error?: string };
+    const payload = await response.json() as Partial<TeklifDisaAktarimSonucu> & { error?: string };
 
     if (!response.ok) {
-      throw new PdfKayitHatasi(
-        payload.error ?? 'PDF kayit islemi tamamlanamadi.',
+      throw new TeklifDisaAktarimHatasi(
+        payload.error ?? 'Disa aktarim islemi tamamlanamadi.',
         {
           pdfYolu: payload.pdfYolu,
           pdfDosyaAdi: payload.pdfDosyaAdi,
@@ -107,31 +212,31 @@ export async function pdfKaydetVeAc(
     }
 
     return {
+      hedef,
       teklif: payload.teklif as Teklif,
       pdfYolu: payload.pdfYolu ?? '',
       pdfDosyaAdi: payload.pdfDosyaAdi ?? buildFallbackFileName(teklif),
       klasorYolu: payload.klasorYolu ?? '',
       masaustuYolu: payload.masaustuYolu ?? '',
-      acildi: payload.acildi ?? false,
-      acmaHatasi: payload.acmaHatasi,
       kayitYontemi: 'otomatik',
+      dosyaAcildi: payload.dosyaAcildi ?? false,
+      dosyaAcmaHatasi: payload.dosyaAcmaHatasi,
+      epostaHazirlandi: payload.epostaHazirlandi ?? false,
+      epostaHatasi: payload.epostaHatasi,
+      epostaTaslakYontemi: payload.epostaTaslakYontemi ?? null,
+      aliciEposta: payload.aliciEposta,
+      mailKonu: payload.mailKonu,
+      mailGovdesi: payload.mailGovdesi,
     };
   } catch (error) {
-    if (error instanceof PdfKayitHatasi || !(error instanceof TypeError)) {
+    if (error instanceof TeklifDisaAktarimHatasi || !(error instanceof TypeError)) {
       throw error;
     }
 
-    const fallbackFileName = buildFallbackFileName(teklif);
-    browserDownload(blob, fallbackFileName);
-
-    return {
-      teklif,
-      pdfYolu: '',
-      pdfDosyaAdi: fallbackFileName,
-      klasorYolu: '',
-      masaustuYolu: '',
-      acildi: false,
-      kayitYontemi: 'tarayici',
-    };
+    return buildFallbackResult(blob, teklif, hedef);
   }
+}
+
+export async function pdfKaydetVeAc(blob: Blob, teklif: Teklif): Promise<TeklifDisaAktarimSonucu> {
+  return teklifDisaAktar(blob, teklif, 'pdf');
 }

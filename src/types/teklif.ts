@@ -9,6 +9,7 @@ export interface Teklif {
   teklifNo: string;
   tarih: string;
   satirBazliParaBirimi?: boolean;
+  satirBazliIskonto?: boolean;
   paraBirimi: ParaBirimi;
   durum: TeklifDurum;
   cari: Cari;

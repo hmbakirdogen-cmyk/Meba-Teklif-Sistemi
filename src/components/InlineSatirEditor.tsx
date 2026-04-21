@@ -95,6 +95,7 @@ interface InlineSatirEditorProps {
   idx: number;
   paraBirimi: ParaBirimi;
   satirBazliParaBirimi: boolean;
+  satirBazliIskonto: boolean;
   focusCell?: string;
   onGuncelle: (alan: keyof TeklifSatiri, deger: unknown) => void;
   onSil: () => void;
@@ -106,6 +107,7 @@ export function InlineSatirEditor({
   idx,
   paraBirimi,
   satirBazliParaBirimi,
+  satirBazliIskonto,
   focusCell,
   onGuncelle,
   onSil,
@@ -329,20 +331,23 @@ export function InlineSatirEditor({
         />
 
         <div className="satir-aksiyonlari" style={floatingPanelStyle}>
-          <span style={{ ...actionBtnStyle, color: C.textMid }}>
-            <PercentageOutlined style={{ fontSize: 9 }} />
-            <InlineTableNumberField
-              style={{ width: 32, fontSize: '9.5px', fontWeight: 700, textAlign: 'center', padding: 0 }}
-              value={satir.indirimOrani}
-              min={0}
-              max={100}
-              step={1}
-              onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
-              onFocus={(e) => (e.target as HTMLInputElement).select?.()}
-            />
-          </span>
-
-          <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
+          {satirBazliIskonto && (
+            <>
+              <span style={{ ...actionBtnStyle, color: C.textMid }}>
+                <PercentageOutlined style={{ fontSize: 9 }} />
+                <InlineTableNumberField
+                  style={{ width: 32, fontSize: '9.5px', fontWeight: 700, textAlign: 'center', padding: 0 }}
+                  value={satir.indirimOrani}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
+                  onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+                />
+              </span>
+              <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
+            </>
+          )}
 
           <span
             onClick={(e) => {

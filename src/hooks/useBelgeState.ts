@@ -33,6 +33,7 @@ export interface BelgeState {
   satirlar: TeklifSatiri[];
   paraBirimi: ParaBirimi;
   satirBazliParaBirimi: boolean;
+  satirBazliIskonto: boolean;
   durum: TeklifDurum;
   notlar: string;
   kdvOrani: number;
@@ -78,6 +79,7 @@ interface BelgeActions {
   // Parametreler
   setParaBirimi: (pb: ParaBirimi) => void;
   setSatirBazliParaBirimi: (aktif: boolean) => void;
+  setSatirBazliIskonto: (aktif: boolean) => void;
   setKdvOrani: (oran: number) => void;
   setIskontoOrani: (oran: number) => void;
   setOdemeVadesi: (vade: string) => void;
@@ -124,6 +126,7 @@ export function useBelgeState(
   const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
   const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
+  const [satirBazliIskonto, setSatirBazliIskontoState] = useState(mevcut?.satirBazliIskonto ?? false);
   const [durum, setDurumState] = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
   const [notlar, setNotlarState] = useState(mevcut?.notlar ?? '');
   const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? 0);
@@ -271,6 +274,7 @@ export function useBelgeState(
       teklifNo,
       tarih,
       satirBazliParaBirimi,
+      satirBazliIskonto,
       paraBirimi,
       durum,
       cari: cari!,
@@ -292,7 +296,7 @@ export function useBelgeState(
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle]);
 
   const kaydet = useCallback(async (): Promise<boolean> => {
     if (!cari) return false;
@@ -328,6 +332,7 @@ export function useBelgeState(
     satirlar,
     paraBirimi,
     satirBazliParaBirimi,
+    satirBazliIskonto,
     durum,
     notlar,
     kdvOrani,
@@ -361,6 +366,7 @@ export function useBelgeState(
     satirGuncelle,
     setParaBirimi,
     setSatirBazliParaBirimi,
+    setSatirBazliIskonto: setSatirBazliIskontoState,
     setKdvOrani: setKdvOraniState,
     setIskontoOrani: setIskontoOraniState,
     setOdemeVadesi: setOdemeVadesiState,
