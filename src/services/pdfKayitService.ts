@@ -63,24 +63,43 @@ function buildFallbackFileName(teklif: Teklif): string {
 }
 
 function buildMailSubject(teklif: Teklif): string {
-  const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
-  return `Teklif - ${teklif.teklifNo} - ${cariStem}`;
+  return teklif.teklifNo ? `Teklif Belgesi - ${teklif.teklifNo}` : 'Teklif Belgesi';
 }
 
 function buildMailBody(teklif: Teklif): string {
-  const hitap = teklif.contactName?.trim()
-    ? `Sayin ${teklif.contactName.trim()},`
-    : 'Merhaba,';
+  const kisi = normalizeWhitespace(teklif.contactName ?? '');
+  const title = teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
+  const hitap = kisi ? `Sayın ${kisi} ${title},` : 'Sayın İlgili,';
+  const cariAdi = normalizeWhitespace(teklif.cari?.firmaAdi ?? '');
+  const teklifNo = teklif.teklifNo ?? '';
+  const hazirlayanAdi = normalizeWhitespace(teklif.hazirlayanAdSoyad ?? '');
+  const sep = '--------------------------------------------------';
 
-  return [
+  const satirlar: string[] = [
     hitap,
     '',
-    'Ilgili teklif dosyaniz ekte sunulmustur.',
+    `${cariAdi ? cariAdi + ' için hazırladığımız teklif belgemiz' : 'Teklif belgemiz'}${teklifNo ? ' (No: ' + teklifNo + ')' : ''} ekte yer almaktadır.`,
+    'Herhangi bir sorunuz olması durumunda lütfen bizimle iletişime geçiniz.',
     '',
-    'Iyi calismalar dileriz.',
+    'Saygılarımızla,',
     '',
-    'MEBA Mekanik',
-  ].join('\n');
+    sep,
+  ];
+
+  if (hazirlayanAdi) satirlar.push(hazirlayanAdi);
+
+  satirlar.push(
+    'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
+    '',
+    'T: +90 352 502 07 80',
+    'E: info@mebamekanik.com',
+    'W: www.mebamekanik.com',
+    '',
+    'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
+    sep,
+  );
+
+  return satirlar.join('\n');
 }
 
 function browserDownload(blob: Blob, fileName: string): void {
@@ -92,9 +111,10 @@ function browserDownload(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function openMailtoDraft(aliciEposta: string, konu: string, govde: string): boolean {
+function openMailtoDraft(aliciEposta: string | undefined, konu: string, govde: string): boolean {
   try {
-    const url = `mailto:${encodeURIComponent(aliciEposta)}?subject=${encodeURIComponent(konu)}&body=${encodeURIComponent(govde)}`;
+    const toSegment = aliciEposta ? encodeURIComponent(aliciEposta) : '';
+    const url = `mailto:${toSegment}?subject=${encodeURIComponent(konu)}&body=${encodeURIComponent(govde)}`;
     window.location.href = url;
     return true;
   } catch {
@@ -134,24 +154,6 @@ function buildFallbackResult(
   browserDownload(blob, fallbackFileName);
 
   if (hedef === 'email') {
-    if (!aliciEposta) {
-      return {
-        hedef,
-        teklif,
-        pdfYolu: '',
-        pdfDosyaAdi: fallbackFileName,
-        klasorYolu: '',
-        masaustuYolu: '',
-        kayitYontemi: 'tarayici',
-        dosyaAcildi: false,
-        epostaHazirlandi: false,
-        epostaHatasi: 'Alici icin e-mail adresi bulunamadi.',
-        epostaTaslakYontemi: null,
-        mailKonu,
-        mailGovdesi,
-      };
-    }
-
     const acildi = openMailtoDraft(aliciEposta, mailKonu, mailGovdesi);
     return {
       hedef,

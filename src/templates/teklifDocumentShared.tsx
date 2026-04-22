@@ -62,6 +62,10 @@ export const DOCUMENT_COLORS = {
   panel:       '#F8F7F5',   // panel arka planı
   panelStrong: '#F0EFEC',   // güçlü panel yüzeyi
   notesBg:     '#F7F6F4',   // notlar kutusu arka planı
+  // ── İmza bölümü kahve paleti ──────────────────────────────────────────────
+  sigPrimary:   '#4E3B2B',   // koyu kahve — imza bölümü Türkçe metinler
+  sigSecondary: '#8A7462',   // orta kahve — imza bölümü İngilizce metinler
+  sigBorder:    '#C8B8A6',   // açık kahve — imza çizgileri
 } as const;
 
 // Sabit sütun genişlikleri — tableLayout:fixed ile kullanılır
@@ -88,7 +92,7 @@ export const DOCUMENT_COLS_ROW_CURRENCY = {
   teslimat:   '10%',
 } as const;
 
-export const CELL_PAD = '5px 8px';
+export const CELL_PAD = '3px 8px';
 
 export const URUN_KOD_OVERFLOW: CSSProperties = {
   whiteSpace: 'nowrap',
@@ -314,7 +318,7 @@ export const TABLE_TITLE_STYLE: CSSProperties = {
 export const TABLE_STYLE: CSSProperties = {
   width: '100%',
   borderCollapse: 'separate',
-  borderSpacing: '0 3px',
+  borderSpacing: '0 2px',
   borderLeft: 'none',
   borderRight: 'none',
   marginBottom: 0,
@@ -348,7 +352,7 @@ export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
   fontWeight: 400,
   fontSize: '7.5px',
   color: DOCUMENT_COLORS.textMuted,
-  marginTop: '2px',
+  marginTop: '1px',
   letterSpacing: '0.02em',
   lineHeight: 1.2,
 };
@@ -368,8 +372,8 @@ export const NOTES_BOX_STYLE: CSSProperties = {
 };
 
 export const SIGNATURE_SECTION_STYLE: CSSProperties = {
-  marginTop: '18px',
-  padding: '9px 0 24px',
+  marginTop: '6px',
+  padding: '4px 0 8px',
   ...noBreak,
 };
 

@@ -310,7 +310,7 @@ function TableSection({
         </thead>
         <tbody>
           <tr aria-hidden="true">
-            <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '5px', padding: 0, border: 'none', background: 'transparent' }} />
+            <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '3px', padding: 0, border: 'none', background: 'transparent' }} />
           </tr>
           {satirlar.map((satir, localIndex) => {
             const idx = rowStart + localIndex;
@@ -409,7 +409,8 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                   const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
                   const fmtN = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                   return (
-                    <div style={{ border: `0.75px solid ${C.border}`, borderRadius: '8px', background: '#FFFFFF', overflow: 'hidden', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
+                    <div style={{ position: 'relative', border: `0.75px solid ${C.border}`, borderRadius: '8px', background: '#FFFFFF', overflow: 'hidden', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
+                      <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: C.textMuted, lineHeight: 1 }}>{teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi}</span>
                       {hasDetail && (
                         <div style={{ padding: '8px 12px 6px', background: C.panel, borderBottom: `0.75px solid ${C.border}` }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
@@ -430,14 +431,14 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                           )}
                         </div>
                       )}
-                      <div style={{ padding: hasDetail ? '9px 12px' : '11px 12px', display: 'flex', alignItems: 'center' }}>
+                      <div style={{ padding: hasDetail ? '9px 8px 9px 12px' : '11px 8px 11px 12px', display: 'flex', alignItems: 'center' }}>
                         <div>
                           <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textSoft }}>Genel Toplam</div>
                           <div style={{ fontSize: '7px', color: C.textMuted }}>Grand Total</div>
                         </div>
                         <div style={{ flex: 1 }} />
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                          <span style={{ fontSize: '9px', color: C.textMuted, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginRight: '19mm' }}>
+                          <span style={{ fontSize: '10.5px', color: C.textMuted, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
                           <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: C.navy, whiteSpace: 'nowrap' }}>
                             {fmtN(genelToplam)}
                           </span>
@@ -505,20 +506,78 @@ function NotesBlock({ teklif }: { teklif: Teklif }) {
 function SignatureBlock() {
   return (
     <div style={SIGNATURE_SECTION_STYLE}>
-      <div style={{ color: C.textMuted, fontSize: '11.7px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '9px' }}>
-        Siparişi Veren / Authorised Person
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-        <div style={{ flex: '0 0 40%', fontSize: '11.7px', lineHeight: '1.45', color: C.textMid }}>
-          <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
-          <div style={{ color: C.textMuted, marginBottom: '9px', marginTop: '3px' }}>İsim / Name</div>
-          <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
-          <div style={{ color: C.textMuted, marginTop: '3px' }}>Tarih / Date</div>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+
+        {/* Sol: 2-satır dikey başlık */}
+        <div style={{
+          flexShrink: 0,
+          position: 'relative',
+          width: '28px',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%) rotate(-90deg)',
+            width: '100px',
+            textAlign: 'left',
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }}>
+            <div style={{
+              fontSize: '10.8px',
+              fontWeight: 600,
+              color: C.sigPrimary,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              lineHeight: 1.1,
+              marginBottom: '4px',
+            }}>
+              Siparişi Veren
+            </div>
+            <div style={{
+              fontSize: '8.64px',
+              fontWeight: 400,
+              color: C.sigSecondary,
+              letterSpacing: '0.04em',
+              lineHeight: 1.1,
+            }}>
+              Authorised Person
+            </div>
+          </div>
         </div>
-        <div style={{ flex: '1', fontSize: '11.7px', lineHeight: '1.45', color: C.textMid, paddingTop: '54px' }}>
-          <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
-          <div style={{ color: C.textMuted, marginTop: '3px', marginLeft: '-2cm' }}>İmza / Signature</div>
+
+        {/* Sağ: İçerik — isim, tarih, imza */}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
+            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
+              <div style={{ position: 'relative', top: '16px' }}>
+                <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                <div style={{ marginBottom: '6px', marginTop: '2px' }}>
+                  <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                  <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                  <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+                </div>
+              </div>
+              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+              <div style={{ marginTop: '2px' }}>
+                <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
+                <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+              </div>
+            </div>
+            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px' }}>
+              <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+              <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
+                <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );

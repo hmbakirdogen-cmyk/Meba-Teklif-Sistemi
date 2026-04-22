@@ -1,6 +1,59 @@
 {
   "teklifler": [
     {
+      "id": "tmo9uulzi",
+      "teklifNo": "2026-346",
+      "tarih": "2026-04-22",
+      "satirBazliParaBirimi": false,
+      "satirBazliIskonto": false,
+      "paraBirimi": "EUR",
+      "durum": "taslak",
+      "cari": {
+        "id": "c-0005",
+        "cariKod": "C-0005",
+        "firmaAdi": "SİSTEM ELEKTRİK ELEKTRONİK GIDA YUSUF YANAR",
+        "yetkiliKisi": "",
+        "telefon": "0352 321 19 95",
+        "ePosta": "",
+        "adres": "",
+        "vergiDairesi": "",
+        "vergiNo": ""
+      },
+      "satirlar": [
+        {
+          "id": "smo9uupnlvh9",
+          "marka": "SMC",
+          "urunKod": "SY7320-5DZ-02F-Q",
+          "urunAdi": "1/4\" 5/3 Kapalı Merkez Çift Bobin Valf",
+          "aciklama": "",
+          "paraBirimi": "EUR",
+          "miktar": 1,
+          "birim": "Adet",
+          "birimFiyat": 65.45,
+          "indirimOrani": 0,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 65.45
+        }
+      ],
+      "araToplam": 65.45,
+      "toplamIndirim": 0,
+      "toplamVergi": 0,
+      "genelToplam": 65.45,
+      "kdvOrani": 0,
+      "iskontoOrani": 0,
+      "odemeVadesi": "45 Gün",
+      "notlar": "",
+      "olusturmaTarihi": "2026-04-22T09:33:18.414Z",
+      "guncellemeTarihi": "2026-04-22T09:33:57.366Z",
+      "hazirlayanKullaniciId": "u3",
+      "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
+      "hazirlayanRol": "admin",
+      "gecerlilikSuresi": "1 Hafta",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\SİSTEM ELEKTRİK\\SİSTEM ELEKTRİK - 2026-346 (2).pdf",
+      "pdfDosyaAdi": "SİSTEM ELEKTRİK - 2026-346 (2).pdf",
+      "pdfOlusturmaTarihi": "2026-04-22T09:33:57.366Z"
+    },
+    {
       "id": "tmo8ebzqa",
       "teklifNo": "2026-320",
       "tarih": "2026-04-21",
@@ -61,6 +114,7 @@
       "teklifNo": "2026-294",
       "tarih": "2026-04-20",
       "satirBazliParaBirimi": false,
+      "satirBazliIskonto": false,
       "paraBirimi": "EUR",
       "durum": "taslak",
       "cari": {
@@ -157,13 +211,16 @@
       "odemeVadesi": "45 Gün",
       "notlar": "",
       "olusturmaTarihi": "2026-04-20T15:07:06.855Z",
-      "guncellemeTarihi": "2026-04-21T08:49:56.404Z",
+      "guncellemeTarihi": "2026-04-22T08:33:27.464Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
       "hazirlayanRol": "admin",
       "gecerlilikSuresi": "1 Hafta",
       "contactName": "mustafa",
-      "contactTitle": "BEY"
+      "contactTitle": "BEY",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\BADEGÜL ELEKT\\BADEGÜL ELEKT - 2026-294 (4).pdf",
+      "pdfDosyaAdi": "BADEGÜL ELEKT - 2026-294 (4).pdf",
+      "pdfOlusturmaTarihi": "2026-04-22T08:33:27.464Z"
     }
   ],
   "cariler": [
@@ -228,7 +285,9 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": ""
+      "vergiNo": "",
+      "lastContactName": "yusuf",
+      "lastContactTitle": "BEY"
     },
     {
       "id": "c-0006",
@@ -428,7 +487,9 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": ""
+      "vergiNo": "",
+      "lastContactName": "ahmet",
+      "lastContactTitle": "BEY"
     },
     {
       "id": "c-0024",
@@ -683,7 +744,9 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": ""
+      "vergiNo": "",
+      "lastContactName": "mehmet",
+      "lastContactTitle": "BEY"
     },
     {
       "id": "c-0047",
@@ -20018,6 +20081,6 @@
   },
   "sayac": {
     "yil": 2026,
-    "deger": 336
+    "deger": 358
   }
 }

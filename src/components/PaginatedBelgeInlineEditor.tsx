@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef } from 'react';
+﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -198,7 +198,17 @@ export default function PaginatedBelgeInlineEditor({
   const editingSatirId = editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
 
   const muhatapRef = useRef<InputRef>(null);
+  const prevMusteriEditing = useRef(false);
   const [cariSearchText, setCariSearchText] = useState(() => formatCariAdi(teklif.cari.firmaAdi));
+
+  useEffect(() => {
+    const justOpened = isMusteriEditing && !prevMusteriEditing.current;
+    prevMusteriEditing.current = isMusteriEditing;
+    if (justOpened && teklif.cari.firmaAdi) {
+      const timer = setTimeout(() => muhatapRef.current?.focus(), 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isMusteriEditing, teklif.cari.firmaAdi]);
 
   const [satirFocusCell, setSatirFocusCell] = useState<string>('urunKod');
 
@@ -305,15 +315,15 @@ export default function PaginatedBelgeInlineEditor({
           <div style={PARTY_NAME_STYLE}>MEBA Mekanik Ltd. Şti.</div>
           <div style={PARTY_BODY_STYLE}>Tel: {formatPhone('03525020780')}<br />www.mebamekanik.com</div>
         </div>
-        <div data-alan="musteri" onClick={(e) => handleAlanClick('musteri', e)} style={{ ...PARTY_CARD_STYLE, ...editFrameStyle(isMusteriEditing) }}>
+        <div data-alan="musteri" onClick={(e) => handleAlanClick('musteri', e)} style={{ ...PARTY_CARD_STYLE, cursor: isMusteriEditing ? 'default' : 'pointer', background: 'transparent' }}>
           <div style={PARTY_LABEL_STYLE}>
             Alıcı <span style={{ fontWeight: 400, opacity: 0.6 }}>/ To</span>
           </div>
           {isMusteriEditing ? (
-            <div className="field-group" style={{ padding: '2px 0' }}>
-              <div style={{ ...PARTY_NAME_STYLE, marginBottom: 6 }}>
+            <div className="field-group">
+              <div style={PARTY_NAME_STYLE}>
                 <InlineCariAutocompleteField
-                  autoFocus
+                  autoFocus={!teklif.cari.firmaAdi}
                   style={{ width: '100%' }}
                   value={cariSearchText}
                   onChange={setCariSearchText}
@@ -328,31 +338,31 @@ export default function PaginatedBelgeInlineEditor({
                   popupMinWidth={300}
                 />
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11.5px', color: C.textMid }}>
-                <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>Sayın</span>
-                <Input
-                  ref={muhatapRef}
-                  size="small"
-                  variant="borderless"
-                  style={{ flex: 1, fontSize: '11.5px', fontWeight: 500, maxWidth: 160 }}
-                  value={contactName}
-                  onChange={(e) => onContactNameDegistir(e.target.value)}
-                  placeholder="muhatap adı"
-                  onFocus={(e) => e.target.select()}
-                />
-                <Select
-                  size="small"
-                  variant="borderless"
-                  suffixIcon={null}
-                  style={{ width: 72, fontSize: '11.5px' }}
-                  value={contactTitle}
-                  onChange={onContactTitleDegistir}
-                  options={[{ value: 'BEY', label: 'Bey' }, { value: 'HANIM', label: 'Hanım' }]}
-                  popupMatchSelectWidth={false}
-                  dropdownStyle={{ minWidth: 90 }}
-                />
-              </div>
-              <div style={{ ...PARTY_BODY_STYLE, marginTop: 6 }}>
+              <div style={PARTY_BODY_STYLE}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500, marginBottom: '1px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>Sayın</span>
+                  <Input
+                    ref={muhatapRef}
+                    size="small"
+                    variant="borderless"
+                    style={{ flex: 1, maxWidth: 160 }}
+                    value={contactName}
+                    onChange={(e) => onContactNameDegistir(e.target.value)}
+                    placeholder="muhatap adı"
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <Select
+                    size="small"
+                    variant="borderless"
+                    suffixIcon={null}
+                    style={{ width: 72 }}
+                    value={contactTitle}
+                    onChange={onContactTitleDegistir}
+                    options={[{ value: 'BEY', label: 'Bey' }, { value: 'HANIM', label: 'Hanım' }]}
+                    popupMatchSelectWidth={false}
+                    dropdownStyle={{ minWidth: 90 }}
+                  />
+                </div>
                 {(teklif.cari.telefon || teklif.cari.ePosta) && (
                   <div>
                     {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
@@ -397,45 +407,37 @@ export default function PaginatedBelgeInlineEditor({
             {items.map((item, i) => {
               const alanId = ayarAlanIds[i];
               const isEditing = editingAlan === alanId;
+              const isReadonly = i === 3 || i === 4;
 
               return (
                 <div
                   key={alanId}
                   data-alan={alanId}
-                  onClick={(e) => handleAlanClick(alanId, e)}
+                  onClick={isReadonly ? undefined : (e) => handleAlanClick(alanId, e)}
                   style={{
                     ...SETTINGS_CARD_STYLE,
-                    cursor: isEditing ? 'default' : 'pointer',
-                    transition: 'background 0.18s ease, box-shadow 0.18s ease',
-                    ...(isEditing ? { background: '#eef2fb', boxShadow: '0 1px 3px rgba(37,99,235,0.10)' } : {}),
+                    cursor: isReadonly ? 'default' : (isEditing ? 'default' : 'pointer'),
                   }}
                 >
+                  <div style={SETTINGS_LABEL_STYLE}>
+                    <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+                    <span style={SETTINGS_SEP_STYLE}>/</span>
+                    <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
+                  </div>
                   {isEditing ? (
-                    <div className="field-group">
-                      <div style={{ ...SETTINGS_LABEL_STYLE, marginBottom: '4px' }}>
-                        <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
-                      </div>
+                    <div style={SETTINGS_VALUE_STYLE}>
                       {i === 0 && (
-                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }} value={teklif.paraBirimi} onChange={onParaBirimiDegistir} options={[{ value: 'TRY', label: 'TL' }, { value: 'EUR', label: 'EUR' }, { value: 'USD', label: 'USD' }]} popupMatchSelectWidth={100} />
+                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%' }} value={teklif.paraBirimi} onChange={onParaBirimiDegistir} options={[{ value: 'TRY', label: 'TL' }, { value: 'EUR', label: 'EUR' }, { value: 'USD', label: 'USD' }]} popupMatchSelectWidth={100} />
                       )}
                       {i === 1 && (
-                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }} value={teklif.odemeVadesi || '45 Gün'} onChange={onOdemeVadesiDegistir} options={['Peşin', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün'].map((v) => ({ value: v, label: v }))} popupMatchSelectWidth={100} />
+                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%' }} value={teklif.odemeVadesi || '45 Gün'} onChange={onOdemeVadesiDegistir} options={['Peşin', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün'].map((v) => ({ value: v, label: v }))} popupMatchSelectWidth={100} />
                       )}
                       {i === 2 && (
-                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%', fontWeight: 700, fontSize: '12.5px' }} value={teklif.kdvOrani} onChange={onKdvOraniDegistir} options={[{ value: 0, label: 'Hariç' }, { value: 1, label: '%1' }, { value: 10, label: '%10' }, { value: 20, label: '%20' }]} popupMatchSelectWidth={80} />
+                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%' }} value={teklif.kdvOrani} onChange={onKdvOraniDegistir} options={[{ value: 0, label: 'Hariç' }, { value: 1, label: '%1' }, { value: 10, label: '%10' }, { value: 20, label: '%20' }]} popupMatchSelectWidth={80} />
                       )}
-                      {i === 3 && <div style={SETTINGS_VALUE_STYLE}>TCMB Fatura</div>}
-                      {i === 4 && <div style={SETTINGS_VALUE_STYLE}>{teklif.gecerlilikSuresi ?? '1 Hafta'}</div>}
                     </div>
                   ) : (
-                    <>
-                      <div style={SETTINGS_LABEL_STYLE}>
-                        <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
-                        <span style={SETTINGS_SEP_STYLE}>/</span>
-                        <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
-                      </div>
-                      <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
-                    </>
+                    <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
                   )}
                 </div>
               );
@@ -665,7 +667,8 @@ export default function PaginatedBelgeInlineEditor({
                 const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
                 const fmtN = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 return (
-                  <div style={{ border: `0.75px solid ${C.border}`, borderRadius: '8px', background: '#FFFFFF', overflow: 'hidden' }}>
+                  <div style={{ position: 'relative', border: `0.75px solid ${C.border}`, borderRadius: '8px', background: '#FFFFFF', overflow: 'hidden' }}>
+                    <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: C.textMuted, lineHeight: 1, userSelect: 'none' }}>{teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi}</span>
                     {hasDetail && (
                       <div style={{ padding: '8px 14px 6px', background: C.panel, borderBottom: `0.75px solid ${C.border}` }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
@@ -686,14 +689,14 @@ export default function PaginatedBelgeInlineEditor({
                         )}
                       </div>
                     )}
-                    <div style={{ padding: hasDetail ? '9px 14px' : '11px 14px', display: 'flex', alignItems: 'center' }}>
+                    <div style={{ padding: hasDetail ? '9px 8px 9px 14px' : '11px 8px 11px 14px', display: 'flex', alignItems: 'center' }}>
                       <div>
                         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft }}>Genel Toplam</div>
                         <div style={{ fontSize: '7.5px', color: C.textMuted }}>Grand Total</div>
                       </div>
                       <div style={{ flex: 1 }} />
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                        <span style={{ fontSize: '9px', color: C.textMuted, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginRight: '19mm' }}>
+                        <span style={{ fontSize: '10.5px', color: C.textMuted, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
                         <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: C.navy, whiteSpace: 'nowrap' }}>{fmtN(genelToplam)}</span>
                       </div>
                     </div>
@@ -755,6 +758,14 @@ export default function PaginatedBelgeInlineEditor({
         .belge-satir-hover-actions { opacity: 0; pointer-events: none; transition: opacity 0.18s; }
         tr:hover > td > .belge-satir-hover-actions,
         tr:focus-within > td > .belge-satir-hover-actions { opacity: 1; pointer-events: auto; }
+        /* Alıcı / musteri card — hover renk değişimi yok */
+        .belge-inline [data-alan="musteri"] .ant-select:hover .ant-select-content,
+        .belge-inline [data-alan="musteri"] .ant-select:hover { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+        .belge-inline [data-alan="musteri"] .ant-input:hover { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+        .belge-inline [data-alan="musteri"] .ant-btn,
+        .belge-inline [data-alan="musteri"] .ant-btn:hover { background: transparent !important; border: none !important; color: inherit !important; box-shadow: none !important; }
+        .belge-inline [data-alan="musteri"] .anticon { color: inherit !important; }
+        .belge-inline [data-alan="musteri"] .anticon:hover { color: inherit !important; }
         .belge-inline-cari-dropdown .ant-select-item { font-family: inherit; font-size: 11.5px; line-height: 1.35; letter-spacing: -0.01em; color: ${C.textMid}; }
         .belge-inline-cari-dropdown .ant-select-item-option { padding: 6px 10px; }
         .belge-inline-cari-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) { background: rgba(237, 242, 251, 0.92); }
@@ -792,20 +803,78 @@ export default function PaginatedBelgeInlineEditor({
             {page.includeSignature && (
               <div style={{ marginTop: 'auto' }}>
                 <div style={SIGNATURE_SECTION_STYLE}>
-                  <div style={{ color: C.textMuted, fontSize: '11.7px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '9px' }}>
-                    Siparişi Veren / Authorised Person
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-                    <div style={{ flex: '0 0 40%', fontSize: '11.7px', lineHeight: '1.45', color: C.textMid }}>
-                      <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
-                      <div style={{ color: C.textMuted, marginBottom: '9px', marginTop: '3px' }}>İsim / Name</div>
-                      <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
-                      <div style={{ color: C.textMuted, marginTop: '3px' }}>Tarih / Date</div>
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+
+                    {/* Sol: 2-satır dikey başlık */}
+                    <div style={{
+                      flexShrink: 0,
+                      position: 'relative',
+                      width: '28px',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%) rotate(-90deg)',
+                        width: '100px',
+                        textAlign: 'left',
+                        userSelect: 'none',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <div style={{
+                          fontSize: '10.8px',
+                          fontWeight: 600,
+                          color: C.sigPrimary,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          lineHeight: 1.1,
+                          marginBottom: '4px',
+                        }}>
+                          Siparişi Veren
+                        </div>
+                        <div style={{
+                          fontSize: '8.64px',
+                          fontWeight: 400,
+                          color: C.sigSecondary,
+                          letterSpacing: '0.04em',
+                          lineHeight: 1.1,
+                        }}>
+                          Authorised Person
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ flex: '1', fontSize: '11.7px', lineHeight: '1.45', color: C.textMid, paddingTop: '54px' }}>
-                      <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.border}`, height: '25px' }} />
-                      <div style={{ color: C.textMuted, marginTop: '3px', marginLeft: '-2cm' }}>İmza / Signature</div>
+
+                    {/* Sağ: İçerik — isim, tarih, imza */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
+                        <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
+                          <div style={{ position: 'relative', top: '16px' }}>
+                            <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                            <div style={{ marginBottom: '6px', marginTop: '2px' }}>
+                              <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                              <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                              <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+                            </div>
+                          </div>
+                          <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                          <div style={{ marginTop: '2px' }}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
+                            <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+                          </div>
+                        </div>
+                        <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px' }}>
+                          <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                          <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                            <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+
                   </div>
                 </div>
               </div>

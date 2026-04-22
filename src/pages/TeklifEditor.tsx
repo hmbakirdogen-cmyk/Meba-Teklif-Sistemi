@@ -186,28 +186,28 @@ export default function TeklifEditor() {
     if (sonuc.kayitYontemi === 'tarayici') {
       if (sonuc.epostaTaslakYontemi === 'mailto') {
         message.warning(
-          'PDF indirildi ve mail taslagi acildi. Tarayici ortaminda PDF eki otomatik eklenemedigi icin eki elle kontrol etmeniz gerekebilir.',
+          'PDF indirildi ve e-posta taslağı açıldı. Tarayıcı ortamında PDF eki otomatik eklenemediğinden eki lütfen kendiniz ekleyiniz.',
         );
         return;
       }
 
       message.warning(
         sonuc.epostaHatasi
-          ? `PDF indirildi, ancak mail taslagi hazirlanamadi. ${sonuc.epostaHatasi}`
-          : 'PDF indirildi, ancak mail taslagi hazirlanamadi.',
+          ? `PDF indirildi, ancak e-posta taslağı açılamadı. ${sonuc.epostaHatasi}`
+          : 'PDF indirildi, ancak e-posta taslağı açılamadı.',
       );
       return;
     }
 
     if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'outlook') {
-      message.success('Teklif kaydedildi, arsive islendi ve Outlook gonderi penceresi hazirlandi.');
+      message.success('Teklif arşive işlendi ve Outlook gönder penceresi açıldı.');
       return;
     }
 
     message.warning(
       sonuc.epostaHatasi
-        ? `PDF kaydedildi ve kayit altina alindi, ancak e-mail taslagi hazirlanamadi. ${sonuc.epostaHatasi}`
-        : 'PDF kaydedildi ve kayit altina alindi, ancak e-mail taslagi hazirlanamadi.',
+        ? `Teklif arşive işlendi, ancak e-posta göndericisi açılamadı. ${sonuc.epostaHatasi}`
+        : 'Teklif arşive işlendi, ancak e-posta göndericisi açılamadı.',
     );
   }, [message]);
 
@@ -215,12 +215,12 @@ export default function TeklifEditor() {
     if (!teklifObj || !sablonRef.current || !kompaktHeaderRef.current || uretiliyorRef.current) return;
 
     if (!state.cari) {
-      message.warning('Lutfen once bir musteri secin.');
+      message.warning('Lütfen önce bir müşteri seçin.');
       return;
     }
 
     if (state.satirlar.length === 0) {
-      message.warning('PDF olusturmak icin en az bir urun satiri ekleyin.');
+      message.warning('PDF oluşturmak için en az bir ürün satırı ekleyin.');
       return;
     }
 

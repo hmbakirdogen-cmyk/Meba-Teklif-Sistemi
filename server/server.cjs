@@ -149,31 +149,107 @@ function escapePowerShellLiteral(value) {
 }
 
 function mailKonuUret(teklif) {
-  return `Teklif - ${teklif.teklifNo} - ${cariKlasorAdiUret(teklif?.cari?.firmaAdi ?? '')}`;
+  return teklif.teklifNo ? `Teklif Belgesi - ${teklif.teklifNo}` : 'Teklif Belgesi';
 }
 
 function mailGovdesiUret(teklif) {
   const kisi = normalizeWhitespace(teklif?.contactName ?? '');
-  const hitap = kisi ? `Sayin ${kisi},` : 'Merhaba,';
+  const title = teklif?.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
+  const hitap = kisi ? `Sayın ${kisi} ${title},` : 'Sayın İlgili,';
+  const cariAdi = normalizeWhitespace(teklif?.cari?.firmaAdi ?? '');
+  const teklifNo = teklif?.teklifNo ?? '';
+  const hazirlayanAdi = normalizeWhitespace(teklif?.hazirlayanAdSoyad ?? '');
+  const sep = '--------------------------------------------------';
 
-  return [
+  const satirlar = [
     hitap,
     '',
-    'Ilgili teklif dosyaniz ekte sunulmustur.',
+    `${cariAdi ? cariAdi + ' için hazırladığımız teklif belgemiz' : 'Teklif belgemiz'}${teklifNo ? ' (No: ' + teklifNo + ')' : ''} ekte yer almaktadır.`,
+    'Herhangi bir sorunuz olması durumunda lütfen bizimle iletişime geçiniz.',
     '',
-    'Iyi calismalar dileriz.',
+    'Saygılarımızla,',
     '',
-    'MEBA Mekanik',
-  ].join('\r\n');
+    sep,
+  ];
+
+  if (hazirlayanAdi) satirlar.push(hazirlayanAdi);
+
+  satirlar.push(
+    'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
+    '',
+    'T: +90 352 502 07 80',
+    'E: info@mebamekanik.com',
+    'W: www.mebamekanik.com',
+    '',
+    'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
+    sep,
+  );
+
+  return satirlar.join('\r\n');
 }
 
-function outlookTaslagiAc({ aliciEposta, konu, govde, ekDosyaYolu }) {
+function mailHtmlGovdesiUret(teklif, logoBase64) {
+  const kisi = normalizeWhitespace(teklif?.contactName ?? '');
+  const title = teklif?.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
+  const hitap = kisi ? `Sayın ${kisi} ${title},` : 'Sayın İlgili,';
+  const cariAdi = normalizeWhitespace(teklif?.cari?.firmaAdi ?? '');
+  const teklifNo = teklif?.teklifNo ?? '';
+  const hazirlayanAdi = normalizeWhitespace(teklif?.hazirlayanAdSoyad ?? '');
+
+  const govdeMetni = `${cariAdi ? cariAdi + ' için hazırladığımız teklif belgemiz' : 'Teklif belgemiz'}${teklifNo ? ' (No: ' + teklifNo + ')' : ''} ekte yer almaktadır. Herhangi bir sorunuz olması durumunda lütfen bizimle iletişime geçiniz.`;
+
+  const logoHtml = logoBase64
+    ? `<td style="padding-right:20px;vertical-align:middle;"><img src="data:image/png;base64,${logoBase64}" width="130" alt="MEBA" style="display:block;width:130px;height:auto;"></td>`
+    : '';
+  const infoBorderStyle = logoBase64 ? 'border-left:2px solid #1A2B42;padding-left:18px;' : '';
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<div style="max-width:600px;padding:28px 32px 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;line-height:1.65;">
+  <p style="margin:0 0 14px;">${hitap}</p>
+  <p style="margin:0 0 14px;">${govdeMetni}</p>
+  <p style="margin:0 0 28px;">Saygılarımızla,</p>
+  <table style="width:100%;border-collapse:collapse;border-top:1px solid #e2e8f0;"><tr><td style="padding-top:20px;">
+    <table style="border-collapse:collapse;">
+      <tr>
+        ${logoHtml}
+        <td style="vertical-align:top;${infoBorderStyle}">
+          ${hazirlayanAdi ? `<div style="font-weight:700;font-size:13px;color:#1A2B42;margin-bottom:3px;">${hazirlayanAdi}</div>` : ''}
+          <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:10px;">MEBA Pnömatik Hidrolik Makina Elektrik Elektronik<br>Mühendislik San. Tic. Ltd. Şti.</div>
+          <table style="border-collapse:collapse;font-size:12px;color:#334155;line-height:1.85;">
+            <tr><td style="padding-right:6px;color:#64748b;white-space:nowrap;">T:</td><td>+90 352 502 07 80</td></tr>
+            <tr><td style="color:#64748b;">E:</td><td>info@mebamekanik.com</td></tr>
+            <tr><td style="color:#64748b;">W:</td><td>www.mebamekanik.com</td></tr>
+          </table>
+          <div style="font-size:11px;color:#94a3b8;margin-top:9px;">Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv.<br>No:252/D Melikgazi / KAYSERİ</div>
+        </td>
+      </tr>
+    </table>
+  </td></tr></table>
+</div>
+</body></html>`;
+}
+
+function outlookTaslagiAc({ aliciEposta, konu, htmlGovde, ekDosyaYolu }) {
   if (process.platform !== 'win32') {
     return {
       epostaHazirlandi: false,
-      epostaHatasi: 'Outlook taslagi yalnizca Windows ortaminda hazirlanabilir.',
+      epostaHatasi: 'Outlook taslağı yalnızca Windows ortamında hazırlanabilir.',
       epostaTaslakYontemi: null,
     };
+  }
+
+  // HTML gövdeyi geçici dosyaya yaz — komut satırı uzunluk sınırını aşmamak için
+  const tempFile = path.join(os.tmpdir(), `meba-mail-${Date.now()}.html`);
+  try {
+    fs.writeFileSync(tempFile, htmlGovde, 'utf-8');
+  } catch {
+    return Promise.resolve({
+      epostaHazirlandi: false,
+      epostaHatasi: 'Geçici mail dosyası oluşturulamadı.',
+      epostaTaslakYontemi: null,
+    });
   }
 
   const script = [
@@ -182,9 +258,10 @@ function outlookTaslagiAc({ aliciEposta, konu, govde, ekDosyaYolu }) {
     '$mail = $outlook.CreateItem(0)',
     `$mail.To = '${escapePowerShellLiteral(aliciEposta)}'`,
     `$mail.Subject = '${escapePowerShellLiteral(konu)}'`,
-    `$mail.Body = '${escapePowerShellLiteral(govde)}'`,
+    `$mail.HTMLBody = [System.IO.File]::ReadAllText('${escapePowerShellLiteral(tempFile)}', [System.Text.Encoding]::UTF8)`,
     `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
     '$mail.Display()',
+    `Remove-Item '${escapePowerShellLiteral(tempFile)}' -Force -ErrorAction SilentlyContinue`,
   ].join('; ');
 
   const result = spawn('powershell.exe', ['-NoProfile', '-STA', '-Command', script], {
@@ -193,9 +270,10 @@ function outlookTaslagiAc({ aliciEposta, konu, govde, ekDosyaYolu }) {
 
   return new Promise((resolve) => {
     result.on('error', () => {
+      try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
       resolve({
         epostaHazirlandi: false,
-        epostaHatasi: 'Outlook gonderi penceresi acilamadi.',
+        epostaHatasi: 'Outlook gönder penceresi açılamadı.',
         epostaTaslakYontemi: null,
       });
     });
@@ -208,10 +286,10 @@ function outlookTaslagiAc({ aliciEposta, konu, govde, ekDosyaYolu }) {
         });
         return;
       }
-
+      try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
       resolve({
         epostaHazirlandi: false,
-        epostaHatasi: 'Outlook gonderi penceresi acilamadi.',
+        epostaHatasi: 'Outlook gönder penceresi açılamadı.',
         epostaTaslakYontemi: null,
       });
     });
@@ -445,24 +523,26 @@ const server = http.createServer(async (req, res) => {
         const aliciEposta = normalizeWhitespace(teklif?.cari?.ePosta ?? '');
         const mailKonu = mailKonuUret(teklif);
         const mailGovdesi = mailGovdesiUret(teklif);
+
+        // Logo: base64 olarak oku, yoksa null geç
+        let logoBase64 = null;
+        try {
+          const logoYolu = path.join(__dirname, '..', 'public', 'logo-meba.png');
+          logoBase64 = fs.readFileSync(logoYolu).toString('base64');
+        } catch { /* logo okunamazsa imza logosuz olur */ }
+
+        const mailHtmlGovdesi = mailHtmlGovdesiUret(teklif, logoBase64);
+
         const acmaSonucu = hedef === 'pdf'
           ? dosyaAc(tamYol)
           : { acildi: false };
         const epostaSonucu = hedef === 'email'
-          ? (
-            aliciEposta
-              ? await outlookTaslagiAc({
-                aliciEposta,
-                konu: mailKonu,
-                govde: mailGovdesi,
-                ekDosyaYolu: tamYol,
-              })
-              : {
-                epostaHazirlandi: false,
-                epostaHatasi: 'Alici icin e-mail adresi bulunamadi.',
-                epostaTaslakYontemi: null,
-              }
-          )
+          ? await outlookTaslagiAc({
+            aliciEposta,
+            konu: mailKonu,
+            htmlGovde: mailHtmlGovdesi,
+            ekDosyaYolu: tamYol,
+          })
           : {
             epostaHazirlandi: false,
             epostaTaslakYontemi: null,
