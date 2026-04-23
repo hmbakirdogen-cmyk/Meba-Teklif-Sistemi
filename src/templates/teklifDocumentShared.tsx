@@ -1,6 +1,45 @@
 import type { CSSProperties } from 'react';
 import type { Teklif } from '../types';
 
+// ── Manyetik sembol yardımcıları ─────────────────────────────────────────────
+
+export function hasMagnetSvg(s: string): boolean {
+  return s.includes('<svg');
+}
+
+export function stripMagnetSvg(s: string): string {
+  return s.replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/\s+$/, '').trim();
+}
+
+/** Mıknatıs ikonunu React SVG olarak render eder (font/emoji bağımsız) */
+export function MagnetIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="11" height="9"
+      viewBox="0 0 14 12"
+      style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4, marginBottom: 1, flexShrink: 0 }}
+      aria-label="Manyetik Pistonlu"
+    >
+      <path d="M2 0v6a5 5 0 0 0 10 0V0" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinejoin="miter"/>
+      <path d="M0.5 0h3" stroke="#dc2626" strokeWidth="3" strokeLinecap="round"/>
+      <path d="M10.5 0h3" stroke="#1d4ed8" strokeWidth="3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+/**
+ * Ürün açıklamasını render eder.
+ * Metin içindeki ham SVG taglarını kaldırır, yerine React SVG ikonu çizer.
+ * firstLine / stripParantez öncesi ham metne uygulanır.
+ */
+export function DescText({ text }: { text: string }) {
+  if (!text) return null;
+  const hasMag = hasMagnetSvg(text);
+  const clean  = hasMag ? stripMagnetSvg(text) : text;
+  return <>{clean}{hasMag ? <MagnetIcon /> : null}</>;
+}
+
 export const DOCUMENT_PAGE = {
   widthMm: 210,
   heightMm: 297,
@@ -71,25 +110,25 @@ export const DOCUMENT_COLORS = {
 // Sabit sütun genişlikleri — tableLayout:fixed ile kullanılır
 export const DOCUMENT_COLS = {
   no:         '3.5%',
-  marka:      '6.5%',
-  urunKod:    '17%',
-  aciklama:   '31%',
+  marka:      '6%',
+  urunKod:    '15%',
+  aciklama:   '35%',
   miktar:     '10%',
   birimFiyat: '11%',
-  toplam:     '11%',
-  teslimat:   '10%',
+  toplam:     '10%',
+  teslimat:   '9.5%',
 } as const;
 
 export const DOCUMENT_COLS_ROW_CURRENCY = {
   no:         '3%',
-  marka:      '6%',
-  urunKod:    '15%',
-  aciklama:   '28%',
-  miktar:     '10%',
+  marka:      '5.5%',
+  urunKod:    '14%',
+  aciklama:   '32%',
+  miktar:     '9%',
   paraBirimi: '7%',
   birimFiyat: '10%',
-  toplam:     '11%',
-  teslimat:   '10%',
+  toplam:     '10.5%',
+  teslimat:   '9%',
 } as const;
 
 export const CELL_PAD = '3px 8px';
@@ -106,6 +145,8 @@ export const ACIKLAMA_OVERFLOW: CSSProperties = {
   display: '-webkit-box',
   WebkitBoxOrient: 'vertical',
   WebkitLineClamp: 2,
+  overflowWrap: 'break-word',
+  wordBreak: 'break-word',
 } as CSSProperties;
 
 export const noBreak: CSSProperties = {

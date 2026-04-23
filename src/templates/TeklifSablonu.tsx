@@ -42,8 +42,8 @@ import {
   TABLE_TITLE_STYLE,
   TableColgroup,
   buildSettingsItems,
-  firstLine,
   getTableHeadCellStyle,
+  DescText,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -481,14 +481,14 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 <td style={{
                   padding: CELL_PAD,
                   fontSize: '11px',
-                  fontWeight: 500,
+                  fontWeight: 400,
                   color: C.textMid,
                   verticalAlign: 'middle',
-                  lineHeight: 1.35,
+                  lineHeight: 1.4,
                   ...ACIKLAMA_OVERFLOW,
                   ...rcCell('mid', idx),
                 }}>
-                  {firstLine(stripParantez(satir.urunAdi))}
+                  <DescText text={stripParantez(satir.aciklama)} />
                 </td>
                 {/* Miktar */}
                 <td style={{

@@ -9,6 +9,8 @@ import {
   type CellPos,
 } from '../templates/teklifDocumentShared';
 
+export { DescText, MagnetIcon } from '../templates/teklifDocumentShared';
+
 const C = DOCUMENT_COLORS;
 
 export function RowCell({
@@ -109,9 +111,9 @@ export const ROW_TEXT = {
     width: '100%',
     minWidth: 0,
     fontSize: '11px',
-    fontWeight: 500,
+    fontWeight: 400,
     color: C.textMid,
-    lineHeight: 1.35,
+    lineHeight: 1.4,
     ...ACIKLAMA_OVERFLOW,
   } satisfies React.CSSProperties,
   quantityValue: {

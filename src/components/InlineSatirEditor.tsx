@@ -79,9 +79,9 @@ const ACIKLAMA_EDIT: React.CSSProperties = {
   width: '100%',
   minWidth: 0,
   fontSize: '11px',
-  fontWeight: 500,
+  fontWeight: 400,
   color: C.textMid,
-  lineHeight: 1.35,
+  lineHeight: 1.4,
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -181,7 +181,7 @@ export function InlineSatirEditor({
   const urunKodOptions = useMemo(() =>
     urunler.map((urun) => ({
       value: urun.urunKod,
-      label: `${urun.urunKod} - ${urun.urunAdi}`,
+      label: `${urun.urunKod} — ${urun.aciklama}`,
     })),
   [urunler]);
 
@@ -189,12 +189,12 @@ export function InlineSatirEditor({
     onGuncelle('urunKod', kod);
     const urun = urunler.find((item) => item.urunKod === kod);
     if (urun) {
-      if (!satir.urunAdi) onGuncelle('urunAdi', urun.urunAdi);
+      if (!satir.aciklama) onGuncelle('aciklama', urun.aciklama);
       if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
       if (urun.birim) onGuncelle('birim', urun.birim);
     }
     window.setTimeout(() => focusByName('aciklama'), 80);
-  }, [focusByName, onGuncelle, satir.birimFiyat, satir.urunAdi, urunler]);
+  }, [focusByName, onGuncelle, satir.birimFiyat, satir.aciklama, urunler]);
 
   return (
     <tr data-editing style={{ ...noBreak }}>
@@ -226,9 +226,11 @@ export function InlineSatirEditor({
           onChange={(value) => onGuncelle('urunKod', value)}
           onSelect={(value) => handleUrunKodSec(String(value))}
           options={urunKodOptions}
-          filterOption={(input, option) =>
-            option?.value?.toString().toLowerCase().includes(input.toLowerCase()) ?? false
-          }
+          filterOption={(input, option) => {
+            const q = input.toLowerCase();
+            return (option?.value?.toString().toLowerCase().includes(q) ||
+              option?.label?.toString().toLowerCase().includes(q)) ?? false;
+          }}
           placeholder="Ürün kodu"
           popupMatchSelectWidth={false}
           dropdownStyle={{ minWidth: 300 }}
@@ -248,8 +250,8 @@ export function InlineSatirEditor({
         <InlineTableInputField
           ref={aciklamaRef}
           style={ACIKLAMA_EDIT}
-          value={satir.urunAdi}
-          onChange={(e) => onGuncelle('urunAdi', e.target.value)}
+          value={satir.aciklama}
+          onChange={(e) => onGuncelle('aciklama', e.target.value)}
           placeholder="Açıklama"
           onFocus={(e) => e.target.select()}
           onKeyDown={(e) => {

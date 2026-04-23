@@ -15,6 +15,7 @@ import {
   RowCell,
   ROW_SHELL,
   ROW_TEXT,
+  DescText,
 } from './InlineTableRowShared';
 import {
   DOCUMENT_BRAND,
@@ -51,7 +52,6 @@ import {
   TABLE_TITLE_STYLE,
   TableColgroup,
   buildSettingsItems,
-  firstLine,
   getTableHeadCellStyle,
 } from '../templates/teklifDocumentShared';
 import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
@@ -544,7 +544,7 @@ export default function PaginatedBelgeInlineEditor({
                       <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                     </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} style={{ cursor: 'pointer' }}>
-                      <span style={ROW_TEXT.description}>{firstLine(stripParantez(satir.urunAdi)) || '-'}</span>
+                      <span style={ROW_TEXT.description}><DescText text={stripParantez(satir.aciklama) || '-'} /></span>
                     </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} style={{ cursor: 'pointer' }}>
                       {satir.miktar !== 0 ? (

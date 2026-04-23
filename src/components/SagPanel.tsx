@@ -339,14 +339,13 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
               guncelle('urunKod', v);
               const urun = urunler.find(u => u.urunKod === v);
               if (urun) {
-                guncelle('urunAdi', urun.urunAdi);
                 guncelle('aciklama', urun.aciklama);
                 if (urun.varsayilanFiyat) guncelle('birimFiyat', urun.varsayilanFiyat);
                 if (urun.birim) guncelle('birim', urun.birim);
               }
             }}
             style={{ width: '100%' }}
-            options={urunler.map(u => ({ value: u.urunKod, label: `${u.urunKod} — ${u.urunAdi}` }))}
+            options={urunler.map(u => ({ value: u.urunKod, label: `${u.urunKod} — ${u.aciklama}` }))}
             filterOption={(input, option) =>
               (option?.value ?? '').toLowerCase().includes(input.toLowerCase()) ||
               (option?.label?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
@@ -358,8 +357,8 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
         <div>
           <div style={{ ...sectionLabel, color: C.textFaint }}>Açıklama</div>
           <TextArea
-            value={satir.urunAdi}
-            onChange={e => guncelle('urunAdi', e.target.value)}
+            value={satir.aciklama}
+            onChange={e => guncelle('aciklama', e.target.value)}
             autoSize={{ minRows: 2, maxRows: 5 }}
           />
         </div>

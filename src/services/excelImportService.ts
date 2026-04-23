@@ -219,8 +219,8 @@ export async function urunExcelOku(file: File, kategoriYedek?: string): Promise<
     const urun: Urun = {
       id: urunService.urunIdUret(),
       urunKod: urunKod || `U-${Date.now().toString(36)}`,
-      urunAdi: urunAdi || urunKod,
-      aciklama: urunAdi,
+      urunAdi: '',
+      aciklama: urunAdi || urunKod,
       kategori,
       birim,
       varsayilanFiyat: fiyat,
@@ -268,8 +268,7 @@ export function cariExcelIndir(cariler: Cari[]): void {
 export function urunExcelIndir(urunler: Urun[]): void {
   const data = urunler.map((u) => ({
     'Üretici Kodu':  u.urunKod,
-    'Açıklama':      u.urunAdi,
-    'Detay':         u.aciklama ?? '',
+    'Açıklama':      u.aciklama ?? '',
     'Kategori':      u.kategori ?? '',
     'Birim':         u.birim ?? 'Adet',
     'Fiyat':         u.varsayilanFiyat ?? 0,

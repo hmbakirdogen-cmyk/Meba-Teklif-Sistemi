@@ -42,10 +42,10 @@ import {
   TableColgroup,
   URUN_KOD_OVERFLOW,
   buildSettingsItems,
-  firstLine,
   getTableHeadCellStyle,
   noBreak,
   rcCell,
+  DescText,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -327,8 +327,8 @@ function TableSection({
                 <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) }}>
                   {satir.urunKod || '-'}
                 </td>
-                <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 500, color: C.textMid, verticalAlign: 'middle', lineHeight: 1.35, ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
-                  {firstLine(stripParantez(satir.urunAdi))}
+                <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 400, color: C.textMid, verticalAlign: 'middle', lineHeight: 1.4, ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
+                  <DescText text={stripParantez(satir.aciklama)} />
                 </td>
                 <td style={{ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
                   {satir.miktar !== 0 ? (

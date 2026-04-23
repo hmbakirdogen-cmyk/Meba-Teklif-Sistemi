@@ -156,7 +156,7 @@ function UrunModal({
       const kayit: Urun = {
         id: urun?.id ?? urunService.urunIdUret(),
         urunKod:          normalizeProductCode(vals.urunKod ?? ''),
-        urunAdi:          cleanTextInput(vals.urunAdi ?? ''),
+        urunAdi:          '',
         aciklama:         cleanTextInput(vals.aciklama ?? ''),
         kategori:         cleanTextInput(vals.kategori ?? ''),
         birim:            cleanTextInput(vals.birim ?? '') || 'Adet',
@@ -190,13 +190,8 @@ function UrunModal({
               <Input placeholder="CP96SDB80-200" />
             </Form.Item>
           </Col>
-          <Col span={14}>
-            <Form.Item name="urunAdi" label="Ürün Adı" rules={[{ required: true, message: 'Zorunlu' }]}>
-              <Input />
-            </Form.Item>
-          </Col>
         </Row>
-        <Form.Item name="aciklama" label="Açıklama">
+        <Form.Item name="aciklama" label="Açıklama" rules={[{ required: true, message: 'Zorunlu' }]}>
           <Input.TextArea rows={2} />
         </Form.Item>
         <Row gutter={12}>
@@ -339,8 +334,6 @@ export default function VeriYonetimiSayfasi() {
   const urunKolonlar = [
     { title: 'Ürün Kodu', dataIndex: 'urunKod',  key: 'urunKod',  width: 150,
       render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{v}</span> },
-    { title: 'Ürün Adı',   dataIndex: 'urunAdi',  key: 'urunAdi',  ellipsis: true,
-      render: (v: string) => stripParantez(v) || '—' },
     { title: 'Açıklama',   dataIndex: 'aciklama', key: 'aciklama', ellipsis: true,
       render: (v: string) => v || '—' },
     { title: 'Kategori',   dataIndex: 'kategori', key: 'kategori', width: 110,
