@@ -13,7 +13,6 @@ import {
   FilePdfOutlined,
   MailOutlined,
   PlusOutlined,
-  SettingOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
@@ -124,13 +123,6 @@ export default function BelgeToolbar({
             type="text"
             icon={<PlusOutlined />}
             onClick={onSatirEkle}
-          />
-        </Tooltip>
-        <Tooltip title="Ayarlar Paneli">
-          <Button
-            type="text"
-            icon={<SettingOutlined />}
-            onClick={() => onPanelAc('ayarlar')}
           />
         </Tooltip>
         <Tooltip title="Notlar">

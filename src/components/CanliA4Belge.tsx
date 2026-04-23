@@ -31,6 +31,7 @@ interface CanliA4BelgeProps {
   onNotlarDegistir: (notlar: string) => void;
   sablonRef: React.RefObject<HTMLDivElement | null>;
   kompaktHeaderRef: React.RefObject<HTMLDivElement | null>;
+  readOnly?: boolean;
 }
 
 const FALLBACK_PAGINATION: TeklifPaginationResult = {
@@ -70,6 +71,7 @@ export default function CanliA4Belge({
   onNotlarDegistir,
   sablonRef,
   kompaktHeaderRef,
+  readOnly = false,
 }: CanliA4BelgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -227,6 +229,7 @@ export default function CanliA4Belge({
             onSatirEkle={onSatirEkle}
             onSatirArayaEkle={onSatirArayaEkle}
             onNotlarDegistir={onNotlarDegistir}
+            readOnly={readOnly}
           />
         </div>
       </div>

@@ -26,6 +26,7 @@ import { formatCariAdi } from '../utils/formatters';
 import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
+import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
 import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
@@ -50,6 +51,13 @@ export default function TeklifEditor() {
 
   // Inline düzenleme state — popover yerine
   const [editingAlan, setEditingAlan] = useState<EditingAlan>(null);
+
+  // Kilitli / Düzenleme modu
+  const [modeKilitli, setModeKilitli] = useState(false);
+  const handleModeKilitliDegistir = useCallback((v: boolean) => {
+    setModeKilitli(v);
+    if (v) setEditingAlan(null);
+  }, []);
 
   const state = useBelgeState(
     id,
@@ -339,7 +347,7 @@ export default function TeklifEditor() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      height: '100vh',
       background: C.bgBody,
       overflow: 'hidden',
     }}>
@@ -364,6 +372,7 @@ export default function TeklifEditor() {
         flex: 1,
         display: 'flex',
         overflow: 'hidden',
+        background: '#E0DDD9',
       }}>
         {/* Belge alanı (scroll container) */}
         <div
@@ -402,6 +411,7 @@ export default function TeklifEditor() {
               onNotlarDegistir={state.setNotlar}
               sablonRef={sablonRef}
               kompaktHeaderRef={kompaktHeaderRef}
+              readOnly={modeKilitli}
             />
           ) : (
             <div style={{
@@ -423,6 +433,22 @@ export default function TeklifEditor() {
           )}
         </div>
 
+        {/* Kumanda Paneli (daima görünür) */}
+        <KumandaPaneli
+          readOnly={modeKilitli}
+          onReadOnlyDegistir={handleModeKilitliDegistir}
+          durum={state.durum}
+          onDurumDegistir={state.setDurum}
+          kdvOrani={state.kdvOrani}
+          onKdvOraniDegistir={state.setKdvOrani}
+          iskontoOrani={state.iskontoOrani}
+          onIskontoOraniDegistir={state.setIskontoOrani}
+          satirBazliParaBirimi={state.satirBazliParaBirimi}
+          onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
+          satirBazliIskonto={state.satirBazliIskonto}
+          onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
+        />
+
         {/* Sağ Panel (ikincil — gelişmiş düzenleme) */}
         <SagPanel
           panelModu={state.panelModu}
@@ -438,26 +464,11 @@ export default function TeklifEditor() {
           onSatirGuncelle={state.satirGuncelle}
           onSatirSil={state.satirSil}
           onSatirEkle={state.satirEkle}
-          tarih={state.tarih}
-          onTarihDegistir={state.setTarih}
           paraBirimi={state.paraBirimi}
-          onParaBirimiDegistir={state.setParaBirimi}
           satirBazliParaBirimi={state.satirBazliParaBirimi}
-          onSatirBazliDegistir={state.setSatirBazliParaBirimi}
           satirBazliIskonto={state.satirBazliIskonto}
-          onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
-          durum={state.durum}
-          onDurumDegistir={state.setDurum}
-          kdvOrani={state.kdvOrani}
-          onKdvOraniDegistir={state.setKdvOrani}
-          iskontoOrani={state.iskontoOrani}
-          onIskontoOraniDegistir={state.setIskontoOrani}
-          odemeVadesi={state.odemeVadesi}
-          onOdemeVadesiDegistir={state.setOdemeVadesi}
           notlar={state.notlar}
           onNotlarDegistir={state.setNotlar}
-          araToplam={state.araToplam}
-          toplamIndirim={state.toplamIndirim}
         />
       </div>
     </div>

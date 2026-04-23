@@ -21,7 +21,7 @@ import { sanitizeMultilineText } from '../utils/formatters';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi } from '../types';
 import dayjs from 'dayjs';
 
-export type PanelModu = 'musteri' | 'ayarlar' | 'satir' | 'notlar' | null;
+export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
 
 export interface BelgeState {
   // ── Teklif verisi ──

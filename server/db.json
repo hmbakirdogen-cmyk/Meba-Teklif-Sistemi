@@ -12874,7 +12874,7 @@
         }
       ],
       "araToplam": 1693,
-      "toplamIndirim": 84.65,
+      "toplamIndirim": 0,
       "toplamVergi": 0,
       "genelToplam": 1608.35,
       "kdvOrani": 0,
@@ -12882,13 +12882,16 @@
       "odemeVadesi": "60 Gün",
       "notlar": "Sipariş üzerine imalat gerektiren kalemler için teslim süresi uzayabilir.",
       "olusturmaTarihi": "2025-12-14T14:29:00.000Z",
-      "guncellemeTarihi": "2025-12-14T14:29:00.000Z",
+      "guncellemeTarihi": "2026-04-23T12:53:48.463Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
-      "hazirlayanRol": "engineer",
+      "hazirlayanRol": "admin",
       "gecerlilikSuresi": "1 Hafta",
       "contactName": "Fatih",
-      "contactTitle": "BEY"
+      "contactTitle": "BEY",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\VİENSOL ENERJİ\\VİENSOL ENERJİ - 2026-383.pdf",
+      "pdfDosyaAdi": "VİENSOL ENERJİ - 2026-383.pdf",
+      "pdfOlusturmaTarihi": "2026-04-23T12:53:48.463Z"
     },
     {
       "id": "tmobgiw0rxm4jhs",
@@ -14521,7 +14524,9 @@
       "ePosta": "",
       "adres": "",
       "vergiDairesi": "",
-      "vergiNo": ""
+      "vergiNo": "",
+      "lastContactName": "refrf",
+      "lastContactTitle": "BEY"
     },
     {
       "id": "c-0005",
@@ -63217,6 +63222,6 @@
   },
   "sayac": {
     "yil": 2026,
-    "deger": 474
+    "deger": 476
   }
 }

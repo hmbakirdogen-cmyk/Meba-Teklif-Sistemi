@@ -86,6 +86,7 @@ interface PaginatedBelgeInlineEditorProps {
   onSatirEkle: () => void;
   onSatirArayaEkle: (afterIndex: number) => void;
   onNotlarDegistir: (notlar: string) => void;
+  readOnly?: boolean;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -181,6 +182,7 @@ export default function PaginatedBelgeInlineEditor({
   onSatirEkle,
   onSatirArayaEkle,
   onNotlarDegistir,
+  readOnly = false,
 }: PaginatedBelgeInlineEditorProps) {
   const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
@@ -192,10 +194,10 @@ export default function PaginatedBelgeInlineEditor({
     ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
     : (teklif.cari.yetkiliKisi || null);
 
-  const isMusteriEditing = editingAlan === 'musteri';
-  const isAnyAyarEditing = editingAlan?.startsWith('ayar-') ?? false;
-  const isNotlarEditing = editingAlan === 'notlar';
-  const editingSatirId = editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
+  const isMusteriEditing = !readOnly && editingAlan === 'musteri';
+  const isAnyAyarEditing = !readOnly && (editingAlan?.startsWith('ayar-') ?? false);
+  const isNotlarEditing  = !readOnly && editingAlan === 'notlar';
+  const editingSatirId   = !readOnly && editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
 
   const muhatapRef = useRef<InputRef>(null);
   const prevMusteriEditing = useRef(false);
@@ -214,14 +216,16 @@ export default function PaginatedBelgeInlineEditor({
 
   const handleSatirCellClick = useCallback(
     (satirId: string, cell: string) => (e: React.MouseEvent) => {
+      if (readOnly) return;
       e.stopPropagation();
       setSatirFocusCell(cell);
       onEditingAlanDegistir(`satir-${satirId}`);
     },
-    [onEditingAlanDegistir],
+    [onEditingAlanDegistir, readOnly],
   );
 
   const handleAlanClick = (alan: EditingAlan, e: React.MouseEvent) => {
+    if (readOnly) return;
     e.stopPropagation();
     if (alan === 'musteri' && editingAlan !== alan) {
       setCariSearchText(formatCariAdi(teklif.cari.firmaAdi));
@@ -231,8 +235,8 @@ export default function PaginatedBelgeInlineEditor({
 
   const editFrameStyle = (isEditing: boolean): React.CSSProperties => ({
     transition: 'background 0.18s ease',
-    cursor: isEditing ? 'default' : 'pointer',
-    ...(isEditing ? { background: 'rgba(237, 242, 251, 0.35)' } : {}),
+    cursor: readOnly ? 'default' : (isEditing ? 'default' : 'pointer'),
+    ...(isEditing && !readOnly ? { background: 'rgba(237, 242, 251, 0.35)' } : {}),
   });
 
   const renderFirstPageHeader = () => (
@@ -413,10 +417,10 @@ export default function PaginatedBelgeInlineEditor({
                 <div
                   key={alanId}
                   data-alan={alanId}
-                  onClick={isReadonly ? undefined : (e) => handleAlanClick(alanId, e)}
+                  onClick={(isReadonly || readOnly) ? undefined : (e) => handleAlanClick(alanId, e)}
                   style={{
                     ...SETTINGS_CARD_STYLE,
-                    cursor: isReadonly ? 'default' : (isEditing ? 'default' : 'pointer'),
+                    cursor: (isReadonly || readOnly) ? 'default' : (isEditing ? 'default' : 'pointer'),
                   }}
                 >
                   <div style={SETTINGS_LABEL_STYLE}>
@@ -493,7 +497,7 @@ export default function PaginatedBelgeInlineEditor({
                   <td colSpan={colCount} style={{ padding: 0, border: 'none', position: 'relative', height: 0, overflow: 'visible' }}>
                     <div
                       className="satir-araya-ekle-btn"
-                      onClick={(e) => { e.stopPropagation(); onSatirArayaEkle(idx); }}
+                      onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirArayaEkle(idx); }}
                       style={{
                         position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
                         zIndex: 45, display: 'flex', alignItems: 'center', gap: 4,
@@ -583,7 +587,7 @@ export default function PaginatedBelgeInlineEditor({
                       )}
                       <div className="belge-satir-hover-actions" style={{ position: 'absolute', right: -2, top: '50%', transform: 'translateY(-50%)', zIndex: 40, display: 'flex', gap: '2px' }}>
                         <span
-                          onClick={(e) => { e.stopPropagation(); onSatirSil(satir.id); }}
+                          onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirSil(satir.id); }}
                           style={{
                             cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             width: 20, height: 20, borderRadius: '4px',
@@ -605,10 +609,10 @@ export default function PaginatedBelgeInlineEditor({
               <tr>
                 <td
                   colSpan={satirBazliParaBirimi ? 9 : 8}
-                  onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
+                  onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirEkle(); }}
                   style={{
                     padding: '14px 7px', textAlign: 'center', fontSize: '11px', color: C.textMuted,
-                    cursor: 'pointer', border: `1px dashed ${C.borderSoft}`, borderRadius: ROW_CARD.radius,
+                    cursor: readOnly ? 'default' : 'pointer', border: `1px dashed ${C.borderSoft}`, borderRadius: ROW_CARD.radius,
                     background: 'rgba(37, 99, 235, 0.02)',
                   }}
                 >
@@ -619,7 +623,7 @@ export default function PaginatedBelgeInlineEditor({
             )}
           </tbody>
         </table>
-        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && (
+        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && !readOnly && (
           <div
             className="belge-kalem-ekle-bar"
             onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
@@ -752,12 +756,16 @@ export default function PaginatedBelgeInlineEditor({
   );
 
   return (
-    <div className="belge-inline">
+    <div className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}>
       <style>{FIELD_CSS}{`
         .satir-aksiyonlari { pointer-events: auto; }
         .belge-satir-hover-actions { opacity: 0; pointer-events: none; transition: opacity 0.18s; }
         tr:hover > td > .belge-satir-hover-actions,
         tr:focus-within > td > .belge-satir-hover-actions { opacity: 1; pointer-events: auto; }
+        .belge-readonly .belge-satir-hover-actions { display: none !important; }
+        .belge-readonly .satir-araya-ekle-btn { display: none !important; }
+        .belge-readonly tr[data-satir-id] td { cursor: default !important; }
+        .belge-readonly [data-alan] { cursor: default !important; }
         /* Alıcı / musteri card — hover renk değişimi yok */
         .belge-inline [data-alan="musteri"] .ant-select:hover .ant-select-content,
         .belge-inline [data-alan="musteri"] .ant-select:hover { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }

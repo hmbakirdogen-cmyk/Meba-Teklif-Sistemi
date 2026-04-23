@@ -4,25 +4,21 @@
  * Bağlamsal düzenleme paneli — belgedeki seçili alana göre içerik değişir.
  * Müşteri, ayarlar, satır detayı ve notlar modları.
  */
-import React, { useMemo } from 'react';
-import { Select, Input, Button, AutoComplete, DatePicker, InputNumber } from 'antd';
+import React from 'react';
+import { Select, Input, Button, AutoComplete, InputNumber } from 'antd';
 import {
   CloseOutlined,
   DeleteOutlined,
   PlusOutlined,
   UserOutlined,
-  SettingOutlined,
   FileTextOutlined,
   ShoppingCartOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import CariSecimi from './CariSecimi';
-import ToplamPaneli from './ToplamPaneli';
-import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
 import { useColors } from '../hooks/useColors';
-import type { Cari, TeklifSatiri, TeklifDurum, ParaBirimi } from '../types';
+import type { Cari, TeklifSatiri, ParaBirimi } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
 
 const { TextArea } = Input;
@@ -46,31 +42,15 @@ interface SagPanelProps {
   onSatirSil: (id: string) => void;
   onSatirEkle: () => void;
 
-  // Ayarlar
-  tarih: string;
-  onTarihDegistir: (tarih: string) => void;
+  // Para birimi bilgileri (SatirPaneli görüntüleme için)
   paraBirimi: ParaBirimi;
-  onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
-  onSatirBazliDegistir: (aktif: boolean) => void;
   satirBazliIskonto: boolean;
-  onSatirBazliIskontoDegistir: (aktif: boolean) => void;
-  durum: TeklifDurum;
-  onDurumDegistir: (durum: TeklifDurum) => void;
-  kdvOrani: number;
-  onKdvOraniDegistir: (oran: number) => void;
-  iskontoOrani: number;
-  onIskontoOraniDegistir: (oran: number) => void;
-  odemeVadesi: string;
-  onOdemeVadesiDegistir: (vade: string) => void;
 
   // Notlar
   notlar: string;
   onNotlarDegistir: (notlar: string) => void;
 
-  // Toplam
-  araToplam: number;
-  toplamIndirim: number;
 }
 
 const PANEL_W = 360;
@@ -126,7 +106,6 @@ export default function SagPanel(props: SagPanelProps) {
       overflow: 'hidden',
     }}>
       {panelModu === 'musteri' && <MusteriPaneli {...props} C={C} />}
-      {panelModu === 'ayarlar' && <AyarlarPaneli {...props} C={C} />}
       {panelModu === 'satir' && <SatirPaneli {...props} C={C} />}
       {panelModu === 'notlar' && <NotlarPaneli {...props} C={C} />}
     </div>
@@ -165,126 +144,6 @@ function MusteriPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> 
             </div>
           </div>
         )}
-      </div>
-    </>
-  );
-}
-
-// ── Ayarlar Paneli ──────────────────────────────────────────────────────────
-function AyarlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
-  const {
-    C, tarih, onTarihDegistir, paraBirimi, onParaBirimiDegistir,
-    satirBazliParaBirimi, onSatirBazliDegistir,
-    satirBazliIskonto, onSatirBazliIskontoDegistir,
-    durum, onDurumDegistir,
-    kdvOrani, onKdvOraniDegistir, iskontoOrani, onIskontoOraniDegistir,
-    odemeVadesi, onOdemeVadesiDegistir, onKapat,
-    satirlar, araToplam, toplamIndirim,
-  } = props;
-
-  const teslimSecenekleri = referansVeriService.teslimSecenekleri.tumunuGetir();
-  const odemeOptions = useMemo(() => [
-    '30 Gün', '45 Gün', '60 Gün', '90 Gün', 'Peşin', 'Proforma',
-    ...teslimSecenekleri.filter(s => !['30 Gün', '45 Gün', '60 Gün', '90 Gün', 'Peşin', 'Proforma'].includes(s)),
-  ].map(v => ({ value: v })), [teslimSecenekleri]);
-
-  const satirParaToplamlari = useMemo(
-    () => hesaplamaMotoru.paraBirimineGoreToplamlar(satirlar, paraBirimi),
-    [satirlar, paraBirimi],
-  );
-
-  return (
-    <>
-      <PanelBaslik icon={<SettingOutlined />} baslik="Teklif Ayarları" onKapat={onKapat} C={C} />
-      <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Tarih */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Tarih</div>
-          <DatePicker
-            value={dayjs(tarih)}
-            onChange={d => d && onTarihDegistir(d.format('YYYY-MM-DD'))}
-            style={{ width: '100%' }}
-            format="DD.MM.YYYY"
-          />
-        </div>
-
-        {/* Durum */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Durum</div>
-          <Select
-            value={durum}
-            onChange={onDurumDegistir}
-            style={{ width: '100%' }}
-            options={[
-              { label: 'Taslak', value: 'taslak' },
-              { label: 'Hazır', value: 'hazir' },
-              { label: 'Gönderildi', value: 'gonderildi' },
-              { label: 'Onaylandı', value: 'onaylandi' },
-              { label: 'İptal', value: 'iptal' },
-            ]}
-          />
-        </div>
-
-        {/* Para Birimi */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Para Birimi</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Select
-              value={paraBirimi}
-              onChange={onParaBirimiDegistir}
-              style={{ width: '100%' }}
-              disabled={satirBazliParaBirimi}
-              options={[
-                { label: 'EUR (€)', value: 'EUR' },
-                { label: 'USD ($)', value: 'USD' },
-                { label: 'TRY (₺)', value: 'TRY' },
-              ]}
-            />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textSecondary, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={satirBazliParaBirimi}
-                onChange={e => onSatirBazliDegistir(e.target.checked)}
-              />
-              Satır bazlı para birimi
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textSecondary, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={satirBazliIskonto}
-                onChange={e => onSatirBazliIskontoDegistir(e.target.checked)}
-              />
-              Satır bazlı iskonto
-            </label>
-          </div>
-        </div>
-
-        {/* Ödeme Vadesi */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Ödeme Vadesi</div>
-          <AutoComplete
-            value={odemeVadesi}
-            onChange={onOdemeVadesiDegistir}
-            options={odemeOptions}
-            style={{ width: '100%' }}
-            placeholder="Ödeme vadesi"
-          />
-        </div>
-
-        {/* Finansal Özet */}
-        <div style={{ marginTop: 4 }}>
-          <ToplamPaneli
-            araToplam={araToplam}
-            toplamIndirim={toplamIndirim}
-            paraBirimi={paraBirimi}
-            satirBazliParaBirimi={satirBazliParaBirimi}
-            satirParaToplamlari={satirParaToplamlari}
-            kdvOrani={kdvOrani}
-            onKdvOraniChange={onKdvOraniDegistir}
-            iskontoOrani={iskontoOrani}
-            onIskontoOraniChange={onIskontoOraniDegistir}
-          />
-        </div>
       </div>
     </>
   );
