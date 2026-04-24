@@ -501,6 +501,113 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   LINE ITEM TABLE: view/edit ortak ölçü sistemi
+   Satır yüksekliği, hücre padding'i ve editör boyları sabittir.
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .offer-table tbody tr[data-satir-id],
+.belge-inline .offer-table tbody tr[data-editing] {
+  height: var(--line-row-height) !important;
+  min-height: var(--line-row-height) !important;
+  max-height: var(--line-row-height) !important;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td,
+.belge-inline .offer-table tbody tr[data-editing] > td {
+  height: var(--line-row-height) !important;
+  min-height: var(--line-row-height) !important;
+  max-height: var(--line-row-height) !important;
+  padding: var(--line-cell-padding-y) var(--line-cell-padding-x) !important;
+  line-height: var(--line-cell-line-height) !important;
+  box-sizing: border-box !important;
+  vertical-align: middle !important;
+}
+
+.belge-inline .offer-table tr[data-editing] .inline-table-field,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-input,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-input-number,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select-auto-complete,
+.belge-inline .offer-table tr[data-editing] textarea.inline-table-field {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: var(--line-editor-height) !important;
+  min-height: var(--line-editor-height) !important;
+  max-height: var(--line-editor-height) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font: inherit !important;
+  color: inherit !important;
+  line-height: var(--line-cell-line-height) !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select .ant-select-content,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select-auto-complete .ant-select-content {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select .ant-select-content-value,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select .ant-select-selection-item,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select .ant-select-placeholder,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select .ant-select-input,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select-auto-complete .ant-select-placeholder,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select-auto-complete .ant-select-input {
+  font: inherit !important;
+  line-height: var(--line-cell-line-height) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-input-number .ant-input-number-input,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-input,
+.belge-inline .offer-table tr[data-editing] .inline-table-field input:not(.ant-select-input),
+.belge-inline .offer-table tr[data-editing] .inline-table-field textarea {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font: inherit !important;
+  color: inherit !important;
+  line-height: var(--line-cell-line-height) !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.belge-inline .offer-table tr[data-editing] textarea.inline-table-field {
+  resize: none !important;
+  overflow: hidden !important;
+}
+
+.belge-inline .offer-table tr[data-editing] td:focus-within {
+  box-shadow: none !important;
+}
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-input-number:focus-within,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-input-number-focused,
+.belge-inline .offer-table tr[data-editing] .inline-table-field.ant-select-focused .ant-select-content,
+.belge-inline .offer-table tr[data-editing] input:focus,
+.belge-inline .offer-table tr[data-editing] textarea:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 1px rgba(24, 53, 93, 0.25) !important;
+  border-radius: 4px !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    CHECKBOX
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline input[type="checkbox"] {

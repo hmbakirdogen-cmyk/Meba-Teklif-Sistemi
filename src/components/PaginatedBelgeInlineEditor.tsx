@@ -30,6 +30,7 @@ import {
   LOGO_OPT_W,
   LOGO_OPT_TOP,
   LOGO_OPT_LEFT,
+  LINE_ITEM_CSS_VARS,
   HIGH_QUALITY_IMAGE_RENDERING,
   noBreak,
   NOTES_BOX_STYLE,
@@ -461,7 +462,7 @@ export default function PaginatedBelgeInlineEditor({
         <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'block' : 'none' }}>
           Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
         </div>
-        <table style={{ ...TABLE_STYLE, marginBottom: 0 } as React.CSSProperties}>
+        <table className="offer-table" style={{ ...TABLE_STYLE, marginBottom: 0 } as React.CSSProperties}>
           <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
           <thead>
             <tr>
@@ -775,6 +776,9 @@ export default function PaginatedBelgeInlineEditor({
   return (
     <div className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}>
       <style>{FIELD_CSS}{`
+        .belge-inline .offer-table {
+          ${LINE_ITEM_CSS_VARS}
+        }
         .satir-aksiyonlari { pointer-events: auto; }
         .belge-satir-hover-actions { opacity: 0; pointer-events: none; transition: opacity 0.18s; }
         tr:hover > td > .belge-satir-hover-actions,

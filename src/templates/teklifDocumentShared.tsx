@@ -148,7 +148,36 @@ export const DOCUMENT_COLS_ROW_CURRENCY = {
   teslimat:   '11.5%',
 } as const;
 
-export const CELL_PAD = '3px 8px';
+export const LINE_ITEM_METRICS = {
+  rowHeightPx: 44,
+  cellPaddingYpx: 3,
+  cellPaddingXpx: 8,
+  editorHeightPx: 32,
+  baseFontSizePx: 11,
+  codeFontSizePx: 10.5,
+  deliveryFontSizePx: 10,
+  lineHeight: 1.35,
+  deliveryLineHeight: 1.2,
+  descriptionClampLines: 2,
+  quantityUnitScale: 0.88,
+} as const;
+
+export const CELL_PAD = `${LINE_ITEM_METRICS.cellPaddingYpx}px ${LINE_ITEM_METRICS.cellPaddingXpx}px`;
+export const LINE_ITEM_ROW_HEIGHT = `${LINE_ITEM_METRICS.rowHeightPx}px`;
+export const LINE_ITEM_EDITOR_HEIGHT = `${LINE_ITEM_METRICS.editorHeightPx}px`;
+export const LINE_ITEM_DESCRIPTION_MAX_HEIGHT = `${Math.ceil(
+  LINE_ITEM_METRICS.baseFontSizePx
+  * LINE_ITEM_METRICS.lineHeight
+  * LINE_ITEM_METRICS.descriptionClampLines,
+)}px`;
+export const LINE_ITEM_CSS_VARS = `
+  --line-row-height: ${LINE_ITEM_ROW_HEIGHT};
+  --line-cell-font-size: ${LINE_ITEM_METRICS.baseFontSizePx}px;
+  --line-cell-line-height: ${LINE_ITEM_METRICS.lineHeight};
+  --line-cell-padding-y: ${LINE_ITEM_METRICS.cellPaddingYpx}px;
+  --line-cell-padding-x: ${LINE_ITEM_METRICS.cellPaddingXpx}px;
+  --line-editor-height: ${LINE_ITEM_EDITOR_HEIGHT};
+`;
 
 export const URUN_KOD_OVERFLOW: CSSProperties = {
   whiteSpace: 'nowrap',
@@ -161,10 +190,11 @@ export const ACIKLAMA_OVERFLOW: CSSProperties = {
   overflow: 'hidden',
   display: '-webkit-box',
   WebkitBoxOrient: 'vertical',
-  WebkitLineClamp: 3,            // 2 → 3 (daha fazla satır, yarım kalma azalır)
+  WebkitLineClamp: LINE_ITEM_METRICS.descriptionClampLines,
   overflowWrap: 'anywhere',      // uzun kelimeleri kırma
   wordBreak: 'normal',
-  lineHeight: 1.35,
+  lineHeight: LINE_ITEM_METRICS.lineHeight,
+  maxHeight: LINE_ITEM_DESCRIPTION_MAX_HEIGHT,
 } as CSSProperties;
 
 export const noBreak: CSSProperties = {
@@ -187,6 +217,10 @@ export function rcCell(pos: CellPos, idx = 0): CSSProperties {
   const radius = ROW_CARD.radius;
 
   return {
+    height:                 LINE_ITEM_ROW_HEIGHT,
+    minHeight:              LINE_ITEM_ROW_HEIGHT,
+    maxHeight:              LINE_ITEM_ROW_HEIGHT,
+    boxSizing:              'border-box',
     background:             idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
     printColorAdjust:       'exact',
     WebkitPrintColorAdjust: 'exact',

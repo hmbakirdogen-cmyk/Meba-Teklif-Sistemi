@@ -22,7 +22,7 @@ import { urunService } from '../services/urunService';
 import type { Cari, Urun } from '../types';
 import {
   normalizeProductCode, cleanTextInput, normalizeEmail,
-  stripParantez, formatCariAdi,
+  formatCariAdi,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';

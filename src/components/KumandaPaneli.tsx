@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import type { TeklifDurum } from '../types';
 

@@ -15,6 +15,7 @@ import {
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
   HIGH_QUALITY_IMAGE_RENDERING,
+  LINE_ITEM_METRICS,
   LOGO,
   LOGO_FILE_W,
   LOGO_OPT_H,
@@ -325,7 +326,7 @@ function TableSection({
                 <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...rcCell('mid', idx) }}>
                   {satir.marka || '-'}
                 </td>
-                <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) }}>
+                <td style={{ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) }}>
                   {satir.urunKod || '-'}
                 </td>
                 <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 400, color: C.textMid, verticalAlign: 'middle', lineHeight: 1.4, ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
@@ -337,7 +338,7 @@ function TableSection({
                       <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
-                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', opacity: 0.6, fontSize: '0.88em', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', opacity: 0.6, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
                         {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
                       </span>
                     </div>
@@ -357,7 +358,7 @@ function TableSection({
                 <td style={{ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
                   {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                 </td>
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textSoft, whiteSpace: 'normal', lineHeight: 1.2, ...rcCell('last', idx) }}>
+                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: C.textSoft, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, overflow: 'hidden', textOverflow: 'clip', ...rcCell('last', idx) }}>
                   {satir.teslimTarihi || '-'}
                 </td>
               </tr>

@@ -24,6 +24,8 @@ import {
 } from './InlineTableRowShared';
 import {
   DOCUMENT_COLORS,
+  LINE_ITEM_EDITOR_HEIGHT,
+  LINE_ITEM_METRICS,
   noBreak,
 } from '../templates/teklifDocumentShared';
 
@@ -72,16 +74,19 @@ const actionBtnStyle: React.CSSProperties = {
   background: 'transparent',
 };
 
-// Edit modu açıklama: view ile aynı line-height + autoSize TextArea (1-3 satır)
-// View ACIKLAMA_OVERFLOW ile tutarlı davranır — satır yüksekliği zıplamaz.
+// Edit modu açıklama: view ile aynı tipografi, sabit yükseklik.
+// Uzun metin iki satır içinde kalır; satır yüksekliği edit sırasında değişmez.
 const ACIKLAMA_EDIT: React.CSSProperties = {
   display: 'block',
   width: '100%',
   minWidth: 0,
-  fontSize: '11px',
+  height: LINE_ITEM_EDITOR_HEIGHT,
+  minHeight: LINE_ITEM_EDITOR_HEIGHT,
+  maxHeight: LINE_ITEM_EDITOR_HEIGHT,
+  fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
   fontWeight: 400,
   color: C.textMid,
-  lineHeight: 1.35,
+  lineHeight: LINE_ITEM_METRICS.lineHeight,
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   wordBreak: 'normal',
@@ -258,7 +263,7 @@ export function InlineSatirEditor({
           className="inline-table-field"
           variant="borderless"
           size="small"
-          autoSize={{ minRows: 1, maxRows: 3 }}
+          rows={2}
           style={ACIKLAMA_EDIT}
           value={satir.aciklama}
           onChange={(e) => onGuncelle('aciklama', e.target.value)}
