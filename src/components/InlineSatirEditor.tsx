@@ -17,7 +17,7 @@ import {
   InlineTableSelectField,
 } from './InlineTableFields';
 import {
-  formatBirimAbbrev,
+  UNIT_OPTIONS,
   RowCell,
   ROW_SHELL,
   ROW_TEXT,
@@ -291,7 +291,14 @@ export function InlineSatirEditor({
             }}
           />
           <div style={ROW_SHELL.quantityUnitWrap}>
-            <span style={ROW_TEXT.quantityUnit}>{formatBirimAbbrev(satir.birim)}</span>
+            <InlineTableSelectField
+              value={satir.birim || 'Adet'}
+              onChange={(value) => onGuncelle('birim', value)}
+              options={UNIT_OPTIONS as unknown as { label: string; value: string }[]}
+              style={ROW_TEXT.quantityUnit}
+              popupMatchSelectWidth={false}
+              dropdownStyle={{ minWidth: 110 }}
+            />
           </div>
         </div>
       </RowCell>

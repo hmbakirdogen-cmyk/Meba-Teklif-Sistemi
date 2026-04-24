@@ -411,6 +411,23 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   ROW HEIGHT STABILITY — edit mode view ile aynı yükseklikte kalır
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline tr[data-satir-id] > td,
+.belge-inline tr[data-editing] > td {
+  padding: 3px 8px !important;              /* CELL_PAD aynı */
+  vertical-align: middle !important;
+}
+/* Edit input'ları ve span'lar aynı line-height'ta render */
+.belge-inline tr[data-editing] .inline-table-field,
+.belge-inline tr[data-editing] .inline-table-field .ant-select-content,
+.belge-inline tr[data-editing] .inline-table-field .ant-input,
+.belge-inline tr[data-editing] .inline-table-field .ant-input-number-input {
+  line-height: 1.35 !important;
+  min-height: 0 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    FOCUS: Sıfır layout değişimi — sadece hafif alt çizgi
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline tr[data-editing] td:focus-within {

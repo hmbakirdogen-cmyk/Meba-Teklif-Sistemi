@@ -124,28 +124,28 @@ export const DOCUMENT_COLORS = {
 } as const;
 
 // Sabit sütun genişlikleri — tableLayout:fixed ile kullanılır
-// Değerler tüm opsiyon kombinasyonlarında stabil — header, fiyat, toplam ve teslimat kesilmez.
+// Miktar ve Teslimat kompakt, font ayarlarıyla dengeli. Açıklama daha geniş.
 export const DOCUMENT_COLS = {
   no:         '3.5%',
   marka:      '6%',
   urunKod:    '14%',
-  aciklama:   '32%',
-  miktar:     '9.5%',
+  aciklama:   '33.5%',
+  miktar:     '9%',
   birimFiyat: '11%',
-  toplam:     '11%',
-  teslimat:   '13%',     // "Sipariş Üzerine" tek satırda rahat
+  toplam:     '11.5%',
+  teslimat:   '11.5%',   // daraltıldı — font 10px ile "Sipariş Üzerine" sığar
 } as const;
 
 export const DOCUMENT_COLS_ROW_CURRENCY = {
   no:         '3%',
   marka:      '5%',
   urunKod:    '13%',
-  aciklama:   '26.5%',
-  miktar:     '8.5%',
-  paraBirimi: '10%',     // "Para Birimi" header sığar
+  aciklama:   '28%',
+  miktar:     '8%',
+  paraBirimi: '10%',
   birimFiyat: '10%',
-  toplam:     '11%',
-  teslimat:   '13%',     // "Sipariş Üzerine" tek satırda rahat
+  toplam:     '11.5%',
+  teslimat:   '11.5%',
 } as const;
 
 export const CELL_PAD = '3px 8px';
