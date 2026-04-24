@@ -17,7 +17,7 @@ import {
   InlineTableSelectField,
 } from './InlineTableFields';
 import {
-  formatBirimLabel,
+  formatBirimAbbrev,
   formatParaBirimiLabel,
   RowCell,
   ROW_SHELL,
@@ -283,7 +283,7 @@ export function InlineSatirEditor({
             }}
           />
           <div style={ROW_SHELL.quantityUnitWrap}>
-            <span style={ROW_TEXT.quantityUnit}>{formatBirimLabel(satir.birim)}</span>
+            <span style={ROW_TEXT.quantityUnit}>{formatBirimAbbrev(satir.birim)}</span>
           </div>
         </div>
       </RowCell>

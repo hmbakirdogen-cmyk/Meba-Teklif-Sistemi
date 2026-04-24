@@ -10,7 +10,7 @@ import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { InlineCariAutocompleteField } from './InlineCariAutocompleteField';
 import {
-  formatBirimLabel,
+  formatBirimAbbrev,
   formatParaBirimiLabel,
   RowCell,
   ROW_SHELL,
@@ -554,7 +554,7 @@ export default function PaginatedBelgeInlineEditor({
                       {satir.miktar !== 0 ? (
                         <div style={ROW_SHELL.quantityWrap}>
                           <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
-                          <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimLabel(satir.birim)}</span>
+                          <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
                         </div>
                       ) : '-'}
                     </RowCell>

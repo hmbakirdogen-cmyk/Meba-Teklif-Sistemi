@@ -506,7 +506,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
                       <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', opacity: 0.6, fontSize: '0.88em', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Adet' : satir.birim}
+                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
                       </span>
                     </div>
                   ) : '—'}
