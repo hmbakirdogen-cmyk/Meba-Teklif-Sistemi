@@ -395,7 +395,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       {/* Dikey çizgiler kaldırıldı: outer border yerine top+bottom,            */}
       {/* başlık ve hücreler arasındaki dikey ayraçlar da devre dışı.           */}
       <table style={TABLE_STYLE}>
-        <TableColgroup teklifSatirlari={teklif.satirlar} />
+        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} teklifSatirlari={teklif.satirlar} />
         <thead id="pdf-thead">
           <tr>
             {[

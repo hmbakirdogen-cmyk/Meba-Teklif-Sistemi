@@ -530,32 +530,39 @@ export const FIELD_CSS = `
 
 /* ══════════════════════════════════════════════════════════════════════
    AÇIKLAMA HÜCRESİ — ellipsis / line-clamp / max-height YASAK
-   Kısa ve orta metin tek satır, uzun metin doğal olarak 2. satıra düşer.
-   Metin hiçbir şekilde kesilmez.
+   Öncelik: tek satır. Fit-level DescText içinde ölçülerek belirlenir:
+     df-1 → 12px    (varsayılan)
+     df-2 → 11px
+     df-3 → 10.5px
+     df-4 → 10.5px + kontrollü wrap (son çare)
    ══════════════════════════════════════════════════════════════════════ */
 .description-cell {
-  white-space: normal !important;
+  white-space: nowrap !important;
   overflow: visible !important;
-  overflow-wrap: normal !important;
-  word-break: normal !important;
-  line-height: 1.15 !important;
   text-overflow: clip !important;
+  line-height: 1.15 !important;
 }
 .description-text {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  font-size: clamp(9.5px, 0.72vw, 11px);
+  display: inline-block;
+  max-width: 100%;
+  font-size: 11px;
   font-weight: 400;
   line-height: 1.15;
   color: #4A4A4E;
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: normal;
+  white-space: nowrap;
+  overflow: visible;
   text-overflow: clip;
 }
-.description-text.compact {
-  font-size: 9.5px;
+.description-text.df-1 { font-size: 12px;   white-space: nowrap; }
+.description-text.df-2 { font-size: 11px;   white-space: nowrap; }
+.description-text.df-3 { font-size: 10.5px; white-space: nowrap; }
+.description-text.df-4 {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

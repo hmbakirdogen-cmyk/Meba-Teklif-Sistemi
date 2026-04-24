@@ -1,5 +1,4 @@
-import type { CSSProperties } from 'react';
-import { OFFER_TABLE_COLS } from '../constants/offerTableColumns';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Teklif } from '../types';
 
 // ── Manyetik sembol yardımcıları ─────────────────────────────────────────────
@@ -31,16 +30,65 @@ export function MagnetIcon() {
 
 /**
  * Ürün açıklamasını render eder. Depodaki açıklama ne ise tamamı basılır;
- * kısaltma / kesme uygulanmaz. Sadece ham <svg> etiketleri React SVG ikonuna
- * dönüştürülür.
+ * kısaltma / kesme / ellipsis uygulanmaz. Sadece ham <svg> etiketleri React
+ * SVG ikonuna dönüştürülür.
+ *
+ * Hücre genişliğine göre fit-level hesaplanır:
+ *   1 → 12px   (varsayılan, tek satır)
+ *   2 → 11px   (tek satır)
+ *   3 → 10.5px (tek satır)
+ *   4 → 10.5px, 2 satıra kontrollü wrap
+ *
+ * Ölçüm offscreen bir <span> üzerinde tek seferde yapılır; yalnızca içerik
+ * değişiminde yeniden çalışır. useLayoutEffect paint öncesi çalıştığı için
+ * html2canvas yakalamasından önce doğru seviye uygulanmış olur.
  */
 export function DescText({ text, className }: { text: string; className?: string }) {
-  if (!text) return null;
-  const hasMag = hasMagnetSvg(text);
-  const clean  = hasMag ? stripMagnetSvg(text) : text;
-  const cls    = ['description-text', className].filter(Boolean).join(' ');
+  const ref = useRef<HTMLSpanElement>(null);
+  const [fitLevel, setFitLevel] = useState<1 | 2 | 3 | 4>(1);
+
+  const hasMag = text ? hasMagnetSvg(text) : false;
+  const clean  = text ? (hasMag ? stripMagnetSvg(text) : text) : '';
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !clean) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    const available = parent.clientWidth - 4; // hücre kenarında nefes payı
+    if (available <= 0) return;
+
+    const cs = window.getComputedStyle(el);
+    const measurer = document.createElement('span');
+    measurer.style.position     = 'absolute';
+    measurer.style.left         = '-9999px';
+    measurer.style.top          = '0';
+    measurer.style.visibility   = 'hidden';
+    measurer.style.whiteSpace   = 'nowrap';
+    measurer.style.fontFamily   = cs.fontFamily;
+    measurer.style.fontWeight   = cs.fontWeight;
+    measurer.style.letterSpacing = cs.letterSpacing;
+    measurer.textContent        = clean;
+    document.body.appendChild(measurer);
+
+    try {
+      measurer.style.fontSize = '12px';
+      if (measurer.offsetWidth <= available) { setFitLevel(1); return; }
+      measurer.style.fontSize = '11px';
+      if (measurer.offsetWidth <= available) { setFitLevel(2); return; }
+      measurer.style.fontSize = '10.5px';
+      if (measurer.offsetWidth <= available) { setFitLevel(3); return; }
+      setFitLevel(4);
+    } finally {
+      document.body.removeChild(measurer);
+    }
+  }, [clean]);
+
+  if (!clean) return null;
+  const cls = ['description-text', `df-${fitLevel}`, className].filter(Boolean).join(' ');
   return (
-    <span className={cls}>
+    <span ref={ref} className={cls}>
       {clean}
       {hasMag ? <MagnetIcon /> : null}
     </span>
@@ -127,36 +175,71 @@ export const DOCUMENT_COLORS = {
 } as const;
 
 
-// Merkezi kolon genişlikleri yeni dosyadan alınır
+// Merkezi kolon genişlikleri — yalnızca totals bloğu referans alır. Kalem
+// tablosunun gerçek genişlikleri TableColgroup içinde her teklif için tekrar
+// hesaplanır (içerik-tabanlı optimizasyon).
 export { OFFER_TABLE_COLS } from '../constants/offerTableColumns';
 export const OFFER_TABLE_COLUMN_COUNT = 9;
 
-// Tablo colgroup'u merkezi sistemden üretir
-// Her durumda 9 kolon emit edilir. Para birimi kolonu açık/kapalı fark etmez;
-// görsel içerik satır seviyesinde kontrol edilir, kolon ölçüsü sabittir.
-// Dinamik ürün kodu genişliği: teklif satırları içindeki en uzun kodu bulur
-export function TableColgroup(props: { satirBazliParaBirimi?: boolean, teklifSatirlari?: { urunKod?: string }[] }) {
-  // Ortalama karakter genişliği (px) ve padding
-  const CHAR_W = 7.2;
-  const PAD = 18;
-  const MIN = 90;
-  const MAX = 180;
-  let codeColWidth = MIN;
-  if (props?.teklifSatirlari && props.teklifSatirlari.length > 0) {
-    const maxLen = props.teklifSatirlari.reduce((max, row) => Math.max(max, (row.urunKod || '').length), 0);
-    codeColWidth = Math.max(MIN, Math.min(MAX, Math.round(maxLen * CHAR_W + PAD)));
-  }
+/**
+ * Kalem tablosu colgroup üreticisi.
+ *
+ * Aktif teklifteki SATIRLARI tarar, her data kolonu için en uzun içeriğin
+ * genişliğini hesaplar ve clamp ile sınır içinde tutar. Açıklama kolonu
+ * kalan tüm boşluğu alır — en esnek ve en geniş kolon o olur. Böylece
+ * gereksiz boş duran sağ kolonlar varsa, bu alan açıklamaya aktarılır.
+ */
+export function TableColgroup(props: {
+  satirBazliParaBirimi?: boolean;
+  teklifSatirlari?: Array<{
+    urunKod?: string;
+    miktar?: number;
+    birim?: string;
+    birimFiyat?: number;
+    indirimOrani?: number;
+    satirToplami?: number;
+    teslimTarihi?: string;
+  }>;
+}) {
+  const rows = props.teklifSatirlari ?? [];
+  const satirBazli = props.satirBazliParaBirimi ?? false;
+
+  const clamp = (v: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, Math.round(v)));
+
+  // Biçimlendirilmiş stringin uzunluğunu baz alarak kolonun ihtiyacını bul
+  const maxLenOf = (fn: (r: typeof rows[number]) => string): number =>
+    rows.reduce((m, r) => Math.max(m, (fn(r) ?? '').length), 1);
+
+  const fmtPrice = (n?: number) => (n ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const maxCodeLength       = maxLenOf((r) => r.urunKod ?? '');
+  const maxUnitPriceLength  = maxLenOf((r) => {
+    const nihai = (r.birimFiyat ?? 0) * (1 - (r.indirimOrani ?? 0) / 100);
+    return fmtPrice(nihai);
+  });
+  const maxTotalLength      = maxLenOf((r) => fmtPrice(r.satirToplami));
+  const maxDeliveryLength   = maxLenOf((r) => r.teslimTarihi ?? '');
+
+  const codeWidth       = clamp(maxCodeLength * 7.2 + 16, 95, 170);
+  const qtyWidth        = 72;
+  const unitPriceWidth  = clamp(maxUnitPriceLength * 7 + 18, 82, 110);
+  const totalWidth      = clamp(maxTotalLength * 7 + 18, 82, 120);
+  const deliveryWidth   = clamp(maxDeliveryLength * 6.2 + 16, 68, 95);
+  const paraBirimiWidth = satirBazli ? 44 : 0;
+
   return (
     <colgroup>
-      <col style={{ width: OFFER_TABLE_COLS.no }} />
-      <col style={{ width: OFFER_TABLE_COLS.marka }} />
-      <col style={{ width: codeColWidth + 'px' }} />
-      <col style={{ width: OFFER_TABLE_COLS.aciklama, minWidth: '60px' }} />
-      <col style={{ width: OFFER_TABLE_COLS.miktar }} />
-      <col style={{ width: OFFER_TABLE_COLS.paraBirimi }} />
-      <col style={{ width: OFFER_TABLE_COLS.birimFiyat }} />
-      <col style={{ width: OFFER_TABLE_COLS.toplam }} />
-      <col style={{ width: OFFER_TABLE_COLS.teslimat }} />
+      <col style={{ width: '26px' }} />
+      <col style={{ width: '46px' }} />
+      <col style={{ width: `${codeWidth}px` }} />
+      {/* Açıklama: width verilmez → table-layout:fixed altında kalan boşluğu alır */}
+      <col style={{ minWidth: '60px' }} />
+      <col style={{ width: `${qtyWidth}px` }} />
+      <col style={{ width: `${paraBirimiWidth}px` }} />
+      <col style={{ width: `${unitPriceWidth}px` }} />
+      <col style={{ width: `${totalWidth}px` }} />
+      <col style={{ width: `${deliveryWidth}px` }} />
     </colgroup>
   );
 }

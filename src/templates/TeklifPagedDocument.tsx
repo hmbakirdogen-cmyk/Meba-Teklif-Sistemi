@@ -286,7 +286,7 @@ function TableSection({
         </div>
       )}
       <table style={TABLE_STYLE}>
-        <TableColgroup teklifSatirlari={satirlar} />
+        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} teklifSatirlari={teklif.satirlar} />
         <thead>
           <tr>
             {[
