@@ -87,7 +87,7 @@ const ACIKLAMA_EDIT: React.CSSProperties = {
   textOverflow: 'ellipsis',
 };
 
-type FocusCell = 'marka' | 'urunKod' | 'aciklama' | 'miktar' | 'birimFiyat' | 'teslimat';
+type FocusCell = 'marka' | 'urunKod' | 'aciklama' | 'miktar' | 'paraBirimi' | 'birimFiyat' | 'teslimat';
 const CELL_NAV_ORDER: FocusCell[] = ['urunKod', 'aciklama', 'miktar', 'birimFiyat', 'teslimat'];
 
 interface InlineSatirEditorProps {
@@ -122,6 +122,7 @@ export function InlineSatirEditor({
   const urunKodRef = useRef<AutoCompleteFieldRef>(null);
   const aciklamaRef = useRef<InputFieldRef>(null);
   const miktarRef = useRef<NumberFieldRef>(null);
+  const paraBirimiRef = useRef<SelectFieldRef>(null);
   const birimFiyatRef = useRef<NumberFieldRef>(null);
   const teslimatRef = useRef<SelectFieldRef>(null);
 
@@ -146,6 +147,8 @@ export function InlineSatirEditor({
         return aciklamaRef.current as FocusableTarget | null;
       case 'miktar':
         return miktarRef.current as FocusableTarget | null;
+      case 'paraBirimi':
+        return paraBirimiRef.current as FocusableTarget | null;
       case 'birimFiyat':
         return birimFiyatRef.current as FocusableTarget | null;
       case 'teslimat':
@@ -287,7 +290,19 @@ export function InlineSatirEditor({
 
       {satirBazliParaBirimi && (
         <RowCell idx={idx} pos="mid">
-          <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
+          <InlineTableSelectField
+            ref={paraBirimiRef}
+            style={ROW_TEXT.currency}
+            value={satirPb}
+            onChange={(value) => onGuncelle('paraBirimi', value)}
+            options={[
+              { value: 'TRY', label: 'TL' },
+              { value: 'USD', label: 'USD' },
+              { value: 'EUR', label: 'EUR' },
+            ]}
+            popupMatchSelectWidth={false}
+            dropdownStyle={{ minWidth: 90 }}
+          />
         </RowCell>
       )}
 

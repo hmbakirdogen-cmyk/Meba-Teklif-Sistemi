@@ -559,7 +559,7 @@ export default function PaginatedBelgeInlineEditor({
                       ) : '-'}
                     </RowCell>
                     {satirBazliParaBirimi && (
-                      <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
+                      <RowCell idx={idx} pos="mid" onClick={cellClick('paraBirimi')} style={{ cursor: 'pointer' }}>
                         <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
                       </RowCell>
                     )}
