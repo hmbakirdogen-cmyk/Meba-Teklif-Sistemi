@@ -462,14 +462,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontSize: '11px',
                   color: C.textMid,
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                   ...rcCell('mid', idx),
                 }}>
                   {satir.marka || '—'}
                 </td>
-                {/* Ürün Kodu — tek satır, içerik kadar geniş */}
-                <td style={{
+                {/* Ürün Kodu — tek satır, içerik kadar geniş, kesilmez */}
+                <td className="product-code-cell" style={{
                   padding: CELL_PAD,
                   fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`,
                   fontWeight: 600,
@@ -565,8 +563,6 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   color: C.textSoft,
                   whiteSpace: 'nowrap',
                   lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
-                  overflow: 'hidden',
-                  textOverflow: 'clip',
                   ...rcCell('last', idx),
                 }}>
                   {satir.teslimTarihi || '—'}

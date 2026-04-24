@@ -97,8 +97,6 @@ export const ROW_TEXT = {
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
     color: C.textMid,
     whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
   } satisfies React.CSSProperties,
   code: {
     display: 'block',
@@ -177,10 +175,8 @@ export const ROW_TEXT = {
     fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`,
     letterSpacing: '-0.01em',
     color: C.textSoft,
-    whiteSpace: 'nowrap',               // Tek satır
+    whiteSpace: 'nowrap',
     lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
-    overflow: 'hidden',
-    textOverflow: 'clip',
   } satisfies React.CSSProperties,
 } as const;
 

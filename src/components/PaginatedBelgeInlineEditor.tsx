@@ -563,7 +563,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={activeClass('urunKod')} style={{ cursor: 'pointer', overflow: isActiveCell('urunKod') ? 'hidden' : undefined }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={{ cursor: 'pointer' }}>
                       {isActiveCell('urunKod') ? (
                         <SatirCellEditor
                           field="urunKod"
@@ -577,7 +577,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama')}`.trim()} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={{ cursor: 'pointer' }}>
                       {isActiveCell('aciklama') ? (
                         <SatirCellEditor
                           field="aciklama"

@@ -518,6 +518,17 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   ÜRÜN KODU HÜCRESİ — ASLA kesilmez, üç nokta yok.
+   Kolon genişliği en uzun koda göre TableColgroup içinde hesaplanır;
+   hücre yalnızca tek satıra kilitli, taşma görünür bırakılır.
+   ══════════════════════════════════════════════════════════════════════ */
+.product-code-cell {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    AÇIKLAMA HÜCRESİ — ellipsis / line-clamp / max-height YASAK
    Kısa ve orta metin tek satır, uzun metin doğal olarak 2. satıra düşer.
    Metin hiçbir şekilde kesilmez.
@@ -545,6 +556,39 @@ export const FIELD_CSS = `
 }
 .description-text.compact {
   font-size: 9.5px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EDIT MODU STABİLİTESİ — hücreye tıklanınca satır yüksekliği, hücre
+   genişliği, yazı boyutu, padding, border DEĞİŞMEZ. Input/select/textarea
+   metin gibi görünür, AntD'nin kendi ölçülerini dayatmasına izin verilmez.
+   ══════════════════════════════════════════════════════════════════════ */
+.offer-table input:not([type="checkbox"]),
+.offer-table textarea,
+.offer-table select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.offer-table td.is-active-cell {
+  padding: var(--line-cell-padding-y) var(--line-cell-padding-x) !important;
+  border: inherit;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 

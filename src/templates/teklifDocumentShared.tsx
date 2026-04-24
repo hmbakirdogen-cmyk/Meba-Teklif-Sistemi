@@ -190,10 +190,11 @@ export const LINE_ITEM_CSS_VARS = `
   --line-editor-height: ${LINE_ITEM_EDITOR_HEIGHT};
 `;
 
+// Ürün kodu hücresi: ASLA kesilmez. Kolon genişliği TableColgroup içinde
+// en uzun koda göre hesaplanır; hücre yalnızca tek satıra zorlanır.
 export const URUN_KOD_OVERFLOW: CSSProperties = {
   whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'clip',          // "..." yerine temiz kesim
+  overflow: 'visible',
 };
 
 // Açıklama hücresi: kesme / ellipsis / line-clamp YOK.
