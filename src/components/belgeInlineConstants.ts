@@ -413,16 +413,16 @@ export const FIELD_CSS = `
 /* ══════════════════════════════════════════════════════════════════════
    ROW HEIGHT STABILITY — brute force reset
    tr[data-editing] içindeki TÜM descendant'ların padding/margin/min-height
-   sıfırlanır, line-height = 1.35 zorlanır. AntD hiçbir wrapper'a ekstra
-   yükseklik ekleyemez.
+   sıfırlanır, line-height var(--line-cell-line-height) değerine kilitlenir.
+   AntD hiçbir wrapper'a ekstra yükseklik ekleyemez.
    ══════════════════════════════════════════════════════════════════════ */
 
 /* TD padding + line-height — view ve edit aynı */
 .belge-inline tr[data-satir-id] > td,
 .belge-inline tr[data-editing] > td {
-  padding: 3px 8px !important;
+  padding: var(--line-cell-padding-y) var(--line-cell-padding-x) !important;
   vertical-align: middle !important;
-  line-height: 1.35 !important;
+  line-height: var(--line-cell-line-height) !important;
 }
 
 /* tr[data-editing] altındaki tüm elementler — strict reset
@@ -440,27 +440,26 @@ export const FIELD_CSS = `
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   min-height: 0 !important;
-  line-height: 1.35 !important;
+  line-height: var(--line-cell-line-height) !important;
   box-sizing: border-box !important;
 }
 
-/* Inline field dış wrapper — border/shadow yok */
+/* Inline field dış wrapper — border/shadow yok, ölçü kilidi newer kuralda */
 .belge-inline tr[data-editing] .inline-table-field {
   border: 0 !important;
   box-shadow: none !important;
   background: transparent !important;
-  height: auto !important;
 }
 
-/* TextArea özel — autoSize için height auto, sadece padding/line-height sıkı */
+/* TextArea özel — padding ve line-height sıkı, font var'dan gelsin */
 .belge-inline tr[data-editing] textarea.inline-table-field {
-  line-height: 1.35 !important;
+  line-height: var(--line-cell-line-height) !important;
   padding: 0 !important;
   margin: 0 !important;
   border: 0 !important;
   min-height: 0 !important;
-  font-size: 11px !important;
-  box-sizing: content-box !important;
+  font-size: var(--line-cell-font-size) !important;
+  box-sizing: border-box !important;
 }
 
 /* Satır içeriği dikey ortalı */
@@ -603,8 +602,9 @@ export const FIELD_CSS = `
 .belge-inline .offer-table tr[data-editing] input:focus,
 .belge-inline .offer-table tr[data-editing] textarea:focus {
   outline: none !important;
-  box-shadow: 0 0 0 1px rgba(24, 53, 93, 0.25) !important;
-  border-radius: 4px !important;
+  box-shadow: inset 0 0 0 1px rgba(24, 53, 93, 0.28) !important;
+  border-color: inherit !important;
+  border-radius: 3px !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

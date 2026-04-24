@@ -149,15 +149,15 @@ export const DOCUMENT_COLS_ROW_CURRENCY = {
 } as const;
 
 export const LINE_ITEM_METRICS = {
-  rowHeightPx: 44,
+  rowHeightPx: 34,
   cellPaddingYpx: 3,
-  cellPaddingXpx: 8,
-  editorHeightPx: 32,
+  cellPaddingXpx: 6,
+  editorHeightPx: 24,
   baseFontSizePx: 11,
   codeFontSizePx: 10.5,
   deliveryFontSizePx: 10,
-  lineHeight: 1.35,
-  deliveryLineHeight: 1.2,
+  lineHeight: 1.15,
+  deliveryLineHeight: 1.15,
   descriptionClampLines: 2,
   quantityUnitScale: 0.88,
 } as const;
