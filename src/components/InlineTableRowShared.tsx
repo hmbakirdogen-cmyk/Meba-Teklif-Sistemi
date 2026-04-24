@@ -193,7 +193,7 @@ const BIRIM_ABBREV: Record<string, string> = {
   'adet':     'Ad.',
   'takım':    'Tk.',
   'takim':    'Tk.',
-  'metre':    'm',
+  'metre':    'Mt.',
   'cm':       'cm',
   'mm':       'mm',
   'kg':       'kg',
@@ -219,7 +219,7 @@ export function formatBirimAbbrev(value?: string): string {
 export const UNIT_OPTIONS: readonly { label: string; value: string }[] = [
   { label: 'Ad.',  value: 'Adet'  },
   { label: 'Tk.',  value: 'Takım' },
-  { label: 'm',    value: 'Metre' },
+  { label: 'Mt.',  value: 'Metre' },
   { label: 'cm',   value: 'Cm'    },
   { label: 'mm',   value: 'Mm'    },
   { label: 'kg',   value: 'Kg'    },
