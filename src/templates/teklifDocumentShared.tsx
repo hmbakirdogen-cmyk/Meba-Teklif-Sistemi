@@ -342,8 +342,10 @@ export function TableColgroup(props: {
 }
 
 export const LINE_ITEM_METRICS = {
-  rowHeightPx: 24,
-  cellPaddingYpx: 2,
+  // Satır: 11px × 1.15 line-height ≈ 12.65px metin + 2×3px padding = ~18.65px.
+  // Min height 20px bu içeriği rahatça kapsar, gereksiz baş/ayak boşluğu yok.
+  rowHeightPx: 20,
+  cellPaddingYpx: 3,
   cellPaddingXpx: 4,
   editorHeightPx: 17,
   baseFontSizePx: 11,
@@ -600,7 +602,8 @@ export const TABLE_TITLE_STYLE: CSSProperties = {
 export const TABLE_STYLE: CSSProperties = {
   width: '100%',
   borderCollapse: 'separate',
-  borderSpacing: '0 2px',
+  // Satırlar arasında görünür hava — '0 4px' kalem listesini okunaklı tutar.
+  borderSpacing: '0 4px',
   borderLeft: 'none',
   borderRight: 'none',
   marginBottom: 0,

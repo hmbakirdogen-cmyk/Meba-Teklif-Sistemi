@@ -481,7 +481,7 @@ export default function PaginatedBelgeInlineEditor({
         <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'block' : 'none' }}>
           Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
         </div>
-        <table className="offer-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: 0 }}>
+        <table className="offer-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: '0 4px', marginBottom: 0 }}>
           <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} teklifSatirlari={teklif.satirlar} />
           <thead>
             <tr>
