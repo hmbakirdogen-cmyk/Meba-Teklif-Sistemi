@@ -347,9 +347,9 @@ export default function TeklifEditor() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100vh',
+      minHeight: '100vh',
       background: C.bgBody,
-      overflow: 'hidden',
+      overflowX: 'hidden',
     }}>
       {/* Toolbar */}
       <BelgeToolbar
@@ -371,15 +371,13 @@ export default function TeklifEditor() {
       <div style={{
         flex: 1,
         display: 'flex',
-        overflow: 'hidden',
         background: '#E0DDD9',
+        alignItems: 'flex-start',
       }}>
-        {/* Belge alanı (scroll container) */}
+        {/* Belge alanı (natural flow — body scrolls) */}
         <div
           style={{
             flex: 1,
-            overflowY: 'auto',
-            overflowX: 'hidden',
             padding: '40px 48px 64px',
             background: '#E0DDD9',
             display: 'flex',
@@ -419,7 +417,7 @@ export default function TeklifEditor() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              height: '100%',
+              minHeight: 'calc(100vh - 160px)',
               gap: 16,
               color: C.textFaint,
             }}>

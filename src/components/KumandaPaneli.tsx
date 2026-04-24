@@ -2,58 +2,64 @@ import React, { useState } from 'react';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import type { TeklifDurum } from '../types';
 
-// ── Design tokens ──────────────────────────────────────────────────────────────
+// ── Design tokens — Tesla bordo premium ────────────────────────────────────────
 const K = {
   WIDTH: 184,
 
-  // ── Surfaces ──
-  shell:    '#1A1816',    // main panel bg
-  surface:  '#222020',    // subtle elevated
-  btn:      '#2A2826',    // standard control bg
+  // ── Shell (deep bordo gradient) ──
+  shellGrad: 'linear-gradient(145deg, #2A0B10 0%, #46131C 100%)',
+  shellSolid: '#3A0F16',
 
-  // ── Text (high contrast — no muted grays) ──
-  txt:        '#F5F5F5',   // primary — all main button text
-  txtMute:    '#E2DDD6',   // secondary — Kapalı/Açık badges (still very readable)
-  txtLabel:   '#C8C3BD',   // section labels
+  // ── Controls ──
+  btn:       '#3A0F16',   // default button bg
+  btnHov:    '#4A141F',   // hover (~10% brighter)
+  btnAct:    '#2A0B10',   // active (darker)
 
-  // ── Borders (thin, soft) ──
-  bdr:      '#2D2A28',
-  bdrFine:  '#252320',
+  // ── Borders ──
+  bdr:      '#5B1D28',
+  bdrFine:  '#4A1620',
 
-  // ── Lock — EDIT mode (active, unlocked) ──
-  lkEdBg:   '#1C2F24',
-  lkEdBdr:  '#365942',
-  lkEdTxt:  '#EAF5EF',
-  lkEdIco:  '#70D69E',
+  // ── Text — high contrast system ──
+  txt:        '#FFF7F2',   // primary — all button main text
+  txtSec:     '#F4C9B8',   // secondary — Kapalı/Açık badges, labels
+  txtAccent:  '#FFD7A1',   // gold accent — active states, emphasis
+  txtStrong:  '#E8B86D',   // stronger gold — hover accent
+  txtPassive: '#CFA8A0',   // passive — still readable
 
-  // ── Lock — LOCKED mode ──
-  lkLkBg:   '#1A1816',
-  lkLkBdr:  '#302D2A',
-  lkLkTxt:  '#E2DDD8',
-  lkLkIco:  '#B5B0AA',
+  // ── Lock — Edit mode (unlocked, active) ──
+  lkEdBg:   '#4F1824',
+  lkEdBdr:  '#6B2432',
+  lkEdTxt:  '#FFD7A1',
+  lkEdIco:  '#FFE4C0',
 
-  // ── KDV active ──
-  kdvBg:    '#182B47',
-  kdvBdr:   '#29487C',
-  kdvTxt:   '#E8F2FA',
+  // ── Lock — Locked mode ──
+  lkLkBg:   '#2A0B10',
+  lkLkBdr:  '#3D1318',
+  lkLkTxt:  '#F4C9B8',
+  lkLkIco:  '#CFA8A0',
+
+  // ── KDV active (bordo accent with gold text) ──
+  kdvBg:   '#4D1821',
+  kdvBdr:  '#6B2432',
+  kdvTxt:  '#FFD7A1',
 
   // ── İskonto active ──
-  iskBg:    '#2C1E0A',
-  iskBdr:   '#4C3410',
-  iskTxt:   '#FAEFDE',
-  iskInp:   '#1C1408',
+  iskBg:   '#4D1821',
+  iskBdr:  '#6B2432',
+  iskTxt:  '#FFE4C0',
+  iskInp:  '#2A0B10',
 
-  // ── Toggle active (green) ──
-  togBg:    '#1C2F24',
-  togBdr:   '#365942',
-  togTxt:   '#EAF5EF',
+  // ── Toggle active ──
+  togBg:   '#4D1821',
+  togBdr:  '#6B2432',
+  togTxt:  '#FFD7A1',
 
   // ── Durum pills ──
-  durABg:   '#2E2C28',
-  durABdr:  '#5A5450',
-  durATxt:  '#F5F5F5',
-  durIBdr:  '#2B2825',
-  durITxt:  '#D5D0CB',
+  durABg:   '#4A1720',
+  durABdr:  '#6B2432',
+  durATxt:  '#FFF7F2',
+  durIBdr:  '#4A1620',
+  durITxt:  '#F4C9B8',
 } as const;
 
 const DURUM_LABELS: Record<TeklifDurum, string> = {
@@ -67,7 +73,7 @@ function SecLabel({ text }: { text: string }) {
   return (
     <div style={{
       fontSize: '9px', fontWeight: 700, letterSpacing: '0.13em',
-      textTransform: 'uppercase', color: K.txtLabel,
+      textTransform: 'uppercase', color: K.txtSec,
       marginBottom: 7, paddingLeft: 2, userSelect: 'none',
     }}>
       {text}
@@ -125,41 +131,53 @@ export default function KumandaPaneli({
     <div
       className="no-print"
       style={{
-        // Fixed — stays absolutely still during page scroll
+        // Fixed — absolutely still during page scroll
         position:  'fixed',
         top:       '50%',
         right:     sagPanelOpen
-          ? 'max(8px, calc(50% - 413px))'  // with SagPanel (360px): shift right by SagPanel/2
-          : 'max(8px, calc(50% - 593px))', // without: at A4's right edge + gap
+          ? 'max(8px, calc(50% - 413px))'
+          : 'max(8px, calc(50% - 593px))',
         transform: 'translateY(-50%)',
         zIndex:    50,
-        // Fixed compact width
         width:     K.WIDTH,
-        // Clean UI panel — not a physical device
         borderRadius: 14,
-        background:   K.shell,
-        border:       `1px solid ${K.bdr}`,
-        boxShadow:    '0 4px 16px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.18)',
-        // Safety: clip if viewport is tiny (no internal scrollbar)
+        background: K.shellGrad,
+        backgroundColor: K.shellSolid,
+        border:    `1px solid ${K.bdr}`,
+        boxShadow: '0 4px 20px rgba(42,11,16,0.45), 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04)',
         maxHeight: 'calc(100vh - 20px)',
         overflow:  'hidden',
       }}
     >
       <style>{`
+        /* Lock button */
+        .kp-lock { transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease; }
         .kp-lock:hover  { filter: brightness(1.12); }
-        .kp-lock:active { transform: translateY(1px); filter: brightness(0.94); }
+        .kp-lock:active { transform: translateY(1px); filter: brightness(0.9); }
+
+        /* KDV / İskonto control buttons */
+        .kp-ctrl { transition: background 0.18s ease, border-color 0.18s ease, filter 0.18s ease, transform 0.15s ease; }
         .kp-ctrl:hover  { filter: brightness(1.10); }
-        .kp-ctrl:active { transform: translateY(1px); filter: brightness(0.93); }
-        .kp-tog:hover   { filter: brightness(1.10); }
-        .kp-tog:active  { transform: translateY(0.5px); filter: brightness(0.93); }
-        .kp-dur:hover   { filter: brightness(1.15); }
-        .kp-dur:active  { transform: translateY(0.5px); }
+        .kp-ctrl:active { transform: translateY(1px); filter: brightness(0.9); }
+        .kp-ctrl:active .kp-main-lbl { color: ${K.txtAccent} !important; }
+
+        /* Toggle rows */
+        .kp-tog { transition: background 0.18s ease, border-color 0.18s ease, filter 0.18s ease, transform 0.15s ease; }
+        .kp-tog:hover  { filter: brightness(1.10); }
+        .kp-tog:active { transform: translateY(0.5px); filter: brightness(0.9); }
+        .kp-tog:active .kp-main-lbl { color: ${K.txtAccent} !important; }
+
+        /* Durum pills */
+        .kp-dur { transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, filter 0.16s ease, transform 0.12s ease; }
+        .kp-dur:hover  { filter: brightness(1.18); color: ${K.txtAccent} !important; }
+        .kp-dur:active { transform: translateY(0.5px); filter: brightness(0.88); }
+
+        /* Rate input */
         .kp-rate::-webkit-inner-spin-button,
         .kp-rate::-webkit-outer-spin-button { opacity: 0; }
-        .kp-rate:focus { border-color: #6A5230 !important; outline: none; }
+        .kp-rate:focus { border-color: ${K.txtStrong} !important; outline: none; }
       `}</style>
 
-      {/* Content — natural height, no internal scroll */}
       <div style={{
         padding:       '13px 12px 14px',
         display:       'flex',
@@ -187,15 +205,13 @@ export default function KumandaPaneli({
             padding:        0,
             marginBottom:   12,
             boxShadow:      readOnly
-              ? 'inset 0 2px 6px rgba(0,0,0,0.3)'
-              : 'inset 0 1px 0 rgba(255,255,255,0.05)',
-            transition:     'all 0.2s ease',
+              ? 'inset 0 2px 6px rgba(0,0,0,0.35)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(79,24,36,0.3)',
           }}
         >
           <span style={{
             fontSize: 22, lineHeight: 1,
             color: readOnly ? K.lkLkIco : K.lkEdIco,
-            transition: 'color 0.2s',
           }}>
             {readOnly ? <LockOutlined /> : <UnlockOutlined />}
           </span>
@@ -203,7 +219,6 @@ export default function KumandaPaneli({
             fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em',
             textTransform: 'uppercase', lineHeight: 1,
             color: readOnly ? K.lkLkTxt : K.lkEdTxt,
-            transition: 'color 0.2s',
           }}>
             {readOnly ? 'Kilitli Görünüm' : 'Düzenleme Modu'}
           </span>
@@ -237,7 +252,6 @@ export default function KumandaPaneli({
                   whiteSpace:   'nowrap',
                   overflow:     'hidden',
                   textOverflow: 'ellipsis',
-                  transition:   'all 0.14s ease',
                   gridColumn:   d === 'iptal' ? '1 / -1' : undefined,
                 }}
               >
@@ -261,10 +275,9 @@ export default function KumandaPaneli({
             border: `1.5px solid ${kdvOn ? K.kdvBdr : K.bdr}`,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0 11px', cursor: 'pointer', outline: 'none', marginBottom: 5,
-            transition: 'all 0.17s ease',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600, color: kdvOn ? K.kdvTxt : K.txt }}>
+          <span className="kp-main-lbl" style={{ fontSize: '12px', fontWeight: 600, color: kdvOn ? K.kdvTxt : K.txt }}>
             KDV
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -279,7 +292,7 @@ export default function KumandaPaneli({
             <span style={{
               fontSize: '9px', fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: kdvOn ? K.kdvTxt : K.txtMute,
+              color: kdvOn ? K.kdvTxt : K.txtSec,
             }}>
               {kdvOn ? 'Aktif' : 'Kapalı'}
             </span>
@@ -297,16 +310,15 @@ export default function KumandaPaneli({
             borderBottom: iskOn ? 'none' : undefined,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0 11px', cursor: 'pointer', outline: 'none',
-            transition: 'background 0.17s ease, border-color 0.17s ease',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600, color: iskOn ? K.iskTxt : K.txt }}>
+          <span className="kp-main-lbl" style={{ fontSize: '12px', fontWeight: 600, color: iskOn ? K.iskTxt : K.txt }}>
             İskonto
           </span>
           <span style={{
             fontSize: '9px', fontWeight: 700,
             letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: iskOn ? K.iskTxt : K.txtMute,
+            color: iskOn ? K.iskTxt : K.txtSec,
           }}>
             {iskOn ? 'Aktif' : 'Kapalı'}
           </span>
@@ -333,7 +345,7 @@ export default function KumandaPaneli({
               }}
               style={{
                 width: 52, height: 25, borderRadius: 6,
-                background: K.shell,
+                background: K.shellSolid,
                 border: `1px solid ${K.iskBdr}`,
                 color: K.iskTxt, fontSize: '11px', fontWeight: 700,
                 textAlign: 'center', padding: '0 4px',
@@ -370,10 +382,9 @@ function TogRow({ label, checked, onChange }: { label: string; checked: boolean;
         border: `1px solid ${checked ? K.togBdr : K.bdrFine}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 11px', cursor: 'pointer', outline: 'none',
-        transition: 'all 0.14s ease',
       }}
     >
-      <span style={{
+      <span className="kp-main-lbl" style={{
         fontSize: '11px', fontWeight: 500,
         color: checked ? K.togTxt : K.txt,
         lineHeight: 1,
@@ -383,7 +394,7 @@ function TogRow({ label, checked, onChange }: { label: string; checked: boolean;
       <span style={{
         fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        color: checked ? K.togTxt : K.txtMute,
+        color: checked ? K.togTxt : K.txtSec,
         lineHeight: 1,
       }}>
         {checked ? 'Açık' : 'Kapalı'}

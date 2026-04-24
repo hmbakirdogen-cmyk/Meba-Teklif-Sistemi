@@ -98,12 +98,15 @@ export default function SagPanel(props: SagPanelProps) {
       width: PANEL_W,
       minWidth: PANEL_W,
       maxWidth: PANEL_W,
-      height: '100%',
+      height: 'calc(100vh - 56px)',
       borderLeft: `1px solid ${C.border}`,
       background: C.bgSurface,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      position: 'sticky',
+      top: 56,
+      alignSelf: 'flex-start',
     }}>
       {panelModu === 'musteri' && <MusteriPaneli {...props} C={C} />}
       {panelModu === 'satir' && <SatirPaneli {...props} C={C} />}

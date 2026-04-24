@@ -76,8 +76,10 @@ export default function BelgeToolbar({
       borderBottom: `1px solid ${C.border}`,
       background: C.bgSurface,
       flexShrink: 0,
-      minHeight: 56,
-      flexWrap: 'wrap',
+      height: 56,
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
     }}>
       {/* Sol: Geri + Teklif bilgisi */}
       <Button
