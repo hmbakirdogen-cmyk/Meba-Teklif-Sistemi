@@ -2589,9 +2589,9 @@
       "teklifNo": "2026-455",
       "tarih": "2025-12-24",
       "satirBazliParaBirimi": false,
-      "satirBazliIskonto": false,
+      "satirBazliIskonto": true,
       "paraBirimi": "TRY",
-      "durum": "gonderildi",
+      "durum": "hazir",
       "cari": {
         "id": "c-0230",
         "cariKod": "C-0230",
@@ -2614,9 +2614,9 @@
           "miktar": 8,
           "birim": "Adet",
           "birimFiyat": 2009,
-          "indirimOrani": 0,
+          "indirimOrani": 20,
           "teslimTarihi": "Stok",
-          "satirToplami": 16072
+          "satirToplami": 12857.6
         },
         {
           "id": "smobgiw0uj3h5jk",
@@ -2731,22 +2731,25 @@
           "satirToplami": 8550
         }
       ],
-      "araToplam": 164187,
-      "toplamIndirim": 0,
-      "toplamVergi": 32837.4,
-      "genelToplam": 197024.4,
-      "kdvOrani": 20,
+      "araToplam": 160972.6,
+      "toplamIndirim": 3214.4,
+      "toplamVergi": 0,
+      "genelToplam": 160972.6,
+      "kdvOrani": 0,
       "iskontoOrani": 0,
       "odemeVadesi": "45 Gün",
       "notlar": "",
       "olusturmaTarihi": "2025-12-24T15:35:00.000Z",
-      "guncellemeTarihi": "2025-12-24T15:35:00.000Z",
+      "guncellemeTarihi": "2026-04-24T08:58:49.847Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
-      "hazirlayanRol": "engineer",
-      "gecerlilikSuresi": "15 Gün",
+      "hazirlayanRol": "admin",
+      "gecerlilikSuresi": "1 Hafta",
       "contactName": "Fatih",
-      "contactTitle": "BEY"
+      "contactTitle": "BEY",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\ASTEL SAN\\ASTEL SAN - 2026-455.pdf",
+      "pdfDosyaAdi": "ASTEL SAN - 2026-455.pdf",
+      "pdfOlusturmaTarihi": "2026-04-24T08:58:49.847Z"
     },
     {
       "id": "tmobgiw0u085v0k",

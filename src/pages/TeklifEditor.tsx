@@ -389,30 +389,52 @@ export default function TeklifEditor() {
           }}
         >
           {teklifObj ? (
-            <CanliA4Belge
-              teklif={teklifObj}
-              editingAlan={editingAlan}
-              onEditingAlanDegistir={setEditingAlan}
-              onCariDegistir={state.setCari}
-              contactName={state.contactName}
-              contactTitle={state.contactTitle}
-              onContactNameDegistir={state.setContactName}
-              onContactTitleDegistir={state.setContactTitle}
-              onTarihDegistir={state.setTarih}
-              onParaBirimiDegistir={state.setParaBirimi}
-              satirBazliParaBirimi={state.satirBazliParaBirimi}
-              satirBazliIskonto={state.satirBazliIskonto}
-              onKdvOraniDegistir={state.setKdvOrani}
-              onOdemeVadesiDegistir={state.setOdemeVadesi}
-              onSatirGuncelle={state.satirGuncelle}
-              onSatirSil={state.satirSil}
-              onSatirEkle={state.satirEkle}
-              onSatirArayaEkle={state.satirArayaEkle}
-              onNotlarDegistir={state.setNotlar}
-              sablonRef={sablonRef}
-              kompaktHeaderRef={kompaktHeaderRef}
-              readOnly={modeKilitli}
-            />
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}>
+              <div style={{ flex: '0 1 794px', minWidth: 0 }}>
+                <CanliA4Belge
+                  teklif={teklifObj}
+                  editingAlan={editingAlan}
+                  onEditingAlanDegistir={setEditingAlan}
+                  onCariDegistir={state.setCari}
+                  contactName={state.contactName}
+                  contactTitle={state.contactTitle}
+                  onContactNameDegistir={state.setContactName}
+                  onContactTitleDegistir={state.setContactTitle}
+                  onTarihDegistir={state.setTarih}
+                  onParaBirimiDegistir={state.setParaBirimi}
+                  satirBazliParaBirimi={state.satirBazliParaBirimi}
+                  satirBazliIskonto={state.satirBazliIskonto}
+                  onKdvOraniDegistir={state.setKdvOrani}
+                  onOdemeVadesiDegistir={state.setOdemeVadesi}
+                  onSatirGuncelle={state.satirGuncelle}
+                  onSatirSil={state.satirSil}
+                  onSatirEkle={state.satirEkle}
+                  onSatirArayaEkle={state.satirArayaEkle}
+                  onNotlarDegistir={state.setNotlar}
+                  sablonRef={sablonRef}
+                  kompaktHeaderRef={kompaktHeaderRef}
+                  readOnly={modeKilitli}
+                />
+              </div>
+              <KumandaPaneli
+                readOnly={modeKilitli}
+                onReadOnlyDegistir={handleModeKilitliDegistir}
+                durum={state.durum}
+                onDurumDegistir={state.setDurum}
+                kdvOrani={state.kdvOrani}
+                onKdvOraniDegistir={state.setKdvOrani}
+                iskontoOrani={state.iskontoOrani}
+                onIskontoOraniDegistir={state.setIskontoOrani}
+                satirBazliParaBirimi={state.satirBazliParaBirimi}
+                onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
+                satirBazliIskonto={state.satirBazliIskonto}
+                onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
+              />
+            </div>
           ) : (
             <div style={{
               display: 'flex',
@@ -432,22 +454,6 @@ export default function TeklifEditor() {
             </div>
           )}
         </div>
-
-        {/* Kumanda Paneli (daima görünür) */}
-        <KumandaPaneli
-          readOnly={modeKilitli}
-          onReadOnlyDegistir={handleModeKilitliDegistir}
-          durum={state.durum}
-          onDurumDegistir={state.setDurum}
-          kdvOrani={state.kdvOrani}
-          onKdvOraniDegistir={state.setKdvOrani}
-          iskontoOrani={state.iskontoOrani}
-          onIskontoOraniDegistir={state.setIskontoOrani}
-          satirBazliParaBirimi={state.satirBazliParaBirimi}
-          onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
-          satirBazliIskonto={state.satirBazliIskonto}
-          onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
-        />
 
         {/* Sağ Panel (ikincil — gelişmiş düzenleme) */}
         <SagPanel
