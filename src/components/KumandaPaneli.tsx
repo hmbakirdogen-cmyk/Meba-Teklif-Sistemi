@@ -16,11 +16,13 @@ const K = {
 
   // ── Neon Green — sadece kilit EDIT modu için (güçlendirilmiş) ──
   neon:       '#39FFB6',
-  neonSoft:   'rgba(57, 255, 182, 0.52)',   // text-shadow inner
-  neonGlow:   'rgba(57, 255, 182, 0.28)',   // text-shadow outer + box-shadow outer
-  neonRing:   'rgba(57, 255, 182, 0.16)',   // 1px halo ring
-  lkEdBg:     'rgba(57, 255, 182, 0.17)',   // rgba overlay — cam etkisi korur
-  lkEdBdr:    'rgba(57, 255, 182, 0.52)',   // parlak neon border
+  neonSoft:   'rgba(57, 255, 182, 0.55)',   // text-shadow inner
+  neonGlow:   'rgba(57, 255, 182, 0.32)',   // text-shadow outer
+  neonAura1:  'rgba(57, 255, 182, 0.32)',   // box-shadow inner glow (22px)
+  neonAura2:  'rgba(57, 255, 182, 0.18)',   // box-shadow outer glow (38px)
+  neonRing:   'rgba(57, 255, 182, 0.18)',   // 1px halo ring
+  lkEdBg:     'rgba(57, 255, 182, 0.18)',   // rgba overlay — cam etkisi korur
+  lkEdBdr:    'rgba(57, 255, 182, 0.55)',   // parlak neon border
 
   // ── Lock (LOCKED — kilitli, sakin) ──
   lkLkBg:     '#24090E',
@@ -153,81 +155,96 @@ export default function KumandaPaneli({
           color: #FFF7F2;
         }
 
-        /* ── Active base (fallback — used if no matching variant) ── */
+        /* ── Active base (genel ışık altyapısı) ── */
         .kp-btn[data-on="true"] {
-          background: rgba(255, 247, 242, 0.13);
-          border-color: rgba(255, 247, 242, 0.30);
+          background: rgba(255, 247, 242, 0.16);
+          border-color: rgba(255, 247, 242, 0.42);
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.10),
-            0 4px 14px rgba(0,0,0,0.26),
-            0 0 0 1px rgba(255,247,242,0.06);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            inset 0 -2px 6px rgba(0,0,0,0.25),
+            0 6px 20px rgba(0,0,0,0.35),
+            0 0 0 1px rgba(255,247,242,0.08);
         }
 
-        /* ── Variant active styles — karakter rengi + güçlendirilmiş glow ── */
+        /* ── Variant active styles — karakter rengi + güçlü dual-layer glow ── */
         /* view (KDV, İskonto — görüntüleme) — amber/gold */
         .kp-btn[data-on="true"][data-variant="view"] {
-          background: rgba(255, 215, 150, 0.16);
-          border-color: rgba(255, 215, 150, 0.46);
+          background: rgba(255, 215, 150, 0.17);
+          border-color: rgba(255, 215, 150, 0.50);
           color: #FFF0D2;
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.12),
-            0 0 0 1px rgba(255,215,150,0.10),
-            0 0 18px rgba(255,215,150,0.22);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(255,215,150,0.24),
+            0 0 34px rgba(255,215,150,0.14);
         }
 
         /* row (Satır Para Birimi, Satır İskontosu) — violet */
         .kp-btn[data-on="true"][data-variant="row"] {
-          background: rgba(180, 135, 255, 0.16);
-          border-color: rgba(180, 135, 255, 0.46);
+          background: rgba(180, 135, 255, 0.17);
+          border-color: rgba(180, 135, 255, 0.50);
           color: #EFE2FF;
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.12),
-            0 0 0 1px rgba(180,135,255,0.10),
-            0 0 18px rgba(180,135,255,0.22);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(180,135,255,0.26),
+            0 0 34px rgba(180,135,255,0.14);
         }
 
         /* save (Hazır, Onaylandı) — green */
         .kp-btn[data-on="true"][data-variant="save"] {
-          background: rgba(65, 210, 120, 0.17);
-          border-color: rgba(65, 210, 120, 0.48);
+          background: rgba(65, 210, 120, 0.18);
+          border-color: rgba(65, 210, 120, 0.52);
           color: #B9FFD0;
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.12),
-            0 0 0 1px rgba(65,210,120,0.12),
-            0 0 18px rgba(65,210,120,0.24);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(65,210,120,0.28),
+            0 0 36px rgba(65,210,120,0.16);
         }
 
         /* pdf (Gönderildi) — blue */
-        .kp-btn[data-on="true"][data-variant="pdf"] {
-          background: rgba(118, 172, 255, 0.17);
-          border-color: rgba(118, 172, 255, 0.48);
+        .kp-btn[data-on="true"][data-variant="pdf"],
+        .kp-btn[data-on="true"][data-variant="print"] {
+          background: rgba(118, 172, 255, 0.18);
+          border-color: rgba(118, 172, 255, 0.52);
           color: #D8E8FF;
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.12),
-            0 0 0 1px rgba(118,172,255,0.12),
-            0 0 18px rgba(118,172,255,0.24);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(118,172,255,0.28),
+            0 0 36px rgba(118,172,255,0.16);
         }
 
-        /* cancel (İptal) — red */
-        .kp-btn[data-on="true"][data-variant="cancel"] {
-          background: rgba(255, 95, 95, 0.16);
-          border-color: rgba(255, 95, 95, 0.46);
+        /* cancel / delete (İptal) — red */
+        .kp-btn[data-on="true"][data-variant="cancel"],
+        .kp-btn[data-on="true"][data-variant="delete"] {
+          background: rgba(255, 95, 95, 0.17);
+          border-color: rgba(255, 95, 95, 0.50);
           color: #FFD6D6;
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.12),
-            0 0 0 1px rgba(255,95,95,0.12),
-            0 0 18px rgba(255,95,95,0.22);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(255,95,95,0.26),
+            0 0 34px rgba(255,95,95,0.14);
         }
 
-        /* settings (Taslak) — violet (user spec: row ile aynı alpha) */
-        .kp-btn[data-on="true"][data-variant="settings"] {
-          background: rgba(180, 135, 255, 0.14);
-          border-color: rgba(180, 135, 255, 0.42);
-          color: #E5D9FF;
+        /* undo / refresh — cyan (gelecek kullanım için) */
+        .kp-btn[data-on="true"][data-variant="undo"],
+        .kp-btn[data-on="true"][data-variant="refresh"] {
+          background: rgba(65, 220, 235, 0.17);
+          border-color: rgba(65, 220, 235, 0.50);
+          color: #D8FBFF;
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.10),
-            0 0 0 1px rgba(180,135,255,0.08),
-            0 0 16px rgba(180,135,255,0.18);
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(65,220,235,0.26),
+            0 0 34px rgba(65,220,235,0.14);
+        }
+
+        /* settings (Taslak) — violet (row ile aynı karakter) */
+        .kp-btn[data-on="true"][data-variant="settings"] {
+          background: rgba(180, 135, 255, 0.17);
+          border-color: rgba(180, 135, 255, 0.50);
+          color: #EFE2FF;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.14),
+            0 0 22px rgba(180,135,255,0.26),
+            0 0 34px rgba(180,135,255,0.14);
         }
 
         /* Badge (Açık/Kapalı/Aktif) — inherits color from button, varies opacity */
@@ -314,7 +331,7 @@ export default function KumandaPaneli({
             marginBottom:   12,
             boxShadow:      readOnly
               ? 'inset 0 2px 6px rgba(0,0,0,0.4)'
-              : `inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px ${K.neonRing}, 0 0 18px ${K.neonGlow}`,
+              : `inset 0 1px 0 rgba(255,255,255,0.16), 0 0 0 1px ${K.neonRing}, 0 0 22px ${K.neonAura1}, 0 0 38px ${K.neonAura2}`,
           }}
         >
           <span style={{
