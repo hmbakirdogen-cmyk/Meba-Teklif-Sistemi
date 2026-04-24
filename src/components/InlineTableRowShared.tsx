@@ -14,6 +14,7 @@ export { DescText, MagnetIcon } from '../templates/teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
 
+// Artık width/flex/min-width/max-width burada asla verilmez, sadece colgroup belirler
 export function RowCell({
   idx,
   pos,

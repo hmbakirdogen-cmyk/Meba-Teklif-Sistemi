@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { TableColgroup } from './teklifDocumentShared';
 import type { Teklif } from '../types';
 import type { TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatCurrency } from '../utils/formatters';
@@ -18,21 +19,7 @@ interface CurrencyCard {
   total: number;
 }
 
-function TableColgroup({ satirBazliParaBirimi }: { satirBazliParaBirimi: boolean }) {
-  return (
-    <colgroup>
-      <col style={{ width: '3%' }} />
-      <col style={{ width: '7%' }} />
-      <col style={{ width: '14%' }} />
-      <col style={{ width: '30%' }} />
-      <col style={{ width: '8%' }} />
-      {satirBazliParaBirimi && <col style={{ width: '7%' }} />}
-      <col style={{ width: '13%' }} />
-      <col style={{ width: '13%' }} />
-      <col style={{ width: '8%' }} />
-    </colgroup>
-  );
-}
+
 
 export function TeklifTotalsSection({
   teklif,

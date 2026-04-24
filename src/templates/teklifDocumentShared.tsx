@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { OFFER_TABLE_COLS } from '../constants/offerTableColumns';
 import type { Teklif } from '../types';
 
 // ── Manyetik sembol yardımcıları ─────────────────────────────────────────────
@@ -123,24 +124,29 @@ export const DOCUMENT_COLORS = {
   sigBorder:    '#C8B8A6',   // açık kahve — imza çizgileri
 } as const;
 
-// ── Teklif kalem tablosu — TEK MERKEZİ KOLON SİSTEMİ ─────────────────────────
-// Bu değerler tüm kalem tablosu görünümlerinde (canlı editör + A4 şablonu +
-// PDF) aynı kullanılır. Hiçbir yerde ayrı kolon ölçüsü tanımlanmaz. Para birimi
-// kolonu daima ayrılır; satirBazliParaBirimi kapalıyken görsel içerik boş
-// bırakılır, kolon ölçüsü değişmez. Toplam = 100%.
-export const OFFER_TABLE_COLS = {
-  no:         '3.5%',
-  marka:      '5%',
-  urunKod:    '13%',
-  aciklama:   '30.25%',
-  miktar:     '6.75%',
-  paraBirimi: '7.5%',
-  birimFiyat: '10.5%',
-  toplam:     '11.5%',
-  teslimat:   '12%',
-} as const;
 
+// Merkezi kolon genişlikleri yeni dosyadan alınır
+export { OFFER_TABLE_COLS } from '../constants/offerTableColumns';
 export const OFFER_TABLE_COLUMN_COUNT = 9;
+
+// Tablo colgroup'u merkezi sistemden üretir
+// Her durumda 9 kolon emit edilir. Para birimi kolonu açık/kapalı fark etmez;
+// görsel içerik satır seviyesinde kontrol edilir, kolon ölçüsü sabittir.
+export function TableColgroup(_props?: { satirBazliParaBirimi?: boolean }) {
+  return (
+    <colgroup>
+      <col style={{ width: OFFER_TABLE_COLS.no }} />
+      <col style={{ width: OFFER_TABLE_COLS.marka }} />
+      <col style={{ width: OFFER_TABLE_COLS.urunKod }} />
+      <col style={{ width: OFFER_TABLE_COLS.aciklama }} />
+      <col style={{ width: OFFER_TABLE_COLS.miktar }} />
+      <col style={{ width: OFFER_TABLE_COLS.paraBirimi }} />
+      <col style={{ width: OFFER_TABLE_COLS.birimFiyat }} />
+      <col style={{ width: OFFER_TABLE_COLS.toplam }} />
+      <col style={{ width: OFFER_TABLE_COLS.teslimat }} />
+    </colgroup>
+  );
+}
 
 export const LINE_ITEM_METRICS = {
   rowHeightPx: 24,
@@ -505,20 +511,4 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
   ];
 }
 
-export function TableColgroup(_props?: { satirBazliParaBirimi?: boolean }) {
-  // Her durumda 9 kolon emit edilir. Para birimi kolonu açık/kapalı fark etmez;
-  // görsel içerik satır seviyesinde kontrol edilir, kolon ölçüsü sabittir.
-  return (
-    <colgroup>
-      <col style={{ width: OFFER_TABLE_COLS.no }} />
-      <col style={{ width: OFFER_TABLE_COLS.marka }} />
-      <col style={{ width: OFFER_TABLE_COLS.urunKod }} />
-      <col style={{ width: OFFER_TABLE_COLS.aciklama }} />
-      <col style={{ width: OFFER_TABLE_COLS.miktar }} />
-      <col style={{ width: OFFER_TABLE_COLS.paraBirimi }} />
-      <col style={{ width: OFFER_TABLE_COLS.birimFiyat }} />
-      <col style={{ width: OFFER_TABLE_COLS.toplam }} />
-      <col style={{ width: OFFER_TABLE_COLS.teslimat }} />
-    </colgroup>
-  );
-}
+

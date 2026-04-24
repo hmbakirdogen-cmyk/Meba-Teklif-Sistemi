@@ -466,18 +466,26 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   FOCUS: Sıfır layout değişimi — görsel vurgu sadece td.is-active-cell'de
+   FOCUS: Tıklamada sıfır görsel değişim. td.is-active-cell hiçbir çerçeve,
+   shadow veya border değişimi almaz — zebra arka planı korunur. Editör
+   text'le birebir aynı görünür; input/select/textarea arka planları şeffaf
+   bırakılır ki hücrenin zebra'sı içeride görünsün.
    ══════════════════════════════════════════════════════════════════════ */
+.belge-inline td.is-active-cell,
 .belge-inline td.is-active-cell:focus-within {
-  box-shadow: inset 0 0 0 1px rgba(24, 53, 93, 0.28) !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 .belge-inline .inline-table-field.ant-input-number:focus-within,
 .belge-inline .inline-table-field.ant-input-number-focused,
 .belge-inline .inline-table-field.ant-select-focused .ant-select-content,
 .belge-inline td.is-active-cell input:focus,
-.belge-inline td.is-active-cell textarea:focus {
-  box-shadow: none !important;
+.belge-inline td.is-active-cell textarea:focus,
+.belge-inline td.is-active-cell select:focus {
   outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
 }
 .belge-inline .field-group .ant-input:focus,
 .belge-inline .field-group textarea.ant-input:focus {
@@ -512,10 +520,23 @@ export const FIELD_CSS = `
   vertical-align: middle !important;
 }
 
-/* Aktif hücre görsel vurgusu — ölçü değişmez, sadece iç çerçeve */
-.belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
-  box-shadow: inset 0 0 0 1px rgba(24, 53, 93, 0.28) !important;
+
+/* Aktif hücre görsel vurgusu YOK — tıklamada hücrenin görünümü aynı kalır.
+   Editör metinle birebir aynı tipografiyi aldığı için kullanıcı sadece
+   imleç girişini görür. */
+
+/* Cursor: metin hücrelerde text, select hücrelerde pointer */
+.belge-inline .offer-table tbody tr[data-satir-id] > td {
+  cursor: text !important;
 }
+.belge-inline .offer-table tbody tr[data-satir-id] > td:has(.ant-select),
+.belge-inline .offer-table td.is-active-cell .ant-select,
+.belge-inline .offer-table td.is-active-cell .ant-select-content,
+.belge-inline .offer-table td.is-active-cell .ant-select-input {
+  cursor: pointer !important;
+}
+
+/* Tablo ve hücre genişliği sadece colgroup'dan gelir, burada width/min-width/max-width asla verilmez! */
 
 .belge-inline .offer-table td.is-active-cell .inline-table-field,
 .belge-inline .offer-table td.is-active-cell .inline-table-field.ant-select,

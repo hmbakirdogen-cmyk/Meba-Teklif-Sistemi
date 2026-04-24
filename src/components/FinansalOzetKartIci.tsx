@@ -272,16 +272,7 @@ export function FinansalOzetKartIci({
 
   // ── Toplam sağ bölümü (sembol + büyük rakam) — hasDetail kartlarında alt bölüm ──
   const totalRight = (
-    <div style={{ display: 'flex', alignItems: 'baseline', flexShrink: 0, gap: '1px' }}>
-      <span style={{
-        fontSize: symBotFs,
-        color: cl.muted,
-        lineHeight: 1,
-        alignSelf: 'flex-end',
-        paddingBottom: isPdf ? '1px' : '2px',
-      }}>
-        {sym}
-      </span>
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '6px' }}>
       <span style={{
         fontSize: totalFs,
         fontWeight: 900,
@@ -290,9 +281,10 @@ export function FinansalOzetKartIci({
         letterSpacing: '-0.02em',
         color: cl.total,
         whiteSpace: 'nowrap',
-        paddingRight: numPR,
+        paddingRight: 0,
+        display: 'flex', alignItems: 'center',
       }}>
-        {fmtNum(genelToplam)}
+        {sym} {fmtNum(genelToplam)}
       </span>
     </div>
   );
@@ -352,11 +344,8 @@ export function FinansalOzetKartIci({
           bottom: `${SEP_B}px`, left: '10px', right: '10px',
           borderTop: `0.75px solid ${cl.sep}`,
         }} />
-        {/* Alt: para birimi kısaltması (altın, sol) + toplam (sağ) — absolute */}
-        <div style={{ position: 'absolute', bottom: '9px', left: '10px', right: '10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: PDF_GOLD, lineHeight: 1 }}>
-            {pbLabel}
-          </span>
+        {/* Alt: toplam kutusu sağda, para birimi ve rakam birleşik */}
+        <div style={{ position: 'absolute', bottom: '9px', right: '10px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: 'auto' }}>
           {totalRight}
         </div>
       </div>
@@ -365,7 +354,7 @@ export function FinansalOzetKartIci({
 
   // ── Screen render (hasDetail=true) ──────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', padding: '18px 18px 16px', boxSizing: 'border-box', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', boxSizing: 'border-box', height: '100%' }}>
       {/* Üst: detay satırları */}
       <div>
         {detailRow('Ara Toplam', araToplam, cl.label, '')}
@@ -374,9 +363,9 @@ export function FinansalOzetKartIci({
         {kdvOrani    > 0 && detailRow(kdvLabel,      kdvTutar,     GREEN, '+')}
       </div>
       {/* Ayırıcı */}
-      <div style={{ borderTop: `1px solid ${cl.sep}`, margin: '12px 0 10px' }} />
+      <div style={{ borderTop: `1px solid ${cl.sep}`, margin: '10px 0 8px' }} />
       {/* Alt: para birimi kısaltması (altın, sol) + toplam (sağ) */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, lineHeight: 1 }}>
           {pbLabel}
         </span>

@@ -481,8 +481,8 @@ export default function PaginatedBelgeInlineEditor({
         <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'block' : 'none' }}>
           Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
         </div>
-        <table className="offer-table" style={{ ...TABLE_STYLE, marginBottom: 0 } as React.CSSProperties}>
-          <TableColgroup />
+        <table className="offer-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: 0 }}>
+          <TableColgroup rowCurrencyEnabled={satirBazliParaBirimi} />
           <thead>
             <tr>
               {[
@@ -536,6 +536,7 @@ export default function PaginatedBelgeInlineEditor({
                   </td>
                 </tr>
               );
+
 
               const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir.id, cell);
               const isActiveCell = (cell: SatirCellField) => isRowActive && satirFocusCell === cell;
