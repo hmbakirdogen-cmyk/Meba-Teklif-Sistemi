@@ -18,7 +18,7 @@ import {
   DescText,
 } from './InlineTableRowShared';
 import {
-  DARK_ROW,
+  HEADER_SURFACE,
   DOCUMENT_BRAND,
   DOCUMENT_COLORS,
   DOCUMENT_PAGE,
@@ -674,45 +674,44 @@ export default function PaginatedBelgeInlineEditor({
                 return (
                   <div style={{
                     position: 'relative',
-                    border: `0.75px solid ${DARK_ROW.border}`,
+                    border: `0.75px solid ${HEADER_SURFACE.border}`,
                     borderRadius: '8px',
-                    backgroundColor: DARK_ROW.bgFallback,
-                    backgroundImage: DARK_ROW.bg,
-                    boxShadow: DARK_ROW.shadow,
+                    background: HEADER_SURFACE.bg,
+                    boxShadow: HEADER_SURFACE.shadow,
                     overflow: 'hidden',
                     printColorAdjust: 'exact',
                     WebkitPrintColorAdjust: 'exact',
                   }}>
-                    <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: DARK_ROW.textLabel, lineHeight: 1, userSelect: 'none' }}>{teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi}</span>
+                    <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: HEADER_SURFACE.textLabel, lineHeight: 1, userSelect: 'none' }}>{teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi}</span>
                     {hasDetail && (
-                      <div style={{ padding: '8px 14px 6px', borderBottom: `0.75px solid ${DARK_ROW.separator}` }}>
+                      <div style={{ padding: '8px 14px 6px', borderBottom: `0.75px solid ${HEADER_SURFACE.separator}` }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
-                          <span style={{ flex: 1, fontSize: '8.5px', color: DARK_ROW.textSub }}>Ara Toplam</span>
-                          <span style={{ fontSize: '8.5px', fontWeight: 600, color: DARK_ROW.text, fontVariantNumeric: 'tabular-nums' }}>{fmtN(araToplam)}</span>
+                          <span style={{ flex: 1, fontSize: '8.5px', color: HEADER_SURFACE.textSub }}>Ara Toplam</span>
+                          <span style={{ fontSize: '8.5px', fontWeight: 600, color: HEADER_SURFACE.text, fontVariantNumeric: 'tabular-nums' }}>{fmtN(araToplam)}</span>
                         </div>
                         {iskontoOrani > 0 && (
                           <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
-                            <span style={{ flex: 1, fontSize: '8.5px', color: DARK_ROW.negRed }}>İskonto %{iskontoOrani}</span>
-                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: DARK_ROW.negRed, fontVariantNumeric: 'tabular-nums' }}>– {fmtN(iskontoTutar)}</span>
+                            <span style={{ flex: 1, fontSize: '8.5px', color: HEADER_SURFACE.negRed }}>İskonto %{iskontoOrani}</span>
+                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: HEADER_SURFACE.negRed, fontVariantNumeric: 'tabular-nums' }}>– {fmtN(iskontoTutar)}</span>
                           </div>
                         )}
                         {kdvOrani > 0 && (
                           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                            <span style={{ flex: 1, fontSize: '8.5px', color: DARK_ROW.posGreen }}>KDV %{kdvOrani}</span>
-                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: DARK_ROW.posGreen, fontVariantNumeric: 'tabular-nums' }}>+ {fmtN(kdvTutar)}</span>
+                            <span style={{ flex: 1, fontSize: '8.5px', color: HEADER_SURFACE.posGreen }}>KDV %{kdvOrani}</span>
+                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: HEADER_SURFACE.posGreen, fontVariantNumeric: 'tabular-nums' }}>+ {fmtN(kdvTutar)}</span>
                           </div>
                         )}
                       </div>
                     )}
                     <div style={{ padding: hasDetail ? '9px 8px 9px 14px' : '11px 8px 11px 14px', display: 'flex', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: DARK_ROW.text }}>Genel Toplam</div>
-                        <div style={{ fontSize: '7.5px', color: DARK_ROW.textLabel }}>Grand Total</div>
+                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: HEADER_SURFACE.text }}>Genel Toplam</div>
+                        <div style={{ fontSize: '7.5px', color: HEADER_SURFACE.textLabel }}>Grand Total</div>
                       </div>
                       <div style={{ flex: 1 }} />
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginRight: '19mm' }}>
-                        <span style={{ fontSize: '10.5px', color: DARK_ROW.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                        <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: DARK_ROW.text, whiteSpace: 'nowrap' }}>{fmtN(genelToplam)}</span>
+                        <span style={{ fontSize: '10.5px', color: HEADER_SURFACE.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
+                        <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: HEADER_SURFACE.text, whiteSpace: 'nowrap' }}>{fmtN(genelToplam)}</span>
                       </div>
                     </div>
                   </div>
@@ -727,16 +726,15 @@ export default function PaginatedBelgeInlineEditor({
                 width: '100%',
                 boxSizing: 'border-box',
                 minHeight: '112px',
-                border: `0.75px solid ${DARK_ROW.border}`,
+                border: `0.75px solid ${HEADER_SURFACE.border}`,
                 borderRadius: '8px',
-                backgroundColor: DARK_ROW.bgFallback,
-                backgroundImage: DARK_ROW.bg,
-                boxShadow: DARK_ROW.shadow,
+                background: HEADER_SURFACE.bg,
+                boxShadow: HEADER_SURFACE.shadow,
                 padding: '7px 8px 8px',
                 printColorAdjust: 'exact',
                 WebkitPrintColorAdjust: 'exact',
               }}>
-                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: DARK_ROW.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>Genel Toplamlar / Grand Total</div>
+                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: HEADER_SURFACE.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>Genel Toplamlar / Grand Total</div>
                 <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
                   {kullanilanParaKartlari.map((item) => (
                     <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '10px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>

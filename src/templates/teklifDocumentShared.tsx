@@ -84,21 +84,20 @@ export const DOCUMENT_BRAND = {
   separator: 'rgba(255,255,255,0.15)',
 } as const;
 
-// ── Koyu yüzey (üst kartlar + genel toplam — tek kaynak) ────────────────────
-// Tablodaki koyu satır ile birebir aynı görsel dil. Tüm koyu yüzeyler burayı kullanır.
-export const DARK_ROW = {
-  bg:         'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
-  bgFallback: '#152740',
-  border:     '#1A2B42',
-  borderSoft: 'rgba(255,255,255,0.08)',
-  shadow:     '0 2px 8px rgba(15,25,40,0.10)',
-  text:       '#F5F7FA',
-  textSub:    'rgba(255,255,255,0.82)',
-  textLabel:  'rgba(255,255,255,0.60)',
-  separator:  'rgba(255,255,255,0.15)',
-  // Vurgu renkleri (koyu zeminde okunur)
-  negRed:     '#fca5a5',   // iskonto/negatif satırlar
-  posGreen:   '#86efac',   // KDV/pozitif satırlar
+// ── Header yüzeyi (üst kartlar + genel toplam — tablo başlığı ile aynı) ────
+// Tablo thead satırı ile birebir aynı görsel dil. Tüm bu yüzeyler tek kaynak.
+export const HEADER_SURFACE = {
+  bg:         '#FAFAF8',                      // tablo başlık arka planı
+  border:     '#D5D3CF',                      // navyBorder — başlık alt çizgisi
+  borderSoft: 'rgba(26,43,66,0.08)',
+  shadow:     'none',
+  text:       '#1A2B42',                      // navy — başlık metni
+  textSub:    '#2E4460',                      // navySoft
+  textLabel:  '#717176',                      // textSoft
+  separator:  'rgba(26,43,66,0.12)',
+  // Vurgu renkleri (açık zeminde okunur)
+  negRed:     '#92400E',                      // iskonto (koyu amber)
+  posGreen:   '#065F46',                      // KDV (koyu yeşil)
 } as const;
 
 // ── Döküman renk paleti — sıcak nötr, tablo renk diliyle eşleşik ─────────────
@@ -304,12 +303,11 @@ export const SETTINGS_CARD_STYLE: CSSProperties = {
   flex: 1,
   boxSizing: 'border-box',
   overflow: 'hidden',
-  backgroundColor: DARK_ROW.bgFallback,
-  backgroundImage: DARK_ROW.bg,
-  border: `1px solid ${DARK_ROW.border}`,
+  background: HEADER_SURFACE.bg,
+  border: `1px solid ${HEADER_SURFACE.border}`,
   borderRadius: '8px',
   boxShadow: 'none',
-  color: DARK_ROW.text,
+  color: HEADER_SURFACE.text,
   printColorAdjust: 'exact',
   WebkitPrintColorAdjust: 'exact',
 };
@@ -329,7 +327,7 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
   fontSize: '8px',
   fontWeight: 600,
-  color: DARK_ROW.textSub,
+  color: HEADER_SURFACE.textSub,
   letterSpacing: '0.07em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
@@ -339,7 +337,7 @@ export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
 
 export const SETTINGS_SEP_STYLE: CSSProperties = {
   fontSize: '6px',
-  color: DARK_ROW.textLabel,
+  color: HEADER_SURFACE.textLabel,
   lineHeight: 1.2,
   flexShrink: 0,
   opacity: 0.7,
@@ -349,7 +347,7 @@ export const SETTINGS_SEP_STYLE: CSSProperties = {
 export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
   fontSize: '6.5px',
   fontWeight: 400,
-  color: DARK_ROW.textLabel,
+  color: HEADER_SURFACE.textLabel,
   letterSpacing: '0.03em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
@@ -359,7 +357,7 @@ export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
 export const SETTINGS_VALUE_STYLE: CSSProperties = {
   fontWeight: 700,
   fontSize: '12.5px',
-  color: DARK_ROW.text,
+  color: HEADER_SURFACE.text,
   lineHeight: 1.3,
   whiteSpace: 'nowrap',
   overflow: 'hidden',
