@@ -169,7 +169,9 @@ export const ROW_TEXT = {
     textAlign: 'center',
     fontSize: '10.5px',
     color: C.textSoft,
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',       // Uzun değerler (Sipariş Üzerine gibi) 2 satıra düşebilir
+    lineHeight: 1.2,
+    overflowWrap: 'normal',
   } satisfies React.CSSProperties,
 } as const;
 

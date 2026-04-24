@@ -567,16 +567,12 @@ export default function PaginatedBelgeInlineEditor({
                     <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
                       <span style={ROW_TEXT.price}>{(() => {
                         const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
-                        return nihai !== 0
-                          ? `${formatDisplayNumber(nihai, 2, 2)}${satirBazliParaBirimi ? ` ${formatParaBirimiLabel(satirPb)}` : ''}`
-                          : '-';
+                        return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
                       })()}</span>
                     </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
                       <span style={ROW_TEXT.total}>
-                        {satir.satirToplami !== 0
-                          ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${formatParaBirimiLabel(satirPb)}` : ''}`
-                          : '-'}
+                        {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                       </span>
                     </RowCell>
                     <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} style={{ position: 'relative', cursor: 'pointer' }}>

@@ -18,7 +18,6 @@ import {
 } from './InlineTableFields';
 import {
   formatBirimAbbrev,
-  formatParaBirimiLabel,
   RowCell,
   ROW_SHELL,
   ROW_TEXT,
@@ -338,9 +337,7 @@ export function InlineSatirEditor({
 
       <RowCell idx={idx} pos="mid">
         <span style={ROW_TEXT.total}>
-          {satir.satirToplami !== 0
-            ? `${formatDisplayNumber(satir.satirToplami, 2, 2)}${satirBazliParaBirimi ? ` ${formatParaBirimiLabel(satirPb)}` : ''}`
-            : '—'}
+          {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '—'}
         </span>
       </RowCell>
 
