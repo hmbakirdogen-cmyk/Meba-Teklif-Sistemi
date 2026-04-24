@@ -220,6 +220,7 @@ function measureTextWidth(
 export function TableColgroup(props: {
   satirBazliParaBirimi?: boolean;
   teklifSatirlari?: Array<{
+    marka?: string;
     urunKod?: string;
     miktar?: number;
     birim?: string;
@@ -231,12 +232,7 @@ export function TableColgroup(props: {
 }) {
   const rows = props.teklifSatirlari ?? [];
   const satirBazli = props.satirBazliParaBirimi ?? false;
-
-  const clamp = (v: number, min: number, max: number) =>
-    Math.max(min, Math.min(max, Math.round(v)));
-
-  const maxLenOf = (fn: (r: typeof rows[number]) => string): number =>
-    rows.reduce((m, r) => Math.max(m, (fn(r) ?? '').length), 1);
+  const canMeasure = typeof document !== 'undefined';
 
   const fmtPrice = (n?: number) => (n ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtQty   = (n?: number) => (n ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
@@ -251,46 +247,88 @@ export function TableColgroup(props: {
     return map[k] ?? (b || 'Ad.');
   };
 
-  // Ürün kodu genişliğini GERÇEK metin ölçümüyle hesapla — her kodu
-  // document.body üzerinde offscreen <span>'de tartar, en uzununun piksel
-  // genişliğini alır. Formül tahmini değil, birebir ölçümdür.
-  // Hücre iç padding'i (4+4) + 2px nefes payı.
-  const CODE_CELL_PADDING = LINE_ITEM_METRICS.cellPaddingXpx * 2 + 2;
-  let measuredMaxCode = 0;
-  if (typeof document !== 'undefined' && rows.length > 0) {
-    for (const r of rows) {
-      const kod = r.urunKod ?? '';
-      if (!kod) continue;
-      const w = measureTextWidth(kod, LINE_ITEM_METRICS.codeFontSizePx, 600, '-0.1px');
-      if (w > measuredMaxCode) measuredMaxCode = w;
+  /** En geniş metni piksel hassasiyetiyle ölç, fallback karaktere dayalı. */
+  const widestOf = (
+    texts: Array<string>,
+    fontSizePx: number,
+    fontWeight: number | string = 400,
+    letterSpacing = '0',
+    charEstimate = 6.0,
+  ): number => {
+    const cleaned = texts.filter(Boolean);
+    if (cleaned.length === 0) return 0;
+    if (canMeasure) {
+      let w = 0;
+      for (const t of cleaned) {
+        const m = measureTextWidth(t, fontSizePx, fontWeight, letterSpacing);
+        if (m > w) w = m;
+      }
+      return w;
     }
-  }
-  // Fallback (SSR / boş render): karaktere dayalı muhafazakâr tahmin
-  const maxCodeLength = maxLenOf((r) => r.urunKod ?? '');
-  const estimatedCode = Math.round(maxCodeLength * 6.4 + 12);
-  const codeWidth = Math.max(
-    48,
-    measuredMaxCode > 0 ? Math.ceil(measuredMaxCode + CODE_CELL_PADDING) : estimatedCode,
+    const longest = cleaned.reduce((m, t) => Math.max(m, t.length), 0);
+    return Math.round(longest * charEstimate);
+  };
+
+  const PAD = LINE_ITEM_METRICS.cellPaddingXpx * 2; // hücre yatay padding (4+4)
+  const BUFFER = 2;                                 // piksel yuvarlama + nefes payı
+  const wrap = (min: number, contentW: number, headerW: number = 0): number =>
+    Math.max(min, Math.ceil(Math.max(contentW, headerW) + PAD + BUFFER));
+
+  // ── HEADER genişlikleri (9.7px bold + 0.06em letter-spacing) ────────────
+  const H_SIZE = 9.7;
+  const H_WEIGHT = 700;
+  const H_LS = '0.06em';
+  const H_SUB_SIZE = 7.5;
+  const headerW = (main: string, sub: string): number => {
+    if (!canMeasure) return Math.max(main.length * 5.8, sub.length * 4.5);
+    return Math.max(
+      measureTextWidth(main, H_SIZE, H_WEIGHT, H_LS),
+      measureTextWidth(sub, H_SUB_SIZE, 400, H_LS),
+    );
+  };
+
+  // ── Her kolon için ölçümler ─────────────────────────────────────────────
+  const noHeaderW    = headerW('#', '');
+  const markaHeaderW = headerW('Marka', 'Brand');
+  const codeHeaderW  = headerW('Ürün Kodu', 'Item No');
+  const qtyHeaderW   = headerW('Miktar', 'Qty');
+  const pbHeaderW    = headerW('Para Birimi', 'Currency');
+  const upHeaderW    = headerW('Birim Fiyat', 'Unit Price');
+  const totHeaderW   = headerW('Toplam', 'Total');
+  const delHeaderW   = headerW('Teslimat', 'Delivery');
+
+  const markaContentW   = widestOf(rows.map((r) => r.marka ?? ''), LINE_ITEM_METRICS.baseFontSizePx, 400, '0', 6.0);
+  const codeContentW    = widestOf(rows.map((r) => r.urunKod ?? ''), LINE_ITEM_METRICS.codeFontSizePx, 600, '-0.1px', 6.4);
+  const qtyContentW     = widestOf(
+    rows.map((r) => `${fmtQty(r.miktar)} ${abbrev(r.birim)}`),
+    LINE_ITEM_METRICS.baseFontSizePx, 600, '0', 5.8,
   );
+  const unitPriceContentW = widestOf(
+    rows.map((r) => {
+      const nihai = (r.birimFiyat ?? 0) * (1 - (r.indirimOrani ?? 0) / 100);
+      return fmtPrice(nihai);
+    }),
+    LINE_ITEM_METRICS.baseFontSizePx, 400, '0', 6.3,
+  );
+  const totalContentW   = widestOf(rows.map((r) => fmtPrice(r.satirToplami)), LINE_ITEM_METRICS.baseFontSizePx, 700, '0', 6.5);
+  const deliveryContentW = widestOf(rows.map((r) => r.teslimTarihi ?? ''), LINE_ITEM_METRICS.deliveryFontSizePx, 400, '-0.01em', 5.4);
+  const paraBirimiContentW = satirBazli
+    ? widestOf(['TL', 'USD', 'EUR'], LINE_ITEM_METRICS.baseFontSizePx, 700, '0.03em', 6.5)
+    : 0;
 
-  const maxQtyLength        = maxLenOf((r) => `${fmtQty(r.miktar)} ${abbrev(r.birim)}`);
-  const maxUnitPriceLength  = maxLenOf((r) => {
-    const nihai = (r.birimFiyat ?? 0) * (1 - (r.indirimOrani ?? 0) / 100);
-    return fmtPrice(nihai);
-  });
-  const maxTotalLength      = maxLenOf((r) => fmtPrice(r.satirToplami));
-  const maxDeliveryLength   = maxLenOf((r) => r.teslimTarihi ?? '');
-
-  const qtyWidth        = clamp(maxQtyLength * 5.8 + 12, 48, 74);
-  const unitPriceWidth  = clamp(maxUnitPriceLength * 7 + 18, 82, 110);
-  const totalWidth      = clamp(maxTotalLength * 7 + 18, 82, 120);
-  const deliveryWidth   = clamp(maxDeliveryLength * 6.2 + 16, 68, 95);
-  const paraBirimiWidth = satirBazli ? 44 : 0;
+  const noWidth         = wrap(22, 0,                 noHeaderW);
+  const markaWidth      = wrap(32, markaContentW,     markaHeaderW);
+  const codeWidth       = wrap(56, codeContentW,      codeHeaderW);
+  const qtyWidth        = wrap(44, qtyContentW,       qtyHeaderW);
+  const unitPriceWidth  = wrap(60, unitPriceContentW, upHeaderW);
+  const totalWidth      = wrap(60, totalContentW,     totHeaderW);
+  const deliveryWidth   = wrap(46, deliveryContentW,  delHeaderW);
+  const paraBirimiWidth = satirBazli ? wrap(38, paraBirimiContentW, pbHeaderW) : 0;
 
   return (
     <colgroup>
-      <col style={{ width: '26px' }} />
-      <col style={{ width: '46px' }} />
+      <col style={{ width: `${noWidth}px` }} />
+      <col style={{ width: `${markaWidth}px` }} />
       <col style={{ width: `${codeWidth}px` }} />
       {/* Açıklama: width verilmez → table-layout:fixed altında kalan boşluğu alır */}
       <col style={{ minWidth: '60px' }} />
