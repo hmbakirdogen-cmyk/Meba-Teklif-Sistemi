@@ -137,29 +137,38 @@ export default function KumandaPaneli({
     <div
       className="no-print"
       style={{
-        // Fixed — absolutely still during page scroll
-        position:  'fixed',
-        top:       '50%',
-        right:     sagPanelOpen
+        // Safe-area wrapper: never crosses toolbar (56 + 40 breathing = 96) and stays 24 from bottom
+        position: 'fixed',
+        top:      96,
+        bottom:   24,
+        right:    sagPanelOpen
           ? 'max(8px, calc(50% - 413px))'
           : 'max(8px, calc(50% - 593px))',
-        transform: 'translateY(-50%)',
-        zIndex:    50,
-        width:     K.WIDTH,
-        borderRadius: 14,
+        width:    K.WIDTH,
+        // Vertical center the actual device within the safe area
+        display:    'flex',
+        alignItems: 'center',
+        zIndex:     80,
+        // Wrapper passes clicks through; device catches them
+        pointerEvents: 'none',
+      }}
+    >
+      <div style={{
+        width:         '100%',
+        maxHeight:     '100%',
+        borderRadius:  14,
         backgroundImage: K.shellImg,
         backgroundColor: K.shellSolid,
-        border:    `1px solid ${K.btnBdr}`,
+        border:        `1px solid ${K.btnBdr}`,
         boxShadow: [
           '0 6px 24px rgba(0,0,0,0.55)',
           '0 1px 4px rgba(0,0,0,0.4)',
           'inset 0 1px 0 rgba(255,255,255,0.05)',
           'inset 0 -1px 0 rgba(0,0,0,0.45)',
         ].join(', '),
-        maxHeight: 'calc(100vh - 20px)',
-        overflow:  'hidden',
-      }}
-    >
+        overflow:      'hidden',
+        pointerEvents: 'auto',
+      }}>
       <style>{`
         /* Universal transitions */
         .kp-lock, .kp-ctrl, .kp-tog, .kp-dur {
@@ -398,6 +407,7 @@ export default function KumandaPaneli({
           accent={{ bg: K.viBg, bdr: K.viBdr, txt: K.viTxt }}
         />
 
+      </div>
       </div>
     </div>
   );
