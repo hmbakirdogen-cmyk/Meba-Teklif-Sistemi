@@ -30,9 +30,9 @@ export function MagnetIcon() {
 }
 
 /**
- * Ürün açıklamasını render eder.
- * Metin içindeki ham SVG taglarını kaldırır, yerine React SVG ikonu çizer.
- * firstLine / stripParantez öncesi ham metne uygulanır.
+ * Ürün açıklamasını render eder. Depodaki açıklama ne ise tamamı basılır;
+ * kısaltma / kesme uygulanmaz. Sadece ham <svg> etiketleri React SVG ikonuna
+ * dönüştürülür.
  */
 export function DescText({ text, className }: { text: string; className?: string }) {
   if (!text) return null;
@@ -60,10 +60,6 @@ export function mmToPx(mm: number): number {
 }
 
 export const HIGH_QUALITY_IMAGE_RENDERING = 'high-quality' as unknown as CSSProperties['imageRendering'];
-
-export function firstLine(text: string): string {
-  return text.split(/\r?\n/)[0]?.trim() ?? '';
-}
 
 export const PARA_BIRIMI_ETIKETI: Record<string, string> = {
   TRY: 'TL',

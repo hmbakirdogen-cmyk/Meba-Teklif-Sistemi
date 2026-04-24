@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import type { Teklif } from '../types';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
@@ -333,7 +333,7 @@ function TableSection({
                   {satir.urunKod || '-'}
                 </td>
                 <td className="description-cell" style={{ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
-                  <DescText text={stripParantez(satir.aciklama)} />
+                  <DescText text={satir.aciklama ?? ''} />
                 </td>
                 <td style={{ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
                   {satir.miktar !== 0 ? (

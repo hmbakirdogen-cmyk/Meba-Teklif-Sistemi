@@ -83,11 +83,6 @@ export function formatSayi(val: number): string {
   return val.toLocaleString('tr-TR');
 }
 
-export function stripParantez(text: string): string {
-  if (!text) return '';
-  return text.split('(')[0].trim();
-}
-
 export function parseLocaleNumber(raw: string): number {
   if (!raw) return 0;
   const s = raw.trim().replace(/\s/g, '');

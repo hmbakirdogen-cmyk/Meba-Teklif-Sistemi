@@ -4,7 +4,7 @@ import type { InputRef } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
@@ -588,7 +588,7 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('aciklama')}
                         />
                       ) : (
-                        <DescText text={stripParantez(satir.aciklama) || '-'} />
+                        <DescText text={satir.aciklama || '-'} />
                       )}
                     </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={{ cursor: 'pointer' }}>

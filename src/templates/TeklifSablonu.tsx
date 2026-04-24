@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import type { Teklif } from '../types';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, stripParantez, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
@@ -488,7 +488,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   ...ACIKLAMA_OVERFLOW,
                   ...rcCell('mid', idx),
                 }}>
-                  <DescText text={stripParantez(satir.aciklama)} />
+                  <DescText text={satir.aciklama ?? ''} />
                 </td>
                 {/* Miktar */}
                 <td style={{

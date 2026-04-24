@@ -45,9 +45,7 @@ const ACIKLAMA_EDIT: React.CSSProperties = {
   display: 'block',
   width: '100%',
   minWidth: 0,
-  height: LINE_ITEM_EDITOR_HEIGHT,
   minHeight: LINE_ITEM_EDITOR_HEIGHT,
-  maxHeight: LINE_ITEM_EDITOR_HEIGHT,
   fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
   fontWeight: 400,
   color: C.textMid,
@@ -113,7 +111,9 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
     onGuncelle('urunKod', kod);
     const urun = urunler.find((u) => u.urunKod === kod);
     if (urun) {
-      if (!satir.aciklama) onGuncelle('aciklama', urun.aciklama);
+      // Ürün seçildiğinde açıklama FULL TEXT yazılır; hiçbir kesme/kısaltma
+      // yapılmaz, depoda hangi metin varsa birebir satıra aktarılır.
+      onGuncelle('aciklama', urun.aciklama ?? '');
       if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
       if (urun.birim) onGuncelle('birim', urun.birim);
     }
@@ -155,10 +155,10 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
   return (
     <Input.TextArea
       autoFocus={autoFocus}
-      className="inline-table-field"
+      className="inline-table-field description-editor"
       variant="borderless"
       size="small"
-      rows={1}
+      autoSize={{ minRows: 1, maxRows: 3 }}
       style={ACIKLAMA_EDIT}
       value={satir.aciklama}
       onChange={(e) => onGuncelle('aciklama', e.target.value)}
