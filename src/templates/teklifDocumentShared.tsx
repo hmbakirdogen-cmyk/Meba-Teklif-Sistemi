@@ -132,13 +132,24 @@ export const OFFER_TABLE_COLUMN_COUNT = 9;
 // Tablo colgroup'u merkezi sistemden üretir
 // Her durumda 9 kolon emit edilir. Para birimi kolonu açık/kapalı fark etmez;
 // görsel içerik satır seviyesinde kontrol edilir, kolon ölçüsü sabittir.
-export function TableColgroup(_props?: { satirBazliParaBirimi?: boolean }) {
+// Dinamik ürün kodu genişliği: teklif satırları içindeki en uzun kodu bulur
+export function TableColgroup(props: { satirBazliParaBirimi?: boolean, teklifSatirlari?: { urunKod?: string }[] }) {
+  // Ortalama karakter genişliği (px) ve padding
+  const CHAR_W = 7.2;
+  const PAD = 18;
+  const MIN = 90;
+  const MAX = 180;
+  let codeColWidth = MIN;
+  if (props?.teklifSatirlari && props.teklifSatirlari.length > 0) {
+    const maxLen = props.teklifSatirlari.reduce((max, row) => Math.max(max, (row.urunKod || '').length), 0);
+    codeColWidth = Math.max(MIN, Math.min(MAX, Math.round(maxLen * CHAR_W + PAD)));
+  }
   return (
     <colgroup>
       <col style={{ width: OFFER_TABLE_COLS.no }} />
       <col style={{ width: OFFER_TABLE_COLS.marka }} />
-      <col style={{ width: OFFER_TABLE_COLS.urunKod }} />
-      <col style={{ width: OFFER_TABLE_COLS.aciklama }} />
+      <col style={{ width: codeColWidth + 'px' }} />
+      <col style={{ width: OFFER_TABLE_COLS.aciklama, minWidth: '60px' }} />
       <col style={{ width: OFFER_TABLE_COLS.miktar }} />
       <col style={{ width: OFFER_TABLE_COLS.paraBirimi }} />
       <col style={{ width: OFFER_TABLE_COLS.birimFiyat }} />
