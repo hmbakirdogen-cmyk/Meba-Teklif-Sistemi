@@ -123,30 +123,24 @@ export const DOCUMENT_COLORS = {
   sigBorder:    '#C8B8A6',   // açık kahve — imza çizgileri
 } as const;
 
-// Sabit sütun genişlikleri — tableLayout:fixed ile kullanılır
-// Miktar ve Teslimat kompakt, font ayarlarıyla dengeli. Açıklama daha geniş.
-export const DOCUMENT_COLS = {
+// ── Teklif kalem tablosu — TEK MERKEZİ KOLON SİSTEMİ ─────────────────────────
+// Bu değerler tüm kalem tablosu görünümlerinde (canlı editör + A4 şablonu +
+// PDF) aynı kullanılır. Hiçbir yerde ayrı kolon ölçüsü tanımlanmaz. Para birimi
+// kolonu daima ayrılır; satirBazliParaBirimi kapalıyken görsel içerik boş
+// bırakılır, kolon ölçüsü değişmez. Toplam = 100%.
+export const OFFER_TABLE_COLS = {
   no:         '3.5%',
-  marka:      '6%',
-  urunKod:    '14%',
-  aciklama:   '33.5%',
-  miktar:     '9%',
-  birimFiyat: '11%',
-  toplam:     '11.5%',
-  teslimat:   '11.5%',   // daraltıldı — font 10px ile "Sipariş Üzerine" sığar
-} as const;
-
-export const DOCUMENT_COLS_ROW_CURRENCY = {
-  no:         '3%',
   marka:      '5%',
   urunKod:    '13%',
   aciklama:   '28%',
-  miktar:     '8%',
-  paraBirimi: '10%',
-  birimFiyat: '10%',
+  miktar:     '9%',
+  paraBirimi: '7.5%',
+  birimFiyat: '10.5%',
   toplam:     '11.5%',
-  teslimat:   '11.5%',
+  teslimat:   '12%',
 } as const;
+
+export const OFFER_TABLE_COLUMN_COUNT = 9;
 
 export const LINE_ITEM_METRICS = {
   rowHeightPx: 24,
@@ -511,20 +505,20 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
   ];
 }
 
-export function TableColgroup({ satirBazliParaBirimi }: { satirBazliParaBirimi: boolean }) {
-  const cols = satirBazliParaBirimi ? DOCUMENT_COLS_ROW_CURRENCY : DOCUMENT_COLS;
-
+export function TableColgroup(_props?: { satirBazliParaBirimi?: boolean }) {
+  // Her durumda 9 kolon emit edilir. Para birimi kolonu açık/kapalı fark etmez;
+  // görsel içerik satır seviyesinde kontrol edilir, kolon ölçüsü sabittir.
   return (
     <colgroup>
-      <col style={{ width: cols.no }} />
-      <col style={{ width: cols.marka }} />
-      <col style={{ width: cols.urunKod }} />
-      <col style={{ width: cols.aciklama }} />
-      <col style={{ width: cols.miktar }} />
-      {satirBazliParaBirimi && <col style={{ width: DOCUMENT_COLS_ROW_CURRENCY.paraBirimi }} />}
-      <col style={{ width: cols.birimFiyat }} />
-      <col style={{ width: cols.toplam }} />
-      <col style={{ width: cols.teslimat }} />
+      <col style={{ width: OFFER_TABLE_COLS.no }} />
+      <col style={{ width: OFFER_TABLE_COLS.marka }} />
+      <col style={{ width: OFFER_TABLE_COLS.urunKod }} />
+      <col style={{ width: OFFER_TABLE_COLS.aciklama }} />
+      <col style={{ width: OFFER_TABLE_COLS.miktar }} />
+      <col style={{ width: OFFER_TABLE_COLS.paraBirimi }} />
+      <col style={{ width: OFFER_TABLE_COLS.birimFiyat }} />
+      <col style={{ width: OFFER_TABLE_COLS.toplam }} />
+      <col style={{ width: OFFER_TABLE_COLS.teslimat }} />
     </colgroup>
   );
 }

@@ -45,6 +45,7 @@ import {
   buildSettingsItems,
   getTableHeadCellStyle,
   DescText,
+  OFFER_TABLE_COLUMN_COUNT,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -394,7 +395,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       {/* Dikey çizgiler kaldırıldı: outer border yerine top+bottom,            */}
       {/* başlık ve hücreler arasındaki dikey ayraçlar da devre dışı.           */}
       <table style={TABLE_STYLE}>
-        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+        <TableColgroup />
         <thead id="pdf-thead">
           <tr>
             {[
@@ -403,7 +404,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               { label: 'Ürün Kodu',   sub: 'Item No',     align: 'left'   as const },
               { label: 'Açıklama',    sub: 'Description', align: 'left'   as const },
               { label: 'Miktar',      sub: 'Qty',         align: 'left'   as const },
-              ...(satirBazliParaBirimi ? [{ label: 'Para Birimi', sub: 'Currency', align: 'center' as const, fontSize: '9.8px' }] : []),
+              satirBazliParaBirimi
+                ? { label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                : { label: '',            sub: '',         align: 'center' as const },
               { label: 'Birim Fiyat', sub: 'Unit Price',  align: 'right'  as const },
               { label: 'Toplam',      sub: 'Total',       align: 'right'  as const },
               { label: 'Teslimat',    sub: 'Delivery',    align: 'center' as const },
@@ -425,7 +428,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         <tbody>
           {/* Başlık çizgisi ile ilk kalem satırı arası boşluk */}
           <tr aria-hidden="true">
-            <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '3px', padding: 0, border: 'none', background: 'transparent' }} />
+            <td colSpan={OFFER_TABLE_COLUMN_COUNT} style={{ height: '3px', padding: 0, border: 'none', background: 'transparent' }} />
           </tr>
           {teklif.satirlar.map((satir, idx) => {
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
@@ -512,21 +515,19 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     </div>
                   ) : '—'}
                 </td>
-                {satirBazliParaBirimi && (
-                  <td style={{
-                    padding: CELL_PAD,
-                    textAlign: 'center',
-                    verticalAlign: 'middle',
-                    fontSize: '11px',
-                    color: C.textMid,
-                    whiteSpace: 'nowrap',
-                    fontWeight: 700,
-                    letterSpacing: '0.03em',
-                    ...rcCell('mid', idx),
-                  }}>
-                    {PARA_BIRIMI_ETIKETI[satirPb]}
-                  </td>
-                )}
+                <td style={{
+                  padding: CELL_PAD,
+                  textAlign: 'center',
+                  verticalAlign: 'middle',
+                  fontSize: '11px',
+                  color: C.textMid,
+                  whiteSpace: 'nowrap',
+                  fontWeight: 700,
+                  letterSpacing: '0.03em',
+                  ...rcCell('mid', idx),
+                }}>
+                  {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
+                </td>
                 {/* Birim Fiyat — nihai (bireysel iskonto uygulanmış) */}
                 <td style={{
                   padding: CELL_PAD,

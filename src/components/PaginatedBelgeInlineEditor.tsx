@@ -31,6 +31,7 @@ import {
   LOGO_OPT_TOP,
   LOGO_OPT_LEFT,
   LINE_ITEM_CSS_VARS,
+  OFFER_TABLE_COLUMN_COUNT,
   HIGH_QUALITY_IMAGE_RENDERING,
   noBreak,
   NOTES_BOX_STYLE,
@@ -481,7 +482,7 @@ export default function PaginatedBelgeInlineEditor({
           Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
         </div>
         <table className="offer-table" style={{ ...TABLE_STYLE, marginBottom: 0 } as React.CSSProperties}>
-          <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+          <TableColgroup />
           <thead>
             <tr>
               {[
@@ -490,7 +491,9 @@ export default function PaginatedBelgeInlineEditor({
                 { label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
                 { label: 'Açıklama', sub: 'Description', align: 'left' as const },
                 { label: 'Miktar', sub: 'Qty', align: 'center' as const },
-                ...(satirBazliParaBirimi ? [{ label: 'Para Birimi', sub: 'Currency', align: 'center' as const }] : []),
+                satirBazliParaBirimi
+                  ? { label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                  : { label: '', sub: '', align: 'center' as const },
                 { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
                 { label: 'Toplam', sub: 'Total', align: 'right' as const },
                 { label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
@@ -504,13 +507,13 @@ export default function PaginatedBelgeInlineEditor({
           </thead>
           <tbody>
             <tr aria-hidden="true">
-              <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '4px', padding: 0, border: 'none', background: 'transparent' }} />
+              <td colSpan={OFFER_TABLE_COLUMN_COUNT} style={{ height: '4px', padding: 0, border: 'none', background: 'transparent' }} />
             </tr>
             {teklif.satirlar.slice(page.rowStartIndex, page.rowEndIndex).map((satir, localIndex) => {
               const idx = page.rowStartIndex + localIndex;
               const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
               const isRowActive = editingSatirId === satir.id;
-              const colCount = satirBazliParaBirimi ? 9 : 8;
+              const colCount = OFFER_TABLE_COLUMN_COUNT;
 
               const insertIndicator = (
                 <tr key={`insert-${satir.id}`} className="satir-araya-ekle-zone" style={{ height: 0 }}>
@@ -606,9 +609,15 @@ export default function PaginatedBelgeInlineEditor({
                         ) : '-'
                       )}
                     </RowCell>
-                    {satirBazliParaBirimi && (
-                      <RowCell idx={idx} pos="mid" onClick={cellClick('paraBirimi')} className={activeClass('paraBirimi')} style={{ cursor: 'pointer' }}>
-                        {isActiveCell('paraBirimi') ? (
+                    <RowCell
+                      idx={idx}
+                      pos="mid"
+                      onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
+                      className={activeClass('paraBirimi')}
+                      style={{ cursor: satirBazliParaBirimi ? 'pointer' : 'default' }}
+                    >
+                      {satirBazliParaBirimi ? (
+                        isActiveCell('paraBirimi') ? (
                           <SatirCellEditor
                             field="paraBirimi"
                             satir={satir}
@@ -619,9 +628,9 @@ export default function PaginatedBelgeInlineEditor({
                           />
                         ) : (
                           <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
-                        )}
-                      </RowCell>
-                    )}
+                        )
+                      ) : null}
+                    </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} className={activeClass('birimFiyat')} style={{ cursor: 'pointer' }}>
                       {isActiveCell('birimFiyat') ? (
                         <SatirCellEditor
@@ -694,7 +703,7 @@ export default function PaginatedBelgeInlineEditor({
             {page.pageNumber === pages.length && teklif.satirlar.length === 0 && (
               <tr>
                 <td
-                  colSpan={satirBazliParaBirimi ? 9 : 8}
+                  colSpan={OFFER_TABLE_COLUMN_COUNT}
                   onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirEkle(); }}
                   style={{
                     padding: '14px 7px', textAlign: 'center', fontSize: '11px', color: C.textMuted,

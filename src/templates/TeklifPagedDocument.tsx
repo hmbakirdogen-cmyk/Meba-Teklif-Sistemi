@@ -48,6 +48,7 @@ import {
   noBreak,
   rcCell,
   DescText,
+  OFFER_TABLE_COLUMN_COUNT,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -285,7 +286,7 @@ function TableSection({
         </div>
       )}
       <table style={TABLE_STYLE}>
-        <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} />
+        <TableColgroup />
         <thead>
           <tr>
             {[
@@ -294,7 +295,9 @@ function TableSection({
               { label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
               { label: 'Açıklama', sub: 'Description', align: 'left' as const },
               { label: 'Miktar', sub: 'Qty', align: 'left' as const },
-              ...(satirBazliParaBirimi ? [{ label: 'Para Birimi', sub: 'Currency', align: 'center' as const }] : []),
+              satirBazliParaBirimi
+                ? { label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                : { label: '',            sub: '',         align: 'center' as const },
               { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
               { label: 'Toplam', sub: 'Total', align: 'right' as const },
               { label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
@@ -312,7 +315,7 @@ function TableSection({
         </thead>
         <tbody>
           <tr aria-hidden="true">
-            <td colSpan={satirBazliParaBirimi ? 9 : 8} style={{ height: '3px', padding: 0, border: 'none', background: 'transparent' }} />
+            <td colSpan={OFFER_TABLE_COLUMN_COUNT} style={{ height: '3px', padding: 0, border: 'none', background: 'transparent' }} />
           </tr>
           {satirlar.map((satir, localIndex) => {
             const idx = rowStart + localIndex;
@@ -344,11 +347,9 @@ function TableSection({
                     </div>
                   ) : '-'}
                 </td>
-                {satirBazliParaBirimi && (
-                  <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx) }}>
-                    {PARA_BIRIMI_ETIKETI[satirPb]}
-                  </td>
-                )}
+                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx) }}>
+                  {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
+                </td>
                 <td style={{ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
                   {(() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
