@@ -332,7 +332,7 @@ function TableSection({
                 <td style={{ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) }}>
                   {satir.urunKod || '-'}
                 </td>
-                <td style={{ padding: CELL_PAD, fontSize: '11px', fontWeight: 400, color: C.textMid, verticalAlign: 'middle', lineHeight: 1.4, ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
+                <td className="description-cell" style={{ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
                   <DescText text={stripParantez(satir.aciklama)} />
                 </td>
                 <td style={{ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>

@@ -502,22 +502,49 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   LINE ITEM TABLE: satır yüksekliği her zaman sabit,
-   editör ölçüsü yalnız is-active-cell içinde kilitli.
+   LINE ITEM TABLE: satır yüksekliği taban (min) değerinde; açıklama
+   2. satıra düştüğünde sadece o satır kontrollü şekilde büyür. Diğer
+   satırlar varsayılan yüksekliğinde kalır.
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline .offer-table tbody tr[data-satir-id] {
-  height: var(--line-row-height) !important;
   min-height: var(--line-row-height) !important;
-  max-height: var(--line-row-height) !important;
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td {
-  height: var(--line-row-height) !important;
   min-height: var(--line-row-height) !important;
-  max-height: var(--line-row-height) !important;
   padding: var(--line-cell-padding-y) var(--line-cell-padding-x) !important;
   line-height: var(--line-cell-line-height) !important;
   box-sizing: border-box !important;
   vertical-align: middle !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   AÇIKLAMA HÜCRESİ — ellipsis / line-clamp / max-height YASAK
+   Kısa ve orta metin tek satır, uzun metin doğal olarak 2. satıra düşer.
+   Metin hiçbir şekilde kesilmez.
+   ══════════════════════════════════════════════════════════════════════ */
+.description-cell {
+  white-space: normal !important;
+  overflow: visible !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  line-height: 1.15 !important;
+  text-overflow: clip !important;
+}
+.description-text {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  font-size: clamp(9.5px, 0.72vw, 11px);
+  font-weight: 400;
+  line-height: 1.15;
+  color: #4A4A4E;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-overflow: clip;
+}
+.description-text.compact {
+  font-size: 9.5px;
 }
 
 

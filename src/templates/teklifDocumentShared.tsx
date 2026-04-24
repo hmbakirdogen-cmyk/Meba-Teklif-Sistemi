@@ -34,11 +34,17 @@ export function MagnetIcon() {
  * Metin içindeki ham SVG taglarını kaldırır, yerine React SVG ikonu çizer.
  * firstLine / stripParantez öncesi ham metne uygulanır.
  */
-export function DescText({ text }: { text: string }) {
+export function DescText({ text, className }: { text: string; className?: string }) {
   if (!text) return null;
   const hasMag = hasMagnetSvg(text);
   const clean  = hasMag ? stripMagnetSvg(text) : text;
-  return <>{clean}{hasMag ? <MagnetIcon /> : null}</>;
+  const cls    = ['description-text', className].filter(Boolean).join(' ');
+  return (
+    <span className={cls}>
+      {clean}
+      {hasMag ? <MagnetIcon /> : null}
+    </span>
+  );
 }
 
 export const DOCUMENT_PAGE = {
@@ -169,18 +175,12 @@ export const LINE_ITEM_METRICS = {
   deliveryFontSizePx: 10,
   lineHeight: 1.15,
   deliveryLineHeight: 1.15,
-  descriptionClampLines: 1,
   quantityUnitScale: 0.88,
 } as const;
 
 export const CELL_PAD = `${LINE_ITEM_METRICS.cellPaddingYpx}px ${LINE_ITEM_METRICS.cellPaddingXpx}px`;
 export const LINE_ITEM_ROW_HEIGHT = `${LINE_ITEM_METRICS.rowHeightPx}px`;
 export const LINE_ITEM_EDITOR_HEIGHT = `${LINE_ITEM_METRICS.editorHeightPx}px`;
-export const LINE_ITEM_DESCRIPTION_MAX_HEIGHT = `${Math.ceil(
-  LINE_ITEM_METRICS.baseFontSizePx
-  * LINE_ITEM_METRICS.lineHeight
-  * LINE_ITEM_METRICS.descriptionClampLines,
-)}px`;
 export const LINE_ITEM_CSS_VARS = `
   --line-row-height: ${LINE_ITEM_ROW_HEIGHT};
   --line-cell-font-size: ${LINE_ITEM_METRICS.baseFontSizePx}px;
@@ -196,17 +196,17 @@ export const URUN_KOD_OVERFLOW: CSSProperties = {
   textOverflow: 'clip',          // "..." yerine temiz kesim
 };
 
+// Açıklama hücresi: kesme / ellipsis / line-clamp YOK.
+// Tek satıra sığan metin doğal olarak tek satırda kalır; sığmayan metin
+// kelime sınırında 2. satıra düşer. Satır yüksekliği sadece ihtiyaç halinde
+// büyüyebilsin diye rcCell() max-height uygulamaz.
 export const ACIKLAMA_OVERFLOW: CSSProperties = {
   whiteSpace: 'normal',
-  overflow: 'hidden',
-  display: '-webkit-box',
-  WebkitBoxOrient: 'vertical',
-  WebkitLineClamp: LINE_ITEM_METRICS.descriptionClampLines,
-  overflowWrap: 'anywhere',      // uzun kelimeleri kırma
+  overflow: 'visible',
+  overflowWrap: 'normal',
   wordBreak: 'normal',
   lineHeight: LINE_ITEM_METRICS.lineHeight,
-  maxHeight: LINE_ITEM_DESCRIPTION_MAX_HEIGHT,
-} as CSSProperties;
+};
 
 export const noBreak: CSSProperties = {
   pageBreakInside: 'avoid',
@@ -228,9 +228,9 @@ export function rcCell(pos: CellPos, idx = 0): CSSProperties {
   const radius = ROW_CARD.radius;
 
   return {
-    height:                 LINE_ITEM_ROW_HEIGHT,
+    // Sabit yükseklik yok; kısa açıklamalar min-height'te kalır,
+    // 2. satıra düşen açıklama varsa sadece o satır büyür.
     minHeight:              LINE_ITEM_ROW_HEIGHT,
-    maxHeight:              LINE_ITEM_ROW_HEIGHT,
     boxSizing:              'border-box',
     background:             idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
     printColorAdjust:       'exact',

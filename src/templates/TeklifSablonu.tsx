@@ -481,14 +481,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 }}>
                   {satir.urunKod || '—'}
                 </td>
-                {/* Açıklama — kalan tüm alan, max 2 satır */}
-                <td style={{
+                {/* Açıklama — kalan tüm alan; kesilmez, önce tek satır, sığmazsa 2 satır */}
+                <td className="description-cell" style={{
                   padding: CELL_PAD,
-                  fontSize: '11px',
                   fontWeight: 400,
                   color: C.textMid,
                   verticalAlign: 'middle',
-                  lineHeight: 1.4,
                   ...ACIKLAMA_OVERFLOW,
                   ...rcCell('mid', idx),
                 }}>

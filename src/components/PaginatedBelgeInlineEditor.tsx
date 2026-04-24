@@ -577,7 +577,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={activeClass('aciklama')} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama')}`.trim()} style={{ cursor: 'pointer' }}>
                       {isActiveCell('aciklama') ? (
                         <SatirCellEditor
                           field="aciklama"
@@ -588,7 +588,7 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('aciklama')}
                         />
                       ) : (
-                        <span style={ROW_TEXT.description}><DescText text={stripParantez(satir.aciklama) || '-'} /></span>
+                        <DescText text={stripParantez(satir.aciklama) || '-'} />
                       )}
                     </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={{ cursor: 'pointer' }}>
