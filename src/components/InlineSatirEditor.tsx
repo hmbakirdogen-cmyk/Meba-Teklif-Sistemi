@@ -263,7 +263,7 @@ export function InlineSatirEditor({
           className="inline-table-field"
           variant="borderless"
           size="small"
-          rows={2}
+          rows={1}
           style={ACIKLAMA_EDIT}
           value={satir.aciklama}
           onChange={(e) => onGuncelle('aciklama', e.target.value)}
