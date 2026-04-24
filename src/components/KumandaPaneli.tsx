@@ -12,10 +12,9 @@ const K = {
   btn:      '#2A2826',    // standard control bg
 
   // ── Text (high contrast — no muted grays) ──
-  txt:        '#F5F5F5',   // primary — all main text
-  txtMute:    '#D5D0CB',   // secondary — still very readable
-  txtLabel:   '#B5B0AA',   // section labels — readable
-  txtSubtle:  '#8F8A84',   // only for micro decorative label
+  txt:        '#F5F5F5',   // primary — all main button text
+  txtMute:    '#E2DDD6',   // secondary — Kapalı/Açık badges (still very readable)
+  txtLabel:   '#C8C3BD',   // section labels
 
   // ── Borders (thin, soft) ──
   bdr:      '#2D2A28',
@@ -54,7 +53,7 @@ const K = {
   durABdr:  '#5A5450',
   durATxt:  '#F5F5F5',
   durIBdr:  '#2B2825',
-  durITxt:  '#B5B0AA',
+  durITxt:  '#D5D0CB',
 } as const;
 
 const DURUM_LABELS: Record<TeklifDurum, string> = {
@@ -94,6 +93,7 @@ interface KumandaPaneliProps {
   onSatirBazliParaBirimiDegistir: (v: boolean) => void;
   satirBazliIskonto:              boolean;
   onSatirBazliIskontoDegistir:    (v: boolean) => void;
+  sagPanelOpen:                   boolean;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -104,6 +104,7 @@ export default function KumandaPaneli({
   iskontoOrani, onIskontoOraniDegistir,
   satirBazliParaBirimi, onSatirBazliParaBirimiDegistir,
   satirBazliIskonto, onSatirBazliIskontoDegistir,
+  sagPanelOpen,
 }: KumandaPaneliProps) {
   const [lastKdv, setLastKdv] = useState(() => kdvOrani     > 0 ? kdvOrani     : 20);
   const [lastIsk, setLastIsk] = useState(() => iskontoOrani > 0 ? iskontoOrani : 10);
@@ -124,15 +125,16 @@ export default function KumandaPaneli({
     <div
       className="no-print"
       style={{
-        // Sticky — visual center stays at mid-viewport during scroll
-        position:  'sticky',
-        top:       '50vh',
+        // Fixed — stays absolutely still during page scroll
+        position:  'fixed',
+        top:       '50%',
+        right:     sagPanelOpen
+          ? 'max(8px, calc(50% - 413px))'  // with SagPanel (360px): shift right by SagPanel/2
+          : 'max(8px, calc(50% - 593px))', // without: at A4's right edge + gap
         transform: 'translateY(-50%)',
-        alignSelf: 'flex-start',
+        zIndex:    50,
         // Fixed compact width
         width:     K.WIDTH,
-        minWidth:  K.WIDTH,
-        flexShrink: 0,
         // Clean UI panel — not a physical device
         borderRadius: 14,
         background:   K.shell,
