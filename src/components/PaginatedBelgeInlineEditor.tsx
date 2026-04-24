@@ -57,7 +57,12 @@ import {
   getTableHeadCellStyle,
 } from '../templates/teklifDocumentShared';
 import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
-import { InlineSatirEditor } from './InlineSatirEditor';
+import {
+  SatirCellEditor,
+  SatirAksiyonlariPanel,
+  SATIR_CELL_NAV_ORDER,
+  type SatirCellField,
+} from './InlineSatirEditor';
 import type { TeklifPagePlan } from '../services/documentPagination';
 
 const C = DOCUMENT_COLORS;
@@ -214,16 +219,29 @@ export default function PaginatedBelgeInlineEditor({
     }
   }, [isMusteriEditing, teklif.cari.firmaAdi]);
 
-  const [satirFocusCell, setSatirFocusCell] = useState<string>('urunKod');
+  const [satirFocusCell, setSatirFocusCell] = useState<SatirCellField>('urunKod');
 
   const handleSatirCellClick = useCallback(
-    (satirId: string, cell: string) => (e: React.MouseEvent) => {
+    (satirId: string, cell: SatirCellField) => (e: React.MouseEvent) => {
       if (readOnly) return;
       e.stopPropagation();
       setSatirFocusCell(cell);
       onEditingAlanDegistir(`satir-${satirId}`);
     },
     [onEditingAlanDegistir, readOnly],
+  );
+
+  const handleEnterNext = useCallback(
+    (satirId: string, currentCell: SatirCellField, rowIdx: number) => {
+      const idx = SATIR_CELL_NAV_ORDER.indexOf(currentCell);
+      if (idx >= 0 && idx < SATIR_CELL_NAV_ORDER.length - 1) {
+        setSatirFocusCell(SATIR_CELL_NAV_ORDER[idx + 1]);
+        onEditingAlanDegistir(`satir-${satirId}`);
+      } else {
+        onSatirArayaEkle(rowIdx);
+      }
+    },
+    [onEditingAlanDegistir, onSatirArayaEkle],
   );
 
   const handleAlanClick = (alan: EditingAlan, e: React.MouseEvent) => {
@@ -491,7 +509,7 @@ export default function PaginatedBelgeInlineEditor({
             {teklif.satirlar.slice(page.rowStartIndex, page.rowEndIndex).map((satir, localIndex) => {
               const idx = page.rowStartIndex + localIndex;
               const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
-              const isEditing = editingSatirId === satir.id;
+              const isRowActive = editingSatirId === satir.id;
               const colCount = satirBazliParaBirimi ? 9 : 8;
 
               const insertIndicator = (
@@ -516,26 +534,10 @@ export default function PaginatedBelgeInlineEditor({
                 </tr>
               );
 
-              if (isEditing) {
-                return (
-                  <React.Fragment key={satir.id}>
-                    <InlineSatirEditor
-                      satir={satir}
-                      idx={idx}
-                      paraBirimi={teklif.paraBirimi}
-                      satirBazliParaBirimi={satirBazliParaBirimi}
-                      satirBazliIskonto={satirBazliIskonto}
-                      focusCell={satirFocusCell}
-                      onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                      onSil={() => onSatirSil(satir.id)}
-                      onArayaEkle={() => onSatirArayaEkle(idx)}
-                    />
-                    {insertIndicator}
-                  </React.Fragment>
-                );
-              }
-
-              const cellClick = (cell: string) => handleSatirCellClick(satir.id, cell);
+              const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir.id, cell);
+              const isActiveCell = (cell: SatirCellField) => isRowActive && satirFocusCell === cell;
+              const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
+              const enterNext = (cell: SatirCellField) => () => handleEnterNext(satir.id, cell, idx);
 
               return (
                 <React.Fragment key={satir.id}>
@@ -543,60 +545,146 @@ export default function PaginatedBelgeInlineEditor({
                     <RowCell idx={idx} pos="first" onClick={cellClick('urunKod')} style={{ ...ROW_TEXT.no, cursor: 'pointer' }}>
                       {String(idx + 1).padStart(2, '0')}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} style={{ cursor: 'pointer' }}>
-                      <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} className={activeClass('marka')} style={{ cursor: 'pointer' }}>
+                      {isActiveCell('marka') ? (
+                        <SatirCellEditor
+                          field="marka"
+                          satir={satir}
+                          paraBirimi={teklif.paraBirimi}
+                          autoFocus
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onEnterNext={enterNext('marka')}
+                        />
+                      ) : (
+                        <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
+                      )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} style={{ cursor: 'pointer' }}>
-                      <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={activeClass('urunKod')} style={{ cursor: 'pointer', overflow: isActiveCell('urunKod') ? 'hidden' : undefined }}>
+                      {isActiveCell('urunKod') ? (
+                        <SatirCellEditor
+                          field="urunKod"
+                          satir={satir}
+                          paraBirimi={teklif.paraBirimi}
+                          autoFocus
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onEnterNext={enterNext('urunKod')}
+                        />
+                      ) : (
+                        <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
+                      )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} style={{ cursor: 'pointer' }}>
-                      <span style={ROW_TEXT.description}><DescText text={stripParantez(satir.aciklama) || '-'} /></span>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={activeClass('aciklama')} style={{ cursor: 'pointer' }}>
+                      {isActiveCell('aciklama') ? (
+                        <SatirCellEditor
+                          field="aciklama"
+                          satir={satir}
+                          paraBirimi={teklif.paraBirimi}
+                          autoFocus
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onEnterNext={enterNext('aciklama')}
+                        />
+                      ) : (
+                        <span style={ROW_TEXT.description}><DescText text={stripParantez(satir.aciklama) || '-'} /></span>
+                      )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} style={{ cursor: 'pointer' }}>
-                      {satir.miktar !== 0 ? (
-                        <div style={ROW_SHELL.quantityWrap}>
-                          <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
-                          <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
-                        </div>
-                      ) : '-'}
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={{ cursor: 'pointer' }}>
+                      {isActiveCell('miktar') ? (
+                        <SatirCellEditor
+                          field="miktar"
+                          satir={satir}
+                          paraBirimi={teklif.paraBirimi}
+                          autoFocus
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onEnterNext={enterNext('miktar')}
+                        />
+                      ) : (
+                        satir.miktar !== 0 ? (
+                          <div style={ROW_SHELL.quantityWrap}>
+                            <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
+                            <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
+                          </div>
+                        ) : '-'
+                      )}
                     </RowCell>
                     {satirBazliParaBirimi && (
-                      <RowCell idx={idx} pos="mid" onClick={cellClick('paraBirimi')} style={{ cursor: 'pointer' }}>
-                        <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
+                      <RowCell idx={idx} pos="mid" onClick={cellClick('paraBirimi')} className={activeClass('paraBirimi')} style={{ cursor: 'pointer' }}>
+                        {isActiveCell('paraBirimi') ? (
+                          <SatirCellEditor
+                            field="paraBirimi"
+                            satir={satir}
+                            paraBirimi={teklif.paraBirimi}
+                            autoFocus
+                            onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                            onEnterNext={enterNext('paraBirimi')}
+                          />
+                        ) : (
+                          <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
+                        )}
                       </RowCell>
                     )}
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
-                      <span style={ROW_TEXT.price}>{(() => {
-                        const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
-                        return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
-                      })()}</span>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} className={activeClass('birimFiyat')} style={{ cursor: 'pointer' }}>
+                      {isActiveCell('birimFiyat') ? (
+                        <SatirCellEditor
+                          field="birimFiyat"
+                          satir={satir}
+                          paraBirimi={teklif.paraBirimi}
+                          autoFocus
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onEnterNext={enterNext('birimFiyat')}
+                        />
+                      ) : (
+                        <span style={ROW_TEXT.price}>{(() => {
+                          const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
+                          return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
+                        })()}</span>
+                      )}
                     </RowCell>
                     <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
                       <span style={ROW_TEXT.total}>
                         {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                       </span>
                     </RowCell>
-                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} style={{ position: 'relative', cursor: 'pointer' }}>
-                      <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
-                      {(satir.indirimOrani || 0) > 0 && (
+                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} className={activeClass('teslimat')} style={{ position: 'relative', cursor: 'pointer' }}>
+                      {isActiveCell('teslimat') ? (
+                        <SatirCellEditor
+                          field="teslimat"
+                          satir={satir}
+                          paraBirimi={teklif.paraBirimi}
+                          autoFocus
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onEnterNext={enterNext('teslimat')}
+                        />
+                      ) : (
+                        <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
+                      )}
+                      {(satir.indirimOrani || 0) > 0 && !isRowActive && (
                         <span style={{ position: 'absolute', top: 2, right: 2, fontSize: '7.5px', fontWeight: 700, color: C.accent, background: 'rgba(37,99,235,0.08)', borderRadius: '3px', padding: '1px 3px', lineHeight: 1, letterSpacing: '0.02em', pointerEvents: 'none' }}>
                           -{satir.indirimOrani}%
                         </span>
                       )}
-                      <div className="belge-satir-hover-actions" style={{ position: 'absolute', right: -2, top: '50%', transform: 'translateY(-50%)', zIndex: 40, display: 'flex', gap: '2px' }}>
-                        <span
-                          onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirSil(satir.id); }}
-                          style={{
-                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 20, height: 20, borderRadius: '4px',
-                            background: 'rgba(255,255,255,0.95)', border: `0.75px solid ${C.borderSoft}`,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)', color: '#b91c1c', fontSize: '9px',
-                          }}
-                          title="Satırı sil"
-                        >
-                          <DeleteOutlined />
-                        </span>
-                      </div>
+                      {isRowActive && !readOnly ? (
+                        <SatirAksiyonlariPanel
+                          satir={satir}
+                          satirBazliIskonto={satirBazliIskonto}
+                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
+                          onSil={() => onSatirSil(satir.id)}
+                        />
+                      ) : (
+                        <div className="belge-satir-hover-actions" style={{ position: 'absolute', right: -2, top: '50%', transform: 'translateY(-50%)', zIndex: 40, display: 'flex', gap: '2px' }}>
+                          <span
+                            onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirSil(satir.id); }}
+                            style={{
+                              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              width: 20, height: 20, borderRadius: '4px',
+                              background: 'rgba(255,255,255,0.95)', border: `0.75px solid ${C.borderSoft}`,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', color: '#b91c1c', fontSize: '9px',
+                            }}
+                            title="Satırı sil"
+                          >
+                            <DeleteOutlined />
+                          </span>
+                        </div>
+                      )}
                     </RowCell>
                   </tr>
                   {insertIndicator}
