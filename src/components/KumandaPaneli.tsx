@@ -34,13 +34,16 @@ const K = {
 // ── UNIFIED button style — "Genel Toplam" etiketi sadeliğinde, warm-white overlay ──
 const U = {
   bgOff:      'rgba(255, 247, 242, 0.055)',
-  bgOn:       'rgba(255, 247, 242, 0.085)',
+  bgOn:       'rgba(255, 247, 242, 0.13)',
   bdrOff:     'rgba(255, 247, 242, 0.12)',
-  bdrOn:      'rgba(255, 247, 242, 0.24)',
-  insetOn:    'inset 0 1px 0 rgba(255,255,255,0.08)',
-  // Subtle additional bg for attached expansions (iskonto oran kutusu)
+  bdrOn:      'rgba(255, 247, 242, 0.30)',
+  // 3-layer active shadow: inset highlight + soft drop + subtle outer glow
+  insetOn: [
+    'inset 0 1px 0 rgba(255,255,255,0.10)',
+    '0 4px 14px rgba(0,0,0,0.26)',
+    '0 0 0 1px rgba(255,247,242,0.06)',
+  ].join(', '),
   bgSub:      'rgba(255, 247, 242, 0.04)',
-  // Input bg inside attached expansion
   inputBg:    'rgba(0, 0, 0, 0.28)',
 } as const;
 
@@ -144,24 +147,64 @@ export default function KumandaPaneli({
         pointerEvents: 'auto',
       }}>
       <style>{`
-        /* Unified transitions */
+        /* Unified transitions + position/overflow for sweep */
         .kp-lock, .kp-btn {
           transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
                       box-shadow 0.18s ease, transform 0.12s ease, filter 0.18s ease;
+          position: relative;
+          overflow: hidden;
         }
 
-        /* Lock button — special (neon) */
+        /* Sweep light (::after) — kontrollü premium ışık süzülmesi */
+        .kp-btn::after {
+          content: "";
+          position: absolute;
+          top: -40%;
+          left: -60%;
+          width: 45%;
+          height: 180%;
+          background: linear-gradient(
+            110deg,
+            transparent 0%,
+            rgba(255,255,255,0.06) 45%,
+            rgba(255,255,255,0.14) 50%,
+            rgba(255,255,255,0.06) 55%,
+            transparent 100%
+          );
+          transform: translateX(-140%) rotate(8deg);
+          opacity: 0;
+          pointer-events: none;
+        }
+        .kp-btn:hover::after,
+        .kp-btn[data-on="true"]::after {
+          animation: kpSweep 0.75s ease-out 1;
+        }
+        @keyframes kpSweep {
+          from { transform: translateX(-140%) rotate(8deg); opacity: 0; }
+          35%  { opacity: 0.60; }
+          to   { transform: translateX(320%)  rotate(8deg); opacity: 0; }
+        }
+
+        /* Reduced-motion support: efekt tamamen devre dışı */
+        @media (prefers-reduced-motion: reduce) {
+          .kp-btn::after {
+            animation: none !important;
+            display: none;
+          }
+        }
+
+        /* Lock button — special (neon), kendi glow'u var */
         .kp-lock:hover  { filter: brightness(1.12); }
         .kp-lock:active { transform: translateY(1px); filter: brightness(0.92); }
 
-        /* Unified buttons (durum, KDV, İskonto, toggles) */
+        /* Unified buttons — hover (pasif & aktif ayrı) */
         .kp-btn:hover  {
-          background: rgba(255,247,242,0.095) !important;
-          border-color: rgba(255,247,242,0.22) !important;
+          background: rgba(255,247,242,0.085) !important;
+          border-color: rgba(255,247,242,0.20) !important;
         }
         .kp-btn[data-on="true"]:hover {
-          background: rgba(255,247,242,0.12) !important;
-          border-color: rgba(255,247,242,0.32) !important;
+          background: rgba(255,247,242,0.16) !important;
+          border-color: rgba(255,247,242,0.36) !important;
         }
         .kp-btn:active { transform: translateY(1px); filter: brightness(0.95); }
 
