@@ -84,6 +84,23 @@ export const DOCUMENT_BRAND = {
   separator: 'rgba(255,255,255,0.15)',
 } as const;
 
+// ── Koyu yüzey (üst kartlar + genel toplam — tek kaynak) ────────────────────
+// Tablodaki koyu satır ile birebir aynı görsel dil. Tüm koyu yüzeyler burayı kullanır.
+export const DARK_ROW = {
+  bg:         'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+  bgFallback: '#152740',
+  border:     '#1A2B42',
+  borderSoft: 'rgba(255,255,255,0.08)',
+  shadow:     '0 2px 8px rgba(15,25,40,0.10)',
+  text:       '#F5F7FA',
+  textSub:    'rgba(255,255,255,0.82)',
+  textLabel:  'rgba(255,255,255,0.60)',
+  separator:  'rgba(255,255,255,0.15)',
+  // Vurgu renkleri (koyu zeminde okunur)
+  negRed:     '#fca5a5',   // iskonto/negatif satırlar
+  posGreen:   '#86efac',   // KDV/pozitif satırlar
+} as const;
+
 // ── Döküman renk paleti — sıcak nötr, tablo renk diliyle eşleşik ─────────────
 export const DOCUMENT_COLORS = {
   navy:        '#1A2B42',   // derin lacivert — başlık, vurgu metin
@@ -287,10 +304,12 @@ export const SETTINGS_CARD_STYLE: CSSProperties = {
   flex: 1,
   boxSizing: 'border-box',
   overflow: 'hidden',
-  background: '#FFFFFF',
-  border: `1px solid ${DOCUMENT_COLORS.border}`,
+  backgroundColor: DARK_ROW.bgFallback,
+  backgroundImage: DARK_ROW.bg,
+  border: `1px solid ${DARK_ROW.border}`,
   borderRadius: '8px',
   boxShadow: 'none',
+  color: DARK_ROW.text,
   printColorAdjust: 'exact',
   WebkitPrintColorAdjust: 'exact',
 };
@@ -310,7 +329,7 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
   fontSize: '8px',
   fontWeight: 600,
-  color: DOCUMENT_COLORS.textSoft,
+  color: DARK_ROW.textSub,
   letterSpacing: '0.07em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
@@ -320,17 +339,17 @@ export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
 
 export const SETTINGS_SEP_STYLE: CSSProperties = {
   fontSize: '6px',
-  color: DOCUMENT_COLORS.textMuted,
+  color: DARK_ROW.textLabel,
   lineHeight: 1.2,
   flexShrink: 0,
-  opacity: 0.5,
+  opacity: 0.7,
   alignSelf: 'center',
 };
 
 export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
   fontSize: '6.5px',
   fontWeight: 400,
-  color: DOCUMENT_COLORS.textMuted,
+  color: DARK_ROW.textLabel,
   letterSpacing: '0.03em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
@@ -340,7 +359,7 @@ export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
 export const SETTINGS_VALUE_STYLE: CSSProperties = {
   fontWeight: 700,
   fontSize: '12.5px',
-  color: DOCUMENT_COLORS.navy,
+  color: DARK_ROW.text,
   lineHeight: 1.3,
   whiteSpace: 'nowrap',
   overflow: 'hidden',
