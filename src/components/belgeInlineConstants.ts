@@ -411,20 +411,62 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   ROW HEIGHT STABILITY — edit mode view ile aynı yükseklikte kalır
+   ROW HEIGHT STABILITY — brute force reset
+   tr[data-editing] içindeki TÜM descendant'ların padding/margin/min-height
+   sıfırlanır, line-height = 1.35 zorlanır. AntD hiçbir wrapper'a ekstra
+   yükseklik ekleyemez.
    ══════════════════════════════════════════════════════════════════════ */
+
+/* TD padding + line-height — view ve edit aynı */
 .belge-inline tr[data-satir-id] > td,
 .belge-inline tr[data-editing] > td {
-  padding: 3px 8px !important;              /* CELL_PAD aynı */
+  padding: 3px 8px !important;
   vertical-align: middle !important;
-}
-/* Edit input'ları ve span'lar aynı line-height'ta render */
-.belge-inline tr[data-editing] .inline-table-field,
-.belge-inline tr[data-editing] .inline-table-field .ant-select-content,
-.belge-inline tr[data-editing] .inline-table-field .ant-input,
-.belge-inline tr[data-editing] .inline-table-field .ant-input-number-input {
   line-height: 1.35 !important;
+}
+
+/* tr[data-editing] altındaki tüm elementler — strict reset
+   (:not(textarea) textarea'yı dışarıda tutar, autoSize için) */
+.belge-inline tr[data-editing] .inline-table-field,
+.belge-inline tr[data-editing] .inline-table-field *:not(textarea),
+.belge-inline tr[data-editing] .ant-select,
+.belge-inline tr[data-editing] .ant-select *:not(textarea),
+.belge-inline tr[data-editing] .ant-input-number,
+.belge-inline tr[data-editing] .ant-input-number *:not(textarea),
+.belge-inline tr[data-editing] .ant-select-auto-complete,
+.belge-inline tr[data-editing] .ant-select-auto-complete *:not(textarea) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   min-height: 0 !important;
+  line-height: 1.35 !important;
+  box-sizing: border-box !important;
+}
+
+/* Inline field dış wrapper — border/shadow yok */
+.belge-inline tr[data-editing] .inline-table-field {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  height: auto !important;
+}
+
+/* TextArea özel — autoSize için height auto, sadece padding/line-height sıkı */
+.belge-inline tr[data-editing] textarea.inline-table-field {
+  line-height: 1.35 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  min-height: 0 !important;
+  font-size: 11px !important;
+  box-sizing: content-box !important;
+}
+
+/* Satır içeriği dikey ortalı */
+.belge-inline tr[data-satir-id] td > *:first-child,
+.belge-inline tr[data-editing] td > *:first-child {
+  vertical-align: middle;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
