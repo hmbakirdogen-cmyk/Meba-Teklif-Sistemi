@@ -4,6 +4,7 @@
  * View mode ile aynı hücre iskeletini korur; yalnızca içerik düzenlenebilir hale gelir.
  */
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
+import { Input } from 'antd';
 import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi } from '../types';
 import { formatDisplayNumber } from '../utils/formatters';
@@ -12,7 +13,6 @@ import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
 import {
   InlineTableAutocompleteField,
-  InlineTableInputField,
   InlineTableNumberField,
   InlineTableSelectField,
 } from './InlineTableFields';
@@ -36,7 +36,7 @@ type FocusableTarget = {
 };
 type SelectFieldRef = React.ComponentRef<typeof InlineTableSelectField>;
 type AutoCompleteFieldRef = React.ComponentRef<typeof InlineTableAutocompleteField>;
-type InputFieldRef = React.ComponentRef<typeof InlineTableInputField>;
+type TextAreaFieldRef = React.ComponentRef<typeof Input.TextArea>;
 type NumberFieldRef = React.ComponentRef<typeof InlineTableNumberField>;
 
 const floatingPanelStyle: React.CSSProperties = {
@@ -73,7 +73,8 @@ const actionBtnStyle: React.CSSProperties = {
   background: 'transparent',
 };
 
-// Edit modunda açıklama: webkit-box/line-clamp olmadan (input'a uygulanamaz)
+// Edit modu açıklama: view ile aynı line-height + autoSize TextArea (1-3 satır)
+// View ACIKLAMA_OVERFLOW ile tutarlı davranır — satır yüksekliği zıplamaz.
 const ACIKLAMA_EDIT: React.CSSProperties = {
   display: 'block',
   width: '100%',
@@ -81,10 +82,13 @@ const ACIKLAMA_EDIT: React.CSSProperties = {
   fontSize: '11px',
   fontWeight: 400,
   color: C.textMid,
-  lineHeight: 1.4,
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  lineHeight: 1.35,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  wordBreak: 'normal',
+  resize: 'none',
+  padding: 0,
+  margin: 0,
 };
 
 type FocusCell = 'marka' | 'urunKod' | 'aciklama' | 'miktar' | 'paraBirimi' | 'birimFiyat' | 'teslimat';
@@ -120,7 +124,7 @@ export function InlineSatirEditor({
 
   const markaRef = useRef<SelectFieldRef>(null);
   const urunKodRef = useRef<AutoCompleteFieldRef>(null);
-  const aciklamaRef = useRef<InputFieldRef>(null);
+  const aciklamaRef = useRef<TextAreaFieldRef>(null);
   const miktarRef = useRef<NumberFieldRef>(null);
   const paraBirimiRef = useRef<SelectFieldRef>(null);
   const birimFiyatRef = useRef<NumberFieldRef>(null);
@@ -250,15 +254,20 @@ export function InlineSatirEditor({
       </RowCell>
 
       <RowCell idx={idx} pos="mid">
-        <InlineTableInputField
+        <Input.TextArea
           ref={aciklamaRef}
+          className="inline-table-field"
+          variant="borderless"
+          size="small"
+          autoSize={{ minRows: 1, maxRows: 3 }}
           style={ACIKLAMA_EDIT}
           value={satir.aciklama}
           onChange={(e) => onGuncelle('aciklama', e.target.value)}
           placeholder="Açıklama"
-          onFocus={(e) => e.target.select()}
+          onFocus={(e) => (e.target as HTMLTextAreaElement).select()}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            // Plain Enter → next cell; Shift+Enter → yeni satır
+            if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               handleEnterNav('aciklama');
             }

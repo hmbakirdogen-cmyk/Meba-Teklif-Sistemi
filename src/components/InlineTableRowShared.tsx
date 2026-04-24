@@ -100,7 +100,7 @@ export const ROW_TEXT = {
     display: 'block',
     width: '100%',
     minWidth: 0,
-    fontSize: '11px',
+    fontSize: '10.5px',            // 11 → 10.5 (daha fazla karakter sığar)
     fontWeight: 600,
     color: C.accent,
     letterSpacing: '-0.1px',

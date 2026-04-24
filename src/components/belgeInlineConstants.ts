@@ -391,6 +391,26 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   TEXTAREA (aciklama inline edit) — resize yok, native scrollbar yok
+   autoSize ile satır sayısı içeriğe göre 1-3 arası dinamik
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .inline-table-field.ant-input.ant-input-borderless,
+.belge-inline textarea.inline-table-field {
+  resize: none !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+.belge-inline textarea.inline-table-field:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    FOCUS: Sıfır layout değişimi — sadece hafif alt çizgi
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline tr[data-editing] td:focus-within {

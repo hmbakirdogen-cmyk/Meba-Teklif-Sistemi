@@ -152,7 +152,7 @@ export const CELL_PAD = '3px 8px';
 export const URUN_KOD_OVERFLOW: CSSProperties = {
   whiteSpace: 'nowrap',
   overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  textOverflow: 'clip',          // "..." yerine temiz kesim
 };
 
 export const ACIKLAMA_OVERFLOW: CSSProperties = {
@@ -160,9 +160,10 @@ export const ACIKLAMA_OVERFLOW: CSSProperties = {
   overflow: 'hidden',
   display: '-webkit-box',
   WebkitBoxOrient: 'vertical',
-  WebkitLineClamp: 2,
-  overflowWrap: 'break-word',
-  wordBreak: 'break-word',
+  WebkitLineClamp: 3,            // 2 → 3 (daha fazla satır, yarım kalma azalır)
+  overflowWrap: 'anywhere',      // uzun kelimeleri kırma
+  wordBreak: 'normal',
+  lineHeight: 1.35,
 } as CSSProperties;
 
 export const noBreak: CSSProperties = {
