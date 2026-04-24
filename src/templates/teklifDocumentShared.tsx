@@ -189,6 +189,34 @@ export const OFFER_TABLE_COLUMN_COUNT = 9;
  * kalan tüm boşluğu alır — en esnek ve en geniş kolon o olur. Böylece
  * gereksiz boş duran sağ kolonlar varsa, bu alan açıklamaya aktarılır.
  */
+const DOCUMENT_FONT_FAMILY =
+  '"Inter", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+/** Off-DOM metin ölçüm yardımcısı — bir kerede sadece bir <span> kullanır. */
+function measureTextWidth(
+  text: string,
+  fontSizePx: number,
+  fontWeight: number | string = 400,
+  letterSpacing = '0',
+): number {
+  if (!text) return 0;
+  const el = document.createElement('span');
+  el.style.position      = 'absolute';
+  el.style.left          = '-9999px';
+  el.style.top           = '0';
+  el.style.visibility    = 'hidden';
+  el.style.whiteSpace    = 'nowrap';
+  el.style.fontFamily    = DOCUMENT_FONT_FAMILY;
+  el.style.fontSize      = `${fontSizePx}px`;
+  el.style.fontWeight    = String(fontWeight);
+  el.style.letterSpacing = letterSpacing;
+  el.textContent         = text;
+  document.body.appendChild(el);
+  const w = el.offsetWidth;
+  document.body.removeChild(el);
+  return w;
+}
+
 export function TableColgroup(props: {
   satirBazliParaBirimi?: boolean;
   teklifSatirlari?: Array<{
@@ -207,13 +235,45 @@ export function TableColgroup(props: {
   const clamp = (v: number, min: number, max: number) =>
     Math.max(min, Math.min(max, Math.round(v)));
 
-  // Biçimlendirilmiş stringin uzunluğunu baz alarak kolonun ihtiyacını bul
   const maxLenOf = (fn: (r: typeof rows[number]) => string): number =>
     rows.reduce((m, r) => Math.max(m, (fn(r) ?? '').length), 1);
 
   const fmtPrice = (n?: number) => (n ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtQty   = (n?: number) => (n ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
-  const maxCodeLength       = maxLenOf((r) => r.urunKod ?? '');
+  const abbrev = (b?: string): string => {
+    const k = (b ?? '').trim().toLowerCase();
+    const map: Record<string, string> = {
+      adet: 'Ad.', takım: 'Tk.', takim: 'Tk.', metre: 'Mt.',
+      kg: 'kg', gram: 'g', litre: 'L', paket: 'Pk.',
+      kutu: 'Kt.', çift: 'Çft.', cift: 'Çft.', set: 'Set', rulo: 'R.',
+    };
+    return map[k] ?? (b || 'Ad.');
+  };
+
+  // Ürün kodu genişliğini GERÇEK metin ölçümüyle hesapla — her kodu
+  // document.body üzerinde offscreen <span>'de tartar, en uzununun piksel
+  // genişliğini alır. Formül tahmini değil, birebir ölçümdür.
+  // Hücre iç padding'i (4+4) + 2px nefes payı.
+  const CODE_CELL_PADDING = LINE_ITEM_METRICS.cellPaddingXpx * 2 + 2;
+  let measuredMaxCode = 0;
+  if (typeof document !== 'undefined' && rows.length > 0) {
+    for (const r of rows) {
+      const kod = r.urunKod ?? '';
+      if (!kod) continue;
+      const w = measureTextWidth(kod, LINE_ITEM_METRICS.codeFontSizePx, 600, '-0.1px');
+      if (w > measuredMaxCode) measuredMaxCode = w;
+    }
+  }
+  // Fallback (SSR / boş render): karaktere dayalı muhafazakâr tahmin
+  const maxCodeLength = maxLenOf((r) => r.urunKod ?? '');
+  const estimatedCode = Math.round(maxCodeLength * 6.4 + 12);
+  const codeWidth = Math.max(
+    48,
+    measuredMaxCode > 0 ? Math.ceil(measuredMaxCode + CODE_CELL_PADDING) : estimatedCode,
+  );
+
+  const maxQtyLength        = maxLenOf((r) => `${fmtQty(r.miktar)} ${abbrev(r.birim)}`);
   const maxUnitPriceLength  = maxLenOf((r) => {
     const nihai = (r.birimFiyat ?? 0) * (1 - (r.indirimOrani ?? 0) / 100);
     return fmtPrice(nihai);
@@ -221,8 +281,7 @@ export function TableColgroup(props: {
   const maxTotalLength      = maxLenOf((r) => fmtPrice(r.satirToplami));
   const maxDeliveryLength   = maxLenOf((r) => r.teslimTarihi ?? '');
 
-  const codeWidth       = clamp(maxCodeLength * 7.2 + 16, 95, 170);
-  const qtyWidth        = 72;
+  const qtyWidth        = clamp(maxQtyLength * 5.8 + 12, 48, 74);
   const unitPriceWidth  = clamp(maxUnitPriceLength * 7 + 18, 82, 110);
   const totalWidth      = clamp(maxTotalLength * 7 + 18, 82, 120);
   const deliveryWidth   = clamp(maxDeliveryLength * 6.2 + 16, 68, 95);
