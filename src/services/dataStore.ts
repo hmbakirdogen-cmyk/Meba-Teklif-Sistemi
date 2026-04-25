@@ -82,12 +82,14 @@ async function migrasyonDene(): Promise<void> {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-export async function initDataStore(): Promise<void> {
+export async function initDataStore(
+  kullanici?: { id: string; rol: string },
+): Promise<void> {
   // Try migrating old localStorage data to server first
   await migrasyonDene();
 
-  // Then fetch current server state into memory
-  const data = await api.init();
+  // Then fetch current server state into memory (visibility filter aware)
+  const data = await api.init(kullanici);
   store = {
     teklifler: data.teklifler,
     cariler:   data.cariler,
@@ -110,6 +112,13 @@ export const dataStore = {
 
   getTeklifler:   ()            => store.teklifler,
   setTeklifler:   (v: Teklif[]) => { store.teklifler = v; },
+
+  /** Re-fetch teklifler from server with current user's visibility filter.
+   *  Kullanıcı değişince veya TeklifListesi açılınca taze veri için. */
+  async refreshTeklifler(kullanici?: { id: string; rol: string }): Promise<void> {
+    const liste = await api.teklifler.list(kullanici);
+    store.teklifler = liste;
+  },
   cacheUpsertTeklif(t: Teklif): void {
     const idx = store.teklifler.findIndex((x) => x.id === t.id);
     if (idx >= 0) { store.teklifler[idx] = t; }

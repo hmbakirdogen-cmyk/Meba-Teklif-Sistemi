@@ -63,13 +63,27 @@ export interface InitData {
   sayac: Sayac;
 }
 
+// ── User-aware query string helper ────────────────────────────────────────────
+
+/** Yetki query string'i (?userId=X&rol=Y) — backend visibility filter için. */
+function userQuery(kullanici?: { id: string; rol: string }): string {
+  if (!kullanici) return '';
+  const params = new URLSearchParams({ userId: kullanici.id, rol: kullanici.rol });
+  return `?${params.toString()}`;
+}
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 export const api = {
-  /** Fetch all data at once (used on app startup) */
-  init: ()                              => get<InitData>('/init'),
+  /** Fetch all data at once (used on app startup) — visibility filter applied */
+  init: (kullanici?: { id: string; rol: string }) =>
+    get<InitData>(`/init${userQuery(kullanici)}`),
 
   teklifler: {
+    /** Re-fetch teklifler list with visibility filter (used when user changes
+     *  or list page wants fresh data). */
+    list:   (kullanici?: { id: string; rol: string }) =>
+      get<Teklif[]>(`/teklifler${userQuery(kullanici)}`),
     upsert: (t: Teklif)                 => put<Teklif>(`/teklifler/${t.id}`, t),
     sil:    (id: string)                => del(`/teklifler/${id}`),
   },

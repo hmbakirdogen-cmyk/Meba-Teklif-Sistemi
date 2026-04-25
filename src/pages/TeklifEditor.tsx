@@ -495,6 +495,8 @@ export default function TeklifEditor() {
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           sagPanelOpen={state.panelModu !== null}
           onResimEkle={handleResimEkle}
+          visibility={state.visibility}
+          onVisibilityDegistir={state.setVisibility}
         />
       )}
     </div>

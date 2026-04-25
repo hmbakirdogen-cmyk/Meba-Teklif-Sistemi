@@ -6,6 +6,7 @@ import {
   PremiumRowCurrencyIcon,
   PremiumKdvIcon,
   PremiumDiscountIcon,
+  PremiumVisibilityIcon,
 } from './premium-icons';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
@@ -36,6 +37,9 @@ interface KumandaPaneliProps {
   onSatirBazliIskontoDegistir: (v: boolean) => void;
   sagPanelOpen: boolean;
   onResimEkle: (dataUrl: string) => void;
+  /** Görünürlük yetkisi: 'team' = ekibe açık (toggle ON), 'private' = gizli (OFF). */
+  visibility: 'private' | 'team';
+  onVisibilityDegistir: (v: 'private' | 'team') => void;
 }
 
 export default function KumandaPaneli({
@@ -45,6 +49,7 @@ export default function KumandaPaneli({
   satirBazliParaBirimi, onSatirBazliParaBirimiDegistir,
   satirBazliIskonto, onSatirBazliIskontoDegistir,
   sagPanelOpen, onResimEkle,
+  visibility, onVisibilityDegistir,
 }: KumandaPaneliProps) {
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
@@ -257,6 +262,8 @@ export default function KumandaPaneli({
         .control-panel button.button-row-currency { --button-accent: #3fb7a3; --button-glow: rgba( 63, 183, 163, 0.30); }
         .control-panel button.button-tax          { --button-accent: #d8a24f; --button-glow: rgba(216, 162,  79, 0.30); }
         .control-panel button.button-discount     { --button-accent: #c46f48; --button-glow: rgba(196, 111,  72, 0.28); }
+        /* Görünürlük (Paylaşım) — kurumsal slate-mavi (göz ikonu) */
+        .control-panel button.button-visibility   { --button-accent: #6b8ba6; --button-glow: rgba(107, 139, 166, 0.28); }
 
         /* Lock state vars — yeşil (editing) / kırmızı (locked) güçlü neon */
         .control-panel button.lock-button.is-editing {
@@ -633,6 +640,10 @@ export default function KumandaPaneli({
           grid-template-columns: 1fr 1fr;
           gap: calc(12px * var(--panel-scale));
         }
+        /* Tek-toggle grid (Paylaşım) — sağ cell boş kalmasın diye full-width */
+        .grid.grid-single {
+          grid-template-columns: 1fr;
+        }
 
         /* ── Kare buton ── */
         .square-btn {
@@ -989,6 +1000,26 @@ export default function KumandaPaneli({
               </div>
             </div>
           )}
+        </section>
+
+        <section className="panel-section">
+          <SecLabel text="Paylaşım" />
+          <div className="grid grid-single">
+            <SquareToggle
+              labelLines={[]}
+              ariaLabel={
+                visibility === 'team'
+                  ? 'Personel görebilir — toggle açık'
+                  : 'Gizli — sadece hazırlayan ve yönetici görür'
+              }
+              extraClass="button-visibility"
+              icon={<PremiumVisibilityIcon visible={visibility === 'team'} />}
+              on={visibility === 'team'}
+              onClick={() =>
+                onVisibilityDegistir(visibility === 'team' ? 'private' : 'team')
+              }
+            />
+          </div>
         </section>
       </div>
     </div>

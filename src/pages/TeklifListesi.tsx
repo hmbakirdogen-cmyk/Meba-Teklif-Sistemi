@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Input, Popconfirm, Tooltip } from 'antd';
@@ -130,7 +130,14 @@ export default function TeklifListesi() {
   const isMobile = useIsMobile(768);
   const C = useColors();
 
-  const [teklifler, setTeklifler] = useState<Teklif[]>(() => teklifService.tumTeklifleriGetir());
+  const kullaniciCtx = useMemo(
+    () => (aktifKullanici ? { id: aktifKullanici.id, rol: aktifKullanici.rol } : undefined),
+    [aktifKullanici],
+  );
+
+  const [teklifler, setTeklifler] = useState<Teklif[]>(() =>
+    teklifService.tumTeklifleriGetir(kullaniciCtx),
+  );
   const [aramaMetni, setAramaMetni] = useState('');
   const [aktifFiltre, setAktifFiltre] = useState<Filtre>('benim');
   const [gorunum, setGorunum] = useState<Gorunum>('klasorler');
@@ -138,9 +145,19 @@ export default function TeklifListesi() {
 
   const benimId = aktifKullanici?.id;
 
-  function teklifleriYukle() {
-    setTeklifler(teklifService.tumTeklifleriGetir());
-  }
+  const teklifleriYukle = useCallback(() => {
+    setTeklifler(teklifService.tumTeklifleriGetir(kullaniciCtx));
+  }, [kullaniciCtx]);
+
+  // Sayfa açıldığında / kullanıcı değişiminde sunucudan taze veri çek
+  // (visibility filter backend'de uygulanır → cache'i tazele).
+  useEffect(() => {
+    let aborted = false;
+    teklifService.tekliferiYenile(kullaniciCtx).then(() => {
+      if (!aborted) teklifleriYukle();
+    });
+    return () => { aborted = true; };
+  }, [kullaniciCtx, teklifleriYukle]);
 
   function teklifSil(id: string) {
     teklifService.teklifSil(id);
@@ -838,7 +855,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala }: T
         </div>
 
         {/* Durum */}
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
           <span style={{
             display: 'inline-block',
             padding: '3px 10px',
@@ -853,6 +870,27 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala }: T
           }}>
             {durumGosterim.label}
           </span>
+          {teklif.visibility === 'private' && (
+            <span
+              title="Gizli — sadece hazırlayan ve yönetici görür"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                padding: '2px 7px',
+                borderRadius: 4,
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: 0.15,
+                color: '#5b6e85',
+                background: 'rgba(107, 139, 166, 0.12)',
+                border: '1px solid rgba(107, 139, 166, 0.32)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span aria-hidden="true">🔒</span> Gizli
+            </span>
+          )}
         </div>
 
         {/* Aksiyonlar */}

@@ -15,6 +15,14 @@ export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'ipt
  */
 export type TeklifStatus = 'taslak' | 'kaydedildi' | 'gonderildi';
 
+/**
+ * Teklif görünürlük yetkisi.
+ *  - private → Sadece hazırlayan + admin (yönetici) görür
+ *  - team    → Admin + tüm ekip (tüm personeller) görür
+ * undefined → 'team' kabul edilir (geriye uyumluluk: mevcut kayıtlar paylaşımlı)
+ */
+export type TeklifVisibility = 'private' | 'team';
+
 export interface Teklif {
   id: string;
   teklifNo: string;
@@ -48,4 +56,7 @@ export interface Teklif {
   gorseller?: ImageItem[];
   /** Otomatik kayıt durumu — taslak / kaydedildi / gonderildi */
   status?: TeklifStatus;
+  /** Görünürlük yetkisi — private (gizli) / team (ekibe açık).
+   *  undefined → 'team' kabul (geriye uyumluluk için mevcut kayıtlar). */
+  visibility?: TeklifVisibility;
 }

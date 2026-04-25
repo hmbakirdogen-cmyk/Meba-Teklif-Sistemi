@@ -406,12 +406,41 @@ const server = http.createServer(async (req, res) => {
   try {
 
     // ── GET /api/init — fetch everything at once (used by frontend on startup) ──
-    if (method === 'GET' && url === '/api/init') {
-      return send(res, 200, readDB());
+    // Visibility filter teklifler üzerinde — /api/teklifler ile aynı kural.
+    if (method === 'GET' && (url === '/api/init' || url.startsWith('/api/init?'))) {
+      const parsed = new URL(url, 'http://localhost');
+      const qUserId = parsed.searchParams.get('userId') || '';
+      const qRol = parsed.searchParams.get('rol') || '';
+      const db = readDB();
+      if (!qRol || qRol === 'admin') {
+        return send(res, 200, db);
+      }
+      const filteredTeklifler = db.teklifler.filter((t) => {
+        const vis = t.visibility || 'team';
+        return vis === 'team' || t.hazirlayanKullaniciId === qUserId;
+      });
+      return send(res, 200, { ...db, teklifler: filteredTeklifler });
     }
 
     // ── TEKLIFLER ─────────────────────────────────────────────────────────────
-    if (teklifCrud.list(url, method))         return teklifCrud.handleList(res);
+    // Custom GET /api/teklifler — visibility filter (userId+rol query params).
+    // Admin tüm teklifleri görür; engineer/sales sadece kendi tekliflerini ve
+    // visibility='team' (veya undefined → backward compat 'team') olanları.
+    // Query yoksa (legacy caller) → tüm liste döner.
+    if (method === 'GET' && (url === '/api/teklifler' || url.startsWith('/api/teklifler?'))) {
+      const parsed = new URL(url, 'http://localhost');
+      const qUserId = parsed.searchParams.get('userId') || '';
+      const qRol = parsed.searchParams.get('rol') || '';
+      const all = readDB().teklifler;
+      if (!qRol || qRol === 'admin') {
+        return send(res, 200, all);
+      }
+      const filtered = all.filter((t) => {
+        const vis = t.visibility || 'team';
+        return vis === 'team' || t.hazirlayanKullaniciId === qUserId;
+      });
+      return send(res, 200, filtered);
+    }
     if (teklifCrud.upsert(url, method))       return await teklifCrud.handleUpsert(req, res, url);
     if (teklifCrud.remove(url, method))       return teklifCrud.handleRemove(res, url);
 

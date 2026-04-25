@@ -2,6 +2,19 @@ import dayjs from 'dayjs';
 import type { Teklif } from '../types';
 import { dataStore } from './dataStore';
 
+/** Defansif client-side visibility filter. Backend zaten filtreliyor olsa da
+ *  ek savunma katmanı: cache'de eski/yetkisiz teklifler kalmış olabilir. */
+function visibilityFiltrele(
+  liste: Teklif[],
+  kullanici?: { id: string; rol: string },
+): Teklif[] {
+  if (!kullanici || kullanici.rol === 'admin') return liste;
+  return liste.filter((t) => {
+    const vis = t.visibility ?? 'team';
+    return vis === 'team' || t.hazirlayanKullaniciId === kullanici.id;
+  });
+}
+
 function normalizeEskiKayit(t: Teklif): Teklif {
   const fallbackPb = t.paraBirimi ?? 'TRY';
   const satirPb = fallbackPb === 'TRY' || fallbackPb === 'EUR' || fallbackPb === 'USD' ? fallbackPb : 'TRY';
@@ -18,12 +31,27 @@ function normalizeEskiKayit(t: Teklif): Teklif {
   };
 }
 
-function tumTeklifleriGetir(): Teklif[] {
-  return dataStore.getTeklifler().map(normalizeEskiKayit);
+function tumTeklifleriGetir(
+  kullanici?: { id: string; rol: string },
+): Teklif[] {
+  const liste = dataStore.getTeklifler().map(normalizeEskiKayit);
+  return visibilityFiltrele(liste, kullanici);
 }
 
-function teklifGetir(id: string): Teklif | undefined {
-  return tumTeklifleriGetir().find((t) => t.id === id);
+function teklifGetir(
+  id: string,
+  kullanici?: { id: string; rol: string },
+): Teklif | undefined {
+  return tumTeklifleriGetir(kullanici).find((t) => t.id === id);
+}
+
+/** Re-fetch from server with visibility filter (TeklifListesi açıldığında
+ *  taze veri için). Async — store'u günceller, kullanım sonrası
+ *  tumTeklifleriGetir() filtered list döner. */
+async function tekliferiYenile(
+  kullanici?: { id: string; rol: string },
+): Promise<void> {
+  await dataStore.refreshTeklifler(kullanici);
 }
 
 function teklifKaydet(teklif: Teklif): void {
@@ -73,6 +101,7 @@ function teklifNoUretAsync(): Promise<string> {
 export const teklifService = {
   tumTeklifleriGetir,
   teklifGetir,
+  tekliferiYenile,
   teklifKaydet,
   teklifCacheGuncelle,
   teklifSil,

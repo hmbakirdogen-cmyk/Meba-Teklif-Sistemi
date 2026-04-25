@@ -7,6 +7,7 @@ import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
 import { ThemeProvider } from './context/ThemeContext'
 import { useTheme } from './context/useTheme'
+import { useKullanici } from './context/useKullanici'
 import { getAntdTokens } from './design-system/antdTokens'
 
 /* ── Error Boundary ──────────────────────────────────────── */
@@ -133,12 +134,20 @@ function ServerErrorScreen({ msg, onRetry }: { msg: string; onRetry: () => void 
 /* ── Tema-duyarlı ana uygulama (ThemeProvider içinde) ───── */
 function ThemedApp() {
   const { isDark } = useTheme();
+  const { aktifKullanici } = useKullanici();
   const [hazir, setHazir] = useState(false);
   const [hataMsg, setHataMsg] = useState<string | null>(null);
   const antdTheme = useMemo(() => getAntdTokens(isDark), [isDark]);
 
+  // Kullanıcı id/rol değişince store'u re-init et — visibility filter uygulu
+  // ilk veri çekimi için. (Login/logout/kullanıcı değişimi tetikler.)
+  const userId = aktifKullanici?.id;
+  const userRol = aktifKullanici?.rol;
+
   useEffect(() => {
-    initDataStore()
+    setHazir(false);
+    const kullanici = userId && userRol ? { id: userId, rol: userRol } : undefined;
+    initDataStore(kullanici)
       .then(() => setHazir(true))
       .catch((err: unknown) => {
         console.error('[App] Veri sunucusuna bağlanılamadı:', err);
@@ -147,7 +156,7 @@ function ThemedApp() {
           'Lütfen "baslat.bat" ile uygulamayı başlatın ve sayfayı yenileyin.'
         );
       });
-  }, []);
+  }, [userId, userRol]);
 
   return (
     <ConfigProvider theme={antdTheme}>

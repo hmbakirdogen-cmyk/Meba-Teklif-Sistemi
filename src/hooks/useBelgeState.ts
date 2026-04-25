@@ -18,7 +18,7 @@ import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import { sanitizeMultilineText } from '../utils/formatters';
-import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus } from '../types';
+import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
 import dayjs from 'dayjs';
 
 export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
@@ -47,6 +47,7 @@ export interface BelgeState {
   hazirlayanRol?: string;
   gorseller: ImageItem[];
   status: TeklifStatus;
+  visibility: TeklifVisibility;
 
   // ── Düzenleme bağlamı ──
   panelModu: PanelModu;
@@ -110,6 +111,9 @@ interface BelgeActions {
   kaydet: () => Promise<boolean>;
   /** Belirtilen status ile zorla kaydet (PDF/email akışında "kaydedildi"/"gonderildi" set eder). */
   kaydetWithStatus: (status: TeklifStatus) => Promise<boolean>;
+
+  // Görünürlük yetkisi (private = gizli, team = ekibe açık)
+  setVisibility: (v: TeklifVisibility) => void;
 }
 
 interface KullaniciBilgisi {
@@ -146,6 +150,14 @@ export function useBelgeState(
   const [olusturmaTarihi] = useState(mevcut?.olusturmaTarihi ?? dayjs().toISOString());
   const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
   const [status, setStatus] = useState<TeklifStatus>(mevcut?.status ?? 'taslak');
+  // Görünürlük yetkisi: yeni teklifte rol-bazlı default
+  //  - admin → 'private' (gizli) — yöneticinin teklifi varsayılan gizli
+  //  - engineer/sales → 'team' (mevcut davranış: herkes görüyor)
+  //  - mevcut teklifte: kayıttaki değer veya undefined → 'team' (geriye uyumluluk)
+  const [visibility, setVisibilityState] = useState<TeklifVisibility>(() => {
+    if (mevcut) return mevcut.visibility ?? 'team';
+    return kullanici?.rol === 'admin' ? 'private' : 'team';
+  });
 
   // Panel state — yalnızca araç çubuğundan erişilir (ikincil)
   const [panelModu, setPanelModu] = useState<PanelModu>(null);
@@ -333,8 +345,9 @@ export function useBelgeState(
       contactTitle: contactName.trim() ? contactTitle : undefined,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
       status,
+      visibility,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller, status]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller, status, visibility]);
 
   /**
    * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
@@ -404,7 +417,7 @@ export function useBelgeState(
   }, [
     cari, satirlar, paraBirimi, satirBazliParaBirimi, satirBazliIskonto,
     kdvOrani, iskontoOrani, odemeVadesi, notlar, contactName, contactTitle,
-    tarih, gorseller, durum, teklifNo, teklifNoDurumu,
+    tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility,
   ]);
 
   return {
@@ -431,6 +444,7 @@ export function useBelgeState(
     hazirlayanRol: kullanici?.rol,
     gorseller,
     status,
+    visibility,
     panelModu,
     seciliSatirId,
     hoverSatirId,
@@ -473,5 +487,6 @@ export function useBelgeState(
     teklifOlustur,
     kaydet,
     kaydetWithStatus,
+    setVisibility: setVisibilityState,
   };
 }
