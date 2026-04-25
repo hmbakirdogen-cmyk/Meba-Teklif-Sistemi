@@ -658,21 +658,9 @@ export default function KumandaPaneli({
           word-break: normal;
         }
 
-        .square-btn__value {
-          font-size: calc(11px * var(--panel-scale));
-          font-weight: 800;
-          line-height: 1;
-          letter-spacing: 0.02em;
-          color: var(--text-main);
-          font-variant-numeric: tabular-nums;
-        }
-
-        /* KDV özel — daha büyük tipografi */
-        .square-btn.kdv .square-btn__label {
-          font-size: calc(20px * var(--panel-scale));
-          letter-spacing: 0.08em;
-          line-height: 1;
-        }
+        /* .square-btn__value ve .square-btn.kdv .square-btn__label CSS
+           kuralları kaldırıldı: kare butonlarda artık hiçbir text node
+           render edilmiyor (yalnızca premium SVG ikon). */
 
         /* ── İskonto Oranı input ── */
         .panel-rate {
@@ -827,19 +815,17 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={[]}
-              ariaLabel="KDV"
+              ariaLabel={kdvOn ? `KDV açık — %${kdvOrani}` : 'KDV kapalı'}
               extraClass="finance kdv button-tax"
               icon={<KdvPremiumIcon />}
-              value={kdvOn ? `%${kdvOrani}` : undefined}
               on={kdvOn}
               onClick={toggleKdv}
             />
             <SquareToggle
               labelLines={[]}
-              ariaLabel="İskonto"
+              ariaLabel={iskOn ? `İskonto açık — %${iskontoOrani}` : 'İskonto kapalı'}
               extraClass="finance discount button-discount"
               icon={<DiscountPremiumIcon />}
-              value={iskOn ? `%${iskontoOrani}` : undefined}
               on={iskOn}
               onClick={toggleIsk}
             />
@@ -878,7 +864,6 @@ function SquareToggle({
   labelLines,
   ariaLabel,
   icon,
-  value,
   on,
   onClick,
   extraClass,
@@ -886,7 +871,6 @@ function SquareToggle({
   labelLines: readonly string[];
   ariaLabel: string;
   icon: ReactNode;
-  value?: string;
   on: boolean;
   onClick: () => void;
   extraClass?: string;
@@ -910,7 +894,6 @@ function SquareToggle({
           ))}
         </span>
       )}
-      {value && <span className="square-btn__value">{value}</span>}
     </button>
   );
 }
