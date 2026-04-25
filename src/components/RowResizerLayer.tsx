@@ -232,15 +232,15 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 2px ince premium lacivert hat — backgroundSize ile dikey orta strip.
-            // Her zaman düşük opacity'de görünür → personel nereden tutacağını
-            // anlar; hover'da CSS ile opacity 1'e + glow ile vurgulanır.
+            // 1px çok ince premium lacivert hat — hit area 6px (kolay hover),
+            // visual sadece 1px orta strip. Pasifte INVISIBLE; CSS :hover ile
+            // opacity 1'e + glow ile vurgulanır.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.75) 30%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 16px) 2px',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.85) 30%, rgba(59,130,246,0.65) 70%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 16px) 1px',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            opacity: 0.45,
+            opacity: 0,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
