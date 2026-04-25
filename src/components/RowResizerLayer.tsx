@@ -17,7 +17,6 @@
  *    ekran-px'tir. document-px'e çevirmek için scale ile bölünür.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { LINE_ITEM_METRICS } from '../templates/teklifDocumentShared';
 
 interface RowGeom {
@@ -213,49 +212,9 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  // ULTRA DEBUG: portal banner — derin runtime tanı
-  const firstSatirId = satirIds[0] ?? 'NONE';
-  const wrapper = layerRef.current?.parentElement;
-  const liveTable = wrapper?.querySelector<HTMLTableElement>('table.offer-table');
-  const allTrsInTable = liveTable?.querySelectorAll('tr[data-satir-id]') ?? [];
-  const firstTrAttr = allTrsInTable[0]?.getAttribute('data-satir-id') ?? 'NONE';
-  const allTablesInDoc = document.querySelectorAll('table.offer-table').length;
-
-  const debugBanner = createPortal(
-    <div style={{
-      position: 'fixed',
-      top: 80,
-      left: 16,
-      background: 'red',
-      color: 'white',
-      padding: '8px 14px',
-      fontSize: 12,
-      fontFamily: 'monospace',
-      zIndex: 99999,
-      borderRadius: 6,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-      pointerEvents: 'none',
-      maxWidth: '90vw',
-      wordBreak: 'break-all',
-    }}>
-      readOnly={String(readOnly)} | satirIds={satirIds.length} | rows={rows.length}
-      <br />
-      tableEl(prop)={tableEl ? 'OK' : 'NULL'} | wrapperFound={wrapper ? 'Y' : 'N'} | liveTable={liveTable ? 'Y' : 'N'} | tablesInDoc={allTablesInDoc}
-      <br />
-      allTrsWithDataSatirId={allTrsInTable.length}
-      <br />
-      firstSatirId="{firstSatirId}"
-      <br />
-      firstTrAttr="{firstTrAttr}"
-    </div>,
-    document.body
-  );
-
-  if (readOnly) return debugBanner;
+  if (readOnly) return null;
 
   return (
-    <>
-    {debugBanner}
     <div
       ref={layerRef}
       className="row-resizer-layer"
@@ -278,22 +237,24 @@ export function RowResizerLayer({
           style={{
             position: 'absolute',
             left: `${r.handleLeft}px`,
-            width: '200px',
+            width: `${r.handleWidth}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
-            height: '6px',
+            height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // ULTRA DEBUG — görmemen imkansız: 6px kalın PARLAK KIRMIZI + outline
-            background: 'red',
-            outline: '2px solid yellow',
-            opacity: 1,
-            zIndex: 9999,
-            transition: 'opacity 160ms ease',
+            // 1px ince premium lacivert hat — backgroundSize ile orta strip.
+            // Pasif opacity 0.22 (silikli baseline); CSS :hover ile 1.0 + glow.
+            background:
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.85) 30%, rgba(59,130,246,0.65) 70%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 16px) 1px',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: 0.22,
+            transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
       ))}
     </div>
-    </>
   );
 }
