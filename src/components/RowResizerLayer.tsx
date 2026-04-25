@@ -199,6 +199,16 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
+  // DEBUG diagnostic — kalıcı çözüm sonrası kaldırılacak
+  // eslint-disable-next-line no-console
+  console.log('[RowResizerLayer]', {
+    readOnly,
+    hasTableEl: !!tableEl,
+    satirIds: satirIds.length,
+    rowsRendered: rows.length,
+    sampleRow: rows[0],
+  });
+
   if (readOnly) return null;
 
   return (
@@ -209,7 +219,8 @@ export function RowResizerLayer({
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        zIndex: 30,
+        zIndex: 999,
+        outline: '2px dashed magenta',
       }}
     >
       {rows.map((r) => (
@@ -230,14 +241,11 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // Inline style — Vite HMR cache'inden bağımsız garanti görünür.
-            background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,1) 35%, rgba(96,165,250,0.85) 65%, rgba(15,23,42,0) 100%)',
-            borderRadius: '999px',
-            boxShadow:
-              '0 0 8px rgba(37,99,235,0.65), 0 0 16px rgba(59,130,246,0.30)',
-            opacity: 0.88,
-            transition: 'opacity 160ms ease, box-shadow 160ms ease',
+            // DEBUG — net kırmızı dolgu, opacity 1 → kuşkuya yer yok
+            background: 'red',
+            borderRadius: '0px',
+            opacity: 1,
+            outline: '1px solid yellow',
           }}
         />
       ))}
