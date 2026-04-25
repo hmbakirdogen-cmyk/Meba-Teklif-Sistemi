@@ -270,10 +270,16 @@ export default function KumandaPaneli({
           backdrop-filter: blur(12px) saturate(1.2);
           -webkit-backdrop-filter: blur(12px) saturate(1.2);
           background:
+            radial-gradient(
+              circle at 50% 35%,
+              color-mix(in srgb, var(--button-glow) 34%, transparent) 0%,
+              color-mix(in srgb, var(--button-glow) 18%, transparent) 38%,
+              rgba(255, 255, 255, 0.025) 72%
+            ),
             linear-gradient(
-              160deg,
-              color-mix(in srgb, var(--button-accent) 18%, transparent),
-              rgba(255,255,255,0.02)
+              180deg,
+              rgba(255, 255, 255, 0.055),
+              rgba(0, 0, 0, 0.16)
             );
           color: var(--button-accent);
           border-color: var(--button-accent);
@@ -281,25 +287,27 @@ export default function KumandaPaneli({
             0 0 10px var(--button-glow),
             0 0 24px var(--button-glow);
           box-shadow:
-            0 0 22px var(--button-glow),
-            0 0 60px color-mix(in srgb, var(--button-glow) 70%, transparent),
-            inset 0 1px 0 rgba(255,255,255,0.22),
-            inset 0 -14px 28px rgba(0,0,0,0.42);
+            0 0 18px color-mix(in srgb, var(--button-glow) 70%, transparent),
+            0 0 42px color-mix(in srgb, var(--button-glow) 38%, transparent),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            inset 0 0 24px color-mix(in srgb, var(--button-glow) 28%, transparent),
+            inset 0 -14px 26px rgba(0, 0, 0, 0.36);
         }
 
-        /* ── Elit dijital neon ikon ailesi ──
-           Ince stroke (2.2) + saydam drop-shadow glow. Cam tüp/highlight
-           katmanı YOK; çizgi net ve zarif, ışık ikon ÇEVRESİNDE yumuşak. */
+        /* ── Elit kurumsal dijital neon ikon ailesi ──
+           İnce stroke (1.75) + 2 katmanlı saydam drop-shadow. Cam tüp /
+           highlight / kalın boru karakteri YOK. Çizgi narin ve zarif,
+           ışık ikon ÇEVRESİNDE kontrollü ve refined. */
         .panel-icon {
           color: var(--button-accent);
           stroke: currentColor;
-          stroke-width: 2.2;
+          stroke-width: 1.75;
           fill: none;
           flex-shrink: 0;
-          opacity: 0.96;
+          opacity: 0.92;
           filter:
-            drop-shadow(0 0 5px var(--button-glow))
-            drop-shadow(0 0 14px color-mix(in srgb, var(--button-glow) 70%, transparent));
+            drop-shadow(0 0 4px var(--button-glow))
+            drop-shadow(0 0 10px color-mix(in srgb, var(--button-glow) 60%, transparent));
           transition: filter 220ms ease, opacity 220ms ease;
         }
 
@@ -325,30 +333,21 @@ export default function KumandaPaneli({
            merkezleme aşağı kayar). */
         .square-btn .panel-icon { width: 54px; height: 54px; }
 
-        /* Pasif durum — ince stroke + hafif derinlik shadow + çok narin glow.
-           Çocuksu parlama yok; kurumsal ölçülü. */
-        .control-panel button:not(.is-active) .panel-icon {
-          opacity: 0.82;
-          filter:
-            drop-shadow(0 1px 2px rgba(0, 0, 0, 0.38))
-            drop-shadow(0 0 8px color-mix(in srgb, var(--button-glow) 35%, transparent));
-        }
-
-        /* Aktif/basılı — daha geniş ve katmanlı dijital glow (6/18/32 px).
-           Cam tüp patlaması değil, elit zarif yoğunlaşma. */
+        /* Aktif/basılı — 3 katmanlı dijital glow (5/14/24 px). Pasif durum
+           .panel-icon base'i kullanır (kurumsal kontrollü); aktif yoğunlaşır. */
         .control-panel button.is-active .panel-icon,
         .control-panel button:active .panel-icon {
           opacity: 1;
           filter:
-            drop-shadow(0 0 6px var(--button-glow))
-            drop-shadow(0 0 18px var(--button-glow))
-            drop-shadow(0 0 32px color-mix(in srgb, var(--button-glow) 65%, transparent));
+            drop-shadow(0 0 5px var(--button-glow))
+            drop-shadow(0 0 14px var(--button-glow))
+            drop-shadow(0 0 24px color-mix(in srgb, var(--button-glow) 55%, transparent));
         }
 
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
         .control-panel button { --press-glow: var(--button-glow); }
 
-        /* Hover — hafif cam hissi: subtle blur + ince şeffaf bg */
+        /* Hover — hafif cam hissi + per-buton renkte saydam glow */
         .control-panel button:hover {
           transform: translateY(-2px);
           filter: brightness(1.08) saturate(1.08);
@@ -360,6 +359,10 @@ export default function KumandaPaneli({
               rgba(255,255,255,0.04),
               rgba(255,255,255,0.01)
             );
+          box-shadow:
+            0 14px 32px rgba(0, 0, 0, 0.42),
+            0 0 20px color-mix(in srgb, var(--button-glow) 28%, transparent),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
         }
 
         /* Pressed — fiziksel buton hissi: hafif içeri bas + scale */
@@ -472,15 +475,9 @@ export default function KumandaPaneli({
             inset 0 -14px 28px rgba(0,0,0,0.44);
         }
 
-        .square-btn:hover,
-        .image-add:hover,
-        .lock-button:hover {
-          box-shadow:
-            0 22px 46px rgba(0,0,0,0.58),
-            0 0 26px var(--press-glow, rgba(255,80,110,0.22)),
-            inset 0 1px 0 rgba(255,255,255,0.20),
-            inset 0 -16px 30px rgba(0,0,0,0.48);
-        }
+        /* Per-buton-tipi shared hover box-shadow override KALDIRILDI:
+           generic .control-panel button:hover artık tek noktadan hover glow'u
+           yönetiyor (yeni rafine spec — daha hafif + per-buton color-mix). */
 
         /* ── Düzenleme / Kilitli buton ── */
         .lock-button {
@@ -642,15 +639,9 @@ export default function KumandaPaneli({
             inset 0 -14px 28px rgba(0,0,0,0.44);
         }
 
-        .square-btn:hover,
-        .image-add:hover,
-        .lock-button:hover {
-          box-shadow:
-            0 22px 46px rgba(0,0,0,0.58),
-            0 0 26px var(--press-glow, rgba(255,80,110,0.22)),
-            inset 0 1px 0 rgba(255,255,255,0.20),
-            inset 0 -16px 30px rgba(0,0,0,0.48);
-        }
+        /* Per-buton-tipi shared hover box-shadow override KALDIRILDI:
+           generic .control-panel button:hover artık tek noktadan hover glow'u
+           yönetiyor (yeni rafine spec — daha hafif + per-buton color-mix). */
 
         /* lock-button[data-readonly="false"] ve .square-btn.is-active rose
            box-shadow override'ları kaldirildi. Generic .control-panel
