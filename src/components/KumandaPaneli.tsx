@@ -1,13 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import {
-  CalculatorOutlined,
-  LockOutlined,
-  PercentageOutlined,
-  PictureOutlined,
-  SwapOutlined,
-  TagsOutlined,
-  UnlockOutlined,
-} from '@ant-design/icons';
+  EditPremiumIcon,
+  ImageAddPremiumIcon,
+  RowDiscountPremiumIcon,
+  RowCurrencyPremiumIcon,
+  KdvPremiumIcon,
+  DiscountPremiumIcon,
+} from './control-panel/PanelIcons';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
@@ -264,12 +263,28 @@ export default function KumandaPaneli({
             inset 0 -14px 28px rgba(0,0,0,0.42);
         }
 
+        /* ── Premium SVG ikon ailesi (özel pictogram) ──
+           Tek parça SVG'ler currentColor üzerinden var(--button-accent)
+           inherit eder. Pasifte yumuşak glow, aktif/basili'da yoğun. */
+        .panel-icon {
+          color: var(--button-accent);
+          flex-shrink: 0;
+          filter:
+            drop-shadow(0 0 6px var(--button-glow))
+            drop-shadow(0 0 14px var(--button-glow));
+          transition: filter 220ms ease;
+        }
+
+        .lock-button .panel-icon { width: 52px; height: 52px; }
+        .image-add  .panel-icon { width: 36px; height: 36px; }
+        .square-btn .panel-icon { width: 44px; height: 44px; margin-bottom: calc(6px * var(--panel-scale)); }
+
         .control-panel button.is-active .panel-icon,
         .control-panel button:active .panel-icon {
-          color: var(--button-accent);
           filter:
             drop-shadow(0 0 8px var(--button-glow))
-            drop-shadow(0 0 18px var(--button-glow));
+            drop-shadow(0 0 20px var(--button-glow))
+            drop-shadow(0 0 36px var(--button-glow));
         }
 
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
@@ -455,14 +470,6 @@ export default function KumandaPaneli({
           );
         }
 
-        .lock-button__icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: calc(22px * var(--panel-scale));
-          line-height: 1;
-        }
-
         .lock-button__label {
           font-size: calc(16px * var(--panel-scale));
           font-weight: 900;
@@ -490,11 +497,6 @@ export default function KumandaPaneli({
           align-items: center;
           justify-content: center;
           gap: calc(10px * var(--panel-scale));
-        }
-
-        .image-add__icon {
-          font-size: calc(16px * var(--panel-scale));
-          line-height: 1;
         }
 
         /* ── Resim Ekle hover/active — mavi aksiyon glow ── */
@@ -643,12 +645,6 @@ export default function KumandaPaneli({
           );
         }
 
-        .square-btn__icon {
-          font-size: calc(18px * var(--panel-scale));
-          line-height: 1;
-          color: var(--accent);
-        }
-
         .square-btn__label {
           display: flex;
           flex-direction: column;
@@ -777,9 +773,7 @@ export default function KumandaPaneli({
             onClick={() => onReadOnlyDegistir(!readOnly)}
           >
             <span className="button-sweep" aria-hidden="true" />
-            <span className="lock-button__icon panel-icon">
-              {readOnly ? <LockOutlined /> : <UnlockOutlined />}
-            </span>
+            <EditPremiumIcon />
             <span className="lock-button__label">
               {readOnly ? 'KİLİTLİ' : 'DÜZENLEME'}
             </span>
@@ -791,7 +785,7 @@ export default function KumandaPaneli({
             onClick={onResimSec}
           >
             <span className="button-sweep" aria-hidden="true" />
-            <PictureOutlined className="image-add__icon panel-icon" />
+            <ImageAddPremiumIcon />
             <span>RESİM EKLE</span>
           </button>
 
@@ -810,14 +804,14 @@ export default function KumandaPaneli({
             <SquareToggle
               labelLines={['SATIR BAZLI', 'İSKONTO']}
               extraClass="button-row-discount"
-              icon={<PercentageOutlined />}
+              icon={<RowDiscountPremiumIcon />}
               on={satirBazliIskonto}
               onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
             />
             <SquareToggle
               labelLines={['SATIR BAZLI', 'PARA BİRİMİ']}
               extraClass="button-row-currency"
-              icon={<SwapOutlined />}
+              icon={<RowCurrencyPremiumIcon />}
               on={satirBazliParaBirimi}
               onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
             />
@@ -830,7 +824,7 @@ export default function KumandaPaneli({
             <SquareToggle
               labelLines={['KDV']}
               extraClass="finance kdv button-tax"
-              icon={<CalculatorOutlined />}
+              icon={<KdvPremiumIcon />}
               value={kdvOn ? `%${kdvOrani}` : undefined}
               on={kdvOn}
               onClick={toggleKdv}
@@ -838,7 +832,7 @@ export default function KumandaPaneli({
             <SquareToggle
               labelLines={['İSKONTO']}
               extraClass="finance discount button-discount"
-              icon={<TagsOutlined />}
+              icon={<DiscountPremiumIcon />}
               value={iskOn ? `%${iskontoOrani}` : undefined}
               on={iskOn}
               onClick={toggleIsk}
@@ -893,7 +887,7 @@ function SquareToggle({
   return (
     <button type="button" className={cls} onClick={onClick}>
       <span className="button-sweep" aria-hidden="true" />
-      <span className="square-btn__icon panel-icon">{icon}</span>
+      {icon}
       <span className="square-btn__label">
         {labelLines.map((line) => (
           <span key={line}>{line}</span>
