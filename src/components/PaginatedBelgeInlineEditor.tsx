@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -190,10 +190,18 @@ function PageTableWithResizer({
     setTableEl(found ?? null);
   }, []);
 
-  // Wrapper geçici olarak çıkarıldı — sadece children pass-through.
-  // Edit'in çalışıp çalışmadığını izole etmek için.
-  void setWrapperRef; void tableEl; void satirIds; void scale; void readOnly; void onSatirGuncelle;
-  return <>{children}</>;
+  return (
+    <div ref={setWrapperRef} style={{ position: 'relative' }}>
+      {children}
+      <RowResizerLayer
+        tableEl={tableEl}
+        satirIds={satirIds}
+        scale={scale}
+        readOnly={readOnly}
+        onCommit={(id, h) => onSatirGuncelle(id, 'rowHeight', h)}
+      />
+    </div>
+  );
 }
 
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {

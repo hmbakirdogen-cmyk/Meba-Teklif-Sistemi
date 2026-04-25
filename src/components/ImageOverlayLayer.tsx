@@ -14,7 +14,7 @@
  *   - Arrow              → 1px hareket
  *   - Shift+Arrow        → 10px hareket
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ImageItem } from '../types';
 import { ImageOverlayItem } from './ImageOverlayItem';
 
@@ -38,21 +38,12 @@ export function ImageOverlayLayer({
   onDelete,
 }: ImageOverlayLayerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const layerRef = useRef<HTMLDivElement>(null);
 
   const items = gorseller.filter((g) => g.pageIndex === pageIndex);
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
-
-  // Outside-click → deselect (yalnızca tıklanan element layer'ın kendisi ise)
-  const handleLayerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!interactive) return;
-    if (e.target === e.currentTarget) {
-      setSelectedId(null);
-    }
-  }, [interactive]);
 
   // Klavye olayları — sadece interactive mod ve seçili öğe varken
   useEffect(() => {
@@ -94,20 +85,35 @@ export function ImageOverlayLayer({
     }
   }, [gorseller, selectedId]);
 
+  // Document-level outside-click → deselect.
+  // Layer'ın kendisi pointer-events:none olduğu için tıklamaları yakalayamaz;
+  // bu yüzden global listener ile resim dışına tıklamayı tespit ederiz.
+  useEffect(() => {
+    if (!interactive || !selectedId) return;
+    const onDocDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('[data-image-overlay-item]')) return;
+      setSelectedId(null);
+    };
+    document.addEventListener('mousedown', onDocDown, true);
+    return () => document.removeEventListener('mousedown', onDocDown, true);
+  }, [interactive, selectedId]);
+
   if (items.length === 0 && !interactive) return null;
 
   return (
     <div
-      ref={layerRef}
       className="image-overlay-layer"
       data-pdf-overlay-layer
-      onPointerDown={handleLayerPointerDown}
+      // KRİTİK: layer wrapper HER ZAMAN pointer-events: none. Aksi takdirde
+      // boş bir layer bile A4'ün üstüne binip cell click'lerini yutar.
+      // Görsellerin kendi <div>'leri pointer-events: auto ile kendi
+      // tıklamalarını yakalar (ImageOverlayItem içinde).
       style={{
         position: 'absolute',
         inset: 0,
-        pointerEvents: interactive ? 'auto' : 'none',
+        pointerEvents: 'none',
         zIndex: 60,
-        // Layer arka plan SAYDAM kalır — alttaki belge tıklanmasi engellenmemeli
         background: 'transparent',
       }}
     >
