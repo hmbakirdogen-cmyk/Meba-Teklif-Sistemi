@@ -49,6 +49,8 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
 // 6px hit area: 2px satır içinde + 4px gap'te. Kolay hover yakalama.
 const HANDLE_HIT_HEIGHT = 6;
 const HANDLE_INSIDE_ROW_PX = 2;
+// Sabit handle uzunluğu: 2.5 cm = 25 mm ≈ 94 px (96 DPI document-px).
+const HANDLE_WIDTH_PX = 94;
 
 export function RowResizerLayer({
   tableEl,
@@ -88,23 +90,16 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel: sola yaslı, Ürün Kodu + Açıklama kolon genişlikleri.
-        // Cells başarısız olursa fallback: tablo genişliğinin %42'si (sol-yarı).
-        const codeCell = tr.cells[2] as HTMLElement | undefined;
-        const descCell = tr.cells[3] as HTMLElement | undefined;
-        const codeW = codeCell ? codeCell.getBoundingClientRect().width : 0;
-        const descW = descCell ? descCell.getBoundingClientRect().width : 0;
-        const computedW = codeW + descW;
-        const handleLeftScreen = r.left;
-        const handleRightScreen = r.left + (computedW > 0 ? computedW : r.width * 0.42);
+        // Handle: sola yaslı (tr.left), sabit 2.5 cm uzunluk (HANDLE_WIDTH_PX).
+        // Cells'e bağlı dinamik hesap kaldırıldı — net sabit ölçü.
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
           height: r.height / scale,
           left: (r.left - layerRect.left) / scale,
           width: r.width / scale,
-          handleLeft: (handleLeftScreen - layerRect.left) / scale,
-          handleWidth: (handleRightScreen - handleLeftScreen) / scale,
+          handleLeft: (r.left - layerRect.left) / scale,
+          handleWidth: HANDLE_WIDTH_PX,
         });
       }
       // İçerik değişmediyse setState çağrısı YAPMA — gereksiz re-render yok
