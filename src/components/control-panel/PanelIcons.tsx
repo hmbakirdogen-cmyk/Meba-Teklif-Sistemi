@@ -273,29 +273,30 @@ export function KdvPremiumIcon({ className = 'panel-icon' }: IconProps) {
       </defs>
       {/* iç bloom — harflerin arkasında derinlik */}
       <ellipse cx="18" cy="13" rx="17" ry="9" fill="url(#kd-bloom)" />
-      {/* KDV harfleri — bold sans, tek seferde path */}
+      {/* KDV harfleri — kurumsal wordmark: hafif daha açık tracking + biraz
+         daha narin gövde (900 → 800), aynı gradient/glow ailesinde kalır. */}
       <text
         x="18"
-        y="17.6"
+        y="17.2"
         textAnchor="middle"
         fontFamily="-apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif"
-        fontSize="14"
-        fontWeight="900"
-        letterSpacing="0.06em"
+        fontSize="13"
+        fontWeight="800"
+        letterSpacing="0.14em"
         fill="url(#kd-text)"
         stroke="currentColor"
-        strokeWidth="0.4"
+        strokeWidth="0.35"
         paintOrder="stroke fill"
       >
         KDV
       </text>
-      {/* alt accent çizgisi */}
+      {/* alt accent çizgisi — wordmark kurumsal hissini güçlendiren ince hat */}
       <path
-        d="M 8 21 H 28"
+        d="M 10 20.6 H 26"
         stroke="currentColor"
-        strokeWidth="1.4"
+        strokeWidth="1.1"
         strokeLinecap="round"
-        opacity="0.55"
+        opacity="0.45"
       />
     </svg>
   );
