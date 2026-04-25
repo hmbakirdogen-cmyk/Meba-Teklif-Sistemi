@@ -282,7 +282,10 @@ export default function KumandaPaneli({
 
         .lock-button .panel-icon { width: 52px; height: 52px; }
         .image-add  .panel-icon { width: 36px; height: 36px; }
-        .square-btn .panel-icon { width: 44px; height: 44px; margin-bottom: calc(6px * var(--panel-scale)); }
+        /* Kare butonlarda etiket yok — ikon büyük ve parent flex gap'i (6px*scale)
+           ile value'dan ayrılır. margin-bottom verilmez (yoksa tek ikon halinde
+           merkezleme aşağı kayar). */
+        .square-btn .panel-icon { width: 54px; height: 54px; }
 
         .control-panel button.is-active .panel-icon,
         .control-panel button:active .panel-icon {
@@ -808,6 +811,7 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={[]}
+              ariaLabel="Satır Bazlı İskonto"
               extraClass="button-row-discount"
               icon={<RowDiscountPremiumIcon />}
               on={satirBazliIskonto}
@@ -815,6 +819,7 @@ export default function KumandaPaneli({
             />
             <SquareToggle
               labelLines={[]}
+              ariaLabel="Satır Bazlı Para Birimi"
               extraClass="button-row-currency"
               icon={<RowCurrencyPremiumIcon />}
               on={satirBazliParaBirimi}
@@ -828,6 +833,7 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={[]}
+              ariaLabel="KDV"
               extraClass="finance kdv button-tax"
               icon={<KdvPremiumIcon />}
               value={kdvOn ? `%${kdvOrani}` : undefined}
@@ -836,6 +842,7 @@ export default function KumandaPaneli({
             />
             <SquareToggle
               labelLines={[]}
+              ariaLabel="İskonto"
               extraClass="finance discount button-discount"
               icon={<DiscountPremiumIcon />}
               value={iskOn ? `%${iskontoOrani}` : undefined}
@@ -875,6 +882,7 @@ export default function KumandaPaneli({
 
 function SquareToggle({
   labelLines,
+  ariaLabel,
   icon,
   value,
   on,
@@ -882,6 +890,7 @@ function SquareToggle({
   extraClass,
 }: {
   labelLines: readonly string[];
+  ariaLabel: string;
   icon: ReactNode;
   value?: string;
   on: boolean;
@@ -890,7 +899,14 @@ function SquareToggle({
 }) {
   const cls = `square-btn${on ? ' is-active' : ''}${extraClass ? ' ' + extraClass : ''}`;
   return (
-    <button type="button" className={cls} onClick={onClick}>
+    <button
+      type="button"
+      className={cls}
+      onClick={onClick}
+      title={ariaLabel}
+      aria-label={ariaLabel}
+      aria-pressed={on}
+    >
       <span className="button-sweep" aria-hidden="true" />
       {icon}
       {labelLines.length > 0 && (
