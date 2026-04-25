@@ -24,7 +24,8 @@ interface RowGeom {
   top: number;     // layer'ın iç koordinatında (px)
   height: number;
   left: number;
-  width: number;
+  width: number;       // satırın tam genişliği (drag geometrisi için)
+  handleWidth: number; // tutamağın görsel genişliği (sol → açıklama kolonu sonu)
 }
 
 interface RowResizerLayerProps {
@@ -39,7 +40,7 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const x = a[i], y = b[i];
-    if (x.id !== y.id || x.top !== y.top || x.height !== y.height || x.left !== y.left || x.width !== y.width) return false;
+    if (x.id !== y.id || x.top !== y.top || x.height !== y.height || x.left !== y.left || x.width !== y.width || x.handleWidth !== y.handleWidth) return false;
   }
   return true;
 };
@@ -87,12 +88,20 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
+        // Handle görsel genişliği: tr soldan başlayıp .description-cell'in
+        // sağ kenarına kadar (Sıra+Marka+Kod+Açıklama). Boydan boya değil.
+        const descCell = tr.querySelector<HTMLElement>('.description-cell');
+        const handleRightScreen = descCell
+          ? descCell.getBoundingClientRect().right
+          : r.right;
+        const handleWidth = (handleRightScreen - r.left) / scale;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
           height: r.height / scale,
           left: (r.left - layerRect.left) / scale,
           width: r.width / scale,
+          handleWidth,
         });
       }
       // İçerik değişmediyse setState çağrısı YAPMA — gereksiz re-render yok
@@ -214,7 +223,7 @@ export function RowResizerLayer({
           style={{
             position: 'absolute',
             left: `${r.left}px`,
-            width: `${r.width}px`,
+            width: `${r.handleWidth}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',

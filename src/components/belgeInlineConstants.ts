@@ -520,29 +520,54 @@ export const FIELD_CSS = `
 
 /* ══════════════════════════════════════════════════════════════════════
    ROW RESIZE HANDLE — satır altı sürüklenebilir tutamak.
-   Default: görünmez. Hover: hafif mavi tint. Aktif drag: belirgin çizgi.
-   Yalnızca aktif satır td'leri çok hafif mavi vurguyla işaretlenir.
+   - Hit area: şeffaf, sadece pointer eventları yakalar.
+   - Görsel: ::after ince premium lacivert gradient çizgi (sol → açıklama
+     kolonu sonu, RowResizerLayer.handleWidth ile sınırlı).
+   - Boydan boya highlight YASAK: tr arka planı drag boyunca DEĞİŞMEZ.
    PDF capture sırasında handle render edilmez (interactive=false ağacı).
    ══════════════════════════════════════════════════════════════════════ */
 .row-resize-handle {
-  opacity: 0;
   background: transparent;
-  transition: opacity 120ms ease, background-color 120ms ease;
+  position: absolute;
 }
-.row-resize-handle:hover {
-  opacity: 0.4;
-  background: rgba(37, 99, 235, 0.18);
+
+.row-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0),
+    rgba(30, 64, 175, 0.75),
+    rgba(59, 130, 246, 0.55),
+    rgba(15, 23, 42, 0)
+  );
+  opacity: 0.25;
+  box-shadow: 0 0 8px rgba(30, 64, 175, 0.35);
+  transition: opacity 160ms ease, box-shadow 160ms ease;
+  pointer-events: none;
 }
-.row-resize-handle[data-active="true"] {
-  opacity: 1 !important;
-  background: rgba(37, 99, 235, 0.45) !important;
+
+.row-resize-handle:hover::after {
+  opacity: 1;
 }
-.belge-inline tr[data-satir-id][data-resizing="true"] > td {
-  background: rgba(37, 99, 235, 0.06) !important;
-  transition: background-color 120ms ease;
+
+.row-resize-handle[data-active="true"]::after {
+  opacity: 1;
+  box-shadow:
+    0 0 10px rgba(30, 64, 175, 0.55),
+    0 0 18px rgba(59, 130, 246, 0.28);
 }
+
 @media print {
-  .row-resize-handle, .row-resizer-layer { display: none !important; }
+  .row-resize-handle,
+  .row-resizer-layer {
+    display: none !important;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
