@@ -198,6 +198,15 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
+  // DEBUG — runtime durumunu konsola yaz; sorun teşhisi için
+  // eslint-disable-next-line no-console
+  console.log('[RowResizerLayer]', {
+    readOnly,
+    hasTableEl: !!tableEl,
+    satirIds: satirIds.length,
+    rowsRendered: rows.length,
+  });
+
   if (readOnly) return null;
 
   return (
@@ -209,6 +218,8 @@ export function RowResizerLayer({
         inset: 0,
         pointerEvents: 'none',
         zIndex: 30,
+        // DEBUG — layer alanını net görmek için saydam kırmızı border
+        outline: '1px dashed rgba(255, 0, 0, 0.4)',
       }}
     >
       {rows.map((r) => (
