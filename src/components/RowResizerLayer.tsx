@@ -235,7 +235,7 @@ export function RowResizerLayer({
             backgroundSize: 'calc(100% - 16px) 1px',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            opacity: 0,
+            opacity: 0.22,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
