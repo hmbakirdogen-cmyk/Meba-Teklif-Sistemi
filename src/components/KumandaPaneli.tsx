@@ -1,49 +1,46 @@
 /**
- * KumandaPaneli — Sade, kompakt, scroll-suz, hiyerarsik kontrol paneli.
+ * KumandaPaneli — 3 net grup, sade tek-kaynak tasarım sistemi.
  *
- * SADECE 2 GRUP:
- *   A) DÜZENLEME  → Düzenleme (dominant), Resim Ekle
- *   B) FİNANSAL   → KDV, İskonto, Satır Bazlı İskonto, Satır Bazlı Para Birimi
+ * GRUPLAR (sıra zorunlu):
+ *   1) DÜZENLEME       → Düzenleme (özel) + Resim Ekle (action, toggle DEĞİL)
+ *   2) SATIR AYARLARI  → Satır Bazlı İskonto, Satır Bazlı Para Birimi (toggle, row variant)
+ *   3) GENEL FİNANS    → Katma Değer Vergisi, İskonto (+ İskonto Oranı input) (toggle, view variant)
  *
- * YASAK:
- *   - PDF / E-posta / Kaydet (BelgeToolbar'da kalır)
- *   - Durum değiştirici (BelgeToolbar tag göstergesi)
- *   - Scroll
- *   - "Açık/Kapalı" yazıları
- *   - Kısaltılmış buton metni
+ * SINIFLAR (4 yapı taşı):
+ *   .kp-edit    — Düzenleme (neon yeşil glow özel)
+ *   .kp-action  — Aksiyon butonu (Resim Ekle) — TOGGLE DEĞİL, hover-only
+ *   .kp-toggle  — Toggle (data-on="true" + data-variant="view|row")
+ *   .kp-rate    — Inline rate input
  */
 import { useRef, useState } from 'react';
 import { LockOutlined, UnlockOutlined, PictureOutlined } from '@ant-design/icons';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
-// ── Design tokens — tek kaynak ───────────────────────────────────────────────
+// ── Design tokens ────────────────────────────────────────────────────────────
 const K = {
-  WIDTH:     186,
-
-  EDIT_H:    62,            // Düzenleme — en baskın
-  COMPACT_H: 34,            // Resim Ekle
-  SQUARE_H:  62,            // Finans kare
-  RATE_H:    34,
-  BTN_R:     9,
-  EDIT_R:    12,
-  ICON:      14,
-
+  WIDTH:     220,            // full label "Satır Bazlı Para Birimi" tek satıra sığar
   PANEL_PAD: 12,
-  GROUP_GAP: 12,            // gruplar arası
-  ITEM_GAP:  6,             // grup içi öğeler arası
+  GROUP_GAP: 14,
+  ITEM_GAP:  6,
 
-  // Edge / A4 nefes
-  EDGE_MIN:  20,            // ekran kenarı min margin
+  EDIT_H:    64,
+  ACTION_H:  36,
+  TOGGLE_H:  36,
+  RATE_H:    30,
+  EDIT_R:    12,
+  BTN_R:     8,
 
-  // Shell
+  EDGE_MIN:  20,             // ekran kenarı min margin
+
+  // Shell (metalik bordo)
   shellImg:   'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.07), transparent 30%), linear-gradient(150deg, #1A0A0F 0%, #2A0E14 50%, #38121A 100%)',
   shellSolid: '#1A0A0F',
   shellBdr:   '#4A1A22',
 
   txtLabel:   'rgba(255, 247, 242, 0.50)',
 
-  // Düzenleme — neon yeşil (özel)
+  // Düzenleme — neon yeşil
   neon:       '#39FFB6',
   neonSoft:   'rgba(57, 255, 182, 0.55)',
   neonGlow:   'rgba(57, 255, 182, 0.30)',
@@ -58,7 +55,7 @@ const K = {
   lkLkTxt:    '#F4C9B8',
 } as const;
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Section label ─────────────────────────────────────────────────────────────
 function SecLabel({ text }: { text: string }) {
   return (
     <div style={{
@@ -71,7 +68,7 @@ function SecLabel({ text }: { text: string }) {
   );
 }
 
-// ── Props ──────────────────────────────────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 interface KumandaPaneliProps {
   readOnly:                       boolean;
   onReadOnlyDegistir:             (v: boolean) => void;
@@ -87,7 +84,7 @@ interface KumandaPaneliProps {
   onResimEkle:                    (dataUrl: string) => void;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function KumandaPaneli({
   readOnly, onReadOnlyDegistir,
   kdvOrani, onKdvOraniDegistir,
@@ -100,7 +97,7 @@ export default function KumandaPaneli({
   const [lastIsk, setLastIsk] = useState(() => iskontoOrani > 0 ? iskontoOrani : 10);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const kdvOn = kdvOrani > 0;
+  const kdvOn = kdvOrani     > 0;
   const iskOn = iskontoOrani > 0;
 
   const toggleKdv = () => {
@@ -137,7 +134,6 @@ export default function KumandaPaneli({
           : `max(${K.EDGE_MIN}px, calc(50% - 585px))`,
         width: K.WIDTH,
         zIndex: 80,
-        // Scroll YOK — height auto, içerik tek ekrana sığar
         pointerEvents: 'auto',
       }}
     >
@@ -153,28 +149,42 @@ export default function KumandaPaneli({
           'inset 0 1px 0 rgba(255,255,255,0.05)',
           'inset 0 -1px 0 rgba(0,0,0,0.45)',
         ].join(', '),
-        // KESİNLİKLE scroll yok
-        overflow: 'hidden',
+        overflow: 'hidden',                     // SCROLL YASAK
       }}>
       <style>{`
-        .kp-edit, .kp-btn, .kp-square {
+        .kp-edit, .kp-action, .kp-toggle {
           transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
                       box-shadow 0.18s ease, transform 0.10s ease, filter 0.18s ease,
                       text-shadow 0.18s ease;
-          position: relative;
           font-family: inherit;
+          position: relative;
+        }
+        .kp-edit:active, .kp-action:active, .kp-toggle:active { transform: translateY(1px); filter: brightness(0.95); }
+
+        /* ── ACTION (Resim Ekle) — HİÇBİR data-on/data-variant almaz ── */
+        .kp-action {
+          background: rgba(180, 135, 255, 0.10);
+          border: 1px solid rgba(180, 135, 255, 0.28);
+          color: #EFE2FF;
+          cursor: pointer;
+        }
+        .kp-action:hover {
+          background: rgba(180, 135, 255, 0.18);
+          border-color: rgba(180, 135, 255, 0.42);
+          filter: brightness(1.08);
         }
 
-        /* PASİF baz */
-        .kp-btn, .kp-square {
+        /* ── TOGGLE (KDV / İskonto / Satır*) ── */
+        .kp-toggle {
           background: rgba(255, 247, 242, 0.045);
           border: 1px solid rgba(255, 247, 242, 0.10);
           color: #FFF7F2;
+          cursor: pointer;
         }
+        .kp-toggle:hover { filter: brightness(1.10); }
 
-        /* AKTİF baz — dolu zemin + iç-shadow + variant rengi */
-        .kp-btn[data-on="true"],
-        .kp-square[data-on="true"] {
+        /* Aktif baz */
+        .kp-toggle[data-on="true"] {
           background: rgba(255, 247, 242, 0.14);
           border-color: rgba(255, 247, 242, 0.36);
           box-shadow:
@@ -182,10 +192,8 @@ export default function KumandaPaneli({
             inset 0 -2px 5px rgba(0,0,0,0.22),
             0 4px 14px rgba(0,0,0,0.30);
         }
-
-        /* Variant — view (KDV/İskonto) — amber/altın */
-        .kp-btn[data-on="true"][data-variant="view"],
-        .kp-square[data-on="true"][data-variant="view"] {
+        /* view variant — amber (KDV/İskonto aktif) */
+        .kp-toggle[data-on="true"][data-variant="view"] {
           background: rgba(255, 215, 150, 0.18);
           border-color: rgba(255, 215, 150, 0.46);
           color: #FFF0D2;
@@ -195,9 +203,8 @@ export default function KumandaPaneli({
             0 0 16px rgba(255,215,150,0.22),
             0 0 24px rgba(255,215,150,0.10);
         }
-        /* Variant — row (Satır*) — violet */
-        .kp-btn[data-on="true"][data-variant="row"],
-        .kp-square[data-on="true"][data-variant="row"] {
+        /* row variant — violet (Satır* aktif) */
+        .kp-toggle[data-on="true"][data-variant="row"] {
           background: rgba(180, 135, 255, 0.18);
           border-color: rgba(180, 135, 255, 0.46);
           color: #EFE2FF;
@@ -207,18 +214,6 @@ export default function KumandaPaneli({
             0 0 16px rgba(180,135,255,0.24),
             0 0 24px rgba(180,135,255,0.10);
         }
-        /* Variant — settings (Resim Ekle hover state, pasif) — violet ince */
-        .kp-btn[data-variant="settings"]:hover {
-          background: rgba(180, 135, 255, 0.10);
-          border-color: rgba(180, 135, 255, 0.30);
-          color: #EFE2FF;
-        }
-
-        /* Hover */
-        .kp-edit:hover  { filter: brightness(1.10); }
-        .kp-edit:active { transform: translateY(1px); filter: brightness(0.92); }
-        .kp-btn:hover, .kp-square:hover { filter: brightness(1.10); }
-        .kp-btn:active, .kp-square:active { transform: translateY(1px); filter: brightness(0.95); }
 
         /* Değer etiketi (örn. "%20") — bilgi, durum DEĞİL */
         .kp-val {
@@ -228,7 +223,11 @@ export default function KumandaPaneli({
           font-variant-numeric: tabular-nums;
           letter-spacing: 0.02em;
           line-height: 1;
+          flex-shrink: 0;
         }
+
+        /* Düzenleme hover */
+        .kp-edit:hover { filter: brightness(1.10); }
 
         /* Rate input */
         .kp-rate::-webkit-inner-spin-button,
@@ -239,11 +238,11 @@ export default function KumandaPaneli({
       <div style={{ padding: K.PANEL_PAD }}>
 
         {/* ══════════════════════════════════════════════════════════════════
-           A) DÜZENLEME  →  Düzenleme + Resim Ekle
+           1. DÜZENLEME
            ══════════════════════════════════════════════════════════════════ */}
         <SecLabel text="Düzenleme" />
 
-        {/* Düzenleme — EN BASKIN buton */}
+        {/* Düzenleme — en baskın */}
         <button
           type="button"
           className="kp-edit"
@@ -258,7 +257,7 @@ export default function KumandaPaneli({
             flexDirection:  'column',
             alignItems:     'center',
             justifyContent: 'center',
-            gap:            5,
+            gap:            4,
             cursor:         'pointer',
             outline:        'none',
             padding:        0,
@@ -271,9 +270,7 @@ export default function KumandaPaneli({
           <span style={{
             fontSize: 22, lineHeight: 1, display: 'inline-flex',
             color: readOnly ? K.lkLkIco : K.neon,
-            textShadow: readOnly
-              ? undefined
-              : `0 0 6px ${K.neonSoft}, 0 0 14px ${K.neonGlow}`,
+            textShadow: readOnly ? undefined : `0 0 6px ${K.neonSoft}, 0 0 14px ${K.neonGlow}`,
           }}>
             {readOnly ? <LockOutlined /> : <UnlockOutlined />}
           </span>
@@ -281,27 +278,24 @@ export default function KumandaPaneli({
             fontSize: '11px', fontWeight: 700, letterSpacing: '0.10em',
             textTransform: 'uppercase', lineHeight: 1,
             color: readOnly ? K.lkLkTxt : K.neon,
-            textShadow: readOnly
-              ? undefined
-              : `0 0 5px ${K.neonSoft}, 0 0 12px ${K.neonGlow}`,
+            textShadow: readOnly ? undefined : `0 0 5px ${K.neonSoft}, 0 0 12px ${K.neonGlow}`,
           }}>
             {readOnly ? 'Kilitli' : 'Düzenleme'}
           </span>
         </button>
 
-        {/* Resim Ekle — kompakt */}
+        {/* Resim Ekle — AKSİYON (toggle DEĞİL) */}
         <button
           type="button"
-          className="kp-btn"
-          data-variant="settings"
+          className="kp-action"
           onClick={onResimSec}
           style={{
-            width: '100%', height: K.COMPACT_H, borderRadius: K.BTN_R,
+            width: '100%', height: K.ACTION_H, borderRadius: K.BTN_R,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 8, padding: '0 10px', cursor: 'pointer', outline: 'none',
+            gap: 8, padding: '0 10px', outline: 'none',
           }}
         >
-          <PictureOutlined style={{ fontSize: K.ICON }} />
+          <PictureOutlined style={{ fontSize: 13 }} />
           <span style={{ fontSize: '11px', fontWeight: 600, lineHeight: 1 }}>Resim Ekle</span>
         </button>
         <input
@@ -312,48 +306,49 @@ export default function KumandaPaneli({
           style={{ display: 'none' }}
         />
 
-        {/* Group gap */}
         <div style={{ height: K.GROUP_GAP }} />
 
         {/* ══════════════════════════════════════════════════════════════════
-           B) FİNANSAL  →  KDV / İskonto / Satır Bazlı İskonto / Satır Bazlı PB
+           2. SATIR AYARLARI
            ══════════════════════════════════════════════════════════════════ */}
-        <SecLabel text="Finansal" />
+        <SecLabel text="Satır Ayarları" />
+        <Toggle
+          label="Satır Bazlı İskonto"
+          on={satirBazliIskonto}
+          variant="row"
+          onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
+        />
+        <div style={{ height: K.ITEM_GAP }} />
+        <Toggle
+          label="Satır Bazlı Para Birimi"
+          on={satirBazliParaBirimi}
+          variant="row"
+          onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
+        />
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: K.ITEM_GAP,
-        }}>
-          <SquareToggle
-            label="KDV"
-            value={kdvOn ? `%${kdvOrani}` : undefined}
-            on={kdvOn}
-            variant="view"
-            onClick={toggleKdv}
-          />
-          <SquareToggle
-            label="İskonto"
-            value={iskOn ? `%${iskontoOrani}` : undefined}
-            on={iskOn}
-            variant="view"
-            onClick={toggleIsk}
-          />
-          <SquareToggle
-            label={'Satır Bazlı\nİskonto'}
-            on={satirBazliIskonto}
-            variant="row"
-            onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
-          />
-          <SquareToggle
-            label={'Satır Bazlı\nPara Birimi'}
-            on={satirBazliParaBirimi}
-            variant="row"
-            onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
-          />
-        </div>
+        <div style={{ height: K.GROUP_GAP }} />
 
-        {/* İskonto rate input — yalnız İskonto aktifken */}
+        {/* ══════════════════════════════════════════════════════════════════
+           3. GENEL FİNANS
+           ══════════════════════════════════════════════════════════════════ */}
+        <SecLabel text="Genel Finans" />
+        <Toggle
+          label="Katma Değer Vergisi"
+          value={kdvOn ? `%${kdvOrani}` : undefined}
+          on={kdvOn}
+          variant="view"
+          onClick={toggleKdv}
+        />
+        <div style={{ height: K.ITEM_GAP }} />
+        <Toggle
+          label="İskonto"
+          value={iskOn ? `%${iskontoOrani}` : undefined}
+          on={iskOn}
+          variant="view"
+          onClick={toggleIsk}
+        />
+
+        {/* İskonto Oranı — yalnız iskonto aktifken */}
         {iskOn && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 7,
@@ -364,11 +359,12 @@ export default function KumandaPaneli({
             borderRadius: K.BTN_R,
             border: '1px solid rgba(255, 215, 150, 0.28)',
           }}>
-            <span style={{ fontSize: '10px', color: 'rgba(255,240,210,0.78)', flex: 1, fontWeight: 600 }}>
+            <span style={{ fontSize: '10.5px', color: 'rgba(255,240,210,0.80)', flex: 1, fontWeight: 600, lineHeight: 1 }}>
               İskonto Oranı
             </span>
             <input
-              type="number" className="kp-rate"
+              type="number"
+              className="kp-rate"
               min={0.5} max={100} step={0.5}
               value={iskontoOrani}
               onChange={e => {
@@ -384,7 +380,7 @@ export default function KumandaPaneli({
                 fontVariantNumeric: 'tabular-nums',
               }}
             />
-            <span style={{ fontSize: '10px', color: '#FFF0D2', fontWeight: 600 }}>%</span>
+            <span style={{ fontSize: '10.5px', color: '#FFF0D2', fontWeight: 600, lineHeight: 1 }}>%</span>
           </div>
         )}
 
@@ -394,8 +390,8 @@ export default function KumandaPaneli({
   );
 }
 
-// ── Kare toggle (Finans grid) ──────────────────────────────────────────────────
-function SquareToggle({
+// ── Toggle (KDV / İskonto / Satır*) ───────────────────────────────────────────
+function Toggle({
   label, value, on, variant, onClick,
 }: {
   label: string;
@@ -407,36 +403,34 @@ function SquareToggle({
   return (
     <button
       type="button"
-      className="kp-square"
+      className="kp-toggle"
       data-on={on}
       data-variant={variant}
       onClick={onClick}
       style={{
-        height: K.SQUARE_H,
+        width: '100%',
+        height: K.TOGGLE_H,
         borderRadius: K.BTN_R,
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: value ? 4 : 0,
-        padding: '0 4px',
-        cursor: 'pointer',
+        justifyContent: 'space-between',
+        gap: 8,
+        padding: '0 12px',
         outline: 'none',
       }}
     >
       <span style={{
-        fontSize: '10.5px',
+        fontSize: '11px',
         fontWeight: on ? 700 : 600,
         lineHeight: 1.15,
-        whiteSpace: 'pre-line',
-        textAlign: 'center',
-        letterSpacing: '0.01em',
+        textAlign: 'left',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
       }}>
         {label}
       </span>
-      {value && (
-        <span className="kp-val">{value}</span>
-      )}
+      {value && <span className="kp-val">{value}</span>}
     </button>
   );
 }
