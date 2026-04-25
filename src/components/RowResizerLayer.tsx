@@ -24,8 +24,9 @@ interface RowGeom {
   top: number;     // layer'ın iç koordinatında (px)
   height: number;
   left: number;
-  width: number;       // satırın tam genişliği (drag geometrisi için)
-  handleWidth: number; // tutamağın görsel genişliği (sol → açıklama kolonu sonu)
+  width: number;        // satırın tam genişliği (drag geometrisi için)
+  handleLeft: number;   // tutamak başlangıcı (Ürün Kodu kolonu solu)
+  handleWidth: number;  // tutamak genişliği (Kod + Açıklama kolonları toplamı)
 }
 
 interface RowResizerLayerProps {
@@ -40,15 +41,14 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const x = a[i], y = b[i];
-    if (x.id !== y.id || x.top !== y.top || x.height !== y.height || x.left !== y.left || x.width !== y.width || x.handleWidth !== y.handleWidth) return false;
+    if (x.id !== y.id || x.top !== y.top || x.height !== y.height || x.left !== y.left || x.width !== y.width || x.handleLeft !== y.handleLeft || x.handleWidth !== y.handleWidth) return false;
   }
   return true;
 };
 
-// 4px tutamak: 1px satır içinde + 3px satır altı boşlukta. Hücre tıklamalarına
-// minimum müdahale, ns-resize için yeterli hit area.
-const HANDLE_HIT_HEIGHT = 4;
-const HANDLE_INSIDE_ROW_PX = 1;
+// 2px ince tutamak — narin görsel; hit area satır altında kolayca yakalanır.
+const HANDLE_HIT_HEIGHT = 2;
+const HANDLE_INSIDE_ROW_PX = 0;
 
 export function RowResizerLayer({
   tableEl,
@@ -88,20 +88,20 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel genişliği: tr soldan başlayıp .description-cell'in
-        // sağ kenarına kadar (Sıra+Marka+Kod+Açıklama). Boydan boya değil.
+        // Handle görsel: Ürün Kodu kolonunun solu → Açıklama kolonunun sağı.
+        // Sıra No ve Marka kolonlarını es geçer; "ilk 2 anlamlı sütun" niyeti.
+        const codeCell = tr.querySelector<HTMLElement>('.product-code-cell');
         const descCell = tr.querySelector<HTMLElement>('.description-cell');
-        const handleRightScreen = descCell
-          ? descCell.getBoundingClientRect().right
-          : r.right;
-        const handleWidth = (handleRightScreen - r.left) / scale;
+        const handleLeftScreen = codeCell ? codeCell.getBoundingClientRect().left : r.left;
+        const handleRightScreen = descCell ? descCell.getBoundingClientRect().right : r.right;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
           height: r.height / scale,
           left: (r.left - layerRect.left) / scale,
           width: r.width / scale,
-          handleWidth,
+          handleLeft: (handleLeftScreen - layerRect.left) / scale,
+          handleWidth: (handleRightScreen - handleLeftScreen) / scale,
         });
       }
       // İçerik değişmediyse setState çağrısı YAPMA — gereksiz re-render yok
@@ -198,15 +198,6 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  // DEBUG — runtime durumunu konsola yaz; sorun teşhisi için
-  // eslint-disable-next-line no-console
-  console.log('[RowResizerLayer]', {
-    readOnly,
-    hasTableEl: !!tableEl,
-    satirIds: satirIds.length,
-    rowsRendered: rows.length,
-  });
-
   if (readOnly) return null;
 
   return (
@@ -218,8 +209,6 @@ export function RowResizerLayer({
         inset: 0,
         pointerEvents: 'none',
         zIndex: 30,
-        // DEBUG — layer alanını net görmek için saydam kırmızı border
-        outline: '1px dashed rgba(255, 0, 0, 0.4)',
       }}
     >
       {rows.map((r) => (
@@ -233,22 +222,21 @@ export function RowResizerLayer({
           onPointerCancel={(e) => finish(e, false)}
           style={{
             position: 'absolute',
-            left: `${r.left + 6}px`,
+            left: `${r.handleLeft + 6}px`,
             width: `${Math.max(0, r.handleWidth - 12)}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // Inline style fallback — CSS HMR yenilemese bile garanti görünür.
+            // Inline style — Vite HMR cache'inden bağımsız garanti görünür.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,1) 35%, rgba(96,165,250,0.92) 65%, rgba(15,23,42,0) 100%)',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,0.92) 50%, rgba(15,23,42,0) 100%)',
             borderRadius: '999px',
             boxShadow:
-              '0 0 8px rgba(37,99,235,0.65), 0 0 18px rgba(59,130,246,0.32)',
-            opacity: 0.85,
-            transition:
-              'opacity 160ms ease, box-shadow 160ms ease, height 160ms ease',
+              '0 0 6px rgba(37,99,235,0.55), 0 0 14px rgba(59,130,246,0.25)',
+            opacity: 0.78,
+            transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
       ))}
