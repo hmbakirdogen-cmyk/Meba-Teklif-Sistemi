@@ -15,8 +15,13 @@ interface IconProps {
   className?: string;
 }
 
-// ── Düzenleme: kilit gövdesi + entegre kalem (tek parça SVG) ────────────────
-export function EditPremiumIcon({ className = 'panel-icon' }: IconProps) {
+// ── Düzenleme: kilit gövdesi (kapalı/açık) + editing'de entegre kalem ───────
+// readOnly=true  → kapalı kemer, kalem yok    (renk: kırmızı, .lock-button data-readonly)
+// readOnly=false → açık kemer (sol bacak kaldırılmış) + diyagonal kalem (renk: yeşil)
+export function EditPremiumIcon({
+  className = 'panel-icon',
+  readOnly = true,
+}: IconProps & { readOnly?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
       <defs>
@@ -31,15 +36,26 @@ export function EditPremiumIcon({ className = 'panel-icon' }: IconProps) {
       </defs>
       {/* iç bloom */}
       <rect x="4" y="10" width="13" height="11" rx="2.6" fill="url(#ed-bloom)" />
-      {/* kilit kemeri */}
-      <path
-        d="M 7 10 V 7 a 3.5 3.5 0 0 1 7 0 V 10"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {/* kilit kemeri — kapalı / açık */}
+      {readOnly ? (
+        <path
+          d="M 7 10 V 7 a 3.5 3.5 0 0 1 7 0 V 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="M 14 10 V 7 a 3.5 3.5 0 0 0 -6.4 -1.7 L 4 8.6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
       {/* kilit gövdesi */}
       <rect
         x="4"
@@ -52,7 +68,7 @@ export function EditPremiumIcon({ className = 'panel-icon' }: IconProps) {
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
-      {/* anahtar deliği (göz + ince çizgi) */}
+      {/* anahtar deliği */}
       <circle cx="8.6" cy="14.4" r="1.05" fill="currentColor" />
       <path
         d="M 8.6 15.3 V 17.4"
@@ -60,24 +76,28 @@ export function EditPremiumIcon({ className = 'panel-icon' }: IconProps) {
         strokeWidth="1.4"
         strokeLinecap="round"
       />
-      {/* entegre kalem — gövdenin sağ alt köşesinden çıkıp dışa diyagonal */}
-      <path
-        d="M 14 20 L 19 15 L 21 17 L 16 22 Z"
-        fill="rgba(255,255,255,0.06)"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* kalem ucu — dolu üçgen */}
-      <path d="M 14 20 L 13.4 22.6 L 16 22 Z" fill="currentColor" />
-      {/* kalem bilezik çizgisi */}
-      <path
-        d="M 18.2 15.8 L 20.2 17.8"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
+      {/* entegre kalem — sadece editing modunda görünür */}
+      {!readOnly && (
+        <>
+          <path
+            d="M 14 20 L 19 15 L 21 17 L 16 22 Z"
+            fill="rgba(255,255,255,0.06)"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* kalem ucu — dolu üçgen */}
+          <path d="M 14 20 L 13.4 22.6 L 16 22 Z" fill="currentColor" />
+          {/* kalem bilezik çizgisi */}
+          <path
+            d="M 18.2 15.8 L 20.2 17.8"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </>
+      )}
     </svg>
   );
 }

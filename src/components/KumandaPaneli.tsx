@@ -231,6 +231,11 @@ export default function KumandaPaneli({
         /* .control-panel button. prefix ile specificity (0,2,1) →
            .control-panel button (0,1,1) override edilir. */
         .control-panel button.button-edit         { --button-accent: rgba( 70, 255, 160, 0.95); --button-glow: rgba( 70, 255, 160, 0.45); }
+        /* Kilitli durumda kilit ikonu sıcak kırmızı; düzenleme aktifken yeşil. */
+        .control-panel button.button-edit[data-readonly="true"] {
+          --button-accent: rgba(255,  95, 115, 0.95);
+          --button-glow:   rgba(255,  95, 115, 0.40);
+        }
         .control-panel button.button-image        { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
         .control-panel button.button-row-discount { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
         .control-panel button.button-row-currency { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
@@ -773,7 +778,7 @@ export default function KumandaPaneli({
             onClick={() => onReadOnlyDegistir(!readOnly)}
           >
             <span className="button-sweep" aria-hidden="true" />
-            <EditPremiumIcon />
+            <EditPremiumIcon readOnly={readOnly} />
             <span className="lock-button__label">
               {readOnly ? 'KİLİTLİ' : 'DÜZENLEME'}
             </span>
