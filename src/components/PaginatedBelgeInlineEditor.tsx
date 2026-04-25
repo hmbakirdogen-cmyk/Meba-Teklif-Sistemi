@@ -193,13 +193,17 @@ function PageTableWithResizer({
   return (
     <div ref={setWrapperRef} style={{ position: 'relative' }}>
       {children}
-      <RowResizerLayer
-        tableEl={tableEl}
-        satirIds={satirIds}
-        scale={scale}
-        readOnly={readOnly}
-        onCommit={(id, h) => onSatirGuncelle(id, 'rowHeight', h)}
-      />
+      {/* Resizer geçici olarak DEVRE DIŞI — edit yapılamama sorununu izole etmek
+         için. Layer aktif değilken hücre tıklamaları doğrudan çalışmalı. */}
+      {false && (
+        <RowResizerLayer
+          tableEl={tableEl}
+          satirIds={satirIds}
+          scale={scale}
+          readOnly={readOnly}
+          onCommit={(id, h) => onSatirGuncelle(id, 'rowHeight', h)}
+        />
+      )}
     </div>
   );
 }
