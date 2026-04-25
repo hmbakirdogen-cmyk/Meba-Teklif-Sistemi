@@ -504,6 +504,10 @@ export default function TeklifEditor() {
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           sagPanelOpen={state.panelModu !== null}
           onResimEkle={handleResimEkle}
+          onPdfIndir={handlePdfIndir}
+          onEMailGonder={handleEMailGonder}
+          onKaydet={handleKaydet}
+          uretiliyor={state.uretiliyor}
         />
       )}
     </div>
