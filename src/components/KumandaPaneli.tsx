@@ -822,7 +822,7 @@ export default function KumandaPaneli({
           <SecLabel text="Genel Finans" />
           <div className="grid">
             <SquareToggle
-              labelLines={['KDV']}
+              labelLines={[]}
               extraClass="finance kdv button-tax"
               icon={<KdvPremiumIcon />}
               value={kdvOn ? `%${kdvOrani}` : undefined}
@@ -830,7 +830,7 @@ export default function KumandaPaneli({
               onClick={toggleKdv}
             />
             <SquareToggle
-              labelLines={['İSKONTO']}
+              labelLines={[]}
               extraClass="finance discount button-discount"
               icon={<DiscountPremiumIcon />}
               value={iskOn ? `%${iskontoOrani}` : undefined}
@@ -888,11 +888,13 @@ function SquareToggle({
     <button type="button" className={cls} onClick={onClick}>
       <span className="button-sweep" aria-hidden="true" />
       {icon}
-      <span className="square-btn__label">
-        {labelLines.map((line) => (
-          <span key={line}>{line}</span>
-        ))}
-      </span>
+      {labelLines.length > 0 && (
+        <span className="square-btn__label">
+          {labelLines.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </span>
+      )}
       {value && <span className="square-btn__value">{value}</span>}
     </button>
   );
