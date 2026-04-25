@@ -137,7 +137,10 @@ export function RowResizerLayer({
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-  }, [tableEl, satirIdsKey, scale]);
+    // readOnly deps'te ÖNEMLİ: kilitli moddan düzenleme moduna geçince layer
+    // mount olur ama tableEl/satirIds/scale değişmediği için effect bir daha
+    // çalışmazdı. readOnly toggle'ı re-trigger eder.
+  }, [tableEl, satirIdsKey, scale, readOnly]);
 
   // ── Drag state machine ────────────────────────────────────────────────
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>, id: string) => {
