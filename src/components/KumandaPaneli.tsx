@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import {
-  EditPremiumIcon,
-  ImageAddPremiumIcon,
-  RowDiscountPremiumIcon,
-  RowCurrencyPremiumIcon,
-  KdvPremiumIcon,
-  DiscountPremiumIcon,
-} from './control-panel/PanelIcons';
+  PremiumEditIcon,
+  PremiumImageIcon,
+  PremiumRowDiscountIcon,
+  PremiumRowCurrencyIcon,
+  PremiumKdvIcon,
+  PremiumDiscountIcon,
+} from './premium-icons';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
@@ -294,54 +294,68 @@ export default function KumandaPaneli({
             inset 0 -14px 26px rgba(0, 0, 0, 0.36);
         }
 
-        /* ── Elit kurumsal dijital neon ikon ailesi ──
-           İnce stroke (1.75) + 2 katmanlı saydam drop-shadow. Cam tüp /
-           highlight / kalın boru karakteri YOK. Çizgi narin ve zarif,
-           ışık ikon ÇEVRESİNDE kontrollü ve refined. */
-        .panel-icon {
+        /* ── Premium filled-symbol ikon ailesi ──
+           Yarı dolgulu ana form (.pi-body) + ince stroke 1.7 + iç sembol
+           (.pi-glyph stroke 2 / .pi-detail filled accent). Çizgi ikon, neon
+           tüp, emoji yok. Apple/Tesla tarzı kurumsal anlam-yoğun pictogram. */
+        .premium-panel-icon {
+          width: 44px;
+          height: 44px;
           color: var(--button-accent);
-          stroke: currentColor;
-          stroke-width: 1.75;
-          fill: none;
           flex-shrink: 0;
-          opacity: 0.92;
           filter:
-            drop-shadow(0 0 4px var(--button-glow))
-            drop-shadow(0 0 10px color-mix(in srgb, var(--button-glow) 60%, transparent));
-          transition: filter 220ms ease, opacity 220ms ease;
+            drop-shadow(0 1px 1px rgba(255, 255, 255, 0.10))
+            drop-shadow(0 5px 10px rgba(0, 0, 0, 0.32));
+          transition: filter 220ms ease;
         }
 
-        .panel-icon * {
+        /* Ana yarı dolgulu form — saydam karakter rengi + ince stroke kenar */
+        .premium-panel-icon .pi-body {
+          fill: color-mix(in srgb, var(--button-accent) 18%, rgba(255, 255, 255, 0.04));
+          stroke: color-mix(in srgb, var(--button-accent) 82%, rgba(255, 255, 255, 0.08));
+          stroke-width: 1.7;
+          stroke-linejoin: round;
+        }
+
+        /* İç dolu accent — küçük saturate parça (anahtar deliği, dağ, vb.) */
+        .premium-panel-icon .pi-detail {
+          fill: color-mix(in srgb, var(--button-accent) 75%, white 8%);
+          stroke: none;
+        }
+
+        /* İç sembol/glyph — iskeletsel net çizgi (% diagonal, plus, ₺) */
+        .premium-panel-icon .pi-glyph {
+          fill: none;
+          stroke: color-mix(in srgb, var(--button-accent) 88%, white 8%);
+          stroke-width: 2;
           stroke-linecap: round;
           stroke-linejoin: round;
         }
 
-        /* KDV wordmark text — text fill solid accent; tube stroke uygulanmaz. */
-        .panel-icon .panel-icon-text {
+        /* KDV wordmark text — fill solid accent, stroke yok */
+        .premium-panel-icon .pi-text {
           font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-          font-size: 13px;
+          font-size: 18px;
           font-weight: 800;
-          letter-spacing: 0.14em;
-          fill: var(--button-accent);
+          letter-spacing: 0.06em;
+          fill: color-mix(in srgb, var(--button-accent) 90%, white 6%);
           stroke: none;
         }
 
-        .lock-button .panel-icon { width: 52px; height: 52px; }
-        .image-add  .panel-icon { width: 36px; height: 36px; }
-        /* Kare butonlarda etiket yok — ikon büyük ve parent flex gap'i (6px*scale)
-           ile value'dan ayrılır. margin-bottom verilmez (yoksa tek ikon halinde
-           merkezleme aşağı kayar). */
-        .square-btn .panel-icon { width: 54px; height: 54px; }
+        .lock-button .premium-panel-icon { width: 52px; height: 52px; }
+        .image-add  .premium-panel-icon { width: 34px; height: 34px; }
+        /* Kare butonlarda etiket yok — ikon ortalı + parent flex gap'i value
+           ile arada boşluk yönetir. */
+        .square-btn .premium-panel-icon { width: 46px; height: 46px; }
 
-        /* Aktif/basılı — 3 katmanlı dijital glow (5/14/24 px). Pasif durum
-           .panel-icon base'i kullanır (kurumsal kontrollü); aktif yoğunlaşır. */
-        .control-panel button.is-active .panel-icon,
-        .control-panel button:active .panel-icon {
-          opacity: 1;
+        /* Aktif/basılı — daha parlak + daha canlı + per-buton renkte hafif
+           glow halesi. Neon değil; kurumsal yoğunlaşma. */
+        .control-panel button.is-active .premium-panel-icon,
+        .control-panel button:active .premium-panel-icon {
           filter:
-            drop-shadow(0 0 5px var(--button-glow))
-            drop-shadow(0 0 14px var(--button-glow))
-            drop-shadow(0 0 24px color-mix(in srgb, var(--button-glow) 55%, transparent));
+            drop-shadow(0 2px 2px rgba(255, 255, 255, 0.12))
+            drop-shadow(0 8px 16px rgba(0, 0, 0, 0.38))
+            drop-shadow(0 0 16px color-mix(in srgb, var(--button-glow) 45%, transparent));
         }
 
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
@@ -806,7 +820,7 @@ export default function KumandaPaneli({
             aria-pressed={!readOnly}
           >
             <span className="button-sweep" aria-hidden="true" />
-            <EditPremiumIcon readOnly={readOnly} />
+            <PremiumEditIcon readOnly={readOnly} />
           </button>
 
           <button
@@ -817,7 +831,7 @@ export default function KumandaPaneli({
             aria-label="Resim Ekle"
           >
             <span className="button-sweep" aria-hidden="true" />
-            <ImageAddPremiumIcon />
+            <PremiumImageIcon />
           </button>
 
           <input
@@ -836,7 +850,7 @@ export default function KumandaPaneli({
               labelLines={[]}
               ariaLabel="Satır Bazlı İskonto"
               extraClass="button-row-discount"
-              icon={<RowDiscountPremiumIcon />}
+              icon={<PremiumRowDiscountIcon />}
               on={satirBazliIskonto}
               onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
             />
@@ -844,7 +858,7 @@ export default function KumandaPaneli({
               labelLines={[]}
               ariaLabel="Satır Bazlı Para Birimi"
               extraClass="button-row-currency"
-              icon={<RowCurrencyPremiumIcon />}
+              icon={<PremiumRowCurrencyIcon />}
               on={satirBazliParaBirimi}
               onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
             />
@@ -858,7 +872,7 @@ export default function KumandaPaneli({
               labelLines={[]}
               ariaLabel={kdvOn ? `KDV açık — %${kdvOrani}` : 'KDV kapalı'}
               extraClass="finance kdv button-tax"
-              icon={<KdvPremiumIcon />}
+              icon={<PremiumKdvIcon />}
               on={kdvOn}
               onClick={toggleKdv}
             />
@@ -866,7 +880,7 @@ export default function KumandaPaneli({
               labelLines={[]}
               ariaLabel={iskOn ? `İskonto açık — %${iskontoOrani}` : 'İskonto kapalı'}
               extraClass="finance discount button-discount"
-              icon={<DiscountPremiumIcon />}
+              icon={<PremiumDiscountIcon />}
               on={iskOn}
               onClick={toggleIsk}
             />
