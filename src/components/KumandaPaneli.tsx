@@ -12,11 +12,11 @@ import {
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
 const K = {
-  WIDTH: 240,
+  WIDTH: 156,
   TOP: 97,
   BOTTOM_GAP: 24,
   EDGE_MIN: 24,
-  RIGHT_CLOSED_OFFSET: 669, // 397 (A4 half) + 240 (panel) + 32 (gap)
+  RIGHT_CLOSED_OFFSET: 585, // 397 (A4 half) + 156 (panel) + 32 (gap)
   RIGHT_OPEN_OFFSET: 376,   // SagPanel 360 + 16px boşluk
 } as const;
 
@@ -124,17 +124,22 @@ export default function KumandaPaneli({
     >
       <style>{`
         :root {
+          --panel-scale: 0.65;
           --panel-bg-1: #1a0308;
           --panel-bg-2: #2b0610;
           --panel-bg-3: #090103;
 
           --panel-glow: rgba(255, 80, 110, 0.18);
           --panel-border: rgba(255, 120, 140, 0.28);
+          --panel-edge-glow: rgba(255, 112, 134, 0.12);
+          --panel-inner-light: rgba(255, 255, 255, 0.08);
 
           --panel-shadow:
-            0 30px 80px rgba(5, 0, 2, 0.65),
-            inset 0 1px 0 rgba(255,255,255,0.08),
-            inset 0 -1px 0 rgba(0,0,0,0.6);
+            0 34px 82px rgba(5, 0, 2, 0.68),
+            0 0 28px var(--panel-edge-glow),
+            inset 0 1px 0 var(--panel-inner-light),
+            inset 0 0 0 1px rgba(255,255,255,0.03),
+            inset 0 -18px 30px rgba(0,0,0,0.34);
 
           --card-bg-1: #3a0a14;
           --card-bg-2: #160307;
@@ -157,14 +162,17 @@ export default function KumandaPaneli({
         .control-panel {
           width: 100%;
           box-sizing: border-box;
-          padding: 20px;
-          border-radius: 28px;
+          padding: calc(20px * var(--panel-scale));
+          border-radius: calc(28px * var(--panel-scale));
           color: var(--text-main);
           background:
-            radial-gradient(circle at top left, var(--panel-glow), transparent 40%),
+            radial-gradient(circle at 14% -4%, rgba(255, 115, 138, 0.22), transparent 34%),
+            radial-gradient(circle at 84% 4%, rgba(255, 255, 255, 0.06), transparent 26%),
+            radial-gradient(circle at 50% 120%, rgba(0, 0, 0, 0.28), transparent 45%),
             linear-gradient(160deg,
-              var(--panel-bg-2) 0%,
-              var(--panel-bg-1) 45%,
+              #3a0814 0%,
+              var(--panel-bg-2) 24%,
+              var(--panel-bg-1) 52%,
               var(--panel-bg-3) 100%
             );
           border: 1px solid var(--panel-border);
@@ -177,15 +185,15 @@ export default function KumandaPaneli({
         }
 
         .panel-section + .panel-section {
-          margin-top: 20px;
-          padding-top: 18px;
+          margin-top: calc(20px * var(--panel-scale));
+          padding-top: calc(18px * var(--panel-scale));
           border-top: 1px solid rgba(255, 111, 132, 0.18);
         }
 
         .panel-title {
-          margin: 0 0 14px;
-          font-size: 11px;
-          letter-spacing: 0.25em;
+          margin: 0 0 calc(14px * var(--panel-scale));
+          font-size: calc(11px * var(--panel-scale));
+          letter-spacing: 0.18em;
           font-weight: 700;
           text-transform: uppercase;
           color: var(--text-soft);
@@ -195,26 +203,148 @@ export default function KumandaPaneli({
         .control-panel button {
           cursor: pointer;
           font-family: inherit;
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
           transition:
             transform 180ms ease,
             box-shadow 180ms ease,
+            filter 180ms ease,
             border-color 180ms ease,
-            background 180ms ease,
-            filter 180ms ease;
+            color 180ms ease,
+            text-shadow 180ms ease,
+            background 180ms ease;
           will-change: transform, box-shadow;
-          position: relative;
+          /* Default karakter — class override eder */
+          --button-accent: rgba(255, 105, 135, 0.95);
+          --button-glow:   rgba(255, 105, 135, 0.28);
         }
+
+        /* ── Per-buton karakter renk paleti ──────────────────────────── */
+        .button-edit          { --button-accent: rgba(255,  85, 125, 0.95); --button-glow: rgba(255,  85, 125, 0.32); }
+        .button-image         { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
+        .button-row-discount  { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
+        .button-row-currency  { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
+        .button-tax           { --button-accent: rgba(255, 190,  95, 0.95); --button-glow: rgba(255, 190,  95, 0.30); }
+        .button-discount      { --button-accent: rgba(255, 135,  80, 0.95); --button-glow: rgba(255, 135,  80, 0.28); }
+
+        /* ── Aktif veya basılı: yazı / ikon / border / glow karakter rengine bürünür ── */
+        /* Arka plan değişmez — sadece karakter ışığı yayılır. */
+        .control-panel button.is-active,
+        .control-panel button:active {
+          color: var(--button-accent);
+          border-color: var(--button-accent);
+          text-shadow:
+            0 0 10px var(--button-glow),
+            0 0 22px var(--button-glow);
+          box-shadow:
+            0 0 24px var(--button-glow),
+            0 0 54px color-mix(in srgb, var(--button-glow) 70%, transparent),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            inset 0 -16px 30px rgba(0, 0, 0, 0.48);
+        }
+
+        .control-panel button.is-active .panel-icon,
+        .control-panel button:active .panel-icon {
+          color: var(--button-accent);
+          filter:
+            drop-shadow(0 0 8px var(--button-glow))
+            drop-shadow(0 0 18px var(--button-glow));
+        }
+
+        /* press-glow (premiumPressGlow keyframe) için per-buton renk */
+        .control-panel button { --press-glow: var(--button-glow); }
 
         /* Hover — hafif yukarı kalkma + parlama */
         .control-panel button:hover {
-          transform: translateY(-1px);
-          filter: brightness(1.06);
+          transform: translateY(-2px);
+          filter: brightness(1.08) saturate(1.08);
         }
 
         /* Pressed — fiziksel buton hissi: hafif içeri bas + scale */
         .control-panel button:active {
-          transform: translateY(1px) scale(0.985);
+          transform: translateY(2px) scale(0.975);
           filter: brightness(0.96);
+        }
+
+        .control-panel button::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          background:
+            linear-gradient(
+              180deg,
+              rgba(255,255,255,0.18) 0%,
+              rgba(255,255,255,0.05) 34%,
+              transparent 58%
+            );
+          opacity: 0.42;
+          z-index: 1;
+        }
+
+        .control-panel button > * {
+          position: relative;
+          z-index: 2;
+        }
+
+        .control-panel button .button-sweep {
+          position: absolute;
+          top: -40%;
+          left: -80%;
+          width: 45%;
+          height: 180%;
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(255,255,255,0.04) 35%,
+            rgba(255,255,255,0.16) 50%,
+            rgba(255,255,255,0.04) 65%,
+            transparent 100%
+          );
+          transform: rotate(8deg);
+          opacity: 0;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .control-panel button::after {
+          content: "";
+          position: absolute;
+          inset: -18px;
+          border-radius: inherit;
+          pointer-events: none;
+          opacity: 0;
+          z-index: 0;
+          background: radial-gradient(circle, var(--press-glow, rgba(255, 90, 120, 0.35)) 0%, transparent 62%);
+          transform: scale(0.72);
+        }
+
+        .control-panel button:active::after {
+          animation: premiumPressGlow 520ms ease-out forwards;
+        }
+
+        .control-panel button:hover .button-sweep {
+          animation: premiumLightSweep 900ms ease-out forwards;
+        }
+
+        @keyframes premiumPressGlow {
+          0% {
+            opacity: 0;
+            transform: scale(0.65);
+            filter: blur(2px);
+          }
+          35% {
+            opacity: 1;
+            transform: scale(1.05);
+            filter: blur(6px);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.38);
+            filter: blur(14px);
+          }
         }
 
         .control-panel button:focus-visible,
@@ -223,92 +353,102 @@ export default function KumandaPaneli({
           outline-offset: 2px;
         }
 
+        .square-btn,
+        .image-add,
+        .lock-button {
+          box-shadow:
+            0 16px 34px rgba(0,0,0,0.48),
+            0 0 18px rgba(255,80,110,0.10),
+            inset 0 1px 0 rgba(255,255,255,0.16),
+            inset 0 -14px 28px rgba(0,0,0,0.44);
+        }
+
+        .square-btn:hover,
+        .image-add:hover,
+        .lock-button:hover {
+          box-shadow:
+            0 22px 46px rgba(0,0,0,0.58),
+            0 0 26px var(--press-glow, rgba(255,80,110,0.22)),
+            inset 0 1px 0 rgba(255,255,255,0.20),
+            inset 0 -16px 30px rgba(0,0,0,0.48);
+        }
+
         /* ── Düzenleme / Kilitli buton ── */
         .lock-button {
+          --press-glow: rgba(255, 80, 120, 0.42);
           width: 100%;
-          height: 90px;
-          border-radius: 18px;
+          height: calc(90px * var(--panel-scale));
+          border-radius: calc(18px * var(--panel-scale));
           border: 1px solid rgba(255, 100, 120, 0.4);
           background:
             radial-gradient(circle at 50% 0%, rgba(255, 100, 120, 0.15), transparent),
             linear-gradient(180deg, #4a0814, #1b0307);
           color: var(--accent);
-          font-size: 22px;
+          font-size: calc(22px * var(--panel-scale));
           font-weight: 900;
-          letter-spacing: 0.10em;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          box-shadow: inset 0 0 25px rgba(255, 60, 90, 0.12);
+          gap: calc(6px * var(--panel-scale));
         }
 
         .lock-button[data-readonly="false"] {
           border-color: rgba(255, 143, 155, 0.64);
           box-shadow:
-            0 0 28px rgba(255, 88, 116, 0.18),
-            inset 0 0 25px rgba(255, 60, 90, 0.12),
+            0 18px 38px rgba(0,0,0,0.54),
+            0 0 24px rgba(255, 88, 116, 0.18),
             inset 0 1px 0 rgba(255,255,255,0.10);
         }
 
         /* ── Düzenleme/Kilitli premium hover/active — ana buton, hissi güçlü ── */
         .lock-button:hover {
-          box-shadow:
-            0 0 30px rgba(255, 80, 110, 0.22),
-            0 12px 32px rgba(12, 0, 4, 0.36),
-            inset 0 0 28px rgba(255, 60, 90, 0.16);
+          border-color: rgba(255, 145, 165, 0.52);
         }
 
         .lock-button:active {
           box-shadow:
+            0 10px 20px rgba(0,0,0,0.42),
             inset 0 6px 18px rgba(0, 0, 0, 0.35),
-            inset 0 0 24px rgba(255, 60, 90, 0.18);
+            inset 0 -8px 18px rgba(0, 0, 0, 0.40);
         }
 
         /* Düzenleme aktifken (kilitli=false) sakin sürekli iç ışık */
-        .lock-button[data-readonly="false"] {
-          animation: lockEditGlow 3.4s ease-in-out infinite;
-        }
-
-        @keyframes lockEditGlow {
-          0%, 100% {
-            box-shadow:
-              0 0 24px rgba(255, 88, 116, 0.18),
-              inset 0 0 25px rgba(255, 60, 90, 0.12),
-              inset 0 1px 0 rgba(255, 255, 255, 0.10);
-          }
-          50% {
-            box-shadow:
-              0 0 32px rgba(255, 88, 116, 0.26),
-              inset 0 0 30px rgba(255, 60, 90, 0.18),
-              inset 0 1px 0 rgba(255, 255, 255, 0.12);
-          }
+        .lock-button .button-sweep {
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(255,255,255,0.05) 35%,
+            rgba(255,225,232,0.18) 50%,
+            rgba(255,255,255,0.05) 65%,
+            transparent 100%
+          );
         }
 
         .lock-button__icon {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-size: 22px;
+          font-size: calc(22px * var(--panel-scale));
           line-height: 1;
-          text-shadow: 0 0 16px rgba(255, 111, 132, 0.20);
         }
 
         .lock-button__label {
-          font-size: 16px;
+          font-size: calc(16px * var(--panel-scale));
           font-weight: 900;
           line-height: 1;
-          letter-spacing: 0.10em;
+          letter-spacing: 0.08em;
         }
 
         /* ── Resim Ekle (aksiyon, blue) ── */
         .image-add {
+          --press-glow: rgba(80, 150, 255, 0.45);
           width: 100%;
-          height: 60px;
-          margin-top: 12px;
-          border-radius: 16px;
+          height: calc(60px * var(--panel-scale));
+          margin-top: calc(12px * var(--panel-scale));
+          border-radius: calc(16px * var(--panel-scale));
           border: 1px solid var(--blue-border);
           background:
             radial-gradient(circle at top, rgba(120, 160, 255, 0.30), transparent),
@@ -316,47 +456,54 @@ export default function KumandaPaneli({
           color: white;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
-          font-size: 13px;
+          letter-spacing: 0.05em;
+          font-size: calc(13px * var(--panel-scale));
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          box-shadow:
-            0 0 25px rgba(63, 124, 255, 0.35),
-            inset 0 1px 0 rgba(255, 255, 255, 0.20);
+          gap: calc(10px * var(--panel-scale));
         }
 
         .image-add__icon {
-          font-size: 16px;
+          font-size: calc(16px * var(--panel-scale));
           line-height: 1;
         }
 
         /* ── Resim Ekle hover/active — mavi aksiyon glow ── */
         .image-add:hover {
-          box-shadow:
-            0 0 34px rgba(63, 124, 255, 0.48),
-            0 10px 28px rgba(20, 40, 120, 0.30),
-            inset 0 1px 0 rgba(255, 255, 255, 0.26);
+          border-color: rgba(122, 171, 255, 0.92);
         }
 
         .image-add:active {
           box-shadow:
-            0 0 18px rgba(63, 124, 255, 0.34),
-            inset 0 4px 14px rgba(0, 0, 0, 0.28);
+            0 12px 24px rgba(19, 34, 90, 0.32),
+            inset 0 6px 18px rgba(0, 0, 0, 0.28),
+            inset 0 -8px 18px rgba(0, 0, 0, 0.36);
+        }
+
+        .image-add .button-sweep {
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(227, 240, 255, 0.04) 35%,
+            rgba(244, 249, 255, 0.22) 50%,
+            rgba(171, 207, 255, 0.08) 65%,
+            transparent 100%
+          );
         }
 
         /* ── Grid (Satır Ayarları + Genel Finans) ── */
         .grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 12px;
+          gap: calc(12px * var(--panel-scale));
         }
 
         /* ── Kare buton ── */
         .square-btn {
+          --press-glow: rgba(255, 95, 125, 0.36);
           aspect-ratio: 1;
-          border-radius: 16px;
+          border-radius: calc(16px * var(--panel-scale));
           border: 1px solid var(--card-border);
           background:
             radial-gradient(circle at top, rgba(255, 110, 130, 0.12), transparent),
@@ -364,30 +511,36 @@ export default function KumandaPaneli({
           color: var(--text-main);
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.05em;
           text-align: center;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          padding: 8px 6px;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.05),
-            inset 0 -15px 25px rgba(0, 0, 0, 0.20);
+          gap: calc(6px * var(--panel-scale));
+          padding: calc(8px * var(--panel-scale)) calc(6px * var(--panel-scale));
+        }
+
+        @keyframes premiumLightSweep {
+          0% {
+            left: -80%;
+            opacity: 0;
+          }
+          18% {
+            opacity: 1;
+          }
+          100% {
+            left: 130%;
+            opacity: 0;
+          }
         }
 
         /* Square buton hover — premium ışık yayılması */
         .square-btn:hover {
           border-color: rgba(255, 150, 165, 0.52);
-          box-shadow:
-            0 10px 26px rgba(12, 0, 4, 0.38),
-            0 0 18px rgba(255, 90, 115, 0.16),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08),
-            inset 0 -15px 25px rgba(0, 0, 0, 0.22);
         }
 
-        .square-btn.active {
+        .square-btn.is-active {
           background:
             radial-gradient(circle at top, rgba(255, 130, 150, 0.25), transparent),
             linear-gradient(180deg, var(--active-bg-1), var(--active-bg-2));
@@ -412,8 +565,95 @@ export default function KumandaPaneli({
           }
         }
 
+        .square-btn.finance,
+        .square-btn.kdv,
+        .square-btn.discount {
+          --press-glow: rgba(255, 185, 90, 0.32);
+        }
+
+        .square-btn,
+        .image-add,
+        .lock-button {
+          box-shadow:
+            0 16px 34px rgba(0,0,0,0.48),
+            0 0 18px rgba(255,80,110,0.10),
+            inset 0 1px 0 rgba(255,255,255,0.16),
+            inset 0 -14px 28px rgba(0,0,0,0.44);
+        }
+
+        .square-btn:hover,
+        .image-add:hover,
+        .lock-button:hover {
+          box-shadow:
+            0 22px 46px rgba(0,0,0,0.58),
+            0 0 26px var(--press-glow, rgba(255,80,110,0.22)),
+            inset 0 1px 0 rgba(255,255,255,0.20),
+            inset 0 -16px 30px rgba(0,0,0,0.48);
+        }
+
+        .lock-button[data-readonly="false"],
+        .square-btn.is-active {
+          animation: none;
+        }
+
+        .lock-button[data-readonly="false"] {
+          box-shadow:
+            0 20px 40px rgba(0,0,0,0.56),
+            0 0 24px rgba(255, 88, 116, 0.18),
+            inset 0 1px 0 rgba(255,255,255,0.18),
+            inset 0 -14px 28px rgba(0,0,0,0.44);
+        }
+
+        .square-btn.is-active {
+          box-shadow:
+            0 18px 38px rgba(0,0,0,0.52),
+            0 0 22px var(--press-glow, rgba(255, 80, 110, 0.22)),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            inset 0 -14px 28px rgba(0, 0, 0, 0.42);
+        }
+
+        .square-btn::after,
+        .image-add::after,
+        .lock-button::after {
+          content: "";
+          position: absolute;
+          inset: -18px;
+          top: auto;
+          left: auto;
+          width: auto;
+          height: auto;
+          border-radius: inherit;
+          pointer-events: none;
+          opacity: 0;
+          z-index: 0;
+          background: radial-gradient(circle, var(--press-glow, rgba(255, 90, 120, 0.35)) 0%, transparent 62%);
+          transform: scale(0.72);
+        }
+
+        .square-btn:hover::after,
+        .image-add:hover::after,
+        .lock-button:hover::after {
+          animation: none !important;
+          opacity: 0;
+        }
+
+        .control-panel button:active::after {
+          animation: premiumPressGlow 520ms ease-out forwards !important;
+        }
+
+        .lock-button .button-sweep {
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(255,255,255,0.05) 35%,
+            rgba(255,225,232,0.18) 50%,
+            rgba(255,255,255,0.05) 65%,
+            transparent 100%
+          );
+        }
+
         .square-btn__icon {
-          font-size: 18px;
+          font-size: calc(18px * var(--panel-scale));
           line-height: 1;
           color: var(--accent);
         }
@@ -422,16 +662,16 @@ export default function KumandaPaneli({
           display: flex;
           flex-direction: column;
           align-items: center;
-          font-size: 10px;
+          font-size: calc(10px * var(--panel-scale));
           font-weight: 800;
-          line-height: 1.10;
-          letter-spacing: 0.06em;
+          line-height: 1.05;
+          letter-spacing: 0.04em;
           white-space: normal;
           word-break: normal;
         }
 
         .square-btn__value {
-          font-size: 11px;
+          font-size: calc(11px * var(--panel-scale));
           font-weight: 800;
           line-height: 1;
           letter-spacing: 0.02em;
@@ -441,8 +681,8 @@ export default function KumandaPaneli({
 
         /* KDV özel — daha büyük tipografi */
         .square-btn.kdv .square-btn__label {
-          font-size: 20px;
-          letter-spacing: 0.12em;
+          font-size: calc(20px * var(--panel-scale));
+          letter-spacing: 0.08em;
           line-height: 1;
         }
 
@@ -451,10 +691,10 @@ export default function KumandaPaneli({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
-          margin-top: 12px;
-          padding: 10px 12px;
-          border-radius: 14px;
+          gap: calc(10px * var(--panel-scale));
+          margin-top: calc(12px * var(--panel-scale));
+          padding: calc(10px * var(--panel-scale)) calc(12px * var(--panel-scale));
+          border-radius: calc(14px * var(--panel-scale));
           border: 1px solid rgba(255, 112, 132, 0.24);
           background:
             radial-gradient(circle at 50% 0%, rgba(255, 113, 140, 0.10), transparent 62%),
@@ -467,9 +707,9 @@ export default function KumandaPaneli({
         .panel-rate__label {
           flex: 1;
           min-width: 0;
-          font-size: 10px;
+          font-size: calc(10px * var(--panel-scale));
           font-weight: 700;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.05em;
           text-transform: uppercase;
           line-height: 1.15;
           color: var(--text-soft);
@@ -478,27 +718,27 @@ export default function KumandaPaneli({
         .panel-rate__input-wrap {
           display: flex;
           align-items: center;
-          gap: 5px;
+          gap: calc(5px * var(--panel-scale));
           flex-shrink: 0;
         }
 
         .panel-rate__input {
-          width: 48px;
-          height: 26px;
-          border-radius: 8px;
+          width: calc(48px * var(--panel-scale));
+          height: calc(26px * var(--panel-scale));
+          border-radius: calc(8px * var(--panel-scale));
           background: rgba(14, 2, 6, 0.76);
           border: 1px solid rgba(255, 143, 155, 0.38);
           color: var(--text-main);
-          font-size: 12px;
+          font-size: calc(12px * var(--panel-scale));
           font-weight: 800;
           text-align: center;
-          padding: 0 6px;
+          padding: 0 calc(6px * var(--panel-scale));
           font-variant-numeric: tabular-nums;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
         }
 
         .panel-rate__suffix {
-          font-size: 11px;
+          font-size: calc(11px * var(--panel-scale));
           font-weight: 800;
           color: var(--text-main);
         }
@@ -516,10 +756,17 @@ export default function KumandaPaneli({
         /* ── Erişilebilirlik: hareket azaltma ── */
         @media (prefers-reduced-motion: reduce) {
           .control-panel button,
-          .square-btn.active,
+          .square-btn.is-active,
           .lock-button[data-readonly="false"] {
             animation: none !important;
             transition: none !important;
+          }
+          .control-panel button .button-sweep,
+          .square-btn::after,
+          .image-add::after,
+          .lock-button::after {
+            animation: none !important;
+            display: none;
           }
           .control-panel button:hover,
           .control-panel button:active {
@@ -534,11 +781,12 @@ export default function KumandaPaneli({
 
           <button
             type="button"
-            className="lock-button"
+            className={`lock-button button-edit${!readOnly ? ' is-active' : ''}`}
             data-readonly={readOnly}
             onClick={() => onReadOnlyDegistir(!readOnly)}
           >
-            <span className="lock-button__icon">
+            <span className="button-sweep" aria-hidden="true" />
+            <span className="lock-button__icon panel-icon">
               {readOnly ? <LockOutlined /> : <UnlockOutlined />}
             </span>
             <span className="lock-button__label">
@@ -548,10 +796,11 @@ export default function KumandaPaneli({
 
           <button
             type="button"
-            className="image-add"
+            className="image-add button-image"
             onClick={onResimSec}
           >
-            <PictureOutlined className="image-add__icon" />
+            <span className="button-sweep" aria-hidden="true" />
+            <PictureOutlined className="image-add__icon panel-icon" />
             <span>RESİM EKLE</span>
           </button>
 
@@ -569,12 +818,14 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={['SATIR BAZLI', 'İSKONTO']}
+              extraClass="button-row-discount"
               icon={<PercentageOutlined />}
               on={satirBazliIskonto}
               onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
             />
             <SquareToggle
               labelLines={['SATIR BAZLI', 'PARA BİRİMİ']}
+              extraClass="button-row-currency"
               icon={<SwapOutlined />}
               on={satirBazliParaBirimi}
               onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
@@ -587,7 +838,7 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={['KDV']}
-              extraClass="kdv"
+              extraClass="finance kdv button-tax"
               icon={<CalculatorOutlined />}
               value={kdvOn ? `%${kdvOrani}` : undefined}
               on={kdvOn}
@@ -595,6 +846,7 @@ export default function KumandaPaneli({
             />
             <SquareToggle
               labelLines={['İSKONTO']}
+              extraClass="finance discount button-discount"
               icon={<TagsOutlined />}
               value={iskOn ? `%${iskontoOrani}` : undefined}
               on={iskOn}
@@ -646,10 +898,11 @@ function SquareToggle({
   onClick: () => void;
   extraClass?: string;
 }) {
-  const cls = `square-btn${on ? ' active' : ''}${extraClass ? ' ' + extraClass : ''}`;
+  const cls = `square-btn${on ? ' is-active' : ''}${extraClass ? ' ' + extraClass : ''}`;
   return (
     <button type="button" className={cls} onClick={onClick}>
-      <span className="square-btn__icon">{icon}</span>
+      <span className="button-sweep" aria-hidden="true" />
+      <span className="square-btn__icon panel-icon">{icon}</span>
       <span className="square-btn__label">
         {labelLines.map((line) => (
           <span key={line}>{line}</span>
