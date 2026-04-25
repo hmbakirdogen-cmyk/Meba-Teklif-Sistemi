@@ -213,17 +213,34 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  // DEBUG banner — runtime state kanıtı
+  // DEBUG banner — derin runtime tanı
+  const wrap = layerRef.current?.parentElement;
+  const liveTbl = wrap?.querySelector<HTMLTableElement>('table.offer-table');
+  const allTrs = liveTbl?.querySelectorAll('tr[data-satir-id]') ?? [];
+  const firstAttr = allTrs[0]?.getAttribute('data-satir-id') ?? 'NONE';
+  const firstId = satirIds[0] ?? 'NONE';
+  const wrapTag = wrap?.tagName ?? 'NONE';
+  const tablesInDoc = document.querySelectorAll('table.offer-table').length;
+  const allTrsInDoc = document.querySelectorAll('tr[data-satir-id]').length;
+
   const banner = createPortal(
     <div style={{
       position: 'fixed', top: 80, left: 16,
       background: 'red', color: 'white',
-      padding: '8px 14px', fontSize: 12, fontFamily: 'monospace',
+      padding: '8px 14px', fontSize: 11, fontFamily: 'monospace',
       zIndex: 99999, borderRadius: 6,
       boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-      pointerEvents: 'none',
+      pointerEvents: 'none', maxWidth: '90vw', wordBreak: 'break-all',
     }}>
       readOnly={String(readOnly)} | satirIds={satirIds.length} | rows={rows.length}
+      <br />
+      wrap={wrapTag} | liveTbl={liveTbl ? 'Y' : 'N'} | allTrsInTbl={allTrs.length}
+      <br />
+      tablesInDoc={tablesInDoc} | allTrsInDoc={allTrsInDoc}
+      <br />
+      firstSatirId="{firstId}"
+      <br />
+      firstTrAttr="{firstAttr}"
     </div>,
     document.body
   );
