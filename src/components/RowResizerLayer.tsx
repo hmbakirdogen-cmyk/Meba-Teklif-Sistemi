@@ -46,9 +46,10 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 2px ince tutamak — narin görsel; hit area satır altında kolayca yakalanır.
-const HANDLE_HIT_HEIGHT = 2;
-const HANDLE_INSIDE_ROW_PX = 0;
+// 3px tutamak — narin ama net görünür; 1px satır içinde + 2px dışta
+// (border-spacing 0 2px tam aralığa oturur).
+const HANDLE_HIT_HEIGHT = 3;
+const HANDLE_INSIDE_ROW_PX = 1;
 
 export function RowResizerLayer({
   tableEl,
@@ -231,11 +232,11 @@ export function RowResizerLayer({
             touchAction: 'none',
             // Inline style — Vite HMR cache'inden bağımsız garanti görünür.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,0.92) 50%, rgba(15,23,42,0) 100%)',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,1) 35%, rgba(96,165,250,0.85) 65%, rgba(15,23,42,0) 100%)',
             borderRadius: '999px',
             boxShadow:
-              '0 0 6px rgba(37,99,235,0.55), 0 0 14px rgba(59,130,246,0.25)',
-            opacity: 0.78,
+              '0 0 8px rgba(37,99,235,0.65), 0 0 16px rgba(59,130,246,0.30)',
+            opacity: 0.88,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
