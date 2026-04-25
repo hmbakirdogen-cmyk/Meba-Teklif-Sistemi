@@ -144,38 +144,30 @@ export default function KumandaPaneli({
   };
 
   // ── DOM-based A4 üst hiza ölçümü ─────────────────────────────────
-  // Sabit pixel hesabı (toolbar+padding+border) box-sizing/CSS reset
-  // değişimlerine duyarlı. Bunun yerine DOM'daki gerçek A4 sayfasının
-  // viewport-relative top'ını ölçüp panele ata. Bir kez mount + her
-  // resize'da yeniden ölç. Scroll'da yeniden ÖLÇÜLMEZ — panel sabit kalır.
+  // KRİTİK: id="teklif-sablon" hem offscreen TeklifSablonu hem visible
+  // PaginatedBelgeInlineEditor'da var (duplicate ID). getElementById
+  // offscreen olanı (top:0) döndürüp paneli ekran tepesine yapıştırıyor.
+  // Çözüm: yalnız visible CanliA4Belge'de bulunan `.belge-screen-view`
+  // className'i ile uniquely target et.
   const [a4Top, setA4Top] = useState<number>(K.TOP);  // fallback initial
+  const measureA4 = () => {
+    // Visible inner wrapper — yalnızca CanliA4Belge'de bir tane var
+    const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
+    if (!a4El) return;
+    const top = Math.round(a4El.getBoundingClientRect().top);
+    if (top > 0) setA4Top(top);
+  };
   useLayoutEffect(() => {
-    const measure = () => {
-      // İlk A4 sayfası — PaginatedBelgeInlineEditor ilk page id'si "teklif-sablon"
-      // ya da generic [data-pdf-page="true"] ilk eleman
-      const a4El =
-        document.getElementById('teklif-sablon') ??
-        document.querySelector<HTMLElement>('[data-pdf-page="true"]');
-      if (!a4El) return;
-      // getBoundingClientRect viewport-relative, scroll dahil değil
-      const top = Math.round(a4El.getBoundingClientRect().top);
-      if (top > 0) setA4Top(top);
-    };
-    // Initial measure — DOM yerleşene kadar 2 frame bekle (Vite scale stabilize için)
-    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
+    // 2 frame bekle — Vite scale stabilize için
+    const id = requestAnimationFrame(() => requestAnimationFrame(measureA4));
     return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    const onResize = () => {
-      const a4El =
-        document.getElementById('teklif-sablon') ??
-        document.querySelector<HTMLElement>('[data-pdf-page="true"]');
-      if (!a4El) return;
-      const top = Math.round(a4El.getBoundingClientRect().top);
-      if (top > 0) setA4Top(top);
-    };
+    const onResize = () => measureA4();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
