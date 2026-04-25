@@ -177,6 +177,23 @@ export default function KumandaPaneli({
           border: 1px solid var(--panel-border);
           box-shadow: var(--panel-shadow);
           overflow: hidden;
+          transition:
+            border-color 280ms ease,
+            box-shadow 320ms ease;
+        }
+
+        /* Düzenleme aktifken (Düzenle butonu basılı): tüm panel çerçevesi
+           ince yeşil neon hat olur ve dışa ışık saçar. Renkler EditPremiumIcon
+           accent ailesiyle aynı (rgba 70 255 160). */
+        .control-panel[data-editing="true"] {
+          border: 1px solid rgba(90, 255, 175, 0.85);
+          box-shadow:
+            0 0 18px rgba(70, 255, 160, 0.45),
+            0 0 50px rgba(70, 255, 160, 0.30),
+            0 0 110px rgba(70, 255, 160, 0.18),
+            inset 0 0 0 1px rgba(70, 255, 160, 0.20),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            inset 0 -18px 30px rgba(0, 0, 0, 0.34);
         }
 
         .panel-section {
@@ -751,7 +768,7 @@ export default function KumandaPaneli({
         }
       `}</style>
 
-      <div className="control-panel">
+      <div className="control-panel" data-editing={!readOnly}>
         <section className="panel-section">
           <SecLabel text="Düzenleme" />
 
