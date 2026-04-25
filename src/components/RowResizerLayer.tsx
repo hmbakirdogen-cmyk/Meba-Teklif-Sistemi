@@ -77,22 +77,31 @@ export function RowResizerLayer({
 
   // ── Satır geometrilerini ölç ve ResizeObserver ile takip et ─────────
   useLayoutEffect(() => {
-    if (!tableEl || !layerRef.current) return;
+    if (!layerRef.current) return;
     const ids = satirIdsKey.split('|').filter(Boolean);
+    const idSet = new Set(ids);
 
     const measure = () => {
       const layer = layerRef.current;
       if (!layer) return;
+      // tableEl prop stale olabilir (table re-create edildiyse). Layer'ın
+      // parent wrapper'ından canlı table'ı her seferinde bul.
+      const wrapper = layer.parentElement;
+      const liveTable =
+        wrapper?.querySelector<HTMLTableElement>('table.offer-table') ?? tableEl;
+      if (!liveTable || !liveTable.isConnected) return;
+
       const layerRect = layer.getBoundingClientRect();
       const next: RowGeom[] = [];
-      for (const id of ids) {
-        const tr = tableEl.querySelector<HTMLTableRowElement>(
-          `tr[data-satir-id="${CSS.escape(id)}"]`,
-        );
-        if (!tr) continue;
+      // querySelectorAll ile tek seferde tüm data-satir-id'li TR'leri al.
+      // Per-id CSS.escape querySelector başarısız olursa diye fallback iter.
+      const allTrs = liveTable.querySelectorAll<HTMLTableRowElement>(
+        'tr[data-satir-id]',
+      );
+      allTrs.forEach((tr) => {
+        const id = tr.getAttribute('data-satir-id');
+        if (!id || !idSet.has(id)) return;
         const r = tr.getBoundingClientRect();
-        // Handle: sola yaslı (tr.left), sabit 2.5 cm uzunluk (HANDLE_WIDTH_PX).
-        // Cells'e bağlı dinamik hesap kaldırıldı — net sabit ölçü.
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
@@ -102,22 +111,29 @@ export function RowResizerLayer({
           handleLeft: (r.left - layerRect.left) / scale,
           handleWidth: HANDLE_WIDTH_PX,
         });
-      }
-      // İçerik değişmediyse setState çağrısı YAPMA — gereksiz re-render yok
+      });
       setRows((prev) => (sameRows(prev, next) ? prev : next));
     };
 
     measure();
 
+    // ResizeObserver — wrapper üzerinden canlı table'ı izle
+    const wrapper = layerRef.current.parentElement;
     const ro = new ResizeObserver(measure);
-    ro.observe(tableEl);
-    const trEls = Array.from(tableEl.querySelectorAll<HTMLElement>('tr[data-satir-id]'));
-    trEls.forEach((el) => ro.observe(el));
+    if (wrapper) ro.observe(wrapper);
+    if (tableEl?.isConnected) ro.observe(tableEl);
+
+    // MutationObserver — tablo veya TR'ler değişirse re-measure
+    const mo = new MutationObserver(measure);
+    if (wrapper) {
+      mo.observe(wrapper, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-satir-id', 'style'] });
+    }
 
     window.addEventListener('scroll', measure, true);
     window.addEventListener('resize', measure);
     return () => {
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
