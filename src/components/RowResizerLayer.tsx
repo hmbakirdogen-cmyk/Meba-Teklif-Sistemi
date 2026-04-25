@@ -46,10 +46,10 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 5px hit area (kolay yakalanması için), içinde 1px görsel hat
-// (backgroundSize ile dikey orta-strip). 2px satır içinde + 3px dışta.
-const HANDLE_HIT_HEIGHT = 5;
-const HANDLE_INSIDE_ROW_PX = 2;
+// 4px hit area satırın HEMEN ALTINDA (border-spacing 2px gap'i tam ortalar).
+// Görsel 1px hat backgroundPosition center ile gap'in tam ortasına oturur.
+const HANDLE_HIT_HEIGHT = 4;
+const HANDLE_INSIDE_ROW_PX = 0;
 
 export function RowResizerLayer({
   tableEl,
