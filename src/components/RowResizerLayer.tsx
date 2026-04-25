@@ -46,9 +46,10 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 2px ince zarif tutamak — 1px satır içinde + 1px dışta.
-const HANDLE_HIT_HEIGHT = 2;
-const HANDLE_INSIDE_ROW_PX = 1;
+// 5px hit area (kolay yakalanması için), içinde 1px görsel hat
+// (backgroundSize ile dikey orta-strip). 2px satır içinde + 3px dışta.
+const HANDLE_HIT_HEIGHT = 5;
+const HANDLE_INSIDE_ROW_PX = 2;
 
 export function RowResizerLayer({
   tableEl,
@@ -88,12 +89,11 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel: tablonun en solundan (sola yaslı) Ürün Kodu hücresinin
-        // sağ kenarına kadar — # + Marka + Kod kolonları boyunca ince zarif çizgi.
-        // tr.cells[2] = Ürün Kodu (kolon sırası 0=#, 1=Marka, 2=Kod).
-        const codeCell = tr.cells[2] as HTMLElement | undefined;
+        // Handle görsel: en sola yaslı, sadece No (#) + Marka kolonları
+        // genişliği boyunca. tr.cells[1] = Marka (0=#, 1=Marka).
+        const markaCell = tr.cells[1] as HTMLElement | undefined;
         const handleLeftScreen = r.left;
-        const handleRightScreen = codeCell ? codeCell.getBoundingClientRect().right : r.right;
+        const handleRightScreen = markaCell ? markaCell.getBoundingClientRect().right : r.right;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
@@ -223,19 +223,21 @@ export function RowResizerLayer({
           style={{
             position: 'absolute',
             left: `${r.handleLeft}px`,
-            width: `${Math.max(0, r.handleWidth - 4)}px`,
+            width: `${Math.max(0, r.handleWidth - 2)}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // Çok ince zarif lacivert hat — sola yaslı, sağa doğru fade.
+            // 1px ince zarif lacivert hat — backgroundSize ile dikey orta strip.
+            // Hit area 5px (kolay yakalama), görsel sadece 1px.
             background:
-              'linear-gradient(90deg, rgba(30,64,175,0.85) 0%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
-            borderRadius: '999px',
-            boxShadow: '0 0 5px rgba(37,99,235,0.32)',
-            opacity: 0.7,
-            transition: 'opacity 160ms ease, box-shadow 160ms ease',
+              'linear-gradient(90deg, rgba(30,64,175,0.95) 0%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
+            backgroundSize: '100% 1px',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: 0,
+            transition: 'opacity 160ms ease',
           }}
         />
       ))}
