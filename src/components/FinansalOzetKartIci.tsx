@@ -263,9 +263,6 @@ export function FinansalOzetKartIci({
     ? (isPdf ? '14px' : '24px')
     : (isPdf ? '17px' : '30px');
 
-  // Sembol font büyüklüğü (alt bölüm)
-  const symBotFs = isPdf ? '9px' : '18px';
-
   // PDF separator konumu — bigger total needs more clearance
   // bottom:9(pad) + ~18(total) + 5(gap) = 32px
   const SEP_B = 32;
@@ -289,86 +286,139 @@ export function FinansalOzetKartIci({
     </div>
   );
 
-  // ── Sade tek-toplam render (hasDetail=false) ─────────────────────────────────
-  // Tek satır: sol="Genel Toplam" (altın) | sağ=büyük rakam
-  // PDF ve screen için aynı mantık, sadece boyutlar farklı
-  if (!hasDetail) {
+  // ── PDF render — bütün durumlar (hasDetail true/false fark etmez) ───────────
+  // Layout sabitlenir: pbLabel absolute top-right rozet, total absolute bottom-right.
+  // KDV/iskonto açıldığında detay satırları üst alana akar; total'ın yeri değişmez.
+  if (isPdf) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: isPdf ? '8px 12px' : '18px 18px',
-        height: '100%',
-        boxSizing: 'border-box',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: isPdf ? 2 : 5 }}>
+      <div style={{ padding: '6px 10px 9px', position: 'relative', height: '100%', boxSizing: 'border-box' }}>
+        {/* Para birimi rozeti — ABSOLUTE top-right, layout'tan bağımsız */}
+        <span style={{
+          position: 'absolute',
+          top: '6px',
+          right: '10px',
+          fontSize: '7px',
+          fontWeight: 700,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: cl.muted,
+          lineHeight: 1,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}>
+          {pbLabel}
+        </span>
+
+        {hasDetail ? (
+          <>
+            {/* Üst: detay satırları (akış içinde) */}
+            <div>
+              {detailRow('Ara Toplam', araToplam, cl.label, '')}
+              {iskontoOrani > 0 && detailRow(`İskonto %${iskontoOrani}`, iskontoTutar, PDF_RED, '–')}
+              {kdvOrani    > 0 && detailRow(`KDV %${kdvOrani}`,          kdvTutar,     PDF_GREEN, '+')}
+            </div>
+            {/* Ayırıcı — sabit Y */}
+            <div style={{
+              position: 'absolute',
+              bottom: `${SEP_B}px`, left: '10px', right: '10px',
+              borderTop: `0.75px solid ${cl.sep}`,
+            }} />
+          </>
+        ) : (
           <span style={{
-            fontSize: isPdf ? '8px' : '14px',
+            position: 'absolute',
+            top: '8px',
+            left: '12px',
+            fontSize: '8px',
             fontWeight: 600,
-            color: isPdf ? PDF_GOLD : GOLD,
-            letterSpacing: '0',
+            color: PDF_GOLD,
             lineHeight: 1,
           }}>
             Genel Toplam
           </span>
-          <span style={{
-            fontSize: isPdf ? '7px' : '10px',
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: cl.muted,
-            lineHeight: 1,
-          }}>
-            {pbLabel}
-          </span>
-        </div>
-        {totalRight}
-      </div>
-    );
-  }
+        )}
 
-  // ── PDF render (hasDetail=true) ──────────────────────────────────────────────
-  if (isPdf) {
-    return (
-      <div style={{ padding: '6px 10px 9px', position: 'relative', height: '100%', boxSizing: 'border-box' }}>
-        {/* Üst: detay satırları */}
-        <div>
-          {detailRow('Ara Toplam', araToplam, cl.label, '')}
-          {iskontoOrani > 0 && detailRow(`İskonto %${iskontoOrani}`, iskontoTutar, PDF_RED, '–')}
-          {kdvOrani    > 0 && detailRow(`KDV %${kdvOrani}`,          kdvTutar,     PDF_GREEN, '+')}
-        </div>
-        {/* Ayırıcı — absolute, sabit mesafede */}
+        {/* Total — ABSOLUTE bottom-right, sembol + sayı kendi içinde flex */}
         <div style={{
-          position: 'absolute',
-          bottom: `${SEP_B}px`, left: '10px', right: '10px',
-          borderTop: `0.75px solid ${cl.sep}`,
-        }} />
-        {/* Alt: toplam kutusu sağda, para birimi ve rakam birleşik */}
-        <div style={{ position: 'absolute', bottom: '9px', right: '10px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: 'auto' }}>
+          position: 'absolute', bottom: '9px', right: '10px',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          zIndex: 1,
+        }}>
           {totalRight}
         </div>
       </div>
     );
   }
 
-  // ── Screen render (hasDetail=true) ──────────────────────────────────────────
+  // ── Screen render — bütün durumlar (hasDetail true/false fark etmez) ────────
+  // pbLabel absolute (toplam alanından tamamen bağımsız), total absolute bottom-right
+  // (içinde sembol + sayı flex'te kalır). KDV/iskonto açılıp kapandığında pbLabel
+  // ve total'ın konumu DEĞİŞMEZ; yalnızca üst alana detay satırları eklenir.
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', boxSizing: 'border-box', height: '100%' }}>
-      {/* Üst: detay satırları */}
-      <div>
-        {detailRow('Ara Toplam', araToplam, cl.label, '')}
-        {toplamIndirim > 0 && detailRow('(-) İndirim', toplamIndirim, RED, '–')}
-        {iskontoOrani > 0 && detailRow(iskontoLabel, iskontoTutar, RED, '–')}
-        {kdvOrani    > 0 && detailRow(kdvLabel,      kdvTutar,     GREEN, '+')}
-      </div>
-      {/* Ayırıcı */}
-      <div style={{ borderTop: `1px solid ${cl.sep}`, margin: '10px 0 8px' }} />
-      {/* Alt: para birimi kısaltması (altın, sol) + toplam (sağ) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, lineHeight: 1 }}>
-          {pbLabel}
+    <div style={{
+      position: 'relative',
+      padding: '16px 18px 14px',
+      boxSizing: 'border-box',
+      height: '100%',
+    }}>
+      {/* Üst alan — detay satırları VEYA "Genel Toplam" başlığı */}
+      {hasDetail ? (
+        <div>
+          {detailRow('Ara Toplam', araToplam, cl.label, '')}
+          {toplamIndirim > 0 && detailRow('(-) İndirim', toplamIndirim, RED, '–')}
+          {iskontoOrani > 0 && detailRow(iskontoLabel, iskontoTutar, RED, '–')}
+          {kdvOrani    > 0 && detailRow(kdvLabel,      kdvTutar,     GREEN, '+')}
+        </div>
+      ) : (
+        <span style={{
+          display: 'block',
+          fontSize: '14px',
+          fontWeight: 600,
+          color: GOLD,
+          letterSpacing: '0',
+          lineHeight: 1,
+        }}>
+          Genel Toplam
         </span>
+      )}
+
+      {/* Ayırıcı — sadece detay varken, sabit Y */}
+      {hasDetail && (
+        <div style={{
+          position: 'absolute',
+          bottom: '40px', left: '18px', right: '18px',
+          borderTop: `1px solid ${cl.sep}`,
+        }} />
+      )}
+
+      {/* Para birimi kısaltması — ABSOLUTE bottom-left, total alanından TAMAMEN
+         bağımsız. z-index:0 + pointer-events:none → toplam alanı her zaman önde. */}
+      <span style={{
+        position: 'absolute',
+        bottom: '14px',
+        left: '18px',
+        fontSize: '10px',
+        fontWeight: 700,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        color: GOLD,
+        lineHeight: 1,
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}>
+        {pbLabel}
+      </span>
+
+      {/* Total — ABSOLUTE bottom-right, sembol + sayı içeride flex'te kalır.
+         pbLabel'dan bağımsız konum; geniş tutarlar pbLabel'ın üzerine çizer. */}
+      <div style={{
+        position: 'absolute',
+        bottom: '14px',
+        right: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        zIndex: 1,
+      }}>
         {totalRight}
       </div>
     </div>
