@@ -35,6 +35,14 @@ export interface TotalsCardProps {
   paraBirimi: string;
   /** light: krem zemin (Paged + Inline editor), dark: lacivert gradient (Sablonu) */
   variant?: 'light' | 'dark';
+  /**
+   * Rakamların sağ kenarının kart sağından uzaklığı (px). Kart çerçevesi
+   * sayfanın tüm sağına uzasa bile bu değer sayesinde rakamlar tablonun
+   * "Toplam" kolonu değer X'iyle hizalanır.
+   * `computeTotalsAmountRightOffset(rows, satirBazli)` ile hesaplanır.
+   * Verilmezse CELL_PAD (4px) kullanılır.
+   */
+  amountRightOffsetPx?: number;
 }
 
 // Paylaşılan ölçüler — tek kaynak (tablo "Toplam" kolonu ile birebir eşleşir)
@@ -58,7 +66,9 @@ export function TotalsCard({
   genelToplam,
   paraBirimi,
   variant = 'light',
+  amountRightOffsetPx,
 }: TotalsCardProps) {
+  const amountRightPx = `${amountRightOffsetPx ?? LINE_ITEM_METRICS.cellPaddingXpx}px`;
   const isDark    = variant === 'dark';
   const sembol    = SEMBOL[paraBirimi]   ?? paraBirimi;
   const pbLabel   = PB_SHORT[paraBirimi] ?? paraBirimi;
@@ -125,7 +135,7 @@ export function TotalsCard({
         fontVariantNumeric: 'tabular-nums',
         whiteSpace: 'nowrap',
         textAlign: 'right',
-        paddingRight: AMOUNT_PR,
+        paddingRight: amountRightPx,
       }}>
         {sign && <span style={{ marginRight: 2 }}>{sign}</span>}
         {fmtN(value)}
@@ -209,7 +219,7 @@ export function TotalsCard({
           display: 'flex',
           alignItems: 'baseline',
           gap: '4px',
-          paddingRight: AMOUNT_PR,
+          paddingRight: amountRightPx,
           flexShrink: 0,
         }}>
           <span style={{

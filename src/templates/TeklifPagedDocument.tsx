@@ -42,6 +42,7 @@ import {
   TABLE_STYLE,
   TABLE_TITLE_STYLE,
   TableColgroup,
+  computeTotalsAmountRightOffset,
   URUN_KOD_OVERFLOW,
   buildSettingsItems,
   getTableHeadCellStyle,
@@ -378,24 +379,33 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
   );
 
-  // Single-currency: kart kalem tablosunun "Toplam" kolonu ile aynı sağ
-  // kenara hizalanır. Bunun için tablo aynı TableColgroup'u kullanır;
-  // kart aciklama..toplam (cols 4-8) colspan'ında durur, teslimat kolonu
-  // boş kalır → kart sağı = "Toplam" sütununun sağı.
+  // Single-currency: ÇERÇEVE eski geniş yapıda (sağda %44, kart sayfa
+  // sağına kadar uzanır). RAKAMLAR ise içeride padding-right üzerinden
+  // tablonun "Toplam" kolonu değer X'iyle aynı yerde durur.
   if (!satirBazliParaBirimi) {
+    const amountRightOffsetPx = computeTotalsAmountRightOffset(teklif.satirlar, false);
     return (
       <div style={{ ...noBreak }}>
         <table style={{
-          ...TABLE_STYLE,
+          width: '100%',
+          borderCollapse: 'collapse',
           marginTop: '4px',
           marginBottom: '14px',
+          tableLayout: 'fixed',
+          borderLeft: 'none',
+          borderRight: 'none',
+          printColorAdjust: 'exact',
+          WebkitPrintColorAdjust: 'exact',
           ...noBreak,
         } as React.CSSProperties}>
-          <TableColgroup satirBazliParaBirimi={false} teklifSatirlari={teklif.satirlar} />
+          <colgroup>
+            <col style={{ width: '56%' }} />
+            <col />
+          </colgroup>
           <tbody>
             <tr>
-              <td colSpan={3} style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
-              <td colSpan={5} style={{ padding: '8px 0 10px 0', verticalAlign: 'top', borderTop: 'none', borderBottom: 'none' }}>
+              <td style={{ borderTop: 'none', borderBottom: 'none' }} />
+              <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
                 <TotalsCard
                   araToplam={araToplam}
                   iskontoOrani={iskontoOrani}
@@ -405,9 +415,9 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                   genelToplam={genelToplam}
                   paraBirimi={teklif.paraBirimi}
                   variant="light"
+                  amountRightOffsetPx={amountRightOffsetPx}
                 />
               </td>
-              <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
             </tr>
           </tbody>
         </table>

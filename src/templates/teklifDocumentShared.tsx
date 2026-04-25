@@ -217,21 +217,37 @@ function measureTextWidth(
   return w;
 }
 
-export function TableColgroup(props: {
-  satirBazliParaBirimi?: boolean;
-  teklifSatirlari?: Array<{
-    marka?: string;
-    urunKod?: string;
-    miktar?: number;
-    birim?: string;
-    birimFiyat?: number;
-    indirimOrani?: number;
-    satirToplami?: number;
-    teslimTarihi?: string;
-  }>;
-}) {
-  const rows = props.teklifSatirlari ?? [];
-  const satirBazli = props.satirBazliParaBirimi ?? false;
+export interface OfferTableRow {
+  marka?: string;
+  urunKod?: string;
+  miktar?: number;
+  birim?: string;
+  birimFiyat?: number;
+  indirimOrani?: number;
+  satirToplami?: number;
+  teslimTarihi?: string;
+}
+
+export interface OfferColumnWidths {
+  no: number;
+  marka: number;
+  code: number;
+  qty: number;
+  paraBirimi: number;
+  unitPrice: number;
+  total: number;
+  delivery: number;
+}
+
+/**
+ * Kalem tablosunun her data kolonunun piksel genişliğini gerçek metin
+ * ölçümüyle hesaplar. Hem TableColgroup hem totals card hizalama hesabı
+ * aynı kaynaktan beslenir.
+ */
+export function computeOfferColumnWidths(
+  rows: ReadonlyArray<OfferTableRow>,
+  satirBazliParaBirimi: boolean,
+): OfferColumnWidths {
   const canMeasure = typeof document !== 'undefined';
 
   const fmtPrice = (n?: number) => (n ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -247,7 +263,6 @@ export function TableColgroup(props: {
     return map[k] ?? (b || 'Ad.');
   };
 
-  /** En geniş metni piksel hassasiyetiyle ölç, fallback karaktere dayalı. */
   const widestOf = (
     texts: Array<string>,
     fontSizePx: number,
@@ -269,16 +284,12 @@ export function TableColgroup(props: {
     return Math.round(longest * charEstimate);
   };
 
-  const PAD = LINE_ITEM_METRICS.cellPaddingXpx * 2; // hücre yatay padding (4+4)
-  const BUFFER = 2;                                 // piksel yuvarlama + nefes payı
+  const PAD = LINE_ITEM_METRICS.cellPaddingXpx * 2;
+  const BUFFER = 2;
   const wrap = (min: number, contentW: number, headerW: number = 0): number =>
     Math.max(min, Math.ceil(Math.max(contentW, headerW) + PAD + BUFFER));
 
-  // ── HEADER genişlikleri (9.7px bold + 0.06em letter-spacing) ────────────
-  const H_SIZE = 9.7;
-  const H_WEIGHT = 700;
-  const H_LS = '0.06em';
-  const H_SUB_SIZE = 7.5;
+  const H_SIZE = 9.7, H_WEIGHT = 700, H_LS = '0.06em', H_SUB_SIZE = 7.5;
   const headerW = (main: string, sub: string): number => {
     if (!canMeasure) return Math.max(main.length * 5.8, sub.length * 4.5);
     return Math.max(
@@ -287,7 +298,6 @@ export function TableColgroup(props: {
     );
   };
 
-  // ── Her kolon için ölçümler ─────────────────────────────────────────────
   const noHeaderW    = headerW('#', '');
   const markaHeaderW = headerW('Marka', 'Brand');
   const codeHeaderW  = headerW('Ürün Kodu', 'Item No');
@@ -297,9 +307,9 @@ export function TableColgroup(props: {
   const totHeaderW   = headerW('Toplam', 'Total');
   const delHeaderW   = headerW('Teslimat', 'Delivery');
 
-  const markaContentW   = widestOf(rows.map((r) => r.marka ?? ''), LINE_ITEM_METRICS.baseFontSizePx, 400, '0', 6.0);
-  const codeContentW    = widestOf(rows.map((r) => r.urunKod ?? ''), LINE_ITEM_METRICS.codeFontSizePx, 600, '-0.1px', 6.4);
-  const qtyContentW     = widestOf(
+  const markaContentW    = widestOf(rows.map((r) => r.marka ?? ''), LINE_ITEM_METRICS.baseFontSizePx, 400, '0', 6.0);
+  const codeContentW     = widestOf(rows.map((r) => r.urunKod ?? ''), LINE_ITEM_METRICS.codeFontSizePx, 600, '-0.1px', 6.4);
+  const qtyContentW      = widestOf(
     rows.map((r) => `${fmtQty(r.miktar)} ${abbrev(r.birim)}`),
     LINE_ITEM_METRICS.baseFontSizePx, 600, '0', 5.8,
   );
@@ -310,20 +320,51 @@ export function TableColgroup(props: {
     }),
     LINE_ITEM_METRICS.baseFontSizePx, 400, '0', 6.3,
   );
-  const totalContentW   = widestOf(rows.map((r) => fmtPrice(r.satirToplami)), LINE_ITEM_METRICS.baseFontSizePx, 700, '0', 6.5);
+  const totalContentW    = widestOf(rows.map((r) => fmtPrice(r.satirToplami)), LINE_ITEM_METRICS.baseFontSizePx, 700, '0', 6.5);
   const deliveryContentW = widestOf(rows.map((r) => r.teslimTarihi ?? ''), LINE_ITEM_METRICS.deliveryFontSizePx, 400, '-0.01em', 5.4);
-  const paraBirimiContentW = satirBazli
+  const paraBirimiContentW = satirBazliParaBirimi
     ? widestOf(['TL', 'USD', 'EUR'], LINE_ITEM_METRICS.baseFontSizePx, 700, '0.03em', 6.5)
     : 0;
 
-  const noWidth         = wrap(22, 0,                 noHeaderW);
-  const markaWidth      = wrap(32, markaContentW,     markaHeaderW);
-  const codeWidth       = wrap(56, codeContentW,      codeHeaderW);
-  const qtyWidth        = wrap(44, qtyContentW,       qtyHeaderW);
-  const unitPriceWidth  = wrap(60, unitPriceContentW, upHeaderW);
-  const totalWidth      = wrap(60, totalContentW,     totHeaderW);
-  const deliveryWidth   = wrap(46, deliveryContentW,  delHeaderW);
-  const paraBirimiWidth = satirBazli ? wrap(38, paraBirimiContentW, pbHeaderW) : 0;
+  return {
+    no:         wrap(22, 0,                 noHeaderW),
+    marka:      wrap(32, markaContentW,     markaHeaderW),
+    code:       wrap(56, codeContentW,      codeHeaderW),
+    qty:        wrap(44, qtyContentW,       qtyHeaderW),
+    paraBirimi: satirBazliParaBirimi ? wrap(38, paraBirimiContentW, pbHeaderW) : 0,
+    unitPrice:  wrap(60, unitPriceContentW, upHeaderW),
+    total:      wrap(60, totalContentW,     totHeaderW),
+    delivery:   wrap(46, deliveryContentW,  delHeaderW),
+  };
+}
+
+/**
+ * Totals card içindeki rakamların sağ padding'i — kart çerçevesi sayfa
+ * sağına kadar uzasa bile, rakamların sağ X'i tablonun "Toplam" kolonu
+ * değer X'iyle birebir hizalanır.
+ *
+ * Kart sağ kenarı = sayfa sağı.  Toplam değer X'i = sayfa sağı − teslimat
+ * kolon genişliği − CELL_PAD. Yani rakam padding-right = teslimat + 4px.
+ */
+export function computeTotalsAmountRightOffset(
+  rows: ReadonlyArray<OfferTableRow>,
+  satirBazliParaBirimi: boolean = false,
+): number {
+  const widths = computeOfferColumnWidths(rows, satirBazliParaBirimi);
+  return widths.delivery + LINE_ITEM_METRICS.cellPaddingXpx;
+}
+
+export function TableColgroup(props: {
+  satirBazliParaBirimi?: boolean;
+  teklifSatirlari?: ReadonlyArray<OfferTableRow>;
+}) {
+  const rows = props.teklifSatirlari ?? [];
+  const satirBazli = props.satirBazliParaBirimi ?? false;
+  const w = computeOfferColumnWidths(rows, satirBazli);
+  const noWidth = w.no, markaWidth = w.marka, codeWidth = w.code,
+        qtyWidth = w.qty, paraBirimiWidth = w.paraBirimi,
+        unitPriceWidth = w.unitPrice, totalWidth = w.total,
+        deliveryWidth = w.delivery;
 
   return (
     <colgroup>

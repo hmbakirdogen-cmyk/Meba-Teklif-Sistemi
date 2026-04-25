@@ -53,6 +53,7 @@ import {
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_TITLE_STYLE,
   TableColgroup,
+  computeTotalsAmountRightOffset,
   buildSettingsItems,
   getTableHeadCellStyle,
 } from '../templates/teklifDocumentShared';
@@ -748,27 +749,19 @@ export default function PaginatedBelgeInlineEditor({
 
   const renderTotals = () =>
     !satirBazliParaBirimi ? (
-      // Single-currency: kart kalem tablosunun "Toplam" kolonu ile aynı sağ
-      // kenara hizalanır. TableColgroup ile aynı kolon genişlikleri, kart
-      // colspan 4-8 (aciklama..toplam), col 9 (teslimat) boş.
+      // Çerçeve eski 56%/44% yapıda; rakamlar amountRightOffsetPx ile
+      // tablonun "Toplam" kolonu değer X'iyle birebir hizalanır.
       <table style={{
-        width: '100%',
-        borderCollapse: 'separate',
-        borderSpacing: '0 4px',
-        marginTop: '6px',
-        marginBottom: '14px',
-        tableLayout: 'fixed',
-        borderLeft: 'none',
-        borderRight: 'none',
-        printColorAdjust: 'exact',
-        WebkitPrintColorAdjust: 'exact',
-        ...noBreak,
+        width: '100%', borderCollapse: 'collapse',
+        marginTop: '6px', marginBottom: '14px',
+        tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
+        printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
       } as React.CSSProperties}>
-        <TableColgroup satirBazliParaBirimi={false} teklifSatirlari={teklif.satirlar} />
+        <colgroup><col style={{ width: '56%' }} /><col /></colgroup>
         <tbody>
           <tr>
-            <td colSpan={3} style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
-            <td colSpan={5} style={{ padding: '8px 0 10px 0', verticalAlign: 'top', borderTop: 'none', borderBottom: 'none' }}>
+            <td style={{ borderTop: 'none', borderBottom: 'none' }} />
+            <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
               <TotalsCard
                 araToplam={araToplam}
                 iskontoOrani={iskontoOrani}
@@ -778,9 +771,9 @@ export default function PaginatedBelgeInlineEditor({
                 genelToplam={genelToplam}
                 paraBirimi={teklif.paraBirimi}
                 variant="light"
+                amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
             </td>
-            <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
           </tr>
         </tbody>
       </table>

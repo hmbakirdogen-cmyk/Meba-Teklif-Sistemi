@@ -42,6 +42,7 @@ import {
   TABLE_STYLE,
   TABLE_TITLE_STYLE,
   TableColgroup,
+  computeTotalsAmountRightOffset,
   buildSettingsItems,
   getTableHeadCellStyle,
   DescText,
@@ -573,21 +574,30 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </table>
 
       {/* ══ TOPLAM ALANI ════════════════════════════════════════ */}
-      {/* Single-currency: kart kalem tablosunun "Toplam" kolonu ile aynı sağ
-         kenara hizalanır (TableColgroup + colspan 4-8, teslimat boş).      */}
+      {/* Çerçeve eski 56%/44% yapıda (sayfa sağına kadar uzanır); rakamlar
+         içeride amountRightOffsetPx ile "Toplam" kolonu değer X'ine hizalı. */}
       <div id="pdf-totals-block">
       {!satirBazliParaBirimi ? (
         <table style={{
-          ...TABLE_STYLE,
+          width: '100%',
+          borderCollapse: 'collapse',
           marginTop: '4px',
           marginBottom: '14px',
+          tableLayout: 'fixed',
+          borderLeft: 'none',
+          borderRight: 'none',
+          printColorAdjust: 'exact',
+          WebkitPrintColorAdjust: 'exact',
           ...noBreak,
         } as React.CSSProperties}>
-          <TableColgroup satirBazliParaBirimi={false} teklifSatirlari={teklif.satirlar} />
+          <colgroup>
+            <col style={{ width: '56%' }} />
+            <col />
+          </colgroup>
           <tbody>
             <tr>
-              <td colSpan={3} style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
-              <td colSpan={5} style={{ padding: '8px 0 10px 0', verticalAlign: 'top', borderTop: 'none', borderBottom: 'none' }}>
+              <td style={{ borderTop: 'none', borderBottom: 'none' }} />
+              <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
                 <TotalsCard
                   araToplam={araToplam}
                   iskontoOrani={iskontoOrani}
@@ -597,9 +607,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   genelToplam={genelToplam}
                   paraBirimi={teklif.paraBirimi}
                   variant="dark"
+                  amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
                 />
               </td>
-              <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
             </tr>
           </tbody>
         </table>
