@@ -39,7 +39,7 @@ interface RowGeom {
   left: number;
   width: number;        // satırın tam genişliği (drag geometrisi için)
   handleLeft: number;   // tutamak başlangıcı (sola yaslı = r.left)
-  handleWidth: number;  // sabit 1.75 cm
+  handleWidth: number;  // No (#) + Marka kolon genişlikleri toplamı
 }
 
 interface RowResizerLayerProps {
@@ -59,11 +59,9 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 6px hit area (kolay yakalama) — 2px satır içinde + 4px gap'te.
-const HANDLE_HIT_HEIGHT = 6;
-const HANDLE_INSIDE_ROW_PX = 2;
-// Sabit handle uzunluğu: 1.75 cm = 17.5 mm ≈ 66 px (96 DPI document-px).
-const HANDLE_WIDTH_PX = 66;
+// 4px hit area satırın TAM ALTINDA (= row.bottom çizgisi). Görsel 1px hat
+// container'ın üst kenarına (cell border hizası) yerleşir.
+const HANDLE_HIT_HEIGHT = 4;
 
 export function RowResizerLayer({
   tableEl,
@@ -114,6 +112,13 @@ export function RowResizerLayer({
         const id = tr.getAttribute('data-satir-id');
         if (!id || !idSet.has(id)) return;
         const r = tr.getBoundingClientRect();
+        // Handle genişliği: sadece # + Marka kolonlarının toplam genişliği.
+        // tr.cells[0] = #, tr.cells[1] = Marka. Açıklama (cells[3]) dahil DEĞİL.
+        const noCell = tr.cells[0] as HTMLElement | undefined;
+        const markaCell = tr.cells[1] as HTMLElement | undefined;
+        const noW = noCell ? noCell.getBoundingClientRect().width : 0;
+        const markaW = markaCell ? markaCell.getBoundingClientRect().width : 0;
+        const handleW = (noW + markaW) / scale;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
@@ -121,7 +126,7 @@ export function RowResizerLayer({
           left: (r.left - layerRect.left) / scale,
           width: r.width / scale,
           handleLeft: (r.left - layerRect.left) / scale,
-          handleWidth: HANDLE_WIDTH_PX,
+          handleWidth: handleW > 0 ? handleW : 60, // fallback 60px
         });
       });
       setRows((prev) => (sameRows(prev, next) ? prev : next));
@@ -258,20 +263,23 @@ export function RowResizerLayer({
             position: 'absolute',
             left: `${r.handleLeft}px`,
             width: `${r.handleWidth}px`,
-            top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
+            // Container satırın TAM ALTINDA (= row.bottom çizgisi). Visual
+            // 1px hat container'ın üst kenarına (top) yapışır → cell border
+            // hizası birebir.
+            top: `${r.top + r.height - HANDLE_HIT_HEIGHT}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 2px ince premium lacivert hat — backgroundSize ile orta strip,
-            // sola yaslı (sol başta full color, sağa fade). Pasif opacity 0.5
-            // (görünür ama dikkat çekmez); CSS :hover ile 1.0 + glow.
+            // 1px ince premium lacivert hat — simetrik fade gradient.
+            // backgroundPosition: bottom → 1px hat container'ın alt kenarına
+            // yapışır = TAM row.bottom çizgisinde.
             background:
-              'linear-gradient(90deg, rgba(30,64,175,0.95) 0%, rgba(59,130,246,0.75) 60%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 6px) 2px',
-            backgroundPosition: 'left center',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.85) 30%, rgba(59,130,246,0.65) 70%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 12px) 1px',
+            backgroundPosition: 'center bottom',
             backgroundRepeat: 'no-repeat',
-            opacity: 0.5,
+            opacity: 0,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
