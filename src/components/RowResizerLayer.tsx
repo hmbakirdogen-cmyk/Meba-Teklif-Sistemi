@@ -221,19 +221,18 @@ export function RowResizerLayer({
           style={{
             position: 'absolute',
             left: `${r.handleLeft}px`,
-            width: `${r.handleWidth}px`,
+            width: '200px',
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
-            height: '3px',
+            height: '6px',
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // SOLID lacivert — backgroundSize/gradient trickery YOK.
-            // 3px tall, full opacity, görmemen mümkün değil.
-            background: '#1e40af',
-            borderRadius: '999px',
+            // ULTRA DEBUG — görmemen imkansız: 6px kalın PARLAK KIRMIZI + outline
+            background: 'red',
+            outline: '2px solid yellow',
             opacity: 1,
-            boxShadow: '0 0 6px rgba(37,99,235,0.5)',
-            transition: 'opacity 160ms ease, box-shadow 160ms ease',
+            zIndex: 9999,
+            transition: 'opacity 160ms ease',
           }}
         />
       ))}
