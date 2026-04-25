@@ -206,15 +206,19 @@ export default function KumandaPaneli({
           position: relative;
           overflow: hidden;
           isolation: isolate;
+          backdrop-filter: blur(0px);
+          -webkit-backdrop-filter: blur(0px);
           transition:
             transform 180ms ease,
-            box-shadow 180ms ease,
+            box-shadow 220ms ease,
             filter 180ms ease,
             border-color 180ms ease,
             color 180ms ease,
             text-shadow 180ms ease,
-            background 180ms ease;
-          will-change: transform, box-shadow;
+            background 220ms ease,
+            backdrop-filter 220ms ease,
+            -webkit-backdrop-filter 220ms ease;
+          will-change: transform, box-shadow, backdrop-filter;
         }
 
         /* Default karakter — .control-panel'e konuldu (en düşük specificity).
@@ -227,27 +231,37 @@ export default function KumandaPaneli({
         /* ── Per-buton karakter renk paleti ──────────────────────────── */
         /* .control-panel button. prefix ile specificity (0,2,1) →
            .control-panel button (0,1,1) override edilir. */
-        .control-panel button.button-edit         { --button-accent: rgba( 70, 255, 160, 0.98); --button-glow: rgba( 70, 255, 160, 0.45); --button-glow-strong: rgba( 70, 255, 160, 0.72); }
+        .control-panel button.button-edit         { --button-accent: rgba( 70, 255, 160, 0.95); --button-glow: rgba( 70, 255, 160, 0.45); }
         .control-panel button.button-image        { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
         .control-panel button.button-row-discount { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
         .control-panel button.button-row-currency { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
         .control-panel button.button-tax          { --button-accent: rgba(255, 190,  95, 0.95); --button-glow: rgba(255, 190,  95, 0.30); }
         .control-panel button.button-discount     { --button-accent: rgba(255, 135,  80, 0.95); --button-glow: rgba(255, 135,  80, 0.28); }
 
-        /* ── Aktif veya basılı: yazı / ikon / border / glow karakter rengine bürünür ── */
-        /* Arka plan değişmez — sadece karakter ışığı yayılır. */
+        /* ── Aktif / basılı: saydam cam + neon karakter ──────────────────
+           backdrop-filter ile ardalan bulanıklaşır; gradient bg color-mix
+           ile karakter rengine hafif boyanır; içte beyaz highlight + altta
+           derinlik gölgesi. Buton tek renge boyanmaz; ışık içten yayılır. */
         .control-panel button.is-active,
         .control-panel button:active {
+          backdrop-filter: blur(12px) saturate(1.2);
+          -webkit-backdrop-filter: blur(12px) saturate(1.2);
+          background:
+            linear-gradient(
+              160deg,
+              color-mix(in srgb, var(--button-accent) 18%, transparent),
+              rgba(255,255,255,0.02)
+            );
           color: var(--button-accent);
           border-color: var(--button-accent);
           text-shadow:
             0 0 10px var(--button-glow),
-            0 0 22px var(--button-glow);
+            0 0 24px var(--button-glow);
           box-shadow:
-            0 0 24px var(--button-glow),
-            0 0 54px color-mix(in srgb, var(--button-glow) 70%, transparent),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 -16px 30px rgba(0, 0, 0, 0.48);
+            0 0 22px var(--button-glow),
+            0 0 60px color-mix(in srgb, var(--button-glow) 70%, transparent),
+            inset 0 1px 0 rgba(255,255,255,0.22),
+            inset 0 -14px 28px rgba(0,0,0,0.42);
         }
 
         .control-panel button.is-active .panel-icon,
@@ -258,57 +272,21 @@ export default function KumandaPaneli({
             drop-shadow(0 0 18px var(--button-glow));
         }
 
-        /* ── Düzenleme butonu — premium yeşil aktif karakter (rose override) ── */
-        /* Specificity (0,3,1): generic .is-active (0,2,1) ve
-           .lock-button[data-readonly="false"] (0,2,1) override edilir. */
-        .control-panel button.button-edit.is-active {
-          color: var(--button-accent);
-          border-color: rgba(90, 255, 175, 0.95);
-          text-shadow:
-            0 0 8px var(--button-glow-strong),
-            0 0 18px var(--button-glow),
-            0 0 38px rgba(70, 255, 160, 0.35);
-          box-shadow:
-            0 0 18px rgba(70, 255, 160, 0.42),
-            0 0 42px rgba(70, 255, 160, 0.32),
-            0 0 86px rgba(70, 255, 160, 0.18),
-            inset 0 1px 0 rgba(255,255,255,0.22),
-            inset 0 -18px 34px rgba(0,0,0,0.52);
-        }
-
-        .control-panel button.button-edit.is-active .panel-icon {
-          color: var(--button-accent);
-          filter:
-            drop-shadow(0 0 8px rgba(70, 255, 160, 0.85))
-            drop-shadow(0 0 18px rgba(70, 255, 160, 0.55))
-            drop-shadow(0 0 34px rgba(70, 255, 160, 0.32));
-        }
-
-        .control-panel button.button-edit.is-active::after {
-          background:
-            radial-gradient(circle,
-              rgba(70, 255, 160, 0.55) 0%,
-              rgba(70, 255, 160, 0.22) 38%,
-              transparent 72%
-            );
-        }
-
-        .control-panel button.button-edit.is-active:hover {
-          box-shadow:
-            0 0 24px rgba(70, 255, 160, 0.55),
-            0 0 58px rgba(70, 255, 160, 0.38),
-            0 0 110px rgba(70, 255, 160, 0.22),
-            inset 0 1px 0 rgba(255,255,255,0.26),
-            inset 0 -18px 34px rgba(0,0,0,0.55);
-        }
-
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
         .control-panel button { --press-glow: var(--button-glow); }
 
-        /* Hover — hafif yukarı kalkma + parlama */
+        /* Hover — hafif cam hissi: subtle blur + ince şeffaf bg */
         .control-panel button:hover {
           transform: translateY(-2px);
           filter: brightness(1.08) saturate(1.08);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          background:
+            linear-gradient(
+              160deg,
+              rgba(255,255,255,0.04),
+              rgba(255,255,255,0.01)
+            );
         }
 
         /* Pressed — fiziksel buton hissi: hafif içeri bas + scale */
@@ -317,21 +295,29 @@ export default function KumandaPaneli({
           filter: brightness(0.96);
         }
 
+        /* Cam üst highlight overlay — pasifte görünmez, aktif/basılı durumda
+           üstte yumuşak cam parlaması olarak belirir (opacity 0 → 0.55). */
         .control-panel button::before {
           content: "";
           position: absolute;
           inset: 0;
           border-radius: inherit;
           pointer-events: none;
+          opacity: 0;
           background:
             linear-gradient(
               180deg,
-              rgba(255,255,255,0.18) 0%,
-              rgba(255,255,255,0.05) 34%,
-              transparent 58%
+              rgba(255,255,255,0.25),
+              rgba(255,255,255,0.06) 35%,
+              rgba(255,255,255,0.02) 60%
             );
-          opacity: 0.42;
           z-index: 1;
+          transition: opacity 220ms ease;
+        }
+
+        .control-panel button.is-active::before,
+        .control-panel button:active::before {
+          opacity: 0.55;
         }
 
         .control-panel button > * {
@@ -445,18 +431,10 @@ export default function KumandaPaneli({
           gap: calc(6px * var(--panel-scale));
         }
 
-        .lock-button[data-readonly="false"] {
-          border-color: rgba(255, 143, 155, 0.64);
-          box-shadow:
-            0 18px 38px rgba(0,0,0,0.54),
-            0 0 24px rgba(255, 88, 116, 0.18),
-            inset 0 1px 0 rgba(255,255,255,0.10);
-        }
-
-        /* ── Düzenleme/Kilitli premium hover/active — ana buton, hissi güçlü ── */
-        .lock-button:hover {
-          border-color: rgba(255, 145, 165, 0.52);
-        }
+        /* lock-button[data-readonly="false"] aktif border/box-shadow:
+           generic .control-panel button.is-active glass treatment yönetir
+           (button-edit yeşil accent var'ı üzerinden). Burada özel rose
+           override YOK — cam efekti tüm butonlar için tek noktadan gelir. */
 
         .lock-button:active {
           box-shadow:
@@ -590,30 +568,10 @@ export default function KumandaPaneli({
           border-color: rgba(255, 150, 165, 0.52);
         }
 
-        .square-btn.is-active {
-          background:
-            radial-gradient(circle at top, rgba(255, 130, 150, 0.25), transparent),
-            linear-gradient(180deg, var(--active-bg-1), var(--active-bg-2));
-          border: 1px solid var(--active-border);
-          box-shadow:
-            0 0 25px rgba(255, 80, 110, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.10);
-          /* Sakin sürekli glow — premium cihaz ışığı, neon değil */
-          animation: premiumToggleGlow 2.8s ease-in-out infinite;
-        }
-
-        @keyframes premiumToggleGlow {
-          0%, 100% {
-            box-shadow:
-              0 0 18px rgba(255, 80, 110, 0.18),
-              inset 0 1px 0 rgba(255, 255, 255, 0.10);
-          }
-          50% {
-            box-shadow:
-              0 0 28px rgba(255, 80, 110, 0.30),
-              inset 0 1px 0 rgba(255, 255, 255, 0.14);
-          }
-        }
+        /* .square-btn.is-active rose bg/border/animation override KALDIRILDI:
+           cam + neon karakter generic .control-panel button.is-active'ten gelir
+           (--button-accent + --button-glow per-buton var ile renklenir).
+           premiumToggleGlow keyframe artık kullanilmiyor. */
 
         .square-btn.finance,
         .square-btn.kdv,
@@ -641,26 +599,9 @@ export default function KumandaPaneli({
             inset 0 -16px 30px rgba(0,0,0,0.48);
         }
 
-        .lock-button[data-readonly="false"],
-        .square-btn.is-active {
-          animation: none;
-        }
-
-        .lock-button[data-readonly="false"] {
-          box-shadow:
-            0 20px 40px rgba(0,0,0,0.56),
-            0 0 24px rgba(255, 88, 116, 0.18),
-            inset 0 1px 0 rgba(255,255,255,0.18),
-            inset 0 -14px 28px rgba(0,0,0,0.44);
-        }
-
-        .square-btn.is-active {
-          box-shadow:
-            0 18px 38px rgba(0,0,0,0.52),
-            0 0 22px var(--press-glow, rgba(255, 80, 110, 0.22)),
-            inset 0 1px 0 rgba(255, 255, 255, 0.16),
-            inset 0 -14px 28px rgba(0, 0, 0, 0.42);
-        }
+        /* lock-button[data-readonly="false"] ve .square-btn.is-active rose
+           box-shadow override'ları kaldirildi. Generic .control-panel
+           button.is-active glass + neon treatment tek doğru. */
 
         .square-btn::after,
         .image-add::after,
