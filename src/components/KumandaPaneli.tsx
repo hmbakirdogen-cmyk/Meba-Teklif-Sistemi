@@ -23,7 +23,15 @@ const K = {
   PANEL_PAD: 12,
   GROUP_GAP: 14,
   ITEM_GAP:  6,
-  TOP:       100,            // A4 üst hizasına yakın, üst boşluk ~80-110px aralığında
+  // ── Üst hiza ──────────────────────────────────────────────────────
+  // Referans: A4 sayfasının üst kenarı.
+  //   Toolbar 56px + belge alanı padding-top 40px = A4 üstü viewport'tan 96px.
+  // Panel "A4 üstünden biraz aşağıda" başlasın → 96 + 12 = 108px.
+  // Sabit tek değer; viewport veya scroll değişimi etkilemez.
+  TOP:       108,
+  // Kısa ekran güvenliği: panel ekranı taşmasın, scrollbar EKLEMEDEN clip edilsin.
+  // 108 (top) + 24 (alt nefes) = 132px → max yükseklik kalan kadar.
+  BOTTOM_GAP: 24,
 
   EDIT_H:    64,
   ACTION_H:  36,
@@ -146,6 +154,8 @@ export default function KumandaPaneli({
           ? `${K.RIGHT_OPEN_OFFSET}px`
           : `max(${K.EDGE_MIN}px, calc(50% - ${K.RIGHT_CLOSED_OFFSET}px))`,
         width: K.WIDTH,
+        // Kısa ekran güvenliği: panel ekrana sığar, scrollbar OLMADAN clip edilir.
+        maxHeight: `calc(100vh - ${K.TOP + K.BOTTOM_GAP}px)`,
         zIndex: 80,
         pointerEvents: 'auto',
       }}
