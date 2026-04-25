@@ -227,7 +227,7 @@ export default function KumandaPaneli({
         /* ── Per-buton karakter renk paleti ──────────────────────────── */
         /* .control-panel button. prefix ile specificity (0,2,1) →
            .control-panel button (0,1,1) override edilir. */
-        .control-panel button.button-edit         { --button-accent: rgba(255,  85, 125, 0.95); --button-glow: rgba(255,  85, 125, 0.32); }
+        .control-panel button.button-edit         { --button-accent: rgba( 70, 255, 160, 0.98); --button-glow: rgba( 70, 255, 160, 0.45); --button-glow-strong: rgba( 70, 255, 160, 0.72); }
         .control-panel button.button-image        { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
         .control-panel button.button-row-discount { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
         .control-panel button.button-row-currency { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
@@ -256,6 +256,50 @@ export default function KumandaPaneli({
           filter:
             drop-shadow(0 0 8px var(--button-glow))
             drop-shadow(0 0 18px var(--button-glow));
+        }
+
+        /* ── Düzenleme butonu — premium yeşil aktif karakter (rose override) ── */
+        /* Specificity (0,3,1): generic .is-active (0,2,1) ve
+           .lock-button[data-readonly="false"] (0,2,1) override edilir. */
+        .control-panel button.button-edit.is-active {
+          color: var(--button-accent);
+          border-color: rgba(90, 255, 175, 0.95);
+          text-shadow:
+            0 0 8px var(--button-glow-strong),
+            0 0 18px var(--button-glow),
+            0 0 38px rgba(70, 255, 160, 0.35);
+          box-shadow:
+            0 0 18px rgba(70, 255, 160, 0.42),
+            0 0 42px rgba(70, 255, 160, 0.32),
+            0 0 86px rgba(70, 255, 160, 0.18),
+            inset 0 1px 0 rgba(255,255,255,0.22),
+            inset 0 -18px 34px rgba(0,0,0,0.52);
+        }
+
+        .control-panel button.button-edit.is-active .panel-icon {
+          color: var(--button-accent);
+          filter:
+            drop-shadow(0 0 8px rgba(70, 255, 160, 0.85))
+            drop-shadow(0 0 18px rgba(70, 255, 160, 0.55))
+            drop-shadow(0 0 34px rgba(70, 255, 160, 0.32));
+        }
+
+        .control-panel button.button-edit.is-active::after {
+          background:
+            radial-gradient(circle,
+              rgba(70, 255, 160, 0.55) 0%,
+              rgba(70, 255, 160, 0.22) 38%,
+              transparent 72%
+            );
+        }
+
+        .control-panel button.button-edit.is-active:hover {
+          box-shadow:
+            0 0 24px rgba(70, 255, 160, 0.55),
+            0 0 58px rgba(70, 255, 160, 0.38),
+            0 0 110px rgba(70, 255, 160, 0.22),
+            inset 0 1px 0 rgba(255,255,255,0.26),
+            inset 0 -18px 34px rgba(0,0,0,0.55);
         }
 
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
