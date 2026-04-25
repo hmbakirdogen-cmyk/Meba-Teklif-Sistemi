@@ -251,10 +251,12 @@ export default function KumandaPaneli({
            Lock butonu özel: is-editing/is-locked class'larıyla güçlü
            ışık alır (yeşil/kırmızı), diğer butonlardan ayrışır. */
         .control-panel button.button-image        { --button-accent: #6f8fbf; --button-glow: rgba(111, 143, 191, 0.30); }
-        .control-panel button.button-row-discount { --button-accent: #b86b7d; --button-glow: rgba(184, 107, 125, 0.28); }
-        .control-panel button.button-row-currency { --button-accent: #8f7ab8; --button-glow: rgba(143, 122, 184, 0.28); }
-        .control-panel button.button-tax          { --button-accent: #b89a62; --button-glow: rgba(184, 154,  98, 0.28); }
-        .control-panel button.button-discount     { --button-accent: #b97858; --button-glow: rgba(185, 120,  88, 0.28); }
+        /* Pembe → kurumsal şarap kırmızısı */
+        .control-panel button.button-row-discount { --button-accent: #d94f64; --button-glow: rgba(217,  79, 100, 0.32); }
+        /* Purple → kurumsal teal/petrol mavisi */
+        .control-panel button.button-row-currency { --button-accent: #3fb7a3; --button-glow: rgba( 63, 183, 163, 0.30); }
+        .control-panel button.button-tax          { --button-accent: #d8a24f; --button-glow: rgba(216, 162,  79, 0.30); }
+        .control-panel button.button-discount     { --button-accent: #c46f48; --button-glow: rgba(196, 111,  72, 0.28); }
 
         /* Lock state vars — yeşil (editing) / kırmızı (locked) güçlü neon */
         .control-panel button.lock-button.is-editing {
@@ -673,25 +675,46 @@ export default function KumandaPaneli({
           border-color: rgba(255, 255, 255, 0.18);
         }
 
-        /* ── Pasif kare buton: panel arkasına gömülü kurumsal görünüm ──
-           Düşük kontrast bordo/antrasit zemin + çok düşük opaklık border.
-           İkonlar kaybolmaz ama dikkat çekmez. Specificity (0,2,0) base
-           .square-btn (0,1,0) ve shared box-shadow rule'u (0,1,0) override. */
+        /* ── Pasif kare buton: panel arkasına gömülü kurumsal görünüm ── */
         .square-btn:not(.is-active) {
           --button-accent: rgba(230, 220, 220, 0.62);
           --button-glow: transparent;
           background:
-            linear-gradient(180deg, rgba(45, 10, 18, 0.52), rgba(14, 3, 7, 0.72));
-          border-color: rgba(255, 255, 255, 0.08);
+            linear-gradient(180deg, rgba(45, 10, 18, 0.42), rgba(12, 2, 6, 0.72));
+          border-color: rgba(255, 255, 255, 0.07);
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.04),
             inset 0 -12px 22px rgba(0, 0, 0, 0.35);
         }
 
-        /* Pasif kare buton ikonu — silvery/muted, ciddi kurumsal */
         .square-btn:not(.is-active) .premium-panel-icon {
           opacity: 0.68;
           filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.42));
+        }
+
+        /* ── Aktif kare buton: tüm yüzey karakter renginde saydam cam ──
+           Specificity (0,3,1) — generic .control-panel button.is-active'i
+           (0,2,1) override eder. Renkler --button-accent üzerinden gelir. */
+        .control-panel button.square-btn.is-active {
+          color: var(--button-accent);
+          border-color: color-mix(in srgb, var(--button-accent) 78%, transparent);
+          background:
+            radial-gradient(
+              circle at 50% 20%,
+              color-mix(in srgb, var(--button-accent) 34%, transparent) 0%,
+              color-mix(in srgb, var(--button-accent) 18%, transparent) 42%,
+              rgba(255, 255, 255, 0.025) 74%
+            ),
+            linear-gradient(
+              180deg,
+              color-mix(in srgb, var(--button-accent) 22%, rgba(255, 255, 255, 0.04)),
+              rgba(10, 2, 6, 0.82)
+            );
+          box-shadow:
+            0 0 22px color-mix(in srgb, var(--button-accent) 38%, transparent),
+            inset 0 0 24px color-mix(in srgb, var(--button-accent) 22%, transparent),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            inset 0 -14px 26px rgba(0, 0, 0, 0.38);
         }
 
         .square-btn.finance,
