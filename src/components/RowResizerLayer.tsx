@@ -213,8 +213,14 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  // ULTRA DEBUG: portal banner viewport sol-üst köşesinde — container'lardan
-  // bağımsız, kesin görünür. RowResizerLayer mount olduğunu kanıtlar.
+  // ULTRA DEBUG: portal banner — derin runtime tanı
+  const firstSatirId = satirIds[0] ?? 'NONE';
+  const wrapper = layerRef.current?.parentElement;
+  const liveTable = wrapper?.querySelector<HTMLTableElement>('table.offer-table');
+  const allTrsInTable = liveTable?.querySelectorAll('tr[data-satir-id]') ?? [];
+  const firstTrAttr = allTrsInTable[0]?.getAttribute('data-satir-id') ?? 'NONE';
+  const allTablesInDoc = document.querySelectorAll('table.offer-table').length;
+
   const debugBanner = createPortal(
     <div style={{
       position: 'fixed',
@@ -223,14 +229,24 @@ export function RowResizerLayer({
       background: 'red',
       color: 'white',
       padding: '8px 14px',
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'monospace',
       zIndex: 99999,
       borderRadius: 6,
       boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
       pointerEvents: 'none',
+      maxWidth: '90vw',
+      wordBreak: 'break-all',
     }}>
-      RESIZER MOUNT | readOnly={String(readOnly)} | tableEl={tableEl ? 'OK' : 'NULL'} | satirIds={satirIds.length} | rows={rows.length}
+      readOnly={String(readOnly)} | satirIds={satirIds.length} | rows={rows.length}
+      <br />
+      tableEl(prop)={tableEl ? 'OK' : 'NULL'} | wrapperFound={wrapper ? 'Y' : 'N'} | liveTable={liveTable ? 'Y' : 'N'} | tablesInDoc={allTablesInDoc}
+      <br />
+      allTrsWithDataSatirId={allTrsInTable.length}
+      <br />
+      firstSatirId="{firstSatirId}"
+      <br />
+      firstTrAttr="{firstTrAttr}"
     </div>,
     document.body
   );
