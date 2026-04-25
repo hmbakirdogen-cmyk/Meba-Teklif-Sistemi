@@ -4,9 +4,18 @@ import type { TeklifDurum } from '../types';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
-// ── Design tokens — Metalik Tesla Bordo + Variant-based active colors ─────────
+// ── Design tokens — sade, kompakt, premium ───────────────────────────────────
 const K = {
-  WIDTH: 184,
+  WIDTH:     156,
+
+  // Ölçüler — tek noktadan, tüm butonlarda tutarlı
+  BTN_H:     32,
+  BTN_R:     8,
+  STATUS_H:  26,
+  STATUS_R:  7,
+  LOCK_H:    44,
+  LOCK_R:    10,
+  ICON:      12,
 
   // ── Shell (metalik bordo — derin + soft ışık oyunu) ──
   shellImg:   'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.08), transparent 28%), linear-gradient(145deg, #19060A 0%, #2A0B10 45%, #3A0F16 100%)',
@@ -14,17 +23,17 @@ const K = {
   shellBdr:   '#4A1620',
 
   // ── Text ──
-  txtLabel:   'rgba(255, 247, 242, 0.55)',   // section labels (SecLabel)
+  txtLabel:   'rgba(255, 247, 242, 0.55)',
 
-  // ── Neon Green — sadece kilit EDIT modu için (güçlendirilmiş) ──
+  // ── Neon Green — sadece kilit EDIT modu için ──
   neon:       '#39FFB6',
-  neonSoft:   'rgba(57, 255, 182, 0.55)',   // text-shadow inner
-  neonGlow:   'rgba(57, 255, 182, 0.32)',   // text-shadow outer
-  neonAura1:  'rgba(57, 255, 182, 0.32)',   // box-shadow inner glow (22px)
-  neonAura2:  'rgba(57, 255, 182, 0.18)',   // box-shadow outer glow (38px)
-  neonRing:   'rgba(57, 255, 182, 0.18)',   // 1px halo ring
-  lkEdBg:     'rgba(57, 255, 182, 0.18)',   // rgba overlay — cam etkisi korur
-  lkEdBdr:    'rgba(57, 255, 182, 0.55)',   // parlak neon border
+  neonSoft:   'rgba(57, 255, 182, 0.55)',
+  neonGlow:   'rgba(57, 255, 182, 0.32)',
+  neonAura1:  'rgba(57, 255, 182, 0.22)',
+  neonAura2:  'rgba(57, 255, 182, 0.12)',
+  neonRing:   'rgba(57, 255, 182, 0.18)',
+  lkEdBg:     'rgba(57, 255, 182, 0.18)',
+  lkEdBdr:    'rgba(57, 255, 182, 0.50)',
 
   // ── Lock (LOCKED — kilitli, sakin) ──
   lkLkBg:     '#24090E',
@@ -39,22 +48,21 @@ const DURUM_LABELS: Record<TeklifDurum, string> = {
 };
 const DURUM_LIST: TeklifDurum[] = ['taslak', 'hazir', 'gonderildi', 'onaylandi', 'iptal'];
 
-// ── Each durum maps to a variant (semantic color) ──
 const DURUM_VARIANTS: Record<TeklifDurum, string> = {
-  taslak:     'settings',  // violet muted — draft
-  hazir:      'save',      // green — ready
-  gonderildi: 'pdf',       // blue — sent
-  onaylandi:  'save',      // green — approved
-  iptal:      'cancel',    // red — cancelled
+  taslak:     'settings',
+  hazir:      'save',
+  gonderildi: 'pdf',
+  onaylandi:  'save',
+  iptal:      'cancel',
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function SecLabel({ text }: { text: string }) {
   return (
     <div style={{
-      fontSize: '9px', fontWeight: 700, letterSpacing: '0.13em',
+      fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.13em',
       textTransform: 'uppercase', color: K.txtLabel,
-      marginBottom: 7, paddingLeft: 2, userSelect: 'none',
+      marginBottom: 6, paddingLeft: 2, userSelect: 'none',
     }}>
       {text}
     </div>
@@ -62,7 +70,7 @@ function SecLabel({ text }: { text: string }) {
 }
 
 function Divider() {
-  return <div style={{ height: 1, background: 'rgba(255,247,242,0.08)', margin: '13px 0' }} />;
+  return <div style={{ height: 1, background: 'rgba(255,247,242,0.08)', margin: '9px 0' }} />;
 }
 
 // ── Props ──────────────────────────────────────────────────────────────────────
@@ -97,21 +105,6 @@ export default function KumandaPaneli({
   const [lastIsk, setLastIsk] = useState(() => iskontoOrani > 0 ? iskontoOrani : 10);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onResimSec = () => fileInputRef.current?.click();
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Aynı dosyanın yeniden seçilebilmesi için input resetlenir
-    e.target.value = '';
-    if (!file) return;
-    if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') onResimEkle(result);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const kdvOn = kdvOrani > 0;
   const iskOn = iskontoOrani > 0;
 
@@ -122,6 +115,20 @@ export default function KumandaPaneli({
   const toggleIsk = () => {
     if (iskOn) { setLastIsk(iskontoOrani); onIskontoOraniDegistir(0); }
     else onIskontoOraniDegistir(lastIsk);
+  };
+
+  const onResimSec = () => fileInputRef.current?.click();
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') onResimEkle(result);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -144,7 +151,7 @@ export default function KumandaPaneli({
       <div style={{
         width:         '100%',
         maxHeight:     '100%',
-        borderRadius:  14,
+        borderRadius:  12,
         backgroundImage: K.shellImg,
         backgroundColor: K.shellSolid,
         border:        `1px solid ${K.shellBdr}`,
@@ -158,161 +165,100 @@ export default function KumandaPaneli({
         pointerEvents: 'auto',
       }}>
       <style>{`
-        /* Base transitions + position for sweep */
+        /* Base passive .kp-btn — şeffaf zemin, ince border */
         .kp-lock, .kp-btn {
-          transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease,
-                      box-shadow 0.22s ease, transform 0.12s ease, filter 0.2s ease,
-                      text-shadow 0.22s ease;
+          transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+                      box-shadow 0.18s ease, transform 0.10s ease, filter 0.18s ease,
+                      text-shadow 0.18s ease;
           position: relative;
-          overflow: hidden;
         }
-
-        /* ── Base passive .kp-btn style (no inline bg/border) ── */
         .kp-btn {
-          background: rgba(255, 247, 242, 0.055);
-          border: 1px solid rgba(255, 247, 242, 0.12);
+          background: rgba(255, 247, 242, 0.045);
+          border: 1px solid rgba(255, 247, 242, 0.10);
           color: #FFF7F2;
         }
 
-        /* ── Active base (genel ışık altyapısı) ── */
+        /* Aktif baz — dolu zemin + iç-shadow */
         .kp-btn[data-on="true"] {
-          background: rgba(255, 247, 242, 0.16);
-          border-color: rgba(255, 247, 242, 0.42);
+          background: rgba(255, 247, 242, 0.14);
+          border-color: rgba(255, 247, 242, 0.36);
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            inset 0 -2px 6px rgba(0,0,0,0.25),
-            0 6px 20px rgba(0,0,0,0.35),
-            0 0 0 1px rgba(255,247,242,0.08);
+            inset 0 -2px 5px rgba(0,0,0,0.22),
+            0 4px 14px rgba(0,0,0,0.30);
         }
 
-        /* ── Variant active styles — karakter rengi + güçlü dual-layer glow ── */
-        /* view (KDV, İskonto — görüntüleme) — amber/gold */
+        /* Variant aktif — yumuşatılmış glow */
         .kp-btn[data-on="true"][data-variant="view"] {
-          background: rgba(255, 215, 150, 0.17);
-          border-color: rgba(255, 215, 150, 0.50);
+          background: rgba(255, 215, 150, 0.16);
+          border-color: rgba(255, 215, 150, 0.42);
           color: #FFF0D2;
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(255,215,150,0.24),
-            0 0 34px rgba(255,215,150,0.14);
+            0 0 14px rgba(255,215,150,0.20),
+            0 0 22px rgba(255,215,150,0.10);
         }
-
-        /* row (Satır Para Birimi, Satır İskontosu) — violet */
         .kp-btn[data-on="true"][data-variant="row"] {
-          background: rgba(180, 135, 255, 0.17);
-          border-color: rgba(180, 135, 255, 0.50);
+          background: rgba(180, 135, 255, 0.16);
+          border-color: rgba(180, 135, 255, 0.42);
           color: #EFE2FF;
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(180,135,255,0.26),
-            0 0 34px rgba(180,135,255,0.14);
+            0 0 14px rgba(180,135,255,0.22),
+            0 0 22px rgba(180,135,255,0.10);
         }
-
-        /* save (Hazır, Onaylandı) — green */
         .kp-btn[data-on="true"][data-variant="save"] {
-          background: rgba(65, 210, 120, 0.18);
-          border-color: rgba(65, 210, 120, 0.52);
+          background: rgba(65, 210, 120, 0.17);
+          border-color: rgba(65, 210, 120, 0.44);
           color: #B9FFD0;
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(65,210,120,0.28),
-            0 0 36px rgba(65,210,120,0.16);
+            0 0 14px rgba(65,210,120,0.22),
+            0 0 22px rgba(65,210,120,0.12);
         }
-
-        /* pdf (Gönderildi) — blue */
         .kp-btn[data-on="true"][data-variant="pdf"],
         .kp-btn[data-on="true"][data-variant="print"] {
-          background: rgba(118, 172, 255, 0.18);
-          border-color: rgba(118, 172, 255, 0.52);
+          background: rgba(118, 172, 255, 0.17);
+          border-color: rgba(118, 172, 255, 0.44);
           color: #D8E8FF;
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(118,172,255,0.28),
-            0 0 36px rgba(118,172,255,0.16);
+            0 0 14px rgba(118,172,255,0.22),
+            0 0 22px rgba(118,172,255,0.12);
         }
-
-        /* cancel / delete (İptal) — red */
         .kp-btn[data-on="true"][data-variant="cancel"],
         .kp-btn[data-on="true"][data-variant="delete"] {
-          background: rgba(255, 95, 95, 0.17);
-          border-color: rgba(255, 95, 95, 0.50);
+          background: rgba(255, 95, 95, 0.16);
+          border-color: rgba(255, 95, 95, 0.42);
           color: #FFD6D6;
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(255,95,95,0.26),
-            0 0 34px rgba(255,95,95,0.14);
+            0 0 14px rgba(255,95,95,0.22),
+            0 0 22px rgba(255,95,95,0.10);
         }
-
-        /* undo / refresh — cyan (gelecek kullanım için) */
-        .kp-btn[data-on="true"][data-variant="undo"],
-        .kp-btn[data-on="true"][data-variant="refresh"] {
-          background: rgba(65, 220, 235, 0.17);
-          border-color: rgba(65, 220, 235, 0.50);
-          color: #D8FBFF;
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(65,220,235,0.26),
-            0 0 34px rgba(65,220,235,0.14);
-        }
-
-        /* settings (Taslak) — violet (row ile aynı karakter) */
         .kp-btn[data-on="true"][data-variant="settings"] {
-          background: rgba(180, 135, 255, 0.17);
-          border-color: rgba(180, 135, 255, 0.50);
+          background: rgba(180, 135, 255, 0.16);
+          border-color: rgba(180, 135, 255, 0.42);
           color: #EFE2FF;
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.14),
-            0 0 22px rgba(180,135,255,0.26),
-            0 0 34px rgba(180,135,255,0.14);
+            0 0 14px rgba(180,135,255,0.22),
+            0 0 22px rgba(180,135,255,0.10);
         }
 
-        /* Badge (Açık/Kapalı/Aktif) — inherits color from button, varies opacity */
-        .kp-btn .kp-badge { opacity: 0.62; }
-        .kp-btn[data-on="true"] .kp-badge { opacity: 0.88; }
-        .kp-btn .kp-val { opacity: 0.92; }
-
-        /* Sweep light (::after) — kontrollü premium ışık süzülmesi */
-        .kp-btn::after {
-          content: "";
-          position: absolute;
-          top: -40%;
-          left: -60%;
-          width: 45%;
-          height: 180%;
-          background: linear-gradient(
-            110deg,
-            transparent 0%,
-            rgba(255,255,255,0.06) 45%,
-            rgba(255,255,255,0.14) 50%,
-            rgba(255,255,255,0.06) 55%,
-            transparent 100%
-          );
-          transform: translateX(-140%) rotate(8deg);
-          opacity: 0;
-          pointer-events: none;
-        }
-        .kp-btn:hover::after,
-        .kp-btn[data-on="true"]::after {
-          animation: kpSweep 0.75s ease-out 1;
-        }
-        @keyframes kpSweep {
-          from { transform: translateX(-140%) rotate(8deg); opacity: 0; }
-          35%  { opacity: 0.60; }
-          to   { transform: translateX(320%)  rotate(8deg); opacity: 0; }
+        /* Değer etiketi (örn. "%20") — durum değil, bilgi */
+        .kp-btn .kp-val {
+          opacity: 0.92;
+          font-size: 10px;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: 0.02em;
         }
 
-        /* Reduced-motion support: sweep tamamen devre dışı */
-        @media (prefers-reduced-motion: reduce) {
-          .kp-btn::after {
-            animation: none !important;
-            display: none;
-          }
-        }
-
-        /* Hover — filter only, preserves variant colors */
-        .kp-lock:hover  { filter: brightness(1.12); }
+        /* Hover — filter only, variant rengini koru */
+        .kp-lock:hover  { filter: brightness(1.10); }
         .kp-lock:active { transform: translateY(1px); filter: brightness(0.92); }
-        .kp-btn:hover   { filter: brightness(1.14); }
+        .kp-btn:hover   { filter: brightness(1.10); }
         .kp-btn:active  { transform: translateY(1px); filter: brightness(0.95); }
 
         /* Rate input */
@@ -322,12 +268,12 @@ export default function KumandaPaneli({
       `}</style>
 
       <div style={{
-        padding:       '13px 12px 14px',
+        padding:       '10px 10px 12px',
         display:       'flex',
         flexDirection: 'column',
       }}>
 
-        {/* ── MAIN: Lock / Edit toggle — NEON GREEN (kendi özel stili) ── */}
+        {/* ── 1. LOCK / EDIT — Neon yeşil özel ── */}
         <button
           type="button"
           className="kp-lock"
@@ -335,30 +281,30 @@ export default function KumandaPaneli({
           onClick={() => onReadOnlyDegistir(!readOnly)}
           style={{
             width:          '100%',
-            height:         62,
-            borderRadius:   12,
+            height:         K.LOCK_H,
+            borderRadius:   K.LOCK_R,
             background:     readOnly ? K.lkLkBg : K.lkEdBg,
             border:         `1.5px solid ${readOnly ? K.lkLkBdr : K.lkEdBdr}`,
             display:        'flex',
-            flexDirection:  'column',
+            flexDirection:  'row',
             alignItems:     'center',
             justifyContent: 'center',
-            gap:            5,
+            gap:            7,
             cursor:         'pointer',
             outline:        'none',
             padding:        0,
-            marginBottom:   12,
+            marginBottom:   10,
             boxShadow:      readOnly
-              ? 'inset 0 2px 6px rgba(0,0,0,0.4)'
-              : `inset 0 1px 0 rgba(255,255,255,0.16), 0 0 0 1px ${K.neonRing}, 0 0 22px ${K.neonAura1}, 0 0 38px ${K.neonAura2}`,
+              ? 'inset 0 2px 5px rgba(0,0,0,0.4)'
+              : `inset 0 1px 0 rgba(255,255,255,0.16), 0 0 0 1px ${K.neonRing}, 0 0 14px ${K.neonAura1}, 0 0 22px ${K.neonAura2}`,
           }}
         >
           <span style={{
-            fontSize: 22, lineHeight: 1,
+            fontSize: 16, lineHeight: 1, display: 'inline-flex',
             color: readOnly ? K.lkLkIco : K.neon,
             textShadow: readOnly
               ? undefined
-              : `0 0 6px ${K.neonSoft}, 0 0 14px ${K.neonGlow}`,
+              : `0 0 5px ${K.neonSoft}, 0 0 10px ${K.neonGlow}`,
           }}>
             {readOnly ? <LockOutlined /> : <UnlockOutlined />}
           </span>
@@ -368,17 +314,17 @@ export default function KumandaPaneli({
             color: readOnly ? K.lkLkTxt : K.neon,
             textShadow: readOnly
               ? undefined
-              : `0 0 5px ${K.neonSoft}, 0 0 12px ${K.neonGlow}`,
+              : `0 0 4px ${K.neonSoft}, 0 0 9px ${K.neonGlow}`,
           }}>
-            {readOnly ? 'Kilitli Görünüm' : 'Düzenleme Modu'}
+            {readOnly ? 'Kilitli' : 'Düzenleme'}
           </span>
         </button>
 
-        {/* ── Belge Durumu — semantic variants per durum ── */}
-        <SecLabel text="Belge Durumu" />
+        {/* ── 2. DURUM — 5 chip grid ── */}
+        <SecLabel text="Durum" />
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr',
-          gap: 4, marginBottom: 13,
+          gap: 4, marginBottom: 2,
         }}>
           {DURUM_LIST.map(d => {
             const on = durum === d;
@@ -391,9 +337,9 @@ export default function KumandaPaneli({
                 data-variant={DURUM_VARIANTS[d]}
                 onClick={() => onDurumDegistir(d)}
                 style={{
-                  height:       28,
-                  borderRadius: 8,
-                  fontSize:     '10px',
+                  height:       K.STATUS_H,
+                  borderRadius: K.STATUS_R,
+                  fontSize:     '9.5px',
                   fontWeight:   on ? 700 : 500,
                   cursor:       'pointer',
                   outline:      'none',
@@ -412,8 +358,34 @@ export default function KumandaPaneli({
 
         <Divider />
 
-        {/* ── Görüntüleme — variant="view" (amber/gold) ── */}
-        <SecLabel text="Görüntüleme" />
+        {/* ── 3. BELGE — Resim Ekle ── */}
+        <SecLabel text="Belge" />
+        <button
+          type="button"
+          className="kp-btn"
+          data-variant="settings"
+          onClick={onResimSec}
+          style={{
+            width: '100%', height: K.BTN_H, borderRadius: K.BTN_R,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 7, padding: '0 10px', cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <PictureOutlined style={{ fontSize: K.ICON }} />
+          <span style={{ fontSize: '11px', fontWeight: 600, lineHeight: 1 }}>Resim Ekle</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPTED_IMAGE_TYPES.join(',')}
+          onChange={onFileChange}
+          style={{ display: 'none' }}
+        />
+
+        <Divider />
+
+        {/* ── 4. FİNANSAL — KDV / İskonto / Satır Ayarları ── */}
+        <SecLabel text="Finansal" />
 
         {/* KDV */}
         <button
@@ -423,30 +395,13 @@ export default function KumandaPaneli({
           data-variant="view"
           onClick={toggleKdv}
           style={{
-            width: '100%', height: 42, borderRadius: 10,
+            width: '100%', height: K.BTN_H, borderRadius: K.BTN_R,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 12px', cursor: 'pointer', outline: 'none', marginBottom: 5,
+            padding: '0 10px', cursor: 'pointer', outline: 'none', marginBottom: 4,
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600 }}>
-            KDV
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {kdvOn && (
-              <span className="kp-val" style={{
-                fontSize: '10px', fontWeight: 700,
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                %{kdvOrani}
-              </span>
-            )}
-            <span className="kp-badge" style={{
-              fontSize: '9px', fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-            }}>
-              {kdvOn ? 'Aktif' : 'Kapalı'}
-            </span>
-          </div>
+          <span style={{ fontSize: '11px', fontWeight: 600, lineHeight: 1 }}>KDV</span>
+          {kdvOn && <span className="kp-val">%{kdvOrani}</span>}
         </button>
 
         {/* İskonto */}
@@ -457,33 +412,27 @@ export default function KumandaPaneli({
           data-variant="view"
           onClick={toggleIsk}
           style={{
-            width: '100%', height: 42,
-            borderRadius: iskOn ? '10px 10px 0 0' : 10,
+            width: '100%', height: K.BTN_H,
+            borderRadius: iskOn ? `${K.BTN_R}px ${K.BTN_R}px 0 0` : K.BTN_R,
             borderBottom: iskOn ? 'none' : undefined,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 12px', cursor: 'pointer', outline: 'none',
+            padding: '0 10px', cursor: 'pointer', outline: 'none',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600 }}>
-            İskonto
-          </span>
-          <span className="kp-badge" style={{
-            fontSize: '9px', fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-          }}>
-            {iskOn ? 'Aktif' : 'Kapalı'}
-          </span>
+          <span style={{ fontSize: '11px', fontWeight: 600, lineHeight: 1 }}>İskonto</span>
+          {iskOn && <span className="kp-val">%{iskontoOrani}</span>}
         </button>
 
-        {/* İskonto rate (attached expansion) */}
+        {/* İskonto rate input (attached expansion) */}
         {iskOn && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '7px 12px 9px',
-            background: 'rgba(255, 215, 150, 0.06)',
-            borderRadius: '0 0 10px 10px',
-            border: '1px solid rgba(255, 215, 150, 0.28)',
-            borderTop: '1px solid rgba(255, 215, 150, 0.14)',
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '6px 10px 8px',
+            background: 'rgba(255, 215, 150, 0.05)',
+            borderRadius: `0 0 ${K.BTN_R}px ${K.BTN_R}px`,
+            border: '1px solid rgba(255, 215, 150, 0.24)',
+            borderTop: '1px solid rgba(255, 215, 150, 0.10)',
+            marginBottom: 4,
           }}>
             <span style={{ fontSize: '10px', color: 'rgba(255,240,210,0.78)', flex: 1, fontWeight: 600 }}>Oran</span>
             <input
@@ -495,9 +444,9 @@ export default function KumandaPaneli({
                 if (!isNaN(v) && v > 0 && v <= 100) { setLastIsk(v); onIskontoOraniDegistir(v); }
               }}
               style={{
-                width: 52, height: 25, borderRadius: 6,
+                width: 48, height: 22, borderRadius: 5,
                 background: 'rgba(0,0,0,0.28)',
-                border: '1px solid rgba(255, 215, 150, 0.30)',
+                border: '1px solid rgba(255, 215, 150, 0.28)',
                 color: '#FFF0D2', fontSize: '11px', fontWeight: 700,
                 textAlign: 'center', padding: '0 4px',
                 fontVariantNumeric: 'tabular-nums',
@@ -508,46 +457,18 @@ export default function KumandaPaneli({
           </div>
         )}
 
-        <Divider />
-
-        {/* ── Satır Ayarları — variant="row" (violet) ── */}
-        <SecLabel text="Satır Ayarları" />
-        <TogRow
-          label="Satır Para Birimi"
-          checked={satirBazliParaBirimi}
-          onChange={onSatirBazliParaBirimiDegistir}
-        />
         <div style={{ height: 4 }} />
+
         <TogRow
           label="Satır İskontosu"
           checked={satirBazliIskonto}
           onChange={onSatirBazliIskontoDegistir}
         />
-
-        <Divider />
-
-        {/* ── Belge Üstü ── */}
-        <SecLabel text="Belge Üstü" />
-        <button
-          type="button"
-          className="kp-btn"
-          data-variant="pdf"
-          onClick={onResimSec}
-          style={{
-            width: '100%', height: 38, borderRadius: 9,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 8, padding: '0 12px', cursor: 'pointer', outline: 'none',
-          }}
-        >
-          <PictureOutlined style={{ fontSize: 13 }} />
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>Resim Ekle</span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ACCEPTED_IMAGE_TYPES.join(',')}
-          onChange={onFileChange}
-          style={{ display: 'none' }}
+        <div style={{ height: 4 }} />
+        <TogRow
+          label="Satır Para Birimi"
+          checked={satirBazliParaBirimi}
+          onChange={onSatirBazliParaBirimiDegistir}
         />
 
       </div>
@@ -566,21 +487,15 @@ function TogRow({ label, checked, onChange }: { label: string; checked: boolean;
       data-variant="row"
       onClick={() => onChange(!checked)}
       style={{
-        width: '100%', height: 37, borderRadius: 9,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 12px', cursor: 'pointer', outline: 'none',
+        width: '100%', height: K.BTN_H, borderRadius: K.BTN_R,
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+        padding: '0 10px', cursor: 'pointer', outline: 'none',
       }}
     >
       <span style={{
         fontSize: '11px', fontWeight: checked ? 600 : 500, lineHeight: 1,
       }}>
         {label}
-      </span>
-      <span className="kp-badge" style={{
-        fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em',
-        textTransform: 'uppercase', lineHeight: 1,
-      }}>
-        {checked ? 'Açık' : 'Kapalı'}
       </span>
     </button>
   );
