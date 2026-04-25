@@ -95,6 +95,7 @@ interface PaginatedBelgeInlineEditorProps {
   onSatirArayaEkle: (afterIndex: number) => void;
   onNotlarDegistir: (notlar: string) => void;
   readOnly?: boolean;
+  renderPageOverlay?: (pageIndex: number) => React.ReactNode;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -191,6 +192,7 @@ export default function PaginatedBelgeInlineEditor({
   onSatirArayaEkle,
   onNotlarDegistir,
   readOnly = false,
+  renderPageOverlay,
 }: PaginatedBelgeInlineEditorProps) {
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
@@ -879,7 +881,7 @@ export default function PaginatedBelgeInlineEditor({
         tr[data-satir-id]:hover + .satir-araya-ekle-zone .satir-araya-ekle-btn { opacity: 1 !important; pointer-events: auto !important; }
       `}</style>
 
-      {pages.map((page) => (
+      {pages.map((page, pageIdx) => (
         <div
           key={page.pageNumber}
           id={page.pageNumber === 1 ? 'teklif-sablon' : undefined}
@@ -980,6 +982,7 @@ export default function PaginatedBelgeInlineEditor({
             )}
           </div>
           <FooterBlock teklif={teklif} pageNumber={page.pageNumber} totalPages={pages.length} />
+          {renderPageOverlay?.(pageIdx)}
         </div>
       ))}
     </div>

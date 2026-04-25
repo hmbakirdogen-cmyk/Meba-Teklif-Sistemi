@@ -59,6 +59,7 @@ interface TeklifPagedDocumentProps {
   teklif: Teklif;
   totals: TeklifToplam;
   pages: TeklifPagePlan[];
+  renderPageOverlay?: (pageIndex: number) => React.ReactNode;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -590,10 +591,10 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
   );
 }
 
-export default function TeklifPagedDocument({ teklif, totals, pages }: TeklifPagedDocumentProps) {
+export default function TeklifPagedDocument({ teklif, totals, pages, renderPageOverlay }: TeklifPagedDocumentProps) {
   return (
     <div>
-      {pages.map((page) => (
+      {pages.map((page, idx) => (
         <div
           key={page.pageNumber}
           data-pdf-page="true"
@@ -627,6 +628,7 @@ export default function TeklifPagedDocument({ teklif, totals, pages }: TeklifPag
             )}
           </div>
           <FooterBlock teklif={teklif} pageNumber={page.pageNumber} totalPages={pages.length} />
+          {renderPageOverlay?.(idx)}
         </div>
       ))}
     </div>

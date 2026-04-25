@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
+import { useRef, useState } from 'react';
+import { LockOutlined, UnlockOutlined, PictureOutlined } from '@ant-design/icons';
 import type { TeklifDurum } from '../types';
+
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
 // ── Design tokens — Metalik Tesla Bordo + Variant-based active colors ─────────
 const K = {
@@ -78,6 +80,7 @@ interface KumandaPaneliProps {
   satirBazliIskonto:              boolean;
   onSatirBazliIskontoDegistir:    (v: boolean) => void;
   sagPanelOpen:                   boolean;
+  onResimEkle:                    (dataUrl: string) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -88,10 +91,26 @@ export default function KumandaPaneli({
   iskontoOrani, onIskontoOraniDegistir,
   satirBazliParaBirimi, onSatirBazliParaBirimiDegistir,
   satirBazliIskonto, onSatirBazliIskontoDegistir,
-  sagPanelOpen,
+  sagPanelOpen, onResimEkle,
 }: KumandaPaneliProps) {
   const [lastKdv, setLastKdv] = useState(() => kdvOrani     > 0 ? kdvOrani     : 20);
   const [lastIsk, setLastIsk] = useState(() => iskontoOrani > 0 ? iskontoOrani : 10);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onResimSec = () => fileInputRef.current?.click();
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Aynı dosyanın yeniden seçilebilmesi için input resetlenir
+    e.target.value = '';
+    if (!file) return;
+    if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') onResimEkle(result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const kdvOn = kdvOrani > 0;
   const iskOn = iskontoOrani > 0;
@@ -503,6 +522,32 @@ export default function KumandaPaneli({
           label="Satır İskontosu"
           checked={satirBazliIskonto}
           onChange={onSatirBazliIskontoDegistir}
+        />
+
+        <Divider />
+
+        {/* ── Belge Üstü ── */}
+        <SecLabel text="Belge Üstü" />
+        <button
+          type="button"
+          className="kp-btn"
+          data-variant="pdf"
+          onClick={onResimSec}
+          style={{
+            width: '100%', height: 38, borderRadius: 9,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 8, padding: '0 12px', cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <PictureOutlined style={{ fontSize: 13 }} />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>Resim Ekle</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPTED_IMAGE_TYPES.join(',')}
+          onChange={onFileChange}
+          style={{ display: 'none' }}
         />
 
       </div>

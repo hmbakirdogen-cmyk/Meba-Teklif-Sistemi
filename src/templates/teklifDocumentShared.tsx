@@ -485,6 +485,8 @@ export const LOGO_OPT_LEFT = -(LOGO_FILE_W * LOGO.OPT_LEFT_FRAC);
 export const DOCUMENT_ROOT_STYLE: CSSProperties = {
   width: `${DOCUMENT_PAGE.widthMm}mm`,
   minHeight: `${DOCUMENT_PAGE.heightMm}mm`,
+  // Görsel overlay'i bu container'a bağlı absolute olarak konumlanır.
+  position: 'relative',
   display: 'flex',
   flexDirection: 'column',
   margin: '0 auto',

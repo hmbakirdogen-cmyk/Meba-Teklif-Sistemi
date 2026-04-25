@@ -1,5 +1,6 @@
 import type { Cari } from './musteri';
 import type { TeklifSatiri } from './teklifSatiri';
+import type { ImageItem } from './imageItem';
 
 export type ParaBirimi = 'TRY' | 'EUR' | 'USD';
 export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'iptal';
@@ -34,4 +35,5 @@ export interface Teklif {
   hazirlayanRol?: string;
   contactName?: string;
   contactTitle?: 'BEY' | 'HANIM';
+  gorseller?: ImageItem[];
 }

@@ -5,9 +5,11 @@ import PaginatedBelgeInlineEditor, { type EditingAlan } from './PaginatedBelgeIn
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { calculateTeklifPagination, type TeklifPaginationResult } from '../services/documentPagination';
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
+import { ImageOverlayLayer } from './ImageOverlayLayer';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi, ImageItem } from '../types';
 
 const A4_W_PX = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
+const A4_H_PX = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
 
 interface CanliA4BelgeProps {
   teklif: Teklif;
@@ -32,6 +34,9 @@ interface CanliA4BelgeProps {
   sablonRef: React.RefObject<HTMLDivElement | null>;
   kompaktHeaderRef: React.RefObject<HTMLDivElement | null>;
   readOnly?: boolean;
+  gorseller: ImageItem[];
+  onGorselGuncelle: (id: string, partial: Partial<Omit<ImageItem, 'id'>>) => void;
+  onGorselSil: (id: string) => void;
 }
 
 const FALLBACK_PAGINATION: TeklifPaginationResult = {
@@ -72,6 +77,9 @@ export default function CanliA4Belge({
   sablonRef,
   kompaktHeaderRef,
   readOnly = false,
+  gorseller,
+  onGorselGuncelle,
+  onGorselSil,
 }: CanliA4BelgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -166,7 +174,20 @@ export default function CanliA4Belge({
           background: '#fff',
         }}
       >
-        <TeklifPagedDocument teklif={teklif} totals={totals} pages={pagination.pages} />
+        <TeklifPagedDocument
+          teklif={teklif}
+          totals={totals}
+          pages={pagination.pages}
+          renderPageOverlay={(pageIndex) => (
+            <ImageOverlayLayer
+              pageIndex={pageIndex}
+              pageWidthPx={A4_W_PX}
+              pageHeightPx={A4_H_PX}
+              gorseller={gorseller}
+              interactive={false}
+            />
+          )}
+        />
       </div>
 
       <div
@@ -230,6 +251,17 @@ export default function CanliA4Belge({
             onSatirArayaEkle={onSatirArayaEkle}
             onNotlarDegistir={onNotlarDegistir}
             readOnly={readOnly}
+            renderPageOverlay={(pageIndex) => (
+              <ImageOverlayLayer
+                pageIndex={pageIndex}
+                pageWidthPx={A4_W_PX}
+                pageHeightPx={A4_H_PX}
+                gorseller={gorseller}
+                interactive={!readOnly}
+                onUpdate={onGorselGuncelle}
+                onDelete={onGorselSil}
+              />
+            )}
           />
         </div>
       </div>

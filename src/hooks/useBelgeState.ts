@@ -18,7 +18,7 @@ import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import { sanitizeMultilineText } from '../utils/formatters';
-import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi } from '../types';
+import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem } from '../types';
 import dayjs from 'dayjs';
 
 export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
@@ -45,6 +45,7 @@ export interface BelgeState {
   hazirlayanKullaniciId?: string;
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
+  gorseller: ImageItem[];
 
   // ── Düzenleme bağlamı ──
   panelModu: PanelModu;
@@ -98,6 +99,11 @@ interface BelgeActions {
   setPdfHazir: (hazir: boolean) => void;
   setUretiliyor: (uretiliyor: boolean) => void;
 
+  // Görseller
+  gorselEkle: (src: string, defaults?: Partial<Pick<ImageItem, 'width' | 'height' | 'pageIndex'>>) => string;
+  gorselGuncelle: (id: string, partial: Partial<Omit<ImageItem, 'id'>>) => void;
+  gorselSil: (id: string) => void;
+
   // Kayıt
   teklifOlustur: () => Teklif;
   kaydet: () => Promise<boolean>;
@@ -135,6 +141,7 @@ export function useBelgeState(
   const [contactName, setContactNameState] = useState(mevcut?.contactName ?? '');
   const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
   const [olusturmaTarihi] = useState(mevcut?.olusturmaTarihi ?? dayjs().toISOString());
+  const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
 
   // Panel state — yalnızca araç çubuğundan erişilir (ikincil)
   const [panelModu, setPanelModu] = useState<PanelModu>(null);
@@ -268,6 +275,31 @@ export function useBelgeState(
     setSeciliSatirId(id);
   }, []);
 
+  // ── Görseller ──────────────────────────────────────────────────────────
+  const gorselEkle = useCallback((src: string, defaults?: Partial<Pick<ImageItem, 'width' | 'height' | 'pageIndex'>>): string => {
+    const id = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const yeni: ImageItem = {
+      id,
+      src,
+      pageIndex: defaults?.pageIndex ?? 0,
+      width: defaults?.width ?? 180,
+      height: defaults?.height ?? 180,
+      x: 0,
+      y: 0,
+      zIndex: 1,
+    };
+    setGorsellerState((prev) => [...prev, yeni]);
+    return id;
+  }, []);
+
+  const gorselGuncelle = useCallback((id: string, partial: Partial<Omit<ImageItem, 'id'>>) => {
+    setGorsellerState((prev) => prev.map((g) => (g.id === id ? { ...g, ...partial } : g)));
+  }, []);
+
+  const gorselSil = useCallback((id: string) => {
+    setGorsellerState((prev) => prev.filter((g) => g.id !== id));
+  }, []);
+
   const teklifOlustur = useCallback((): Teklif => {
     return {
       id: teklifId,
@@ -295,8 +327,9 @@ export function useBelgeState(
       gecerlilikSuresi: '1 Hafta',
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
+      gorseller: gorseller.length > 0 ? gorseller : undefined,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller]);
 
   const kaydet = useCallback(async (): Promise<boolean> => {
     if (!cari) return false;
@@ -344,6 +377,7 @@ export function useBelgeState(
     hazirlayanKullaniciId: kullanici?.id,
     hazirlayanAdSoyad: kullanici?.adSoyad,
     hazirlayanRol: kullanici?.rol,
+    gorseller,
     panelModu,
     seciliSatirId,
     hoverSatirId,
@@ -380,6 +414,9 @@ export function useBelgeState(
     setPdfBlob,
     setPdfHazir,
     setUretiliyor,
+    gorselEkle,
+    gorselGuncelle,
+    gorselSil,
     teklifOlustur,
     kaydet,
   };

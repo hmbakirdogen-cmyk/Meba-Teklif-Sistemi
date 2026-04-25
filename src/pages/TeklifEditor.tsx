@@ -23,6 +23,7 @@ import {
   TeklifDisaAktarimHatasi,
 } from '../services/pdfKayitService';
 import { formatCariAdi } from '../utils/formatters';
+import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
@@ -126,6 +127,7 @@ export default function TeklifEditor() {
       gecerlilikSuresi: '1 Hafta',
       contactName: state.contactName.trim() || undefined,
       contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
+      gorseller: state.gorseller.length > 0 ? state.gorseller : undefined,
     };
   }, [
     state.teklifId,
@@ -150,6 +152,7 @@ export default function TeklifEditor() {
     state.hazirlayanRol,
     state.contactName,
     state.contactTitle,
+    state.gorseller,
   ]);
 
   // ── Aksiyonlar ──
@@ -332,6 +335,33 @@ export default function TeklifEditor() {
     navigate('/teklifler');
   }, [navigate]);
 
+  // ── Resim ekleme ──
+  // Default fallback: x %60, y %60 (sağ-alt). Doğal boyut yüklenince
+  // max 220px sınırına ölçeklenir; aspect korunur.
+  const handleResimEkle = useCallback((dataUrl: string) => {
+    const pageW = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
+    const pageH = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 220;
+      const nw = img.naturalWidth || 200;
+      const nh = img.naturalHeight || 200;
+      const ratio = Math.min(MAX / nw, MAX / nh, 1);
+      const width  = Math.max(60, Math.round(nw * ratio));
+      const height = Math.max(60, Math.round(nh * ratio));
+      const xRaw = Math.round(pageW * 0.60 - width / 2);
+      const yRaw = Math.round(pageH * 0.60 - height / 2);
+      const x = Math.max(0, Math.min(pageW - width,  xRaw));
+      const y = Math.max(0, Math.min(pageH - height, yRaw));
+      // Son sayfa default
+      const lastPageIndex = Math.max(0, (state.gorseller[0]?.pageIndex ?? 0));
+      const id = state.gorselEkle(dataUrl, { width, height, pageIndex: lastPageIndex });
+      // Pozisyonu commit et (gorselEkle x/y=0 koyar, doğru konuma çek)
+      state.gorselGuncelle(id, { x, y });
+    };
+    img.src = dataUrl;
+  }, [state]);
+
   // ── Araç çubuğundan panel açma (ikincil etkileşim) ──
   const handlePanelAc = useCallback((mod: PanelModu) => {
     setEditingAlan(null);
@@ -410,6 +440,9 @@ export default function TeklifEditor() {
               sablonRef={sablonRef}
               kompaktHeaderRef={kompaktHeaderRef}
               readOnly={modeKilitli}
+              gorseller={state.gorseller}
+              onGorselGuncelle={state.gorselGuncelle}
+              onGorselSil={state.gorselSil}
             />
           ) : (
             <div style={{
@@ -470,6 +503,7 @@ export default function TeklifEditor() {
           satirBazliIskonto={state.satirBazliIskonto}
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           sagPanelOpen={state.panelModu !== null}
+          onResimEkle={handleResimEkle}
         />
       )}
     </div>
