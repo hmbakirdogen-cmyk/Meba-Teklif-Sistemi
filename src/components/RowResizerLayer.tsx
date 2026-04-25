@@ -35,6 +35,15 @@ interface RowResizerLayerProps {
   onCommit: (id: string, heightPx: number) => void;
 }
 
+const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i], y = b[i];
+    if (x.id !== y.id || x.top !== y.top || x.height !== y.height || x.left !== y.left || x.width !== y.width) return false;
+  }
+  return true;
+};
+
 // 4px tutamak: 1px satır içinde + 3px satır altı boşlukta. Hücre tıklamalarına
 // minimum müdahale, ns-resize için yeterli hit area.
 const HANDLE_HIT_HEIGHT = 4;
@@ -59,16 +68,20 @@ export function RowResizerLayer({
     pendingH: number | null;
   } | null>(null);
 
+  // satirIds her render'da yeni array → join ile string'e çevir, dep olarak kullan
+  const satirIdsKey = satirIds.join('|');
+
   // ── Satır geometrilerini ölç ve ResizeObserver ile takip et ─────────
   useLayoutEffect(() => {
     if (!tableEl || !layerRef.current) return;
+    const ids = satirIdsKey.split('|').filter(Boolean);
 
     const measure = () => {
       const layer = layerRef.current;
       if (!layer) return;
       const layerRect = layer.getBoundingClientRect();
       const next: RowGeom[] = [];
-      for (const id of satirIds) {
+      for (const id of ids) {
         const tr = tableEl.querySelector<HTMLTableRowElement>(
           `tr[data-satir-id="${CSS.escape(id)}"]`,
         );
@@ -82,19 +95,17 @@ export function RowResizerLayer({
           width: r.width / scale,
         });
       }
-      setRows(next);
+      // İçerik değişmediyse setState çağrısı YAPMA — gereksiz re-render yok
+      setRows((prev) => (sameRows(prev, next) ? prev : next));
     };
 
     measure();
 
     const ro = new ResizeObserver(measure);
     ro.observe(tableEl);
-    // Tüm satırları da ayrı ayrı izle — içerik (description wrap vs.)
-    // değişince yükseklik güncellenir.
     const trEls = Array.from(tableEl.querySelectorAll<HTMLElement>('tr[data-satir-id]'));
     trEls.forEach((el) => ro.observe(el));
 
-    // Sayfa scroll/resize'ında da pozisyonlar kayar
     window.addEventListener('scroll', measure, true);
     window.addEventListener('resize', measure);
     return () => {
@@ -102,7 +113,7 @@ export function RowResizerLayer({
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-  }, [tableEl, satirIds, scale]);
+  }, [tableEl, satirIdsKey, scale]);
 
   // ── Drag state machine ────────────────────────────────────────────────
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>, id: string) => {
