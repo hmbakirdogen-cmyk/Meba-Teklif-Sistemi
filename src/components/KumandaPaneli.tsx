@@ -247,17 +247,18 @@ export default function KumandaPaneli({
         /* ── Per-buton karakter renk paleti ──────────────────────────── */
         /* .control-panel button. prefix ile specificity (0,2,1) →
            .control-panel button (0,1,1) override edilir. */
-        .control-panel button.button-edit         { --button-accent: rgba( 70, 255, 160, 0.95); --button-glow: rgba( 70, 255, 160, 0.45); }
+        /* Solid hex accent → tam doygun neon tüp tonu; glow rgba dış ışıma için. */
+        .control-panel button.button-edit         { --button-accent: #46ffa0; --button-glow: rgba( 70, 255, 160, 0.45); }
         /* Kilitli durumda kilit ikonu sıcak kırmızı; düzenleme aktifken yeşil. */
         .control-panel button.button-edit[data-readonly="true"] {
-          --button-accent: rgba(255,  95, 115, 0.95);
+          --button-accent: #ff5f73;
           --button-glow:   rgba(255,  95, 115, 0.40);
         }
-        .control-panel button.button-image        { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
-        .control-panel button.button-row-discount { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
-        .control-panel button.button-row-currency { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
-        .control-panel button.button-tax          { --button-accent: rgba(255, 190,  95, 0.95); --button-glow: rgba(255, 190,  95, 0.30); }
-        .control-panel button.button-discount     { --button-accent: rgba(255, 135,  80, 0.95); --button-glow: rgba(255, 135,  80, 0.28); }
+        .control-panel button.button-image        { --button-accent: #5fa5ff; --button-glow: rgba( 95, 165, 255, 0.42); }
+        .control-panel button.button-row-discount { --button-accent: #ff6b9d; --button-glow: rgba(255, 107, 157, 0.40); }
+        .control-panel button.button-row-currency { --button-accent: #b978ff; --button-glow: rgba(185, 120, 255, 0.38); }
+        .control-panel button.button-tax          { --button-accent: #ffbe5f; --button-glow: rgba(255, 190,  95, 0.42); }
+        .control-panel button.button-discount     { --button-accent: #ff874f; --button-glow: rgba(255, 135,  79, 0.38); }
 
         /* ── Aktif / basılı: saydam cam + neon karakter ──────────────────
            backdrop-filter ile ardalan bulanıklaşır; gradient bg color-mix
@@ -285,16 +286,53 @@ export default function KumandaPaneli({
             inset 0 -14px 28px rgba(0,0,0,0.42);
         }
 
-        /* ── Premium SVG ikon ailesi (özel pictogram) ──
-           Tek parça SVG'ler currentColor üzerinden var(--button-accent)
-           inherit eder. Pasifte yumuşak glow, aktif/basili'da yoğun. */
+        /* ── Neon tüplü cam ikon ailesi ──
+           Ana SVG: stroke kalın (3.2) + fill yok = içten yanan tüp.
+           4 katmanlı drop-shadow dış glow zarfı oluşturur (2/6/12/22 px).
+           İkincil katman .panel-icon-glass: ince beyaz cam yansıma.
+           Üçüncü katman .panel-icon-fill: arka soft bloom (asla dolu değil). */
         .panel-icon {
           color: var(--button-accent);
+          stroke: var(--button-accent);
+          stroke-width: 3.2;
+          fill: none;
           flex-shrink: 0;
+          opacity: 0.95;
           filter:
+            drop-shadow(0 0 2px var(--button-accent))
             drop-shadow(0 0 6px var(--button-glow))
-            drop-shadow(0 0 14px var(--button-glow));
-          transition: filter 220ms ease;
+            drop-shadow(0 0 12px var(--button-glow))
+            drop-shadow(0 0 22px var(--button-glow));
+          transition: filter 220ms ease, opacity 220ms ease;
+        }
+
+        /* Cam yansıma overlay — aynı path'in üstünde ince beyaz strok */
+        .panel-icon .panel-icon-glass {
+          stroke: rgba(255, 255, 255, 0.55);
+          stroke-width: 1.2;
+          fill: none;
+          filter: blur(0.3px);
+          opacity: 0.7;
+          pointer-events: none;
+        }
+
+        /* Arka soft bloom — ikon çevresi için yumuşak ışık halesi */
+        .panel-icon .panel-icon-fill {
+          fill: var(--button-glow);
+          stroke: none;
+          opacity: 0.08;
+          filter: blur(6px);
+          pointer-events: none;
+        }
+
+        /* KDV wordmark text — tube stroke text'i bozar; ayrı ele alınır */
+        .panel-icon .panel-icon-text {
+          font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+          font-size: 13px;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          fill: var(--button-accent);
+          stroke: none;
         }
 
         .lock-button .panel-icon { width: 52px; height: 52px; }
@@ -304,12 +342,17 @@ export default function KumandaPaneli({
            merkezleme aşağı kayar). */
         .square-btn .panel-icon { width: 54px; height: 54px; }
 
+        /* Aktif/basılı durum — 5 katmanlı patlama (4/10/20/40/80 px).
+           Neon gerçekten "yanıyor" hissi. Opacity 1.0'a çıkar. */
         .control-panel button.is-active .panel-icon,
         .control-panel button:active .panel-icon {
+          opacity: 1;
           filter:
-            drop-shadow(0 0 8px var(--button-glow))
+            drop-shadow(0 0 4px var(--button-accent))
+            drop-shadow(0 0 10px var(--button-glow))
             drop-shadow(0 0 20px var(--button-glow))
-            drop-shadow(0 0 36px var(--button-glow));
+            drop-shadow(0 0 40px var(--button-glow))
+            drop-shadow(0 0 80px var(--button-glow));
         }
 
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
