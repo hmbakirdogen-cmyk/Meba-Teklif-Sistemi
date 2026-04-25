@@ -89,10 +89,11 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel: Ürün Kodu kolonunun solu → Açıklama kolonunun sağı.
-        // Sıra No ve Marka kolonlarını es geçer; "ilk 2 anlamlı sütun" niyeti.
-        const codeCell = tr.querySelector<HTMLElement>('.product-code-cell');
-        const descCell = tr.querySelector<HTMLElement>('.description-cell');
+        // Handle görsel: Ürün Kodu kolonu solu → Açıklama kolonu sağı.
+        // tr.cells index ile doğrudan erişim — querySelector class match'inden
+        // çok daha güvenilir. Kolon sırası: 0=#, 1=Marka, 2=Kod, 3=Açıklama.
+        const codeCell = tr.cells[2] as HTMLElement | undefined;
+        const descCell = tr.cells[3] as HTMLElement | undefined;
         const handleLeftScreen = codeCell ? codeCell.getBoundingClientRect().left : r.left;
         const handleRightScreen = descCell ? descCell.getBoundingClientRect().right : r.right;
         next.push({
@@ -199,16 +200,6 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  // DEBUG diagnostic — kalıcı çözüm sonrası kaldırılacak
-  // eslint-disable-next-line no-console
-  console.log('[RowResizerLayer]', {
-    readOnly,
-    hasTableEl: !!tableEl,
-    satirIds: satirIds.length,
-    rowsRendered: rows.length,
-    sampleRow: rows[0],
-  });
-
   if (readOnly) return null;
 
   return (
@@ -219,37 +210,9 @@ export function RowResizerLayer({
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        zIndex: 999,
-        outline: '2px dashed magenta',
+        zIndex: 30,
       }}
     >
-      {/* DEBUG: ekrana yazılı durum bilgisi — konsolsuz tanı */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '4px',
-          left: '4px',
-          background: 'rgba(0,0,0,0.85)',
-          color: 'lime',
-          padding: '4px 8px',
-          fontSize: '10px',
-          fontFamily: 'monospace',
-          zIndex: 9999,
-          borderRadius: '4px',
-          pointerEvents: 'none',
-        }}
-      >
-        tableEl:{tableEl ? 'OK' : 'NULL'} | satirIds:{satirIds.length} | rows:{rows.length}
-        {rows[0] && (
-          <span> | r0:[L{Math.round(rows[0].handleLeft)},W{Math.round(rows[0].handleWidth)},T{Math.round(rows[0].top)}]</span>
-        )}
-      </div>
-
-      {/* DEBUG: 3 sabit pozisyonda yeşil test bar — layer çocuk render eder mi? */}
-      <div style={{ position: 'absolute', left: '40px', top: '60px', width: '180px', height: '5px', background: 'lime', outline: '1px solid black', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', left: '40px', top: '90px', width: '180px', height: '5px', background: 'lime', outline: '1px solid black', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', left: '40px', top: '120px', width: '180px', height: '5px', background: 'lime', outline: '1px solid black', pointerEvents: 'none' }} />
-
       {rows.map((r) => (
         <div
           key={r.id}
@@ -268,11 +231,14 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // DEBUG — net kırmızı dolgu, opacity 1 → kuşkuya yer yok
-            background: 'red',
-            borderRadius: '0px',
-            opacity: 1,
-            outline: '1px solid yellow',
+            // Premium ince mavi gradient — Vite cache'inden bağımsız.
+            background:
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,0.95) 35%, rgba(96,165,250,0.85) 65%, rgba(15,23,42,0) 100%)',
+            borderRadius: '999px',
+            boxShadow:
+              '0 0 8px rgba(37,99,235,0.55), 0 0 16px rgba(59,130,246,0.25)',
+            opacity: 0.85,
+            transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
       ))}
