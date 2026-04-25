@@ -223,6 +223,33 @@ export function RowResizerLayer({
         outline: '2px dashed magenta',
       }}
     >
+      {/* DEBUG: ekrana yazılı durum bilgisi — konsolsuz tanı */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '4px',
+          left: '4px',
+          background: 'rgba(0,0,0,0.85)',
+          color: 'lime',
+          padding: '4px 8px',
+          fontSize: '10px',
+          fontFamily: 'monospace',
+          zIndex: 9999,
+          borderRadius: '4px',
+          pointerEvents: 'none',
+        }}
+      >
+        tableEl:{tableEl ? 'OK' : 'NULL'} | satirIds:{satirIds.length} | rows:{rows.length}
+        {rows[0] && (
+          <span> | r0:[L{Math.round(rows[0].handleLeft)},W{Math.round(rows[0].handleWidth)},T{Math.round(rows[0].top)}]</span>
+        )}
+      </div>
+
+      {/* DEBUG: 3 sabit pozisyonda yeşil test bar — layer çocuk render eder mi? */}
+      <div style={{ position: 'absolute', left: '40px', top: '60px', width: '180px', height: '5px', background: 'lime', outline: '1px solid black', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: '40px', top: '90px', width: '180px', height: '5px', background: 'lime', outline: '1px solid black', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: '40px', top: '120px', width: '180px', height: '5px', background: 'lime', outline: '1px solid black', pointerEvents: 'none' }} />
+
       {rows.map((r) => (
         <div
           key={r.id}
