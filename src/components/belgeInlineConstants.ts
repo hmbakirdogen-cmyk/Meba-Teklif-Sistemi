@@ -520,54 +520,24 @@ export const FIELD_CSS = `
 
 /* ══════════════════════════════════════════════════════════════════════
    ROW RESIZE HANDLE — satır altı sürüklenebilir tutamak.
-   - Hit area: şeffaf, sadece pointer eventları yakalar.
-   - Görsel: ::after ince premium lacivert gradient çizgi (sol → açıklama
-     kolonu sonu, RowResizerLayer.handleWidth ile sınırlı).
+   - Görsel + hit area handle div'in KENDİSİ (gradient + glow inline style
+     ile RowResizerLayer'da render edilir → Vite HMR cache'inden bağımsız).
+   - Bu CSS sadece hover/active state amplifikasyonu yapar.
    - Boydan boya highlight YASAK: tr arka planı drag boyunca DEĞİŞMEZ.
    PDF capture sırasında handle render edilmez (interactive=false ağacı).
    ══════════════════════════════════════════════════════════════════════ */
-.row-resize-handle {
-  background: transparent;
-  position: absolute;
-}
-
-.row-resize-handle::after {
-  content: "";
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 0;
-  height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    rgba(15, 23, 42, 0) 0%,
-    rgba(37, 99, 235, 1) 35%,
-    rgba(96, 165, 250, 0.92) 65%,
-    rgba(15, 23, 42, 0) 100%
-  );
-  opacity: 0.85;
-  box-shadow:
-    0 0 8px rgba(37, 99, 235, 0.65),
-    0 0 18px rgba(59, 130, 246, 0.32);
-  transition: opacity 160ms ease, box-shadow 160ms ease, height 160ms ease;
-  pointer-events: none;
-}
-
-.row-resize-handle:hover::after {
-  opacity: 1;
-  height: 5px;
+.row-resize-handle:hover {
+  opacity: 1 !important;
   box-shadow:
     0 0 12px rgba(37, 99, 235, 0.80),
-    0 0 26px rgba(59, 130, 246, 0.42);
+    0 0 26px rgba(59, 130, 246, 0.42) !important;
 }
 
-.row-resize-handle[data-active="true"]::after {
-  opacity: 1;
-  height: 5px;
+.row-resize-handle[data-active="true"] {
+  opacity: 1 !important;
   box-shadow:
     0 0 14px rgba(37, 99, 235, 0.90),
-    0 0 30px rgba(59, 130, 246, 0.50);
+    0 0 30px rgba(59, 130, 246, 0.50) !important;
 }
 
 @media print {
