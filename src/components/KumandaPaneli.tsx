@@ -247,51 +247,92 @@ export default function KumandaPaneli({
         /* ── Per-buton karakter renk paleti ──────────────────────────── */
         /* .control-panel button. prefix ile specificity (0,2,1) →
            .control-panel button (0,1,1) override edilir. */
-        /* Rafine, kontrollü palette — kurumsal/elit dijital neon; glow rgba
-           daha düşük opaklıkta (saydamlık + zarif ışık). */
-        .control-panel button.button-edit         { --button-accent: #46f59a; --button-glow: rgba( 70, 245, 154, 0.34); }
-        /* Kilitli durumda kilit ikonu sıcak kırmızı; düzenleme aktifken yeşil. */
-        .control-panel button.button-edit[data-readonly="true"] {
-          --button-accent: #ef5f73;
-          --button-glow:   rgba(239,  95, 115, 0.32);
+        /* Kurumsal muted palette — oyuncak neon yerine ciddi tonlar.
+           Lock butonu özel: is-editing/is-locked class'larıyla güçlü
+           ışık alır (yeşil/kırmızı), diğer butonlardan ayrışır. */
+        .control-panel button.button-image        { --button-accent: #6f8fbf; --button-glow: rgba(111, 143, 191, 0.30); }
+        .control-panel button.button-row-discount { --button-accent: #b86b7d; --button-glow: rgba(184, 107, 125, 0.28); }
+        .control-panel button.button-row-currency { --button-accent: #8f7ab8; --button-glow: rgba(143, 122, 184, 0.28); }
+        .control-panel button.button-tax          { --button-accent: #b89a62; --button-glow: rgba(184, 154,  98, 0.28); }
+        .control-panel button.button-discount     { --button-accent: #b97858; --button-glow: rgba(185, 120,  88, 0.28); }
+
+        /* Lock state vars — yeşil (editing) / kırmızı (locked) güçlü neon */
+        .control-panel button.lock-button.is-editing {
+          --button-accent: #42ff9b;
+          --button-glow:   rgba( 66, 255, 155, 0.62);
         }
-        .control-panel button.button-image        { --button-accent: #5f9cff; --button-glow: rgba( 95, 156, 255, 0.34); }
-        .control-panel button.button-row-discount { --button-accent: #e96f9d; --button-glow: rgba(233, 111, 157, 0.28); }
-        .control-panel button.button-row-currency { --button-accent: #a985e8; --button-glow: rgba(169, 133, 232, 0.28); }
-        .control-panel button.button-tax          { --button-accent: #e8b15f; --button-glow: rgba(232, 177,  95, 0.30); }
-        .control-panel button.button-discount     { --button-accent: #df8757; --button-glow: rgba(223, 135,  87, 0.28); }
+        .control-panel button.lock-button.is-locked {
+          --button-accent: #ff3f5f;
+          --button-glow:   rgba(255,  63,  95, 0.62);
+        }
 
         /* ── Aktif / basılı: saydam cam + neon karakter ──────────────────
            backdrop-filter ile ardalan bulanıklaşır; gradient bg color-mix
            ile karakter rengine hafif boyanır; içte beyaz highlight + altta
            derinlik gölgesi. Buton tek renge boyanmaz; ışık içten yayılır. */
+        /* Aktif/basılı: kurumsal — karakter rengi netleşir, arka plan
+           bağırmaz. Dark bordo gradient + ince radyal character glow. */
         .control-panel button.is-active,
         .control-panel button:active {
-          backdrop-filter: blur(12px) saturate(1.2);
-          -webkit-backdrop-filter: blur(12px) saturate(1.2);
+          color: var(--button-accent);
+          border-color: color-mix(in srgb, var(--button-accent) 70%, transparent);
           background:
             radial-gradient(
               circle at 50% 35%,
-              color-mix(in srgb, var(--button-glow) 34%, transparent) 0%,
-              color-mix(in srgb, var(--button-glow) 18%, transparent) 38%,
-              rgba(255, 255, 255, 0.025) 72%
+              color-mix(in srgb, var(--button-glow) 22%, transparent),
+              transparent 62%
             ),
-            linear-gradient(
-              180deg,
-              rgba(255, 255, 255, 0.055),
-              rgba(0, 0, 0, 0.16)
-            );
-          color: var(--button-accent);
-          border-color: var(--button-accent);
-          text-shadow:
-            0 0 10px var(--button-glow),
-            0 0 24px var(--button-glow);
+            linear-gradient(180deg, rgba(65, 16, 26, 0.78), rgba(18, 4, 9, 0.88));
           box-shadow:
-            0 0 18px color-mix(in srgb, var(--button-glow) 70%, transparent),
-            0 0 42px color-mix(in srgb, var(--button-glow) 38%, transparent),
-            inset 0 1px 0 rgba(255, 255, 255, 0.16),
-            inset 0 0 24px color-mix(in srgb, var(--button-glow) 28%, transparent),
-            inset 0 -14px 26px rgba(0, 0, 0, 0.36);
+            0 0 20px color-mix(in srgb, var(--button-glow) 45%, transparent),
+            inset 0 0 22px color-mix(in srgb, var(--button-glow) 20%, transparent),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        /* ── Lock butonu özel: yeşil (editing) / kırmızı (locked) güçlü neon
+           Diğer butonlardan ÇOK daha parlak ve net. Specificity (0,3,1) +
+           class kombinasyonu — generic .is-active'i (0,2,1) override eder. */
+        .control-panel button.lock-button.is-editing {
+          color: var(--button-accent);
+          border-color: rgba(66, 255, 155, 0.95);
+          background:
+            radial-gradient(
+              circle at 50% 35%,
+              rgba(66, 255, 155, 0.18),
+              transparent 65%
+            ),
+            linear-gradient(180deg, rgba(20, 50, 35, 0.78), rgba(8, 22, 14, 0.88));
+          box-shadow:
+            0 0 24px rgba(66, 255, 155, 0.55),
+            0 0 64px rgba(66, 255, 155, 0.28),
+            inset 0 0 26px rgba(66, 255, 155, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        }
+
+        .control-panel button.lock-button.is-locked {
+          color: var(--button-accent);
+          border-color: rgba(255, 63, 95, 0.95);
+          background:
+            radial-gradient(
+              circle at 50% 35%,
+              rgba(255, 63, 95, 0.18),
+              transparent 65%
+            ),
+            linear-gradient(180deg, rgba(60, 18, 26, 0.78), rgba(22, 6, 11, 0.88));
+          box-shadow:
+            0 0 24px rgba(255, 63, 95, 0.55),
+            0 0 64px rgba(255, 63, 95, 0.28),
+            inset 0 0 26px rgba(255, 63, 95, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        }
+
+        /* Lock butonu ikonu — strong glow filter (her iki state'te) */
+        .control-panel button.lock-button.is-editing .premium-panel-icon,
+        .control-panel button.lock-button.is-locked  .premium-panel-icon {
+          filter:
+            drop-shadow(0 2px 2px rgba(255, 255, 255, 0.14))
+            drop-shadow(0 8px 16px rgba(0, 0, 0, 0.42))
+            drop-shadow(0 0 20px var(--button-glow));
         }
 
         /* ── Premium filled-symbol ikon ailesi ──
@@ -627,15 +668,31 @@ export default function KumandaPaneli({
           }
         }
 
-        /* Square buton hover — premium ışık yayılması */
+        /* Square buton hover — narin beyaz border (rose kaldırıldı) */
         .square-btn:hover {
-          border-color: rgba(255, 150, 165, 0.52);
+          border-color: rgba(255, 255, 255, 0.18);
         }
 
-        /* .square-btn.is-active rose bg/border/animation override KALDIRILDI:
-           cam + neon karakter generic .control-panel button.is-active'ten gelir
-           (--button-accent + --button-glow per-buton var ile renklenir).
-           premiumToggleGlow keyframe artık kullanilmiyor. */
+        /* ── Pasif kare buton: panel arkasına gömülü kurumsal görünüm ──
+           Düşük kontrast bordo/antrasit zemin + çok düşük opaklık border.
+           İkonlar kaybolmaz ama dikkat çekmez. Specificity (0,2,0) base
+           .square-btn (0,1,0) ve shared box-shadow rule'u (0,1,0) override. */
+        .square-btn:not(.is-active) {
+          --button-accent: rgba(230, 220, 220, 0.62);
+          --button-glow: transparent;
+          background:
+            linear-gradient(180deg, rgba(45, 10, 18, 0.52), rgba(14, 3, 7, 0.72));
+          border-color: rgba(255, 255, 255, 0.08);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            inset 0 -12px 22px rgba(0, 0, 0, 0.35);
+        }
+
+        /* Pasif kare buton ikonu — silvery/muted, ciddi kurumsal */
+        .square-btn:not(.is-active) .premium-panel-icon {
+          opacity: 0.68;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.42));
+        }
 
         .square-btn.finance,
         .square-btn.kdv,
@@ -812,7 +869,7 @@ export default function KumandaPaneli({
 
           <button
             type="button"
-            className={`lock-button button-edit${!readOnly ? ' is-active' : ''}`}
+            className={`lock-button button-edit ${readOnly ? 'is-locked' : 'is-editing'}`}
             data-readonly={readOnly}
             onClick={() => onReadOnlyDegistir(!readOnly)}
             title={readOnly ? 'Kilitli — düzenlemeyi aç' : 'Düzenleme açık — kilitle'}
