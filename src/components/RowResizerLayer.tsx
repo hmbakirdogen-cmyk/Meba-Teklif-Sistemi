@@ -35,7 +35,10 @@ interface RowResizerLayerProps {
   onCommit: (id: string, heightPx: number) => void;
 }
 
-const HANDLE_HIT_HEIGHT = 6;
+// 4px tutamak: 1px satır içinde + 3px satır altı boşlukta. Hücre tıklamalarına
+// minimum müdahale, ns-resize için yeterli hit area.
+const HANDLE_HIT_HEIGHT = 4;
+const HANDLE_INSIDE_ROW_PX = 1;
 
 export function RowResizerLayer({
   tableEl,
@@ -201,7 +204,7 @@ export function RowResizerLayer({
             position: 'absolute',
             left: `${r.left}px`,
             width: `${r.width}px`,
-            top: `${r.top + r.height - HANDLE_HIT_HEIGHT / 2}px`,
+            top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',

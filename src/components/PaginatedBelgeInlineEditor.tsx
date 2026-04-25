@@ -179,15 +179,19 @@ function PageTableWithResizer({
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   children: React.ReactNode;
 }) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const [tableEl, setTableEl] = useState<HTMLTableElement | null>(null);
 
-  useLayoutEffect(() => {
-    setTableEl(wrapperRef.current?.querySelector('table.offer-table') ?? null);
-  });
+  // Wrapper mount edildiğinde içindeki tabloyu yakala. Callback ref
+  // sadece mount/unmount'ta çalışır → her render'da setState yok,
+  // infinite re-render olmaz.
+  const setWrapperRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) { setTableEl(null); return; }
+    const found = node.querySelector<HTMLTableElement>('table.offer-table');
+    setTableEl(found ?? null);
+  }, []);
 
   return (
-    <div ref={wrapperRef} style={{ position: 'relative' }}>
+    <div ref={setWrapperRef} style={{ position: 'relative' }}>
       {children}
       <RowResizerLayer
         tableEl={tableEl}
