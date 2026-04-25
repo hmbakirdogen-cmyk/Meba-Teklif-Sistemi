@@ -534,40 +534,40 @@ export const FIELD_CSS = `
 .row-resize-handle::after {
   content: "";
   position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 1px;
-  height: 3px;
+  left: 6px;
+  right: 6px;
+  top: 0;
+  height: 4px;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgba(15, 23, 42, 0),
-    rgba(37, 99, 235, 0.95),
-    rgba(96, 165, 250, 0.78),
-    rgba(15, 23, 42, 0)
+    rgba(15, 23, 42, 0) 0%,
+    rgba(37, 99, 235, 1) 35%,
+    rgba(96, 165, 250, 0.92) 65%,
+    rgba(15, 23, 42, 0) 100%
   );
-  opacity: 0.65;
+  opacity: 0.85;
   box-shadow:
-    0 0 6px rgba(37, 99, 235, 0.45),
-    0 0 14px rgba(59, 130, 246, 0.22);
+    0 0 8px rgba(37, 99, 235, 0.65),
+    0 0 18px rgba(59, 130, 246, 0.32);
   transition: opacity 160ms ease, box-shadow 160ms ease, height 160ms ease;
   pointer-events: none;
 }
 
 .row-resize-handle:hover::after {
   opacity: 1;
-  height: 4px;
+  height: 5px;
   box-shadow:
-    0 0 10px rgba(37, 99, 235, 0.60),
-    0 0 20px rgba(59, 130, 246, 0.32);
+    0 0 12px rgba(37, 99, 235, 0.80),
+    0 0 26px rgba(59, 130, 246, 0.42);
 }
 
 .row-resize-handle[data-active="true"]::after {
   opacity: 1;
-  height: 4px;
+  height: 5px;
   box-shadow:
-    0 0 12px rgba(37, 99, 235, 0.70),
-    0 0 24px rgba(59, 130, 246, 0.40);
+    0 0 14px rgba(37, 99, 235, 0.90),
+    0 0 30px rgba(59, 130, 246, 0.50);
 }
 
 @media print {
