@@ -186,11 +186,13 @@ export function TotalsCard({
         </div>
       )}
 
-      {/* Genel Toplam satırı — sol: etiket, sağ: büyük rakam (aynı X) */}
+      {/* Genel Toplam satırı — sol: etiket, sağ: büyük rakam (aynı X)
+          Padding KDV/iskonto/ara toplam aktif/pasif farketmez aynı kalır;
+          böylece detay açılıp kapanırken Genel Toplam zıplamaz. */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        padding: hasDetail ? '7px 0 8px 8px' : '11px 0 11px 12px',
+        padding: '8px 0 8px 8px',
       }}>
         <div>
           <div style={{

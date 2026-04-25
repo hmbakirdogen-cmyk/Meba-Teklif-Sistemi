@@ -175,13 +175,13 @@ export const FIELD_CSS = `
   font: inherit !important;
   color: inherit !important;
   letter-spacing: inherit !important;
-  padding: 0 2px !important;
-  height: 1.4em !important;
-  min-height: 1.4em !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
   text-align: inherit !important;
   min-width: 0 !important;
   cursor: text !important;
-  box-sizing: content-box !important;
+  box-sizing: border-box !important;
   background: transparent !important;
   border: none !important;
   outline: none !important;
@@ -285,9 +285,10 @@ export const FIELD_CSS = `
   min-height: 0 !important;
 }
 .belge-inline .ant-input-number-sm .ant-input-number-input {
-  height: 1.4em !important;
-  min-height: 1.4em !important;
-  padding: 0 2px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -652,9 +653,9 @@ export const FIELD_CSS = `
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  height: var(--line-editor-height) !important;
-  min-height: var(--line-editor-height) !important;
-  max-height: var(--line-editor-height) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   margin: 0 !important;
   padding: 0 !important;
   font: inherit !important;
@@ -671,9 +672,9 @@ export const FIELD_CSS = `
   display: flex !important;
   align-items: center !important;
   width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
-  max-height: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
@@ -697,9 +698,9 @@ export const FIELD_CSS = `
 .belge-inline .offer-table td.is-active-cell .inline-table-field input:not(.ant-select-input),
 .belge-inline .offer-table td.is-active-cell .inline-table-field textarea {
   width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
-  max-height: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   padding: 0 !important;
   margin: 0 !important;
   font: inherit !important;
