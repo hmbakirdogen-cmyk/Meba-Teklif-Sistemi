@@ -440,6 +440,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   // background on <td> via rcCell — html2canvas 1.4.1 skips <tr> backgrounds
                   pageBreakInside: 'avoid',
                   breakInside: 'avoid',
+                  ...(satir.rowHeight && satir.rowHeight > 0
+                    ? { height: `${satir.rowHeight}px` }
+                    : null),
                 }}
               >
                 {/* No */}

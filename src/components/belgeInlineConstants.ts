@@ -518,6 +518,33 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   ROW RESIZE HANDLE — satır altı sürüklenebilir tutamak.
+   Default: görünmez. Hover: hafif mavi tint. Aktif drag: belirgin çizgi.
+   Yalnızca aktif satır td'leri çok hafif mavi vurguyla işaretlenir.
+   PDF capture sırasında handle render edilmez (interactive=false ağacı).
+   ══════════════════════════════════════════════════════════════════════ */
+.row-resize-handle {
+  opacity: 0;
+  background: transparent;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+.row-resize-handle:hover {
+  opacity: 0.4;
+  background: rgba(37, 99, 235, 0.18);
+}
+.row-resize-handle[data-active="true"] {
+  opacity: 1 !important;
+  background: rgba(37, 99, 235, 0.45) !important;
+}
+.belge-inline tr[data-satir-id][data-resizing="true"] > td {
+  background: rgba(37, 99, 235, 0.06) !important;
+  transition: background-color 120ms ease;
+}
+@media print {
+  .row-resize-handle, .row-resizer-layer { display: none !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    ÜRÜN KODU HÜCRESİ — ASLA kesilmez, üç nokta yok.
    Kolon genişliği en uzun koda göre TableColgroup içinde hesaplanır;
    hücre yalnızca tek satıra kilitli, taşma görünür bırakılır.

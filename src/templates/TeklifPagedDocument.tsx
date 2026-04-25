@@ -324,7 +324,17 @@ function TableSection({
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
 
             return (
-              <tr key={satir.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <tr
+                key={satir.id}
+                data-satir-id={satir.id}
+                style={{
+                  pageBreakInside: 'avoid',
+                  breakInside: 'avoid',
+                  ...(satir.rowHeight && satir.rowHeight > 0
+                    ? { height: `${satir.rowHeight}px` }
+                    : null),
+                }}
+              >
                 <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx) }}>
                   {String(idx + 1).padStart(2, '0')}
                 </td>

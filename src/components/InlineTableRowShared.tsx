@@ -18,12 +18,14 @@ const C = DOCUMENT_COLORS;
 export function RowCell({
   idx,
   pos,
+  rowHeight,
   style,
   children,
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement> & {
   idx: number;
   pos: CellPos;
+  rowHeight?: number;
 }) {
   return (
     <td
@@ -31,7 +33,7 @@ export function RowCell({
       style={{
         padding: CELL_PAD,
         verticalAlign: 'middle',
-        ...rcCell(pos, idx),
+        ...rcCell(pos, idx, rowHeight),
         ...style,
       }}
     >

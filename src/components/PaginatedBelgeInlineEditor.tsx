@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
+﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -9,6 +9,7 @@ import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru'
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { TotalsCard } from './TotalsCard';
+import { RowResizerLayer } from './RowResizerLayer';
 import { InlineCariAutocompleteField } from './InlineCariAutocompleteField';
 import {
   formatBirimAbbrev,
@@ -96,6 +97,7 @@ interface PaginatedBelgeInlineEditorProps {
   onNotlarDegistir: (notlar: string) => void;
   readOnly?: boolean;
   renderPageOverlay?: (pageIndex: number) => React.ReactNode;
+  scale?: number;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -159,6 +161,45 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
   );
 }
 
+/**
+ * Sayfa tablosunu position:relative bir kapsayıcıda render eder ve
+ * tablonun altına RowResizerLayer'ı yerleştirir. Layer satır altlarına
+ * tutamak çizer; readOnly modda hiçbir şey eklenmez.
+ */
+function PageTableWithResizer({
+  satirIds,
+  scale,
+  readOnly,
+  onSatirGuncelle,
+  children,
+}: {
+  satirIds: string[];
+  scale: number;
+  readOnly: boolean;
+  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  children: React.ReactNode;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [tableEl, setTableEl] = useState<HTMLTableElement | null>(null);
+
+  useLayoutEffect(() => {
+    setTableEl(wrapperRef.current?.querySelector('table.offer-table') ?? null);
+  });
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      {children}
+      <RowResizerLayer
+        tableEl={tableEl}
+        satirIds={satirIds}
+        scale={scale}
+        readOnly={readOnly}
+        onCommit={(id, h) => onSatirGuncelle(id, 'rowHeight', h)}
+      />
+    </div>
+  );
+}
+
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
   return (
     <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
@@ -193,6 +234,7 @@ export default function PaginatedBelgeInlineEditor({
   onNotlarDegistir,
   readOnly = false,
   renderPageOverlay,
+  scale = 1,
 }: PaginatedBelgeInlineEditorProps) {
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
@@ -476,12 +518,21 @@ export default function PaginatedBelgeInlineEditor({
 
   const renderTable = (page: TeklifPagePlan) => {
     if (!page.showTableHeader) return null;
+    const pageSatirIds = teklif.satirlar
+      .slice(page.rowStartIndex, page.rowEndIndex)
+      .map((s) => s.id);
 
     return (
       <>
         <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'block' : 'none' }}>
           Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
         </div>
+        <PageTableWithResizer
+          satirIds={pageSatirIds}
+          scale={scale}
+          readOnly={readOnly}
+          onSatirGuncelle={onSatirGuncelle}
+        >
         <table className="offer-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: '0 2px', marginBottom: 0 }}>
           <TableColgroup satirBazliParaBirimi={satirBazliParaBirimi} teklifSatirlari={teklif.satirlar} />
           <thead>
@@ -546,7 +597,15 @@ export default function PaginatedBelgeInlineEditor({
 
               return (
                 <React.Fragment key={satir.id}>
-                  <tr data-satir-id={satir.id} style={{ ...noBreak }}>
+                  <tr
+                    data-satir-id={satir.id}
+                    style={{
+                      ...noBreak,
+                      ...(satir.rowHeight && satir.rowHeight > 0
+                        ? { height: `${satir.rowHeight}px` }
+                        : null),
+                    }}
+                  >
                     <RowCell idx={idx} pos="first" onClick={cellClick('urunKod')} style={{ ...ROW_TEXT.no, cursor: 'pointer' }}>
                       {String(idx + 1).padStart(2, '0')}
                     </RowCell>
@@ -720,6 +779,7 @@ export default function PaginatedBelgeInlineEditor({
             )}
           </tbody>
         </table>
+        </PageTableWithResizer>
         {page.pageNumber === pages.length && teklif.satirlar.length > 0 && !readOnly && (
           <div
             className="belge-kalem-ekle-bar"

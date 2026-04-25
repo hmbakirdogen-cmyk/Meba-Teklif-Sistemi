@@ -14,4 +14,7 @@ export interface TeklifSatiri {
   manuelAltAciklama?: string;
   manuelAciklamaGuncelleyen?: string;
   manuelAciklamaGuncellemeTarihi?: string;
+  /** Personel tarafından elle ayarlanmış satır yüksekliği (document-px).
+   *  Tanımsızsa otomatik / standart yükseklik geçerli. */
+  rowHeight?: number;
 }

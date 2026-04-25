@@ -443,14 +443,22 @@ export const ROW_CARD = {
 
 export type CellPos = 'first' | 'mid' | 'last';
 
-export function rcCell(pos: CellPos, idx = 0): CSSProperties {
+export function rcCell(pos: CellPos, idx = 0, rowHeight?: number): CSSProperties {
   const border = `0.75px solid ${ROW_CARD.borderClr}`;
   const radius = ROW_CARD.radius;
+
+  // Personelin elle çektiği rowHeight varsa td'nin "height"i olur.
+  // CSS table cell semantiğinde td height ZEMIN gibi davranır → içerik
+  // daha çok yer isterse satır yine büyür, ama altına da düşmez.
+  const heightStyle: CSSProperties = rowHeight && rowHeight > 0
+    ? { height: `${rowHeight}px` }
+    : {};
 
   return {
     // Sabit yükseklik yok; kısa açıklamalar min-height'te kalır,
     // 2. satıra düşen açıklama varsa sadece o satır büyür.
     minHeight:              LINE_ITEM_ROW_HEIGHT,
+    ...heightStyle,
     boxSizing:              'border-box',
     background:             idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
     printColorAdjust:       'exact',

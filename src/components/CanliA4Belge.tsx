@@ -232,6 +232,7 @@ export default function CanliA4Belge({
             teklif={teklif}
             totals={totals}
             pages={pagination.pages}
+            scale={scale}
             editingAlan={editingAlan}
             onEditingAlanDegistir={onEditingAlanDegistir}
             onCariDegistir={onCariDegistir}
