@@ -53,8 +53,10 @@ export default function TeklifEditor() {
   // Inline düzenleme state — popover yerine
   const [editingAlan, setEditingAlan] = useState<EditingAlan>(null);
 
-  // Kilitli / Düzenleme modu
-  const [modeKilitli, setModeKilitli] = useState(false);
+  // Kilitli / Düzenleme modu — global tek state, URL'ye göre başlangıç:
+  //   • Yeni teklif (id yok)   → editMode = true  (kilitli=false) → direkt yazmaya başla
+  //   • Mevcut teklif (id var) → editMode = false (kilitli=true)  → güvenli görüntüleme
+  const [modeKilitli, setModeKilitli] = useState<boolean>(() => Boolean(id));
   const handleModeKilitliDegistir = useCallback((v: boolean) => {
     setModeKilitli(v);
     if (v) setEditingAlan(null);
