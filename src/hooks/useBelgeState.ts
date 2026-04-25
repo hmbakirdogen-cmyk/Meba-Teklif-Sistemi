@@ -18,7 +18,7 @@ import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import { sanitizeMultilineText } from '../utils/formatters';
-import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem } from '../types';
+import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus } from '../types';
 import dayjs from 'dayjs';
 
 export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
@@ -46,6 +46,7 @@ export interface BelgeState {
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
   gorseller: ImageItem[];
+  status: TeklifStatus;
 
   // ── Düzenleme bağlamı ──
   panelModu: PanelModu;
@@ -107,6 +108,8 @@ interface BelgeActions {
   // Kayıt
   teklifOlustur: () => Teklif;
   kaydet: () => Promise<boolean>;
+  /** Belirtilen status ile zorla kaydet (PDF/email akışında "kaydedildi"/"gonderildi" set eder). */
+  kaydetWithStatus: (status: TeklifStatus) => Promise<boolean>;
 }
 
 interface KullaniciBilgisi {
@@ -142,6 +145,7 @@ export function useBelgeState(
   const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
   const [olusturmaTarihi] = useState(mevcut?.olusturmaTarihi ?? dayjs().toISOString());
   const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
+  const [status, setStatus] = useState<TeklifStatus>(mevcut?.status ?? 'taslak');
 
   // Panel state — yalnızca araç çubuğundan erişilir (ikincil)
   const [panelModu, setPanelModu] = useState<PanelModu>(null);
@@ -328,10 +332,16 @@ export function useBelgeState(
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
+      status,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller, status]);
 
-  const kaydet = useCallback(async (): Promise<boolean> => {
+  /**
+   * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
+   * Eski kaydet() ile aynı validasyon (cari + en az 1 satır) — fakat
+   * status alanını override eder.
+   */
+  const kaydetWithStatus = useCallback(async (newStatus: TeklifStatus): Promise<boolean> => {
     if (!cari) return false;
     if (satirlar.length === 0) return false;
 
@@ -350,10 +360,52 @@ export function useBelgeState(
     const teklif: Teklif = {
       ...teklifOlustur(),
       teklifNo: no,
+      status: newStatus,
     };
     teklifService.teklifKaydet(teklif);
+    setStatus(newStatus);
     return true;
   }, [cari, satirlar, teklifNo, teklifNoDurumu, teklifOlustur]);
+
+  const kaydet = useCallback(async (): Promise<boolean> => {
+    return kaydetWithStatus(status);
+  }, [kaydetWithStatus, status]);
+
+  // ── OTOMATİK TASLAK KAYDI ──────────────────────────────────────────────
+  // Her ilgili state değişiminde:
+  //   1) status "kaydedildi"/"gonderildi" ise "taslak"a döndür
+  //   2) 600ms debounce ile sessizce arka planda persist et
+  // Cari yoksa (yeni boş teklif) atla — teklifOlustur cari!'a bağlı.
+  const autoSaveFirstRender = useRef(true);
+  useEffect(() => {
+    if (autoSaveFirstRender.current) {
+      autoSaveFirstRender.current = false;
+      return;
+    }
+    if (!cari) return;
+    if (satirlar.length === 0) return;
+    if (teklifNoDurumu !== 'hazir' || teklifNo === 'ERR') return;
+
+    // Status kaydedildi/gonderildi iken değişiklik → taslak
+    if (status === 'kaydedildi' || status === 'gonderildi') {
+      setStatus('taslak');
+    }
+
+    const t = setTimeout(() => {
+      const teklif: Teklif = {
+        ...teklifOlustur(),
+        status: 'taslak',
+      };
+      teklifService.teklifKaydet(teklif);
+    }, 600);
+    return () => clearTimeout(t);
+    // status'u DEPS'e EKLEME — kendi setStatus'umuz infinite loop'a yol açar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    cari, satirlar, paraBirimi, satirBazliParaBirimi, satirBazliIskonto,
+    kdvOrani, iskontoOrani, odemeVadesi, notlar, contactName, contactTitle,
+    tarih, gorseller, durum, teklifNo, teklifNoDurumu,
+  ]);
 
   return {
     // State
@@ -378,6 +430,7 @@ export function useBelgeState(
     hazirlayanAdSoyad: kullanici?.adSoyad,
     hazirlayanRol: kullanici?.rol,
     gorseller,
+    status,
     panelModu,
     seciliSatirId,
     hoverSatirId,
@@ -419,5 +472,6 @@ export function useBelgeState(
     gorselSil,
     teklifOlustur,
     kaydet,
+    kaydetWithStatus,
   };
 }

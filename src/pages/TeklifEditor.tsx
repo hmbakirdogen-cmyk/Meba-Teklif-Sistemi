@@ -156,23 +156,8 @@ export default function TeklifEditor() {
   ]);
 
   // ── Aksiyonlar ──
-
-  const handleKaydet = useCallback(async () => {
-    if (!state.cari) {
-      message.warning('Lütfen bir müşteri seçin.');
-      return;
-    }
-    if (state.satirlar.length === 0) {
-      message.warning('En az bir ürün satırı eklemeniz gerekiyor.');
-      return;
-    }
-    const ok = await state.kaydet();
-    if (ok) {
-      message.success('Teklif kaydedildi.');
-    } else {
-      message.error('Kaydetme başarısız oldu.');
-    }
-  }, [state, message]);
+  // Manuel "Kaydet" yok; useBelgeState içindeki auto-save effect tüm değişimleri
+  // 600ms debounce ile sessizce taslak olarak persist eder.
 
   const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu) => {
     if (sonuc.hedef === 'pdf') {
@@ -235,7 +220,8 @@ export default function TeklifEditor() {
       return;
     }
 
-    const kaydedildi = await state.kaydet();
+    // 1) Önce state'i ZORLA "kaydedildi" olarak persist et — PDF en son halden üretilir
+    const kaydedildi = await state.kaydetWithStatus('kaydedildi');
     if (!kaydedildi) {
       message.error('Teklif kaydedilemedi. PDF olusturma islemi durduruldu.');
       return;
@@ -249,6 +235,7 @@ export default function TeklifEditor() {
 
     try {
       await waitForNextPaint();
+      // 2) PDF oluştur
       const { pdf, pageImages } = await buildPdf(sablonRef.current);
       printImagesRef.current = pageImages;
       const blob = pdf.output('blob');
@@ -259,6 +246,11 @@ export default function TeklifEditor() {
       const sonuc = await teklifDisaAktar(blob, kayitliTeklif, hedef);
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
+
+      // 3) E-posta başarıyla gönderildiyse → status "gonderildi"
+      if (hedef === 'email' && sonuc.epostaHazirlandi) {
+        await state.kaydetWithStatus('gonderildi');
+      }
     } catch (error) {
       if (error instanceof TeklifDisaAktarimHatasi) {
         message.error(error.message);
@@ -386,10 +378,9 @@ export default function TeklifEditor() {
         teklifNo={state.teklifNo}
         teklifNoDurumu={state.teklifNoDurumu}
         cariAdi={state.cari ? formatCariAdi(state.cari.firmaAdi) : undefined}
-        durum={state.durum}
+        status={state.status}
         uretiliyor={state.uretiliyor}
         onGeriDon={handleGeriDon}
-        onKaydet={handleKaydet}
         onPdfIndir={handlePdfIndir}
         onEMailGonder={handleEMailGonder}
         onYazdir={handleYazdir}

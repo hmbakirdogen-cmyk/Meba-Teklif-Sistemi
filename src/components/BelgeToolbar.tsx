@@ -8,7 +8,6 @@
 import { Button, Space, Tag, Tooltip, Spin } from 'antd';
 import {
   ArrowLeftOutlined,
-  SaveOutlined,
   PrinterOutlined,
   FilePdfOutlined,
   MailOutlined,
@@ -17,17 +16,16 @@ import {
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
 import { buttonClassNames } from '../styles/buttonStyles';
-import type { TeklifDurum } from '../types';
+import type { TeklifStatus } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
 
 interface BelgeToolbarProps {
   teklifNo: string;
   teklifNoDurumu: 'hazir' | 'yukleniyor' | 'hata';
   cariAdi?: string;
-  durum: TeklifDurum;
+  status: TeklifStatus;
   uretiliyor: boolean;
   onGeriDon: () => void;
-  onKaydet: () => void;
   onPdfIndir: () => void;
   onEMailGonder: () => void;
   onYazdir: () => void;
@@ -35,30 +33,26 @@ interface BelgeToolbarProps {
   onPanelAc: (mod: PanelModu) => void;
 }
 
-const DURUM_RENK: Record<TeklifDurum, string> = {
-  taslak: 'default',
-  hazir: 'blue',
-  gonderildi: 'orange',
-  onaylandi: 'green',
-  iptal: 'red',
+// 3-state otomatik kayıt status modeli
+const STATUS_RENK: Record<TeklifStatus, string> = {
+  taslak:     'default',
+  kaydedildi: 'blue',
+  gonderildi: 'green',
 };
 
-const DURUM_ETIKET: Record<TeklifDurum, string> = {
-  taslak: 'Taslak',
-  hazir: 'Hazır',
+const STATUS_ETIKET: Record<TeklifStatus, string> = {
+  taslak:     'Taslak',
+  kaydedildi: 'Kaydedildi',
   gonderildi: 'Gönderildi',
-  onaylandi: 'Onaylandı',
-  iptal: 'İptal',
 };
 
 export default function BelgeToolbar({
   teklifNo,
   teklifNoDurumu,
   cariAdi,
-  durum,
+  status,
   uretiliyor,
   onGeriDon,
-  onKaydet,
   onPdfIndir,
   onEMailGonder,
   onYazdir,
@@ -111,8 +105,8 @@ export default function BelgeToolbar({
             — {cariAdi}
           </span>
         )}
-        <Tag color={DURUM_RENK[durum]} style={{ margin: 0, borderRadius: 999, fontWeight: 600 }}>
-          {DURUM_ETIKET[durum]}
+        <Tag color={STATUS_RENK[status]} style={{ margin: 0, borderRadius: 999, fontWeight: 600 }}>
+          {STATUS_ETIKET[status]}
         </Tag>
       </div>
 
@@ -137,13 +131,6 @@ export default function BelgeToolbar({
 
         <div style={{ width: 1, height: 20, background: C.border, margin: '0 4px' }} />
 
-        <Button
-          icon={<SaveOutlined />}
-          onClick={onKaydet}
-          className={buttonClassNames.secondary}
-        >
-          Kaydet
-        </Button>
         <Button
           icon={<PrinterOutlined />}
           onClick={onYazdir}
