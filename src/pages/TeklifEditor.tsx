@@ -492,8 +492,6 @@ export default function TeklifEditor() {
         <KumandaPaneli
           readOnly={modeKilitli}
           onReadOnlyDegistir={handleModeKilitliDegistir}
-          durum={state.durum}
-          onDurumDegistir={state.setDurum}
           kdvOrani={state.kdvOrani}
           onKdvOraniDegistir={state.setKdvOrani}
           iskontoOrani={state.iskontoOrani}
@@ -504,10 +502,6 @@ export default function TeklifEditor() {
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           sagPanelOpen={state.panelModu !== null}
           onResimEkle={handleResimEkle}
-          onPdfIndir={handlePdfIndir}
-          onEMailGonder={handleEMailGonder}
-          onKaydet={handleKaydet}
-          uretiliyor={state.uretiliyor}
         />
       )}
     </div>
