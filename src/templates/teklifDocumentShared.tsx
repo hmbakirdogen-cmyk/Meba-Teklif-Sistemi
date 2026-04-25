@@ -643,8 +643,8 @@ export const TABLE_TITLE_STYLE: CSSProperties = {
 export const TABLE_STYLE: CSSProperties = {
   width: '100%',
   borderCollapse: 'separate',
-  // Satırlar arasında görünür hava — 4px × 0.80 ≈ 3px (kompakt ama okunaklı)
-  borderSpacing: '0 3px',
+  // Satırlar arasında görünür hava — 3px × 0.75 ≈ 2px (sıkı kompakt)
+  borderSpacing: '0 2px',
   borderLeft: 'none',
   borderRight: 'none',
   marginBottom: 0,
