@@ -17,6 +17,7 @@
  *    ekran-px'tir. document-px'e çevirmek için scale ile bölünür.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LINE_ITEM_METRICS } from '../templates/teklifDocumentShared';
 
 interface RowGeom {
@@ -196,9 +197,33 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  if (readOnly) return null;
+  // ULTRA DEBUG: portal banner viewport sol-üst köşesinde — container'lardan
+  // bağımsız, kesin görünür. RowResizerLayer mount olduğunu kanıtlar.
+  const debugBanner = createPortal(
+    <div style={{
+      position: 'fixed',
+      top: 80,
+      left: 16,
+      background: 'red',
+      color: 'white',
+      padding: '8px 14px',
+      fontSize: 13,
+      fontFamily: 'monospace',
+      zIndex: 99999,
+      borderRadius: 6,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+      pointerEvents: 'none',
+    }}>
+      RESIZER MOUNT | readOnly={String(readOnly)} | tableEl={tableEl ? 'OK' : 'NULL'} | satirIds={satirIds.length} | rows={rows.length}
+    </div>,
+    document.body
+  );
+
+  if (readOnly) return debugBanner;
 
   return (
+    <>
+    {debugBanner}
     <div
       ref={layerRef}
       className="row-resizer-layer"
@@ -237,5 +262,6 @@ export function RowResizerLayer({
         />
       ))}
     </div>
+    </>
   );
 }
