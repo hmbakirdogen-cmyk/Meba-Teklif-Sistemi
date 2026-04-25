@@ -223,19 +223,16 @@ export function RowResizerLayer({
             left: `${r.handleLeft}px`,
             width: `${r.handleWidth}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
-            height: `${HANDLE_HIT_HEIGHT}px`,
+            height: '3px',
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 1px çok ince premium lacivert hat — hit area 6px (kolay hover),
-            // visual sadece 1px orta strip. Pasifte INVISIBLE; CSS :hover ile
-            // opacity 1'e + glow ile vurgulanır.
-            background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.85) 30%, rgba(59,130,246,0.65) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 16px) 1px',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            opacity: 0.22,
+            // SOLID lacivert — backgroundSize/gradient trickery YOK.
+            // 3px tall, full opacity, görmemen mümkün değil.
+            background: '#1e40af',
+            borderRadius: '999px',
+            opacity: 1,
+            boxShadow: '0 0 6px rgba(37,99,235,0.5)',
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
