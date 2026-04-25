@@ -478,13 +478,6 @@ export default function KumandaPaneli({
           );
         }
 
-        .lock-button__label {
-          font-size: calc(16px * var(--panel-scale));
-          font-weight: 900;
-          line-height: 1;
-          letter-spacing: 0.08em;
-        }
-
         /* ── Resim Ekle (aksiyon, blue) ── */
         .image-add {
           --press-glow: rgba(80, 150, 255, 0.45);
@@ -779,22 +772,23 @@ export default function KumandaPaneli({
             className={`lock-button button-edit${!readOnly ? ' is-active' : ''}`}
             data-readonly={readOnly}
             onClick={() => onReadOnlyDegistir(!readOnly)}
+            title={readOnly ? 'Kilitli — düzenlemeyi aç' : 'Düzenleme açık — kilitle'}
+            aria-label={readOnly ? 'Kilitli' : 'Düzenleme'}
+            aria-pressed={!readOnly}
           >
             <span className="button-sweep" aria-hidden="true" />
             <EditPremiumIcon readOnly={readOnly} />
-            <span className="lock-button__label">
-              {readOnly ? 'KİLİTLİ' : 'DÜZENLEME'}
-            </span>
           </button>
 
           <button
             type="button"
             className="image-add button-image"
             onClick={onResimSec}
+            title="Resim Ekle"
+            aria-label="Resim Ekle"
           >
             <span className="button-sweep" aria-hidden="true" />
             <ImageAddPremiumIcon />
-            <span>RESİM EKLE</span>
           </button>
 
           <input
