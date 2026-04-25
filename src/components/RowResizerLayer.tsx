@@ -46,9 +46,8 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 3px tutamak — narin ama net görünür; 1px satır içinde + 2px dışta
-// (border-spacing 0 2px tam aralığa oturur).
-const HANDLE_HIT_HEIGHT = 3;
+// 2px ince zarif tutamak — 1px satır içinde + 1px dışta.
+const HANDLE_HIT_HEIGHT = 2;
 const HANDLE_INSIDE_ROW_PX = 1;
 
 export function RowResizerLayer({
@@ -89,13 +88,12 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel: Ürün Kodu kolonu solu → Açıklama kolonu sağı.
-        // tr.cells index ile doğrudan erişim — querySelector class match'inden
-        // çok daha güvenilir. Kolon sırası: 0=#, 1=Marka, 2=Kod, 3=Açıklama.
+        // Handle görsel: tablonun en solundan (sola yaslı) Ürün Kodu hücresinin
+        // sağ kenarına kadar — # + Marka + Kod kolonları boyunca ince zarif çizgi.
+        // tr.cells[2] = Ürün Kodu (kolon sırası 0=#, 1=Marka, 2=Kod).
         const codeCell = tr.cells[2] as HTMLElement | undefined;
-        const descCell = tr.cells[3] as HTMLElement | undefined;
-        const handleLeftScreen = codeCell ? codeCell.getBoundingClientRect().left : r.left;
-        const handleRightScreen = descCell ? descCell.getBoundingClientRect().right : r.right;
+        const handleLeftScreen = r.left;
+        const handleRightScreen = codeCell ? codeCell.getBoundingClientRect().right : r.right;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
@@ -224,20 +222,19 @@ export function RowResizerLayer({
           onPointerCancel={(e) => finish(e, false)}
           style={{
             position: 'absolute',
-            left: `${r.handleLeft + 6}px`,
-            width: `${Math.max(0, r.handleWidth - 12)}px`,
+            left: `${r.handleLeft}px`,
+            width: `${Math.max(0, r.handleWidth - 4)}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // Premium ince mavi gradient — Vite cache'inden bağımsız.
+            // Çok ince zarif lacivert hat — sola yaslı, sağa doğru fade.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(37,99,235,0.95) 35%, rgba(96,165,250,0.85) 65%, rgba(15,23,42,0) 100%)',
+              'linear-gradient(90deg, rgba(30,64,175,0.85) 0%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
             borderRadius: '999px',
-            boxShadow:
-              '0 0 8px rgba(37,99,235,0.55), 0 0 16px rgba(59,130,246,0.25)',
-            opacity: 0.85,
+            boxShadow: '0 0 5px rgba(37,99,235,0.32)',
+            opacity: 0.7,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
