@@ -17,6 +17,7 @@
  *    ekran-px'tir. document-px'e çevirmek için scale ile bölünür.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LINE_ITEM_METRICS } from '../templates/teklifDocumentShared';
 
 interface RowGeom {
@@ -212,9 +213,26 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  if (readOnly) return null;
+  // DEBUG banner — runtime state kanıtı
+  const banner = createPortal(
+    <div style={{
+      position: 'fixed', top: 80, left: 16,
+      background: 'red', color: 'white',
+      padding: '8px 14px', fontSize: 12, fontFamily: 'monospace',
+      zIndex: 99999, borderRadius: 6,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+      pointerEvents: 'none',
+    }}>
+      readOnly={String(readOnly)} | satirIds={satirIds.length} | rows={rows.length}
+    </div>,
+    document.body
+  );
+
+  if (readOnly) return banner;
 
   return (
+    <>
+    {banner}
     <div
       ref={layerRef}
       className="row-resizer-layer"
@@ -243,18 +261,19 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 1px ince premium lacivert hat — backgroundSize ile orta strip.
-            // Pasif opacity 0.22 (silikli baseline); CSS :hover ile 1.0 + glow.
+            // GÖRÜNÜR: 2px height + opacity 0.85 (premium ama net)
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.85) 30%, rgba(59,130,246,0.65) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 16px) 1px',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.95) 30%, rgba(59,130,246,0.85) 70%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 12px) 2px',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            opacity: 0.22,
+            opacity: 0.85,
+            boxShadow: '0 0 6px rgba(37,99,235,0.45)',
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
       ))}
     </div>
+    </>
   );
 }
