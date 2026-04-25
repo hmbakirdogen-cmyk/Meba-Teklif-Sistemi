@@ -23,6 +23,7 @@ const K = {
   PANEL_PAD: 12,
   GROUP_GAP: 14,
   ITEM_GAP:  6,
+  TOP:       100,            // A4 üst hizasına yakın, üst boşluk ~80-110px aralığında
 
   EDIT_H:    64,
   ACTION_H:  36,
@@ -31,7 +32,16 @@ const K = {
   EDIT_R:    12,
   BTN_R:     8,
 
-  EDGE_MIN:  20,             // ekran kenarı min margin
+  // ── Konum geometrisi ─────────────────────────────────────────────
+  // A4 = 210mm = 793.7px. A4 yarı: 396.85px (50%'den itibaren).
+  // Panel A4'ün sağına 32px boşlukla oturur:
+  //   panel_right_offset = 50% - (A4_half + PANEL_W + GAP)
+  //                      = 50% - (397 + 220 + 32) = 50% - 649px
+  // Ekran kenarına min 24px nefes payı.
+  EDGE_MIN:    24,
+  RIGHT_CLOSED_OFFSET: 649,  // sağ panel kapalıyken A4 sağına yapışmasın
+  // SagPanel = 360px, ondan 16px boşlukla solda dur.
+  RIGHT_OPEN_OFFSET:   376,  // 360 + 16
 
   // Shell (metalik bordo)
   shellImg:   'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.07), transparent 30%), linear-gradient(150deg, #1A0A0F 0%, #2A0E14 50%, #38121A 100%)',
@@ -128,10 +138,13 @@ export default function KumandaPaneli({
       className="no-print"
       style={{
         position: 'fixed',
-        top: 96,
+        top: K.TOP,
+        // Sağ panel kapalı → A4 sağına 32px boşlukla yerleş (overlap YOK).
+        // Sağ panel açık   → SagPanel'in 16px soluna yerleş.
+        // Her iki durumda ekran kenarına min 24px boşluk.
         right: sagPanelOpen
-          ? `max(${K.EDGE_MIN}px, calc(50% - 405px))`
-          : `max(${K.EDGE_MIN}px, calc(50% - 585px))`,
+          ? `${K.RIGHT_OPEN_OFFSET}px`
+          : `max(${K.EDGE_MIN}px, calc(50% - ${K.RIGHT_CLOSED_OFFSET}px))`,
         width: K.WIDTH,
         zIndex: 80,
         pointerEvents: 'auto',
