@@ -190,22 +190,10 @@ function PageTableWithResizer({
     setTableEl(found ?? null);
   }, []);
 
-  return (
-    <div ref={setWrapperRef} style={{ position: 'relative' }}>
-      {children}
-      {/* Resizer geçici olarak DEVRE DIŞI — edit yapılamama sorununu izole etmek
-         için. Layer aktif değilken hücre tıklamaları doğrudan çalışmalı. */}
-      {false && (
-        <RowResizerLayer
-          tableEl={tableEl}
-          satirIds={satirIds}
-          scale={scale}
-          readOnly={readOnly}
-          onCommit={(id, h) => onSatirGuncelle(id, 'rowHeight', h)}
-        />
-      )}
-    </div>
-  );
+  // Wrapper geçici olarak çıkarıldı — sadece children pass-through.
+  // Edit'in çalışıp çalışmadığını izole etmek için.
+  void setWrapperRef; void tableEl; void satirIds; void scale; void readOnly; void onSatirGuncelle;
+  return <>{children}</>;
 }
 
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
