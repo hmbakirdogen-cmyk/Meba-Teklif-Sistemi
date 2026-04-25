@@ -6,18 +6,30 @@
  * personel mouse ile tutup yukarı/aşağı sürükleyince SADECE o satırın
  * yüksekliği değişir, diğer satırlara dokunulmaz.
  *
+ * Davranış:
+ *  - Kilitli modda (readOnly=true) layer hiç DOM'a girmez.
+ *  - Düzenleme modunda (readOnly=false) handles render edilir.
+ *  - Handles sola yaslı, 1.75 cm uzunluğunda, 2px ince mavi gradient,
+ *    pasif opacity 0.45 (görünür baseline), hover'da CSS opacity 1 + glow.
+ *
+ * Sağlam mount mantığı:
+ *  - measure() canlı table'ı parentElement.querySelector ile her
+ *    çağrıda taze bulur (stale tableEl prop'una karşı savunma).
+ *  - useLayoutEffect deps'inde readOnly: kilit→düzenleme geçişinde
+ *    layer mount olur olmaz measure tetiklenir.
+ *  - ResizeObserver + MutationObserver: tablo veya TR'lerde değişim
+ *    olduğunda (yeni satır, rowHeight güncelleme) re-measure.
+ *
  * Performans:
  *  - Drag boyunca React state YENİDEN render edilmez. tr.style.height
  *    direkt DOM mutasyonuyla güncellenir (rAF-throttled).
- *  - pointerup'ta nihai değer onCommit() ile React'a verilir,
- *    state akışı (satirGuncelle) buradan ilerler.
+ *  - pointerup'ta nihai değer onCommit() ile React'a verilir.
  *
  * Scale:
  *  - CanliA4Belge transform: scale(scale) uyguladığı için clientY delta
  *    ekran-px'tir. document-px'e çevirmek için scale ile bölünür.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { LINE_ITEM_METRICS } from '../templates/teklifDocumentShared';
 
 interface RowGeom {
@@ -26,8 +38,8 @@ interface RowGeom {
   height: number;
   left: number;
   width: number;        // satırın tam genişliği (drag geometrisi için)
-  handleLeft: number;   // tutamak başlangıcı (Ürün Kodu kolonu solu)
-  handleWidth: number;  // tutamak genişliği (Kod + Açıklama kolonları toplamı)
+  handleLeft: number;   // tutamak başlangıcı (sola yaslı = r.left)
+  handleWidth: number;  // sabit 1.75 cm
 }
 
 interface RowResizerLayerProps {
@@ -47,7 +59,7 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 6px hit area: 2px satır içinde + 4px gap'te. Kolay hover yakalama.
+// 6px hit area (kolay yakalama) — 2px satır içinde + 4px gap'te.
 const HANDLE_HIT_HEIGHT = 6;
 const HANDLE_INSIDE_ROW_PX = 2;
 // Sabit handle uzunluğu: 1.75 cm = 17.5 mm ≈ 66 px (96 DPI document-px).
@@ -72,11 +84,14 @@ export function RowResizerLayer({
     pendingH: number | null;
   } | null>(null);
 
-  // satirIds her render'da yeni array → join ile string'e çevir, dep olarak kullan
   const satirIdsKey = satirIds.join('|');
 
-  // ── Satır geometrilerini ölç ve ResizeObserver ile takip et ─────────
+  // ── Satır geometrilerini ölç ve observer'larla takip et ───────────────
   useLayoutEffect(() => {
+    if (readOnly) {
+      setRows([]);
+      return;
+    }
     if (!layerRef.current) return;
     const ids = satirIdsKey.split('|').filter(Boolean);
     const idSet = new Set(ids);
@@ -84,8 +99,7 @@ export function RowResizerLayer({
     const measure = () => {
       const layer = layerRef.current;
       if (!layer) return;
-      // tableEl prop stale olabilir (table re-create edildiyse). Layer'ın
-      // parent wrapper'ından canlı table'ı her seferinde bul.
+      // tableEl prop stale olabilir — layer.parentElement üzerinden taze bul.
       const wrapper = layer.parentElement;
       const liveTable =
         wrapper?.querySelector<HTMLTableElement>('table.offer-table') ?? tableEl;
@@ -93,8 +107,6 @@ export function RowResizerLayer({
 
       const layerRect = layer.getBoundingClientRect();
       const next: RowGeom[] = [];
-      // querySelectorAll ile tek seferde tüm data-satir-id'li TR'leri al.
-      // Per-id CSS.escape querySelector başarısız olursa diye fallback iter.
       const allTrs = liveTable.querySelectorAll<HTMLTableRowElement>(
         'tr[data-satir-id]',
       );
@@ -117,16 +129,19 @@ export function RowResizerLayer({
 
     measure();
 
-    // ResizeObserver — wrapper üzerinden canlı table'ı izle
     const wrapper = layerRef.current.parentElement;
     const ro = new ResizeObserver(measure);
     if (wrapper) ro.observe(wrapper);
     if (tableEl?.isConnected) ro.observe(tableEl);
 
-    // MutationObserver — tablo veya TR'ler değişirse re-measure
     const mo = new MutationObserver(measure);
     if (wrapper) {
-      mo.observe(wrapper, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-satir-id', 'style'] });
+      mo.observe(wrapper, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-satir-id', 'style'],
+      });
     }
 
     window.addEventListener('scroll', measure, true);
@@ -137,15 +152,18 @@ export function RowResizerLayer({
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-    // readOnly deps'te ÖNEMLİ: kilitli moddan düzenleme moduna geçince layer
-    // mount olur ama tableEl/satirIds/scale değişmediği için effect bir daha
-    // çalışmazdı. readOnly toggle'ı re-trigger eder.
   }, [tableEl, satirIdsKey, scale, readOnly]);
 
   // ── Drag state machine ────────────────────────────────────────────────
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>, id: string) => {
-    if (readOnly || !tableEl) return;
-    const tr = tableEl.querySelector<HTMLElement>(`tr[data-satir-id="${CSS.escape(id)}"]`);
+    if (readOnly) return;
+    const wrapper = layerRef.current?.parentElement;
+    const liveTable =
+      wrapper?.querySelector<HTMLTableElement>('table.offer-table') ?? tableEl;
+    if (!liveTable) return;
+    const tr = liveTable.querySelector<HTMLElement>(
+      `tr[data-satir-id="${CSS.escape(id)}"]`,
+    );
     if (!tr) return;
     e.preventDefault();
     e.stopPropagation();
@@ -160,7 +178,6 @@ export function RowResizerLayer({
       rafId: null,
       pendingH: null,
     };
-    // Body cursor ve seçimi kilitle
     document.body.style.cursor = 'ns-resize';
     document.body.style.userSelect = 'none';
     tr.setAttribute('data-resizing', 'true');
@@ -171,7 +188,6 @@ export function RowResizerLayer({
     const d = dragRef.current;
     if (!d || d.pendingH == null) return;
     d.trEl.style.height = `${d.pendingH}px`;
-    // tüm td'ler de aynı satıra ait — tr height değişince td'ler intibak eder
     d.pendingH = null;
     d.rafId = null;
   };
@@ -216,43 +232,9 @@ export function RowResizerLayer({
     document.body.style.userSelect = '';
   }, []);
 
-  // DEBUG banner — derin runtime tanı
-  const wrap = layerRef.current?.parentElement;
-  const liveTbl = wrap?.querySelector<HTMLTableElement>('table.offer-table');
-  const allTrs = liveTbl?.querySelectorAll('tr[data-satir-id]') ?? [];
-  const firstAttr = allTrs[0]?.getAttribute('data-satir-id') ?? 'NONE';
-  const firstId = satirIds[0] ?? 'NONE';
-  const wrapTag = wrap?.tagName ?? 'NONE';
-  const tablesInDoc = document.querySelectorAll('table.offer-table').length;
-  const allTrsInDoc = document.querySelectorAll('tr[data-satir-id]').length;
-
-  const banner = createPortal(
-    <div style={{
-      position: 'fixed', top: 80, left: 16,
-      background: 'red', color: 'white',
-      padding: '8px 14px', fontSize: 11, fontFamily: 'monospace',
-      zIndex: 99999, borderRadius: 6,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-      pointerEvents: 'none', maxWidth: '90vw', wordBreak: 'break-all',
-    }}>
-      readOnly={String(readOnly)} | satirIds={satirIds.length} | rows={rows.length}
-      <br />
-      wrap={wrapTag} | liveTbl={liveTbl ? 'Y' : 'N'} | allTrsInTbl={allTrs.length}
-      <br />
-      tablesInDoc={tablesInDoc} | allTrsInDoc={allTrsInDoc}
-      <br />
-      firstSatirId="{firstId}"
-      <br />
-      firstTrAttr="{firstAttr}"
-    </div>,
-    document.body
-  );
-
-  if (readOnly) return banner;
+  if (readOnly) return null;
 
   return (
-    <>
-    {banner}
     <div
       ref={layerRef}
       className="row-resizer-layer"
@@ -281,19 +263,19 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // GÖRÜNÜR: 2px height + opacity 0.85 (premium ama net)
+            // 2px ince premium lacivert hat — backgroundSize ile orta strip,
+            // sola yaslı (sol başta full color, sağa fade). Pasif opacity 0.5
+            // (görünür ama dikkat çekmez); CSS :hover ile 1.0 + glow.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.95) 30%, rgba(59,130,246,0.85) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 12px) 2px',
-            backgroundPosition: 'center',
+              'linear-gradient(90deg, rgba(30,64,175,0.95) 0%, rgba(59,130,246,0.75) 60%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 6px) 2px',
+            backgroundPosition: 'left center',
             backgroundRepeat: 'no-repeat',
-            opacity: 0.85,
-            boxShadow: '0 0 6px rgba(37,99,235,0.45)',
+            opacity: 0.5,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
       ))}
     </div>
-    </>
   );
 }
