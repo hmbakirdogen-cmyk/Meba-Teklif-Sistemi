@@ -12,7 +12,7 @@
  *   .kp-toggle  — Toggle (data-on="true" + data-variant="view|row")
  *   .kp-rate    — Inline rate input
  */
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LockOutlined, UnlockOutlined, PictureOutlined } from '@ant-design/icons';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
@@ -143,12 +143,48 @@ export default function KumandaPaneli({
     reader.readAsDataURL(file);
   };
 
+  // ── DOM-based A4 üst hiza ölçümü ─────────────────────────────────
+  // Sabit pixel hesabı (toolbar+padding+border) box-sizing/CSS reset
+  // değişimlerine duyarlı. Bunun yerine DOM'daki gerçek A4 sayfasının
+  // viewport-relative top'ını ölçüp panele ata. Bir kez mount + her
+  // resize'da yeniden ölç. Scroll'da yeniden ÖLÇÜLMEZ — panel sabit kalır.
+  const [a4Top, setA4Top] = useState<number>(K.TOP);  // fallback initial
+  useLayoutEffect(() => {
+    const measure = () => {
+      // İlk A4 sayfası — PaginatedBelgeInlineEditor ilk page id'si "teklif-sablon"
+      // ya da generic [data-pdf-page="true"] ilk eleman
+      const a4El =
+        document.getElementById('teklif-sablon') ??
+        document.querySelector<HTMLElement>('[data-pdf-page="true"]');
+      if (!a4El) return;
+      // getBoundingClientRect viewport-relative, scroll dahil değil
+      const top = Math.round(a4El.getBoundingClientRect().top);
+      if (top > 0) setA4Top(top);
+    };
+    // Initial measure — DOM yerleşene kadar 2 frame bekle (Vite scale stabilize için)
+    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  useEffect(() => {
+    const onResize = () => {
+      const a4El =
+        document.getElementById('teklif-sablon') ??
+        document.querySelector<HTMLElement>('[data-pdf-page="true"]');
+      if (!a4El) return;
+      const top = Math.round(a4El.getBoundingClientRect().top);
+      if (top > 0) setA4Top(top);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   return (
     <div
       className="no-print"
       style={{
         position: 'fixed',
-        top: K.TOP,
+        // a4Top = DOM'dan ölçülen gerçek A4 üst hizası (px). K.TOP fallback.
+        top: a4Top,
         // Sağ panel kapalı → A4 sağına 32px boşlukla yerleş (overlap YOK).
         // Sağ panel açık   → SagPanel'in 16px soluna yerleş.
         // Her iki durumda ekran kenarına min 24px boşluk.
@@ -157,7 +193,7 @@ export default function KumandaPaneli({
           : `max(${K.EDGE_MIN}px, calc(50% - ${K.RIGHT_CLOSED_OFFSET}px))`,
         width: K.WIDTH,
         // Kısa ekran güvenliği: panel ekrana sığar, scrollbar OLMADAN clip edilir.
-        maxHeight: `calc(100vh - ${K.TOP + K.BOTTOM_GAP}px)`,
+        maxHeight: `calc(100vh - ${a4Top + K.BOTTOM_GAP}px)`,
         zIndex: 80,
         pointerEvents: 'auto',
       }}
