@@ -215,18 +215,24 @@ export default function KumandaPaneli({
             text-shadow 180ms ease,
             background 180ms ease;
           will-change: transform, box-shadow;
-          /* Default karakter — class override eder */
+        }
+
+        /* Default karakter — .control-panel'e konuldu (en düşük specificity).
+           Per-buton class'lar (.button-tax vb.) bunu rahatça override eder. */
+        .control-panel {
           --button-accent: rgba(255, 105, 135, 0.95);
           --button-glow:   rgba(255, 105, 135, 0.28);
         }
 
         /* ── Per-buton karakter renk paleti ──────────────────────────── */
-        .button-edit          { --button-accent: rgba(255,  85, 125, 0.95); --button-glow: rgba(255,  85, 125, 0.32); }
-        .button-image         { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
-        .button-row-discount  { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
-        .button-row-currency  { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
-        .button-tax           { --button-accent: rgba(255, 190,  95, 0.95); --button-glow: rgba(255, 190,  95, 0.30); }
-        .button-discount      { --button-accent: rgba(255, 135,  80, 0.95); --button-glow: rgba(255, 135,  80, 0.28); }
+        /* .control-panel button. prefix ile specificity (0,2,1) →
+           .control-panel button (0,1,1) override edilir. */
+        .control-panel button.button-edit         { --button-accent: rgba(255,  85, 125, 0.95); --button-glow: rgba(255,  85, 125, 0.32); }
+        .control-panel button.button-image        { --button-accent: rgba( 95, 165, 255, 0.95); --button-glow: rgba( 95, 165, 255, 0.34); }
+        .control-panel button.button-row-discount { --button-accent: rgba(255, 105, 145, 0.95); --button-glow: rgba(255, 105, 145, 0.30); }
+        .control-panel button.button-row-currency { --button-accent: rgba(185, 120, 255, 0.95); --button-glow: rgba(185, 120, 255, 0.28); }
+        .control-panel button.button-tax          { --button-accent: rgba(255, 190,  95, 0.95); --button-glow: rgba(255, 190,  95, 0.30); }
+        .control-panel button.button-discount     { --button-accent: rgba(255, 135,  80, 0.95); --button-glow: rgba(255, 135,  80, 0.28); }
 
         /* ── Aktif veya basılı: yazı / ikon / border / glow karakter rengine bürünür ── */
         /* Arka plan değişmez — sadece karakter ışığı yayılır. */
