@@ -802,14 +802,14 @@ export default function KumandaPaneli({
           <SecLabel text="Satır Ayarları" />
           <div className="grid">
             <SquareToggle
-              labelLines={['SATIR BAZLI', 'İSKONTO']}
+              labelLines={[]}
               extraClass="button-row-discount"
               icon={<RowDiscountPremiumIcon />}
               on={satirBazliIskonto}
               onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
             />
             <SquareToggle
-              labelLines={['SATIR BAZLI', 'PARA BİRİMİ']}
+              labelLines={[]}
               extraClass="button-row-currency"
               icon={<RowCurrencyPremiumIcon />}
               on={satirBazliParaBirimi}
