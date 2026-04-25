@@ -4,6 +4,7 @@ import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } fro
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
+import { TotalsCard } from '../components/TotalsCard';
 import {
   ACIKLAMA_OVERFLOW,
   CELL_PAD,
@@ -29,7 +30,6 @@ import {
   PARTY_NAME_STYLE,
   PARTY_BODY_STYLE,
   rcCell,
-  SEMBOL,
   SETTINGS_GRID_STYLE,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
@@ -144,7 +144,6 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
 
 
 export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
-  const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
@@ -574,19 +573,47 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </table>
 
       {/* ══ TOPLAM ALANI ════════════════════════════════════════ */}
-      {/* Aynı colgroup → değerler "Toplam" sütununun tam altına düşer */}
-      {/* Dikey çizgiler (borderLeft / borderRight) kaldırıldı.       */}
+      {/* Single-currency: kart kalem tablosunun "Toplam" kolonu ile aynı sağ
+         kenara hizalanır (TableColgroup + colspan 4-8, teslimat boş).      */}
       <div id="pdf-totals-block">
+      {!satirBazliParaBirimi ? (
+        <table style={{
+          ...TABLE_STYLE,
+          marginTop: '4px',
+          marginBottom: '14px',
+          ...noBreak,
+        } as React.CSSProperties}>
+          <TableColgroup satirBazliParaBirimi={false} teklifSatirlari={teklif.satirlar} />
+          <tbody>
+            <tr>
+              <td colSpan={3} style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
+              <td colSpan={5} style={{ padding: '8px 0 10px 0', verticalAlign: 'top', borderTop: 'none', borderBottom: 'none' }}>
+                <TotalsCard
+                  araToplam={araToplam}
+                  iskontoOrani={iskontoOrani}
+                  iskontoTutar={iskontoTutar}
+                  kdvOrani={kdvOrani}
+                  kdvTutar={kdvTutar}
+                  genelToplam={genelToplam}
+                  paraBirimi={teklif.paraBirimi}
+                  variant="dark"
+                />
+              </td>
+              <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
+            </tr>
+          </tbody>
+        </table>
+      ) : (
       <table style={{
         width: '100%',
         borderCollapse: 'collapse',
-        marginTop: satirBazliParaBirimi ? '10px' : '4px',
+        marginTop: '10px',
         marginBottom: '14px',
         tableLayout: 'fixed',
         borderLeft: 'none',
         borderRight: 'none',
-        borderTop: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
-        borderBottom: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
+        borderTop: `1px solid ${C.border}`,
+        borderBottom: `1px solid ${C.border}`,
         printColorAdjust: 'exact',
         WebkitPrintColorAdjust: 'exact',
         ...noBreak,
@@ -596,104 +623,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           <col />
         </colgroup>
         <tbody>
-          {!satirBazliParaBirimi ? (() => {
-            const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
-
-            const kartStyle: React.CSSProperties = {
-              boxSizing: 'border-box',
-              border: '0.75px solid #1A2B42',
-              borderRadius: '8px',
-              background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
-              boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
-              printColorAdjust: 'exact',
-              WebkitPrintColorAdjust: 'exact',
-            };
-
-            const fmtN = (n: number) =>
-              n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-            const pbLabel = teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi;
-
-            const detayRow = (
-              label: string, value: number, color: string, sign: '' | '–' | '+',
-            ) => {
-              const s   = fmtN(value);
-              const ci  = s.lastIndexOf(',');
-              const int = ci >= 0 ? s.slice(0, ci) : s;
-              const dec = ci >= 0 ? s.slice(ci)    : '';
-              return (
-                <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}>
-                  <span style={{ flex: 1, paddingLeft: '3px', fontSize: '8.5px', lineHeight: 1.2, color, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                    {label}
-                  </span>
-                  <span style={{ width: 8, flexShrink: 0, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, color, fontWeight: sign ? 700 : undefined }}>
-                    {sign || null}
-                  </span>
-                  <span style={{ width: 64, flexShrink: 0, display: 'flex', alignItems: 'baseline' }}>
-                    <span style={{ flex: 1, textAlign: 'right', fontSize: '8.5px', lineHeight: 1.2, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color, whiteSpace: 'nowrap' }}>
-                      {int}
-                    </span>
-                    <span style={{ width: 16, flexShrink: 0, fontSize: '8.5px', lineHeight: 1.2, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color, whiteSpace: 'nowrap' }}>
-                      {dec}
-                    </span>
-                  </span>
-                </div>
-              );
-            };
-
-            return (
-              <tr>
-                <td style={{ borderTop: 'none', borderBottom: 'none' }} />
-                <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-                  {!hasDetail ? (
-                    <div style={{
-                      position: 'relative',
-                      display: 'flex', alignItems: 'center',
-                      padding: '12px 8px 12px 12px',
-                      ...kartStyle,
-                    }}>
-                      <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: BRAND.textLabel, lineHeight: 1 }}>{pbLabel}</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
-                        <span style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
-                      </div>
-                      <div style={{ flex: 1 }} />
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', flexShrink: 0, marginRight: '19mm' }}>
-                        <span style={{ fontSize: '10.5px', color: BRAND.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                        <span style={{ fontSize: genelToplam >= 1e6 ? '14px' : '17px', fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: BRAND.text, whiteSpace: 'nowrap' }}>
-                          {fmtN(genelToplam)}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ position: 'relative', padding: '8px 8px 8px 12px', ...kartStyle }}>
-                      <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: BRAND.textLabel, lineHeight: 1 }}>{pbLabel}</span>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: BRAND.text, lineHeight: 1 }}>Genel Toplam</span>
-                        <span style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.04em', color: BRAND.textSub, lineHeight: 1 }}>Grand Total</span>
-                      </div>
-                      {detayRow('Ara Toplam', araToplam, BRAND.textSub, '')}
-                      {iskontoOrani > 0 && detayRow(`İskonto %${iskontoOrani}`, iskontoTutar, '#fca5a5', '–')}
-                      {kdvOrani    > 0 && detayRow(`KDV %${kdvOrani}`,          kdvTutar,     '#86efac', '+')}
-                      <div style={{ borderTop: `0.75px solid ${BRAND.separator}`, margin: '5px 0 4px' }} />
-                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                        <span style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: BRAND.textSub, lineHeight: 1 }}>
-                          {pbLabel}
-                        </span>
-                        <div style={{ flex: 1 }} />
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', flexShrink: 0, marginRight: '19mm' }}>
-                          <span style={{ fontSize: '10.5px', color: BRAND.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                          <span style={{ fontSize: genelToplam >= 1e6 ? '14px' : '17px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: BRAND.text, whiteSpace: 'nowrap' }}>
-                            {fmtN(genelToplam)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
-          })() : (() => {
+          {(() => {
             const kartlar  = kullanilanParaKartlari;
             const KART_W   = 220;
             const KART_H   = 86;
@@ -772,6 +702,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           })()}
         </tbody>
       </table>
+      )}
       </div>
 
       {/* ══ NOT ALANI ════════════════════════════════════════════ */}

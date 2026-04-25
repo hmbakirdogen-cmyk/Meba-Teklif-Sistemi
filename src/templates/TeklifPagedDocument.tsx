@@ -4,6 +4,7 @@ import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } fro
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
+import { TotalsCard } from '../components/TotalsCard';
 import type { TeklifPagePlan } from '../services/documentPagination';
 import {
   ACIKLAMA_OVERFLOW,
@@ -29,7 +30,6 @@ import {
   PARTY_GRID_STYLE,
   PARTY_LABEL_STYLE,
   PARTY_NAME_STYLE,
-  SEMBOL,
   SETTINGS_CARD_STYLE,
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_GRID_STYLE,
@@ -372,25 +372,62 @@ function TableSection({
 }
 
 function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam }) {
-  const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
   const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
   );
 
+  // Single-currency: kart kalem tablosunun "Toplam" kolonu ile aynı sağ
+  // kenara hizalanır. Bunun için tablo aynı TableColgroup'u kullanır;
+  // kart aciklama..toplam (cols 4-8) colspan'ında durur, teslimat kolonu
+  // boş kalır → kart sağı = "Toplam" sütununun sağı.
+  if (!satirBazliParaBirimi) {
+    return (
+      <div style={{ ...noBreak }}>
+        <table style={{
+          ...TABLE_STYLE,
+          marginTop: '4px',
+          marginBottom: '14px',
+          ...noBreak,
+        } as React.CSSProperties}>
+          <TableColgroup satirBazliParaBirimi={false} teklifSatirlari={teklif.satirlar} />
+          <tbody>
+            <tr>
+              <td colSpan={3} style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
+              <td colSpan={5} style={{ padding: '8px 0 10px 0', verticalAlign: 'top', borderTop: 'none', borderBottom: 'none' }}>
+                <TotalsCard
+                  araToplam={araToplam}
+                  iskontoOrani={iskontoOrani}
+                  iskontoTutar={iskontoTutar}
+                  kdvOrani={kdvOrani}
+                  kdvTutar={kdvTutar}
+                  genelToplam={genelToplam}
+                  paraBirimi={teklif.paraBirimi}
+                  variant="light"
+                />
+              </td>
+              <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // satirBazli=true: çoklu para birimi kartları (mevcut yapı)
   return (
     <div style={{ ...noBreak }}>
       <table style={{
         width: '100%',
         borderCollapse: 'collapse',
-        marginTop: satirBazliParaBirimi ? '10px' : '4px',
+        marginTop: '10px',
         marginBottom: '14px',
         tableLayout: 'fixed',
         borderLeft: 'none',
         borderRight: 'none',
-        borderTop: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
-        borderBottom: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
+        borderTop: `1px solid ${C.border}`,
+        borderBottom: `1px solid ${C.border}`,
         printColorAdjust: 'exact',
         WebkitPrintColorAdjust: 'exact',
         ...noBreak,
@@ -400,101 +437,42 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
           <col />
         </colgroup>
         <tbody>
-          {!satirBazliParaBirimi ? (
-            <tr>
-              <td style={{ borderTop: 'none', borderBottom: 'none' }} />
-              <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-                {(() => {
-                  const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
-                  const fmtN = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                  return (
-                    <div style={{
-                      position: 'relative',
-                      border: `0.75px solid ${HEADER_SURFACE.border}`,
-                      borderRadius: '8px',
-                      background: HEADER_SURFACE.bg,
-                      boxShadow: HEADER_SURFACE.shadow,
-                      overflow: 'hidden',
-                      printColorAdjust: 'exact',
-                      WebkitPrintColorAdjust: 'exact',
-                    }}>
-                      <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: HEADER_SURFACE.textLabel, lineHeight: 1 }}>{teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi}</span>
-                      {hasDetail && (
-                        <div style={{ padding: '8px 12px 6px', borderBottom: `0.75px solid ${HEADER_SURFACE.separator}` }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
-                            <span style={{ flex: 1, fontSize: '8px', color: HEADER_SURFACE.textSub }}>Ara Toplam</span>
-                            <span style={{ fontSize: '8px', fontWeight: 600, color: HEADER_SURFACE.text, fontVariantNumeric: 'tabular-nums' }}>{fmtN(araToplam)}</span>
-                          </div>
-                          {iskontoOrani > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
-                              <span style={{ flex: 1, fontSize: '8px', color: HEADER_SURFACE.negRed }}>İskonto %{iskontoOrani}</span>
-                              <span style={{ fontSize: '8px', fontWeight: 600, color: HEADER_SURFACE.negRed, fontVariantNumeric: 'tabular-nums' }}>– {fmtN(iskontoTutar)}</span>
-                            </div>
-                          )}
-                          {kdvOrani > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                              <span style={{ flex: 1, fontSize: '8px', color: HEADER_SURFACE.posGreen }}>KDV %{kdvOrani}</span>
-                              <span style={{ fontSize: '8px', fontWeight: 600, color: HEADER_SURFACE.posGreen, fontVariantNumeric: 'tabular-nums' }}>+ {fmtN(kdvTutar)}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div style={{ padding: hasDetail ? '9px 8px 9px 12px' : '11px 8px 11px 12px', display: 'flex', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: HEADER_SURFACE.text }}>Genel Toplam</div>
-                          <div style={{ fontSize: '7px', color: HEADER_SURFACE.textLabel }}>Grand Total</div>
-                        </div>
-                        <div style={{ flex: 1 }} />
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginRight: '19mm' }}>
-                          <span style={{ fontSize: '10.5px', color: HEADER_SURFACE.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                          <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: HEADER_SURFACE.text, whiteSpace: 'nowrap' }}>
-                            {fmtN(genelToplam)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </td>
-            </tr>
-          ) : (
-            <tr>
-              <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
-                <div style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  minHeight: '112px',
-                  border: `0.75px solid ${HEADER_SURFACE.border}`,
-                  borderRadius: '8px',
-                  background: HEADER_SURFACE.bg,
-                  boxShadow: HEADER_SURFACE.shadow,
-                  padding: '7px 8px 8px',
-                  printColorAdjust: 'exact',
-                  WebkitPrintColorAdjust: 'exact',
-                }}>
-                  <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: HEADER_SURFACE.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>
-                    Genel Toplamlar / Grand Total
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
-                    {kullanilanParaKartlari.map((item) => (
-                      <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
-                        <FinansalOzetKartIci
-                          araToplam={item.araToplam}
-                          iskontoOrani={iskontoOrani}
-                          iskontoTutar={item.iskontoTutar}
-                          kdvOrani={kdvOrani}
-                          kdvTutar={item.kdvTutar}
-                          genelToplam={item.total}
-                          paraBirimi={item.pb}
-                          variant="pdf"
-                        />
-                      </div>
-                    ))}
-                  </div>
+          <tr>
+            <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
+              <div style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                minHeight: '112px',
+                border: `0.75px solid ${HEADER_SURFACE.border}`,
+                borderRadius: '8px',
+                background: HEADER_SURFACE.bg,
+                boxShadow: HEADER_SURFACE.shadow,
+                padding: '7px 8px 8px',
+                printColorAdjust: 'exact',
+                WebkitPrintColorAdjust: 'exact',
+              }}>
+                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: HEADER_SURFACE.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>
+                  Genel Toplamlar / Grand Total
                 </div>
-              </td>
-            </tr>
-          )}
+                <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
+                  {kullanilanParaKartlari.map((item) => (
+                    <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
+                      <FinansalOzetKartIci
+                        araToplam={item.araToplam}
+                        iskontoOrani={iskontoOrani}
+                        iskontoTutar={item.iskontoTutar}
+                        kdvOrani={kdvOrani}
+                        kdvTutar={item.kdvTutar}
+                        genelToplam={item.total}
+                        paraBirimi={item.pb}
+                        variant="pdf"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

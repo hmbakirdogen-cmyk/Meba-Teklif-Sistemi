@@ -8,6 +8,7 @@ import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } fro
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
+import { TotalsCard } from './TotalsCard';
 import { InlineCariAutocompleteField } from './InlineCariAutocompleteField';
 import {
   formatBirimAbbrev,
@@ -41,7 +42,6 @@ import {
   PARTY_LABEL_STYLE,
   PARTY_NAME_STYLE,
   ROW_CARD,
-  SEMBOL,
   SETTINGS_GRID_STYLE,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
@@ -51,7 +51,6 @@ import {
   SETTINGS_VALUE_STYLE,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
-  TABLE_STYLE,
   TABLE_TITLE_STYLE,
   TableColgroup,
   buildSettingsItems,
@@ -192,7 +191,6 @@ export default function PaginatedBelgeInlineEditor({
   onNotlarDegistir,
   readOnly = false,
 }: PaginatedBelgeInlineEditorProps) {
-  const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
@@ -748,73 +746,55 @@ export default function PaginatedBelgeInlineEditor({
     );
   };
 
-  const renderTotals = () => (
-    <table style={{
-      width: '100%', borderCollapse: 'collapse',
-      marginTop: satirBazliParaBirimi ? '10px' : '6px', marginBottom: '14px',
-      tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
-      borderTop: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
-      borderBottom: satirBazliParaBirimi ? `1px solid ${C.border}` : 'none',
-      printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
-    } as React.CSSProperties}>
-      <colgroup><col style={{ width: '56%' }} /><col /></colgroup>
-      <tbody>
-        {!satirBazliParaBirimi ? (
+  const renderTotals = () =>
+    !satirBazliParaBirimi ? (
+      // Single-currency: kart kalem tablosunun "Toplam" kolonu ile aynı sağ
+      // kenara hizalanır. TableColgroup ile aynı kolon genişlikleri, kart
+      // colspan 4-8 (aciklama..toplam), col 9 (teslimat) boş.
+      <table style={{
+        width: '100%',
+        borderCollapse: 'separate',
+        borderSpacing: '0 4px',
+        marginTop: '6px',
+        marginBottom: '14px',
+        tableLayout: 'fixed',
+        borderLeft: 'none',
+        borderRight: 'none',
+        printColorAdjust: 'exact',
+        WebkitPrintColorAdjust: 'exact',
+        ...noBreak,
+      } as React.CSSProperties}>
+        <TableColgroup satirBazliParaBirimi={false} teklifSatirlari={teklif.satirlar} />
+        <tbody>
           <tr>
-            <td style={{ borderTop: 'none', borderBottom: 'none' }} />
-            <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-              {(() => {
-                const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
-                const fmtN = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                return (
-                  <div style={{
-                    position: 'relative',
-                    border: `0.75px solid ${HEADER_SURFACE.border}`,
-                    borderRadius: '8px',
-                    background: HEADER_SURFACE.bg,
-                    boxShadow: HEADER_SURFACE.shadow,
-                    overflow: 'hidden',
-                    printColorAdjust: 'exact',
-                    WebkitPrintColorAdjust: 'exact',
-                  }}>
-                    <span style={{ position: 'absolute', top: '6px', right: '7px', fontSize: '7px', fontWeight: 700, letterSpacing: '0.12em', color: HEADER_SURFACE.textLabel, lineHeight: 1, userSelect: 'none' }}>{teklif.paraBirimi === 'TRY' ? 'TL' : teklif.paraBirimi}</span>
-                    {hasDetail && (
-                      <div style={{ padding: '8px 14px 6px', borderBottom: `0.75px solid ${HEADER_SURFACE.separator}` }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
-                          <span style={{ flex: 1, fontSize: '8.5px', color: HEADER_SURFACE.textSub }}>Ara Toplam</span>
-                          <span style={{ fontSize: '8.5px', fontWeight: 600, color: HEADER_SURFACE.text, fontVariantNumeric: 'tabular-nums' }}>{fmtN(araToplam)}</span>
-                        </div>
-                        {iskontoOrani > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '3px' }}>
-                            <span style={{ flex: 1, fontSize: '8.5px', color: HEADER_SURFACE.negRed }}>İskonto %{iskontoOrani}</span>
-                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: HEADER_SURFACE.negRed, fontVariantNumeric: 'tabular-nums' }}>– {fmtN(iskontoTutar)}</span>
-                          </div>
-                        )}
-                        {kdvOrani > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                            <span style={{ flex: 1, fontSize: '8.5px', color: HEADER_SURFACE.posGreen }}>KDV %{kdvOrani}</span>
-                            <span style={{ fontSize: '8.5px', fontWeight: 600, color: HEADER_SURFACE.posGreen, fontVariantNumeric: 'tabular-nums' }}>+ {fmtN(kdvTutar)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div style={{ padding: hasDetail ? '9px 8px 9px 14px' : '11px 8px 11px 14px', display: 'flex', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: HEADER_SURFACE.text }}>Genel Toplam</div>
-                        <div style={{ fontSize: '7.5px', color: HEADER_SURFACE.textLabel }}>Grand Total</div>
-                      </div>
-                      <div style={{ flex: 1 }} />
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginRight: '19mm' }}>
-                        <span style={{ fontSize: '10.5px', color: HEADER_SURFACE.textLabel, lineHeight: 1, alignSelf: 'flex-end', paddingBottom: '1px' }}>{sembol}</span>
-                        <span style={{ fontSize: genelToplam >= 1e6 ? '15px' : '19px', fontWeight: 900, lineHeight: 1.06, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.025em', color: HEADER_SURFACE.text, whiteSpace: 'nowrap' }}>{fmtN(genelToplam)}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+            <td colSpan={3} style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
+            <td colSpan={5} style={{ padding: '8px 0 10px 0', verticalAlign: 'top', borderTop: 'none', borderBottom: 'none' }}>
+              <TotalsCard
+                araToplam={araToplam}
+                iskontoOrani={iskontoOrani}
+                iskontoTutar={iskontoTutar}
+                kdvOrani={kdvOrani}
+                kdvTutar={kdvTutar}
+                genelToplam={genelToplam}
+                paraBirimi={teklif.paraBirimi}
+                variant="light"
+              />
             </td>
+            <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none' }} />
           </tr>
-        ) : (
+        </tbody>
+      </table>
+    ) : (
+      <table style={{
+        width: '100%', borderCollapse: 'collapse',
+        marginTop: '10px', marginBottom: '14px',
+        tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
+        borderTop: `1px solid ${C.border}`,
+        borderBottom: `1px solid ${C.border}`,
+        printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
+      } as React.CSSProperties}>
+        <colgroup><col style={{ width: '56%' }} /><col /></colgroup>
+        <tbody>
           <tr>
             <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
               <div style={{
@@ -840,10 +820,9 @@ export default function PaginatedBelgeInlineEditor({
               </div>
             </td>
           </tr>
-        )}
-      </tbody>
-    </table>
-  );
+        </tbody>
+      </table>
+    );
 
   const renderNotes = () => (
     <div
