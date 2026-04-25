@@ -49,8 +49,8 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
 // 6px hit area: 2px satır içinde + 4px gap'te. Kolay hover yakalama.
 const HANDLE_HIT_HEIGHT = 6;
 const HANDLE_INSIDE_ROW_PX = 2;
-// Sabit handle uzunluğu: 2.5 cm = 25 mm ≈ 94 px (96 DPI document-px).
-const HANDLE_WIDTH_PX = 94;
+// Sabit handle uzunluğu: 1.75 cm = 17.5 mm ≈ 66 px (96 DPI document-px).
+const HANDLE_WIDTH_PX = 66;
 
 export function RowResizerLayer({
   tableEl,
