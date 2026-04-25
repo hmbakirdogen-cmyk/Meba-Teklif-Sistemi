@@ -196,17 +196,25 @@ export default function KumandaPaneli({
           cursor: pointer;
           font-family: inherit;
           transition:
-            background 0.18s ease,
-            border-color 0.18s ease,
-            color 0.18s ease,
-            box-shadow 0.18s ease,
-            transform 0.10s ease,
-            filter 0.18s ease;
+            transform 180ms ease,
+            box-shadow 180ms ease,
+            border-color 180ms ease,
+            background 180ms ease,
+            filter 180ms ease;
+          will-change: transform, box-shadow;
           position: relative;
         }
 
+        /* Hover — hafif yukarı kalkma + parlama */
+        .control-panel button:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.06);
+        }
+
+        /* Pressed — fiziksel buton hissi: hafif içeri bas + scale */
         .control-panel button:active {
-          transform: translateY(1px);
+          transform: translateY(1px) scale(0.985);
+          filter: brightness(0.96);
         }
 
         .control-panel button:focus-visible,
@@ -245,10 +253,38 @@ export default function KumandaPaneli({
             inset 0 1px 0 rgba(255,255,255,0.10);
         }
 
-        .lock-button:hover,
-        .image-add:hover,
-        .square-btn:hover {
-          filter: brightness(1.06);
+        /* ── Düzenleme/Kilitli premium hover/active — ana buton, hissi güçlü ── */
+        .lock-button:hover {
+          box-shadow:
+            0 0 30px rgba(255, 80, 110, 0.22),
+            0 12px 32px rgba(12, 0, 4, 0.36),
+            inset 0 0 28px rgba(255, 60, 90, 0.16);
+        }
+
+        .lock-button:active {
+          box-shadow:
+            inset 0 6px 18px rgba(0, 0, 0, 0.35),
+            inset 0 0 24px rgba(255, 60, 90, 0.18);
+        }
+
+        /* Düzenleme aktifken (kilitli=false) sakin sürekli iç ışık */
+        .lock-button[data-readonly="false"] {
+          animation: lockEditGlow 3.4s ease-in-out infinite;
+        }
+
+        @keyframes lockEditGlow {
+          0%, 100% {
+            box-shadow:
+              0 0 24px rgba(255, 88, 116, 0.18),
+              inset 0 0 25px rgba(255, 60, 90, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.10);
+          }
+          50% {
+            box-shadow:
+              0 0 32px rgba(255, 88, 116, 0.26),
+              inset 0 0 30px rgba(255, 60, 90, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          }
         }
 
         .lock-button__icon {
@@ -296,6 +332,20 @@ export default function KumandaPaneli({
           line-height: 1;
         }
 
+        /* ── Resim Ekle hover/active — mavi aksiyon glow ── */
+        .image-add:hover {
+          box-shadow:
+            0 0 34px rgba(63, 124, 255, 0.48),
+            0 10px 28px rgba(20, 40, 120, 0.30),
+            inset 0 1px 0 rgba(255, 255, 255, 0.26);
+        }
+
+        .image-add:active {
+          box-shadow:
+            0 0 18px rgba(63, 124, 255, 0.34),
+            inset 0 4px 14px rgba(0, 0, 0, 0.28);
+        }
+
         /* ── Grid (Satır Ayarları + Genel Finans) ── */
         .grid {
           display: grid;
@@ -327,6 +377,16 @@ export default function KumandaPaneli({
             inset 0 -15px 25px rgba(0, 0, 0, 0.20);
         }
 
+        /* Square buton hover — premium ışık yayılması */
+        .square-btn:hover {
+          border-color: rgba(255, 150, 165, 0.52);
+          box-shadow:
+            0 10px 26px rgba(12, 0, 4, 0.38),
+            0 0 18px rgba(255, 90, 115, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            inset 0 -15px 25px rgba(0, 0, 0, 0.22);
+        }
+
         .square-btn.active {
           background:
             radial-gradient(circle at top, rgba(255, 130, 150, 0.25), transparent),
@@ -335,6 +395,21 @@ export default function KumandaPaneli({
           box-shadow:
             0 0 25px rgba(255, 80, 110, 0.25),
             inset 0 1px 0 rgba(255, 255, 255, 0.10);
+          /* Sakin sürekli glow — premium cihaz ışığı, neon değil */
+          animation: premiumToggleGlow 2.8s ease-in-out infinite;
+        }
+
+        @keyframes premiumToggleGlow {
+          0%, 100% {
+            box-shadow:
+              0 0 18px rgba(255, 80, 110, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 0.10);
+          }
+          50% {
+            box-shadow:
+              0 0 28px rgba(255, 80, 110, 0.30),
+              inset 0 1px 0 rgba(255, 255, 255, 0.14);
+          }
         }
 
         .square-btn__icon {
@@ -436,6 +511,20 @@ export default function KumandaPaneli({
         .kp-rate:focus {
           border-color: rgba(255, 180, 190, 0.55) !important;
           outline: none;
+        }
+
+        /* ── Erişilebilirlik: hareket azaltma ── */
+        @media (prefers-reduced-motion: reduce) {
+          .control-panel button,
+          .square-btn.active,
+          .lock-button[data-readonly="false"] {
+            animation: none !important;
+            transition: none !important;
+          }
+          .control-panel button:hover,
+          .control-panel button:active {
+            transform: none !important;
+          }
         }
       `}</style>
 
