@@ -184,17 +184,19 @@ export default function KumandaPaneli({
         }
         .kp-edit:active, .kp-action:active, .kp-toggle:active { transform: translateY(1px); filter: brightness(0.95); }
 
-        /* ── ACTION (Resim Ekle) — HİÇBİR data-on/data-variant almaz ── */
+        /* ── ACTION (Resim Ekle) — sky-blue accent, toggle'lardan AYRI ── */
+        /* Bilinçli olarak Satır Ayarları (violet) ve Genel Finans (amber) ile
+           HİÇBİR ortak rengi paylaşmaz; aksiyon olduğu görsel olarak okunur. */
         .kp-action {
-          background: rgba(180, 135, 255, 0.10);
-          border: 1px solid rgba(180, 135, 255, 0.28);
-          color: #EFE2FF;
+          background: linear-gradient(180deg, rgba(56, 189, 248, 0.16), rgba(14, 165, 233, 0.12));
+          border: 1px solid rgba(56, 189, 248, 0.42);
+          color: #BAE6FD;
           cursor: pointer;
         }
         .kp-action:hover {
-          background: rgba(180, 135, 255, 0.18);
-          border-color: rgba(180, 135, 255, 0.42);
-          filter: brightness(1.08);
+          background: linear-gradient(180deg, rgba(56, 189, 248, 0.26), rgba(14, 165, 233, 0.20));
+          border-color: rgba(56, 189, 248, 0.62);
+          filter: brightness(1.06);
         }
 
         /* ── TOGGLE (KDV / İskonto / Satır*) ── */
@@ -332,44 +334,50 @@ export default function KumandaPaneli({
         <div style={{ height: K.GROUP_GAP }} />
 
         {/* ══════════════════════════════════════════════════════════════════
-           2. SATIR AYARLARI
+           2. SATIR AYARLARI — kare 2-kolon grid (toggle, row variant)
            ══════════════════════════════════════════════════════════════════ */}
         <SecLabel text="Satır Ayarları" />
-        <Toggle
-          label="Satır Bazlı İskonto"
-          on={satirBazliIskonto}
-          variant="row"
-          onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
-        />
-        <div style={{ height: K.ITEM_GAP }} />
-        <Toggle
-          label="Satır Bazlı Para Birimi"
-          on={satirBazliParaBirimi}
-          variant="row"
-          onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
-        />
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: K.ITEM_GAP,
+        }}>
+          <SquareToggle
+            label="Satır Bazlı İskonto"
+            on={satirBazliIskonto}
+            variant="row"
+            onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
+          />
+          <SquareToggle
+            label="Satır Bazlı Para Birimi"
+            on={satirBazliParaBirimi}
+            variant="row"
+            onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
+          />
+        </div>
 
         <div style={{ height: K.GROUP_GAP }} />
 
         {/* ══════════════════════════════════════════════════════════════════
-           3. GENEL FİNANS
+           3. GENEL FİNANS — kare 2-kolon grid (toggle, view variant)
            ══════════════════════════════════════════════════════════════════ */}
         <SecLabel text="Genel Finans" />
-        <Toggle
-          label="Katma Değer Vergisi"
-          value={kdvOn ? `%${kdvOrani}` : undefined}
-          on={kdvOn}
-          variant="view"
-          onClick={toggleKdv}
-        />
-        <div style={{ height: K.ITEM_GAP }} />
-        <Toggle
-          label="İskonto"
-          value={iskOn ? `%${iskontoOrani}` : undefined}
-          on={iskOn}
-          variant="view"
-          onClick={toggleIsk}
-        />
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: K.ITEM_GAP,
+        }}>
+          <SquareToggle
+            label="Katma Değer Vergisi"
+            value={kdvOn ? `%${kdvOrani}` : undefined}
+            on={kdvOn}
+            variant="view"
+            onClick={toggleKdv}
+          />
+          <SquareToggle
+            label="İskonto"
+            value={iskOn ? `%${iskontoOrani}` : undefined}
+            on={iskOn}
+            variant="view"
+            onClick={toggleIsk}
+          />
+        </div>
 
         {/* İskonto Oranı — yalnız iskonto aktifken */}
         {iskOn && (
@@ -413,8 +421,9 @@ export default function KumandaPaneli({
   );
 }
 
-// ── Toggle (KDV / İskonto / Satır*) ───────────────────────────────────────────
-function Toggle({
+// ── SquareToggle (KDV / İskonto / Satır*) — kare grid butonu ──────────────────
+// Etiket çok satıra sarar, ortalanmış. Aktifken altta value (%XX) görünür.
+function SquareToggle({
   label, value, on, variant, onClick,
 }: {
   label: string;
@@ -432,24 +441,28 @@ function Toggle({
       onClick={onClick}
       style={{
         width: '100%',
-        height: K.TOGGLE_H,
+        aspectRatio: '1 / 1',
+        // aspectRatio fallback (eski tarayıcılar için): yaklaşık kare yükseklik
+        minHeight: 72,
         borderRadius: K.BTN_R,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 8,
-        padding: '0 12px',
+        justifyContent: 'center',
+        gap: value ? 4 : 0,
+        padding: '4px 6px',
         outline: 'none',
       }}
     >
       <span style={{
-        fontSize: '11px',
+        fontSize: '10.5px',
         fontWeight: on ? 700 : 600,
         lineHeight: 1.15,
-        textAlign: 'left',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
+        textAlign: 'center',
+        whiteSpace: 'normal',
+        overflowWrap: 'normal',
+        wordBreak: 'normal',
+        letterSpacing: '0.01em',
       }}>
         {label}
       </span>
