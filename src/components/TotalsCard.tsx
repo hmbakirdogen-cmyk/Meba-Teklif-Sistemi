@@ -224,7 +224,8 @@ export function TotalsCard({
         }}>
           <span style={{
             fontSize: SYMBOL_FS,
-            color: cl.textLabel,
+            fontWeight: 900,
+            color: cl.text,
             lineHeight: 1,
             alignSelf: 'flex-end',
             paddingBottom: '1px',
