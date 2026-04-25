@@ -24,11 +24,11 @@ const K = {
   GROUP_GAP: 14,
   ITEM_GAP:  6,
   // ── Üst hiza ──────────────────────────────────────────────────────
-  // Referans: A4 sayfasının üst kenarı.
+  // Referans: A4 sayfasının üst kenarı — BİREBİR HİZALI.
   //   Toolbar 56px + belge alanı padding-top 40px = A4 üstü viewport'tan 96px.
-  // Panel "A4 üstünden biraz aşağıda" başlasın → 96 + 12 = 108px.
-  // Sabit tek değer; viewport veya scroll değişimi etkilemez.
-  TOP:       108,
+  // Panel top = A4 top = 96px. Tek referans, sabit değer.
+  // position: fixed → scroll değişiminden etkilenmez.
+  TOP:       96,
   // Kısa ekran güvenliği: panel ekranı taşmasın, scrollbar EKLEMEDEN clip edilsin.
   // 108 (top) + 24 (alt nefes) = 132px → max yükseklik kalan kadar.
   BOTTOM_GAP: 24,
