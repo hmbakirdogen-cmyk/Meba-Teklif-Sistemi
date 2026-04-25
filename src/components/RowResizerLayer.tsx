@@ -46,10 +46,9 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 4px hit area satırın HEMEN ALTINDA (border-spacing 2px gap'i tam ortalar).
-// Görsel 1px hat backgroundPosition center ile gap'in tam ortasına oturur.
-const HANDLE_HIT_HEIGHT = 4;
-const HANDLE_INSIDE_ROW_PX = 0;
+// 6px hit area: 2px satır içinde + 4px gap'te. Kolay hover yakalama.
+const HANDLE_HIT_HEIGHT = 6;
+const HANDLE_INSIDE_ROW_PX = 2;
 
 export function RowResizerLayer({
   tableEl,
@@ -89,14 +88,15 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel: sola yaslı, genişlik = Ürün Kodu + Açıklama kolon
-        // genişlikleri toplamı (spec). Kolon sırası 0=#, 1=Marka, 2=Kod, 3=Açıklama.
+        // Handle görsel: sola yaslı, Ürün Kodu + Açıklama kolon genişlikleri.
+        // Cells başarısız olursa fallback: tablo genişliğinin %42'si (sol-yarı).
         const codeCell = tr.cells[2] as HTMLElement | undefined;
         const descCell = tr.cells[3] as HTMLElement | undefined;
         const codeW = codeCell ? codeCell.getBoundingClientRect().width : 0;
         const descW = descCell ? descCell.getBoundingClientRect().width : 0;
+        const computedW = codeW + descW;
         const handleLeftScreen = r.left;
-        const handleRightScreen = r.left + codeW + descW;
+        const handleRightScreen = r.left + (computedW > 0 ? computedW : r.width * 0.42);
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
@@ -232,13 +232,15 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 2px ince premium lacivert hat — simetrik fade + 10px sağ/sol inset.
+            // 2px ince premium lacivert hat — backgroundSize ile dikey orta strip.
+            // Her zaman düşük opacity'de görünür → personel nereden tutacağını
+            // anlar; hover'da CSS ile opacity 1'e + glow ile vurgulanır.
             background:
               'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.75) 30%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 20px) 2px',
+            backgroundSize: 'calc(100% - 16px) 2px',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            opacity: 0,
+            opacity: 0.45,
             transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
