@@ -89,11 +89,14 @@ export function RowResizerLayer({
         );
         if (!tr) continue;
         const r = tr.getBoundingClientRect();
-        // Handle görsel: en sola yaslı, sadece No (#) + Marka kolonları
-        // genişliği boyunca. tr.cells[1] = Marka (0=#, 1=Marka).
-        const markaCell = tr.cells[1] as HTMLElement | undefined;
+        // Handle görsel: sola yaslı, genişlik = Ürün Kodu + Açıklama kolon
+        // genişlikleri toplamı (spec). Kolon sırası 0=#, 1=Marka, 2=Kod, 3=Açıklama.
+        const codeCell = tr.cells[2] as HTMLElement | undefined;
+        const descCell = tr.cells[3] as HTMLElement | undefined;
+        const codeW = codeCell ? codeCell.getBoundingClientRect().width : 0;
+        const descW = descCell ? descCell.getBoundingClientRect().width : 0;
         const handleLeftScreen = r.left;
-        const handleRightScreen = markaCell ? markaCell.getBoundingClientRect().right : r.right;
+        const handleRightScreen = r.left + codeW + descW;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
@@ -223,21 +226,20 @@ export function RowResizerLayer({
           style={{
             position: 'absolute',
             left: `${r.handleLeft}px`,
-            width: `${Math.max(0, r.handleWidth - 2)}px`,
+            width: `${r.handleWidth}px`,
             top: `${r.top + r.height - HANDLE_INSIDE_ROW_PX}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 1px ince zarif lacivert hat — backgroundSize ile dikey orta strip.
-            // Hit area 5px (kolay yakalama), görsel sadece 1px.
+            // 2px ince premium lacivert hat — simetrik fade + 10px sağ/sol inset.
             background:
-              'linear-gradient(90deg, rgba(30,64,175,0.95) 0%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: '100% 1px',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.75) 30%, rgba(59,130,246,0.55) 70%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 20px) 2px',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             opacity: 0,
-            transition: 'opacity 160ms ease',
+            transition: 'opacity 160ms ease, box-shadow 160ms ease',
           }}
         />
       ))}
