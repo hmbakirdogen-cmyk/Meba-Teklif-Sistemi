@@ -275,9 +275,11 @@ function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 }
 
 const floatingPanelStyle: React.CSSProperties = {
-  // Satırın aynı hizasında — yan boşlukta (alt yerine sağda yatay merkez)
+  // Satırın aynı hizasında — Teslimat hücresinin TAMAMEN sağına, A4 sağ
+  // kenarındaki boşluğa konumlanır. Teslimat metnini örtmez.
   position: 'absolute',
-  right: -4,
+  left: '100%',
+  marginLeft: '6px',
   top: '50%',
   transform: 'translateY(-50%)',
   zIndex: 50,
