@@ -54,6 +54,9 @@ export default function KumandaPaneli({
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
+  // Genel Finans, Paylaşım) varsayılan KAPALI. Genişletme butonuyla açılır.
+  const [panelGenis, setPanelGenis] = useState(false);
 
   const kdvOn = kdvOrani > 0;
   const iskOn = iskontoOrani > 0;
@@ -319,6 +322,28 @@ export default function KumandaPaneli({
             0 0 20px color-mix(in srgb, var(--button-glow) 45%, transparent),
             inset 0 0 22px color-mix(in srgb, var(--button-glow) 20%, transparent),
             inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        /* ── Panel genişlet/kapat (chevron toggle) — lock'un altında, sade ── */
+        .panel-expand-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: calc(20px * var(--panel-scale));
+          margin-top: calc(8px * var(--panel-scale));
+          padding: 0;
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          border-radius: calc(8px * var(--panel-scale));
+          background: rgba(255, 255, 255, 0.03);
+          color: rgba(255, 220, 215, 0.55);
+          opacity: 0.85;
+        }
+        .panel-expand-toggle:hover {
+          background: rgba(255, 255, 255, 0.06);
+          color: rgba(255, 220, 215, 0.85);
+          border-color: rgba(255, 255, 255, 0.18);
+          opacity: 1;
         }
 
         /* ── Lock butonu özel: yeşil (editing) / kırmızı (locked) güçlü neon
@@ -939,6 +964,31 @@ export default function KumandaPaneli({
             <PremiumEditIcon readOnly={readOnly} />
           </button>
 
+          {/* Genişlet/Kapat — kilit'in altındaki tüm section'ları toggle eder */}
+          <button
+            type="button"
+            className="panel-expand-toggle"
+            onClick={() => setPanelGenis((g) => !g)}
+            title={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
+            aria-label={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
+            aria-expanded={panelGenis}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <polyline
+                points={panelGenis ? '6 15 12 9 18 15' : '6 9 12 15 18 9'}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </section>
+
+        {panelGenis && (
+        <>
+        <section className="panel-section">
           <button
             type="button"
             className="image-add button-image"
@@ -1053,6 +1103,8 @@ export default function KumandaPaneli({
             />
           </div>
         </section>
+        </>
+        )}
       </div>
     </div>
   );
