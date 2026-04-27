@@ -774,6 +774,24 @@ export const FIELD_CSS = `
   padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
+  /* text-indent ve horizontal padding sıfır — yatay metin pozisyonu
+     text mode (span) ile birebir aynı kalır. */
+  text-indent: 0 !important;
+}
+
+/* Select/AutoComplete iç elemanları — Miktar/Birim/ParaBirimi/Teslimat
+   gibi cell'lerde edit mode'a geçince selection-item'ın yatay padding'i
+   text span'in pozisyonundan kayma yaratıyor. Sıfırla. */
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-selection-item,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content-value,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-input,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-placeholder {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  text-indent: 0 !important;
+  inset-inline-start: 0 !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -95,10 +95,10 @@ export default function KumandaPaneli({
   };
 
   // A4 belgesinin top + right edge'i ölçülür → panel A4'ün hemen sağına
-  // konumlanır; viewport daralırsa panel A4 üstüne taşmaz, ekran kenarına
-  // doğru clamp edilir veya gizlenir.
-  const [pos, setPos] = useState<{ top: number; left: number; visible: boolean }>(
-    { top: K.TOP, left: 0, visible: true },
+  // konumlanır; viewport daralırsa panel SCALE DOWN olur (kaybolmaz),
+  // çok dar olursa minimum 0.55 scale.
+  const [pos, setPos] = useState<{ top: number; left: number; scale: number }>(
+    { top: K.TOP, left: 0, scale: 1 },
   );
   const measureA4 = () => {
     const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
@@ -108,14 +108,17 @@ export default function KumandaPaneli({
     const a4Right = Math.round(rect.right);
     const sagPanelExtra = sagPanelOpen ? K.RIGHT_OPEN_OFFSET - K.EDGE_MIN : 0;
     const desiredLeft = a4Right + 16 + sagPanelExtra;
-    const maxLeft = window.innerWidth - K.WIDTH - K.EDGE_MIN;
-    // Eğer A4 sağına panel sığmıyorsa (viewport çok dar) panel'i gizle
-    const visible = desiredLeft <= maxLeft;
-    const left = Math.min(desiredLeft, Math.max(maxLeft, K.EDGE_MIN));
+    // Panel ile viewport arası mevcut yatay alan
+    const availableWidth = window.innerWidth - desiredLeft - K.EDGE_MIN;
+    // Scale: 1 ideal; alan azsa K.WIDTH'a oran (min 0.55 — okunabilirlik sınırı)
+    const scale =
+      availableWidth >= K.WIDTH
+        ? 1
+        : Math.max(0.55, availableWidth / K.WIDTH);
     setPos({
       top: top > 0 ? top : K.TOP,
-      left,
-      visible,
+      left: Math.max(K.EDGE_MIN, desiredLeft),
+      scale,
     });
   };
 
@@ -144,11 +147,12 @@ export default function KumandaPaneli({
         top: pos.top,
         left: pos.left,
         width: K.WIDTH,
-        maxHeight: `calc(100vh - ${pos.top + K.BOTTOM_GAP}px)`,
+        maxHeight: `calc((100vh - ${pos.top + K.BOTTOM_GAP}px) / ${pos.scale})`,
         zIndex: 80,
-        pointerEvents: pos.visible ? 'auto' : 'none',
-        opacity: pos.visible ? 1 : 0,
-        transition: 'opacity 200ms ease, left 200ms ease',
+        pointerEvents: 'auto',
+        transform: `scale(${pos.scale})`,
+        transformOrigin: 'top left',
+        transition: 'transform 200ms ease, left 200ms ease',
         overflow: 'hidden',
       }}
     >
