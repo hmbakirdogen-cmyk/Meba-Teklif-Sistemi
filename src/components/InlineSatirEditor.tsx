@@ -248,20 +248,19 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
   };
 
   return (
-    <Input.TextArea
+    <Input
       autoFocus={autoFocus}
       className="inline-table-field description-editor"
       variant="borderless"
       size="small"
-      autoSize={{ minRows: 1, maxRows: 1 }}
       style={ACIKLAMA_EDIT}
       value={satir.aciklama}
       onChange={(e) => onGuncelle('aciklama', e.target.value)}
       onBlur={handleBlur}
       placeholder="Açıklama"
-      onFocus={(e) => (e.target as HTMLTextAreaElement).select()}
+      onFocus={(e) => (e.target as HTMLInputElement).select()}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter') {
           e.preventDefault();
           onEnterNext?.();
         }
