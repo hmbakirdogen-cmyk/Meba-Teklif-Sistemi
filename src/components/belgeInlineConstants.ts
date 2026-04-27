@@ -377,9 +377,16 @@ export const FIELD_CSS = `
   height: auto !important;
   min-height: 0 !important;
 }
-.belge-inline .inline-table-field.ant-input {
+.belge-inline .inline-table-field.ant-input,
+.belge-inline .inline-table-field.ant-input.ant-input-sm,
+.belge-inline .inline-table-field.ant-input-borderless,
+.belge-inline input.ant-input.inline-table-field {
   min-height: 0 !important;
   height: auto !important;
+  line-height: var(--line-cell-line-height) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
 }
 .belge-inline .inline-table-field.ant-input-number .ant-input-number-input {
   font: inherit !important;
