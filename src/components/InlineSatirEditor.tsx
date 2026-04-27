@@ -5,9 +5,9 @@
  */
 import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Input } from 'antd';
+import { App, Input } from 'antd';
 import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
-import type { TeklifSatiri, ParaBirimi } from '../types';
+import type { TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
@@ -102,23 +102,61 @@ function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorPr
 }
 
 function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
+  const { modal } = App.useApp();
   const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
   const options = useMemo(
     () => urunler.map((u) => ({ value: u.urunKod, label: `${u.urunKod} — ${u.aciklama}` })),
     [urunler],
   );
+  // Mount anındaki kod — onaylanmamış değişikliği tespit için baseline
+  const initialKodRef = useRef(satir.urunKod);
+  // Dropdown'dan seçimle gelen değer DB'de zaten var → confirm sorma
+  const justSelectedRef = useRef(false);
 
   const handleSelect = (kod: string) => {
+    justSelectedRef.current = true;
     onGuncelle('urunKod', kod);
     const urun = urunler.find((u) => u.urunKod === kod);
     if (urun) {
-      // Ürün seçildiğinde açıklama FULL TEXT yazılır; hiçbir kesme/kısaltma
-      // yapılmaz, depoda hangi metin varsa birebir satıra aktarılır.
       onGuncelle('aciklama', urun.aciklama ?? '');
       if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
       if (urun.birim) onGuncelle('birim', urun.birim);
     }
     onEnterNext?.();
+  };
+
+  const handleBlur = () => {
+    // Dropdown'dan seçildiyse hiçbir şey sorma
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
+    const yeni = satir.urunKod?.trim();
+    if (!yeni) return;
+    if (yeni === initialKodRef.current?.trim()) return; // değişiklik yok
+    // Mevcut urunler listesinde var mı (case-insensitive)
+    const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
+    if (exists) return; // zaten DB'de
+    // Yeni kod — kullanıcıya sor
+    modal.confirm({
+      title: 'Yeni Ürün Kaydı',
+      content: `"${yeni}" kodu veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi?`,
+      okText: 'Kaydet',
+      cancelText: 'İptal',
+      onOk: () => {
+        const yeniUrun: Urun = {
+          id: urunService.urunIdUret(),
+          urunKod: yeni,
+          urunAdi: yeni,
+          aciklama: satir.aciklama ?? '',
+          kategori: '',
+          birim: satir.birim || 'Adet',
+          varsayilanFiyat: satir.birimFiyat || 0,
+        };
+        urunService.urunKaydet(yeniUrun);
+        initialKodRef.current = yeni; // tekrar sormasın
+      },
+    });
   };
 
   return (
@@ -128,6 +166,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
       value={satir.urunKod}
       onChange={(value) => onGuncelle('urunKod', value)}
       onSelect={(value) => handleSelect(String(value))}
+      onBlur={handleBlur}
       options={options}
       filterOption={(input, option) => {
         const q = input.toLowerCase();
@@ -153,6 +192,60 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
 }
 
 function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
+  const { modal } = App.useApp();
+  // Mount anındaki açıklama — değişiklik tespit baseline
+  const initialAciklamaRef = useRef(satir.aciklama);
+
+  const handleBlur = () => {
+    const yeniAciklama = (satir.aciklama ?? '').trim();
+    const eski = (initialAciklamaRef.current ?? '').trim();
+    if (yeniAciklama === eski) return; // değişiklik yok
+    const kod = (satir.urunKod ?? '').trim();
+    if (!kod) return; // ürün kodu yoksa veritabanına kaydet anlamı yok
+
+    const urunler = urunService.tumUrunleriGetir();
+    const mevcut = urunler.find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+
+    if (mevcut) {
+      // Var olan ürün — açıklamayı güncellemek istiyor mu?
+      if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
+        initialAciklamaRef.current = yeniAciklama;
+        return;
+      }
+      modal.confirm({
+        title: 'Açıklama Güncellensin mi?',
+        content: `"${kod}" ürününün veritabanındaki açıklaması güncellensin mi?`,
+        okText: 'Güncelle',
+        cancelText: 'İptal',
+        onOk: () => {
+          urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+          initialAciklamaRef.current = yeniAciklama;
+        },
+      });
+    } else {
+      // Bu kodla ürün yok — yeni ürün olarak kaydedilsin mi?
+      modal.confirm({
+        title: 'Yeni Ürün Kaydı',
+        content: `"${kod}" kodu veritabanında yok. Bu açıklamayla yeni ürün olarak kaydedilsin mi?`,
+        okText: 'Kaydet',
+        cancelText: 'İptal',
+        onOk: () => {
+          const yeniUrun: Urun = {
+            id: urunService.urunIdUret(),
+            urunKod: kod,
+            urunAdi: kod,
+            aciklama: yeniAciklama,
+            kategori: '',
+            birim: satir.birim || 'Adet',
+            varsayilanFiyat: satir.birimFiyat || 0,
+          };
+          urunService.urunKaydet(yeniUrun);
+          initialAciklamaRef.current = yeniAciklama;
+        },
+      });
+    }
+  };
+
   return (
     <Input.TextArea
       autoFocus={autoFocus}
@@ -163,6 +256,7 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
       style={ACIKLAMA_EDIT}
       value={satir.aciklama}
       onChange={(e) => onGuncelle('aciklama', e.target.value)}
+      onBlur={handleBlur}
       placeholder="Açıklama"
       onFocus={(e) => (e.target as HTMLTextAreaElement).select()}
       onKeyDown={(e) => {
