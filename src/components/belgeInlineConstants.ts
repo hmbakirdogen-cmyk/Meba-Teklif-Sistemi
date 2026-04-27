@@ -737,12 +737,9 @@ export const FIELD_CSS = `
 
 /* ══════════════════════════════════════════════════════════════════════
    AKTİF HÜCRE — text → editor geçiş STABİLİTESİ (final lock)
-   Hücreye tıklayıp editor render olduğunda:
-   • Hücredeki yazının font-family/size/weight/line-height/letter-spacing/
-     text-align'ı DEĞİŞMEZ — editor cell'in tipografisini birebir miras alır.
-   • Satır yüksekliği değişmez — TD'nin min-height'ı row-height'a kilitli,
-     editor box-sizing border-box ile padding içinde kalır.
-   • AntD'nin internal kuralları (size="small" vb.) yoksayılır.
+   Cell content area = var(--line-row-height) - 2*var(--line-cell-padding-y)
+                     = 20 - 6 = 14px
+   Editor input/textarea/select inner BU ALANI AŞAMAZ → satır büyümez.
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline tr[data-satir-id] > td.is-active-cell {
   padding: var(--line-cell-padding-y) var(--line-cell-padding-x) !important;
@@ -750,7 +747,8 @@ export const FIELD_CSS = `
   vertical-align: middle !important;
   height: auto !important;
   min-height: var(--line-row-height) !important;
-  max-height: none !important;
+  max-height: var(--line-row-height) !important;
+  overflow: hidden !important;
 }
 .belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field,
 .belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
@@ -761,6 +759,20 @@ export const FIELD_CSS = `
   line-height: var(--line-cell-line-height) !important;
   letter-spacing: inherit !important;
   text-align: inherit !important;
+  box-sizing: border-box !important;
+}
+/* Editor input/textarea — cell content alanına KESİN clamp.
+   Browser'ın input default internal padding'i bile satırı büyütemez. */
+.belge-inline tr[data-satir-id] > td.is-active-cell input,
+.belge-inline tr[data-satir-id] > td.is-active-cell textarea,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-input-number-input {
+  height: calc(var(--line-row-height) - 2 * var(--line-cell-padding-y)) !important;
+  max-height: calc(var(--line-row-height) - 2 * var(--line-cell-padding-y)) !important;
+  min-height: 0 !important;
+  line-height: calc(var(--line-row-height) - 2 * var(--line-cell-padding-y)) !important;
+  padding: 0 !important;
+  margin: 0 !important;
   box-sizing: border-box !important;
 }
 
