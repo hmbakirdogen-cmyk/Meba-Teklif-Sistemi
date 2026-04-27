@@ -729,6 +729,35 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   AKTİF HÜCRE — text → editor geçiş STABİLİTESİ (final lock)
+   Hücreye tıklayıp editor render olduğunda:
+   • Hücredeki yazının font-family/size/weight/line-height/letter-spacing/
+     text-align'ı DEĞİŞMEZ — editor cell'in tipografisini birebir miras alır.
+   • Satır yüksekliği değişmez — TD'nin min-height'ı row-height'a kilitli,
+     editor box-sizing border-box ile padding içinde kalır.
+   • AntD'nin internal kuralları (size="small" vb.) yoksayılır.
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline tr[data-satir-id] > td.is-active-cell {
+  padding: var(--line-cell-padding-y) var(--line-cell-padding-x) !important;
+  line-height: var(--line-cell-line-height) !important;
+  vertical-align: middle !important;
+  height: auto !important;
+  min-height: var(--line-row-height) !important;
+  max-height: none !important;
+}
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field,
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: normal !important;
+  line-height: var(--line-cell-line-height) !important;
+  letter-spacing: inherit !important;
+  text-align: inherit !important;
+  box-sizing: border-box !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    CHECKBOX
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline input[type="checkbox"] {
