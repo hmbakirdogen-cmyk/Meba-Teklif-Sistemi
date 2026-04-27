@@ -30,7 +30,10 @@ export const FIELD_CSS = `
    Hiçbir şeyi browser default'una ya da AntD design token'ına bırakma.
    ══════════════════════════════════════════════════════════════════════ */
 
-/* ─── Kök elemanlar: font token'larını ve CSS değişkenlerini sıfırla ─── */
+/* ─── Kök elemanlar: font token'larını ve CSS değişkenlerini sıfırla ───
+   ÖNEMLİ: font shorthand KULLANMA — wrapper'ın React inline style'ından
+   gelen fontSize/fontWeight (örn. ROW_TEXT.code: 10.5px / 600) korunmalı.
+   Sadece family/style/variant inherit edilir; size + weight inline ile gelir. */
 .belge-inline .ant-select,
 .belge-inline .ant-input,
 .belge-inline .ant-input-number,
@@ -41,7 +44,9 @@ export const FIELD_CSS = `
   --ant-line-height: inherit;
   --ant-font-family: inherit;
   --ant-font-weight: inherit;
-  font: inherit !important;
+  font-family: inherit !important;
+  font-style: inherit !important;
+  font-variant: inherit !important;
   color: inherit !important;
   letter-spacing: inherit !important;
   text-rendering: geometricPrecision !important;
@@ -297,7 +302,10 @@ export const FIELD_CSS = `
 .belge-inline .inline-table-field {
   width: 100% !important;
   min-width: 0 !important;
-  font: inherit !important;
+  /* font: inherit YOK — wrapper kendi inline fontSize/fontWeight'ini
+     korur (ROW_TEXT.code 10.5px/600, ROW_TEXT.delivery 10px gibi). */
+  font-family: inherit !important;
+  font-style: inherit !important;
   color: inherit !important;
   letter-spacing: inherit !important;
 }
