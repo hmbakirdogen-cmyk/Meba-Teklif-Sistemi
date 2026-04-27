@@ -271,15 +271,15 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 1px neon canlı mavi hat — etrafa ışık YAYMAZ (box-shadow yok),
-            // hattın KENDİSİ doygun parlak. Simetrik fade kenarları yumuşatır.
+            // 2px neon canlı mavi hat — hat kendisi doygun parlak; CSS hover/
+            // active'te hafif drop-shadow halesi (yumuşak ışık).
             background:
               'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(56,140,255,1) 30%, rgba(96,180,255,1) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 12px) 1px',
+            backgroundSize: 'calc(100% - 12px) 2px',
             backgroundPosition: 'center bottom',
             backgroundRepeat: 'no-repeat',
             opacity: 0,
-            transition: 'opacity 160ms ease',
+            transition: 'opacity 160ms ease, filter 160ms ease',
           }}
         />
       ))}
