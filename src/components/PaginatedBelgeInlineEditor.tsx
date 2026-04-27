@@ -1,7 +1,7 @@
 ﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
@@ -268,6 +268,9 @@ export default function PaginatedBelgeInlineEditor({
   }, [isMusteriEditing, teklif.cari.firmaAdi]);
 
   const [satirFocusCell, setSatirFocusCell] = useState<SatirCellField>('urunKod');
+  // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
+  // gözüksün diye (active panel ile aynı pozisyonda).
+  const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
   const handleSatirCellClick = useCallback(
     (satirId: string, cell: SatirCellField) => (e: React.MouseEvent) => {
@@ -603,6 +606,8 @@ export default function PaginatedBelgeInlineEditor({
                 <React.Fragment key={satir.id}>
                   <tr
                     data-satir-id={satir.id}
+                    onMouseEnter={() => setHoverRowId(satir.id)}
+                    onMouseLeave={() => setHoverRowId((curr) => (curr === satir.id ? null : curr))}
                     style={{
                       ...noBreak,
                       ...(satir.rowHeight && satir.rowHeight > 0
@@ -736,28 +741,16 @@ export default function PaginatedBelgeInlineEditor({
                           -{satir.indirimOrani}%
                         </span>
                       )}
-                      {isRowActive && !readOnly ? (
+                      {!readOnly && (isRowActive || hoverRowId === satir.id) && (
                         <SatirAksiyonlariPanel
                           satir={satir}
-                          satirBazliIskonto={satirBazliIskonto}
+                          // Hover-only modda iskonto alanı gösterilmez —
+                          // sadece kompakt Sil ikonu. Aktif satırda + satır
+                          // bazlı iskonto açıkken iskonto input görünür.
+                          satirBazliIskonto={isRowActive && satirBazliIskonto}
                           onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
                           onSil={() => onSatirSil(satir.id)}
                         />
-                      ) : (
-                        <div className="belge-satir-hover-actions" style={{ position: 'absolute', right: -2, top: '50%', transform: 'translateY(-50%)', zIndex: 40, display: 'flex', gap: '2px' }}>
-                          <span
-                            onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirSil(satir.id); }}
-                            style={{
-                              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              width: 20, height: 20, borderRadius: '4px',
-                              background: 'rgba(255,255,255,0.95)', border: `0.75px solid ${C.borderSoft}`,
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', color: '#b91c1c', fontSize: '9px',
-                            }}
-                            title="Satırı sil"
-                          >
-                            <DeleteOutlined />
-                          </span>
-                        </div>
                       )}
                     </RowCell>
                   </tr>
@@ -916,10 +909,9 @@ export default function PaginatedBelgeInlineEditor({
           ${LINE_ITEM_CSS_VARS}
         }
         .satir-aksiyonlari { pointer-events: auto; }
-        .belge-satir-hover-actions { opacity: 0; pointer-events: none; transition: opacity 0.18s; }
-        tr:hover > td > .belge-satir-hover-actions,
-        tr:focus-within > td > .belge-satir-hover-actions { opacity: 1; pointer-events: auto; }
-        .belge-readonly .belge-satir-hover-actions { display: none !important; }
+        /* .belge-satir-hover-actions CSS rule'ları kaldırıldı — hover Sil
+           ikonu artık SatirAksiyonlariPanel ile portal'da basılır
+           (active panel ile aynı pozisyon). */
         .belge-readonly .satir-araya-ekle-btn { display: none !important; }
         .belge-readonly tr[data-satir-id] td { cursor: default !important; }
         .belge-readonly [data-alan] { cursor: default !important; }
