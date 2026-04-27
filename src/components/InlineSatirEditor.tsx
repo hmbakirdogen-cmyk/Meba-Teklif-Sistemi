@@ -340,7 +340,8 @@ export function SatirAksiyonlariPanel({
       const panelW = panelRef.current?.offsetWidth ?? 80;
       const KUMANDA_GAP = 200; // viewport sağındaki kumanda paneli için pay
       const maxLeft = window.innerWidth - panelW - KUMANDA_GAP;
-      let left = rect.right + 8;
+      // Satır sonu çizgisine YAPIŞIK — sıfır boşluk (gap=0).
+      let left = rect.right;
       if (left > maxLeft) left = Math.max(8, maxLeft);
       const top = rect.top + rect.height / 2;
       setPos({ top, left });
