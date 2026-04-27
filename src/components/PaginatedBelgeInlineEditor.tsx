@@ -589,6 +589,9 @@ export default function PaginatedBelgeInlineEditor({
                       style={{
                         position: 'absolute', left: 0, right: 0, top: -7, height: 14,
                         cursor: readOnly ? 'default' : 'pointer', zIndex: 44,
+                        // Parent .satir-araya-ekle-zone pointer-events:none →
+                        // hit area icin override; aksi halde hover/click yakalanmiyor.
+                        pointerEvents: readOnly ? 'none' : 'auto',
                       }}
                     />
                     <div
