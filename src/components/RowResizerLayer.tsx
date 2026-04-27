@@ -271,16 +271,15 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 1px ince premium lacivert hat — simetrik fade gradient.
-            // backgroundPosition: bottom → 1px hat container'ın alt kenarına
-            // yapışır = TAM row.bottom çizgisinde.
+            // 1px neon canlı mavi hat — etrafa ışık YAYMAZ (box-shadow yok),
+            // hattın KENDİSİ doygun parlak. Simetrik fade kenarları yumuşatır.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(30,64,175,0.85) 30%, rgba(59,130,246,0.65) 70%, rgba(15,23,42,0) 100%)',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(56,140,255,1) 30%, rgba(96,180,255,1) 70%, rgba(15,23,42,0) 100%)',
             backgroundSize: 'calc(100% - 12px) 1px',
             backgroundPosition: 'center bottom',
             backgroundRepeat: 'no-repeat',
             opacity: 0,
-            transition: 'opacity 160ms ease, box-shadow 160ms ease',
+            transition: 'opacity 160ms ease',
           }}
         />
       ))}

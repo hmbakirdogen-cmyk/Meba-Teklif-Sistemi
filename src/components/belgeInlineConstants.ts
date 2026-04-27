@@ -526,18 +526,14 @@ export const FIELD_CSS = `
    - Boydan boya highlight YASAK: tr arka planı drag boyunca DEĞİŞMEZ.
    PDF capture sırasında handle render edilmez (interactive=false ağacı).
    ══════════════════════════════════════════════════════════════════════ */
+/* Hover/active: hat görünür, etrafa ışık YAYILMAZ — box-shadow halesi yok.
+   Çizginin kendisi neon canlı (RowResizerLayer inline gradient). */
 .row-resize-handle:hover {
   opacity: 1 !important;
-  box-shadow:
-    0 0 12px rgba(37, 99, 235, 0.80),
-    0 0 26px rgba(59, 130, 246, 0.42) !important;
 }
 
 .row-resize-handle[data-active="true"] {
   opacity: 1 !important;
-  box-shadow:
-    0 0 14px rgba(37, 99, 235, 0.90),
-    0 0 30px rgba(59, 130, 246, 0.50) !important;
 }
 
 @media print {
