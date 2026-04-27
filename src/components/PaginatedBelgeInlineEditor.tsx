@@ -618,7 +618,7 @@ export default function PaginatedBelgeInlineEditor({
                     <RowCell idx={idx} pos="first" onClick={cellClick('urunKod')} style={{ ...ROW_TEXT.no, cursor: 'pointer' }}>
                       {String(idx + 1).padStart(2, '0')}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} className={activeClass('marka')} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} className={activeClass('marka')} style={{ cursor: 'pointer', textAlign: 'center' }}>
                       {isActiveCell('marka') ? (
                         <SatirCellEditor
                           field="marka"
@@ -632,7 +632,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={{ cursor: 'pointer', textAlign: 'left' }}>
                       {isActiveCell('urunKod') ? (
                         <SatirCellEditor
                           field="urunKod"
@@ -646,7 +646,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={{ cursor: 'pointer', textAlign: 'left' }}>
                       {isActiveCell('aciklama') ? (
                         <SatirCellEditor
                           field="aciklama"
@@ -660,7 +660,7 @@ export default function PaginatedBelgeInlineEditor({
                         <DescText text={satir.aciklama || '-'} />
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={{ cursor: 'pointer', textAlign: 'left' }}>
                       {isActiveCell('miktar') ? (
                         <SatirCellEditor
                           field="miktar"
@@ -684,7 +684,7 @@ export default function PaginatedBelgeInlineEditor({
                       pos="mid"
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
                       className={activeClass('paraBirimi')}
-                      style={{ cursor: satirBazliParaBirimi ? 'pointer' : 'default' }}
+                      style={{ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' }}
                     >
                       {satirBazliParaBirimi ? (
                         isActiveCell('paraBirimi') ? (
@@ -701,7 +701,7 @@ export default function PaginatedBelgeInlineEditor({
                         )
                       ) : null}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} className={activeClass('birimFiyat')} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} className={activeClass('birimFiyat')} style={{ cursor: 'pointer', textAlign: 'right' }}>
                       {isActiveCell('birimFiyat') ? (
                         <SatirCellEditor
                           field="birimFiyat"
@@ -718,12 +718,12 @@ export default function PaginatedBelgeInlineEditor({
                         })()}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer', textAlign: 'right' }}>
                       <span style={ROW_TEXT.total}>
                         {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                       </span>
                     </RowCell>
-                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} className={activeClass('teslimat')} style={{ position: 'relative', cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} className={activeClass('teslimat')} style={{ position: 'relative', cursor: 'pointer', textAlign: 'center' }}>
                       {isActiveCell('teslimat') ? (
                         <SatirCellEditor
                           field="teslimat"

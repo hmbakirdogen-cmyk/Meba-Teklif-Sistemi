@@ -762,7 +762,9 @@ export const FIELD_CSS = `
   box-sizing: border-box !important;
 }
 /* Editor input/textarea — cell content alanına KESİN clamp.
-   Browser'ın input default internal padding'i bile satırı büyütemez. */
+   Browser'ın input default internal padding'i bile satırı büyütemez.
+   text-align: inherit → AntD'nin .ant-input-number-input default text-align:start
+   davranışını kır; wrapper'daki textAlign (right/center/left) input'a propagate. */
 .belge-inline tr[data-satir-id] > td.is-active-cell input,
 .belge-inline tr[data-satir-id] > td.is-active-cell textarea,
 .belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content,
@@ -774,6 +776,7 @@ export const FIELD_CSS = `
   padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
+  text-align: inherit !important;
 }
 
 /* Sadece raw input/textarea text-indent — browser default implicit
