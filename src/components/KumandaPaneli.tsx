@@ -612,17 +612,19 @@ export default function KumandaPaneli({
           );
         }
 
-        /* ── Resim Ekle (aksiyon, blue) ── */
+        /* ── Resim Ekle (aksiyon, saydam cam mavi) ── */
         .image-add {
           --press-glow: rgba(80, 150, 255, 0.45);
           width: 100%;
           height: calc(60px * var(--panel-scale));
           margin-top: calc(12px * var(--panel-scale));
           border-radius: calc(16px * var(--panel-scale));
-          border: 1px solid var(--blue-border);
+          border: 1px solid rgba(120, 160, 255, 0.42);
           background:
-            radial-gradient(circle at top, rgba(120, 160, 255, 0.30), transparent),
-            linear-gradient(180deg, var(--blue-1), var(--blue-2));
+            radial-gradient(circle at 50% 0%, rgba(120, 160, 255, 0.18), transparent 60%),
+            linear-gradient(180deg, rgba(63, 124, 255, 0.22), rgba(27, 47, 138, 0.32));
+          backdrop-filter: blur(10px) saturate(1.05);
+          -webkit-backdrop-filter: blur(10px) saturate(1.05);
           color: white;
           font-weight: 800;
           text-transform: uppercase;
