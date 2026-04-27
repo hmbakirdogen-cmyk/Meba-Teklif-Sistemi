@@ -275,24 +275,24 @@ function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 }
 
 const floatingPanelStyle: React.CSSProperties = {
-  // Satırın aynı hizasında — Teslimat hücresinin TAMAMEN sağına, A4 sağ
-  // kenarındaki boşluğa konumlanır. Teslimat metnini örtmez.
+  // Satırın aynı hizasında — Teslimat hücresinin sağ kenarına yapışır.
+  // Compact (height ≈ row height) — A4 sayfasından taşmaz.
   position: 'absolute',
-  left: '100%',
-  marginLeft: '6px',
+  right: 2,
   top: '50%',
   transform: 'translateY(-50%)',
   zIndex: 50,
   display: 'flex',
   alignItems: 'center',
   gap: '2px',
-  padding: '3px 4px',
-  background: 'rgba(250,250,248,0.97)',
+  padding: '2px 3px',
+  height: 20,
+  background: 'rgba(250,250,248,0.92)',
   border: `0.75px solid ${C.borderSoft}`,
-  borderRadius: '6px',
-  boxShadow: '0 2px 8px rgba(26,43,66,0.09), 0 0 0 1px rgba(26,43,66,0.04)',
+  borderRadius: '5px',
+  boxShadow: '0 2px 6px rgba(26,43,66,0.10)',
   whiteSpace: 'nowrap',
-  backdropFilter: 'blur(8px)',
+  backdropFilter: 'blur(10px)',
 };
 
 const actionBtnStyle: React.CSSProperties = {
@@ -331,7 +331,7 @@ export function SatirAksiyonlariPanel({
           <span style={{ ...actionBtnStyle, color: C.textMid }}>
             <PercentageOutlined style={{ fontSize: 9 }} />
             <InlineTableNumberField
-              style={{ width: 32, fontSize: '9.5px', fontWeight: 700, textAlign: 'center', padding: 0 }}
+              style={{ width: 26, fontSize: '9px', fontWeight: 700, textAlign: 'center', padding: 0 }}
               value={satir.indirimOrani}
               min={0}
               max={100}
@@ -348,17 +348,19 @@ export function SatirAksiyonlariPanel({
           e.stopPropagation();
           onSil();
         }}
-        style={{ ...actionBtnStyle, color: '#b91c1c', opacity: 0.7 }}
+        title="Satırı sil"
+        aria-label="Satırı sil"
+        style={{ ...actionBtnStyle, color: '#b91c1c', opacity: 0.75, padding: '2px 5px' }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(185,28,28,0.06)';
+          e.currentTarget.style.background = 'rgba(185,28,28,0.08)';
           e.currentTarget.style.opacity = '1';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.opacity = '0.7';
+          e.currentTarget.style.opacity = '0.75';
         }}
       >
-        <DeleteOutlined style={{ fontSize: 8 }} /> Sil
+        <DeleteOutlined style={{ fontSize: 10 }} />
       </span>
     </div>
   );
