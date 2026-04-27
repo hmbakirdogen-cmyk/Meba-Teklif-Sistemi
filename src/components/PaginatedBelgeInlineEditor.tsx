@@ -574,12 +574,16 @@ export default function PaginatedBelgeInlineEditor({
               const isRowActive = editingSatirId === satir.id;
               const colCount = OFFER_TABLE_COLUMN_COUNT;
 
-              const insertIndicator = (
-                <tr key={`insert-${satir.id}`} className="satir-araya-ekle-zone" style={{ height: 0 }}>
+              const isLastRow = idx === teklif.satirlar.length - 1;
+              const isFirstRow = idx === 0;
+              // Aktif satirin alt komsusu hover edildiginde de gosterilsin diye
+              // hem mevcut hem de bir onceki satirin id'si CSS hedefi olabilir.
+              const renderInsertButton = (afterIndex: number, key: string) => (
+                <tr key={key} className="satir-araya-ekle-zone" style={{ height: 0 }}>
                   <td colSpan={colCount} style={{ padding: 0, border: 'none', position: 'relative', height: 0, overflow: 'visible' }}>
                     <div
                       className="satir-araya-ekle-btn"
-                      onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirArayaEkle(idx); }}
+                      onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirArayaEkle(afterIndex); }}
                       style={{
                         position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
                         zIndex: 45, display: 'flex', alignItems: 'center', gap: 4,
@@ -595,6 +599,10 @@ export default function PaginatedBelgeInlineEditor({
                   </td>
                 </tr>
               );
+              // Ilk satirin USTUNDE: ayri indicator (afterIndex=-1 → splice(0))
+              const insertAbove = isFirstRow ? renderInsertButton(-1, `insert-top-${satir.id}`) : null;
+              // Satirin ALTI: yalniz son satir DEGILSE (sonu kapatma istegi)
+              const insertIndicator = isLastRow ? null : renderInsertButton(idx, `insert-${satir.id}`);
 
 
               const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir.id, cell);
@@ -604,6 +612,7 @@ export default function PaginatedBelgeInlineEditor({
 
               return (
                 <React.Fragment key={satir.id}>
+                  {insertAbove}
                   <tr
                     data-satir-id={satir.id}
                     onMouseEnter={() => setHoverRowId(satir.id)}
@@ -934,7 +943,8 @@ export default function PaginatedBelgeInlineEditor({
         .satir-araya-ekle-zone { pointer-events: none; }
         .satir-araya-ekle-zone:hover { pointer-events: auto; }
         .satir-araya-ekle-zone:hover .satir-araya-ekle-btn,
-        tr[data-satir-id]:hover + .satir-araya-ekle-zone .satir-araya-ekle-btn { opacity: 1 !important; pointer-events: auto !important; }
+        tr[data-satir-id]:hover + .satir-araya-ekle-zone .satir-araya-ekle-btn,
+        .satir-araya-ekle-zone:has(+ tr[data-satir-id]:hover) .satir-araya-ekle-btn { opacity: 1 !important; pointer-events: auto !important; }
       `}</style>
 
       {pages.map((page, pageIdx) => (
