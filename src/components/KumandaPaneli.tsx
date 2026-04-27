@@ -94,38 +94,61 @@ export default function KumandaPaneli({
     reader.readAsDataURL(file);
   };
 
-  const [a4Top, setA4Top] = useState<number>(K.TOP);
+  // A4 belgesinin top + right edge'i ölçülür → panel A4'ün hemen sağına
+  // konumlanır; viewport daralırsa panel A4 üstüne taşmaz, ekran kenarına
+  // doğru clamp edilir veya gizlenir.
+  const [pos, setPos] = useState<{ top: number; left: number; visible: boolean }>(
+    { top: K.TOP, left: 0, visible: true },
+  );
   const measureA4 = () => {
     const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
     if (!a4El) return;
-    const top = Math.round(a4El.getBoundingClientRect().top);
-    if (top > 0) setA4Top(top);
+    const rect = a4El.getBoundingClientRect();
+    const top = Math.round(rect.top);
+    const a4Right = Math.round(rect.right);
+    const sagPanelExtra = sagPanelOpen ? K.RIGHT_OPEN_OFFSET - K.EDGE_MIN : 0;
+    const desiredLeft = a4Right + 16 + sagPanelExtra;
+    const maxLeft = window.innerWidth - K.WIDTH - K.EDGE_MIN;
+    // Eğer A4 sağına panel sığmıyorsa (viewport çok dar) panel'i gizle
+    const visible = desiredLeft <= maxLeft;
+    const left = Math.min(desiredLeft, Math.max(maxLeft, K.EDGE_MIN));
+    setPos({
+      top: top > 0 ? top : K.TOP,
+      left,
+      visible,
+    });
   };
 
   useLayoutEffect(() => {
     const id = requestAnimationFrame(() => requestAnimationFrame(measureA4));
     return () => cancelAnimationFrame(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sagPanelOpen]);
 
   useEffect(() => {
     const onResize = () => measureA4();
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+    window.addEventListener('scroll', onResize, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sagPanelOpen]);
 
   return (
     <div
       className="no-print"
       style={{
         position: 'fixed',
-        top: a4Top,
-        right: sagPanelOpen
-          ? `${K.RIGHT_OPEN_OFFSET}px`
-          : `max(${K.EDGE_MIN}px, calc(50% - ${K.RIGHT_CLOSED_OFFSET}px))`,
+        top: pos.top,
+        left: pos.left,
         width: K.WIDTH,
-        maxHeight: `calc(100vh - ${a4Top + K.BOTTOM_GAP}px)`,
+        maxHeight: `calc(100vh - ${pos.top + K.BOTTOM_GAP}px)`,
         zIndex: 80,
-        pointerEvents: 'auto',
+        pointerEvents: pos.visible ? 'auto' : 'none',
+        opacity: pos.visible ? 1 : 0,
+        transition: 'opacity 200ms ease, left 200ms ease',
         overflow: 'hidden',
       }}
     >
@@ -695,6 +718,28 @@ export default function KumandaPaneli({
           grid-template-columns: 1fr;
         }
 
+        /* Visibility (Gizli) toggle — kompakt yatay layout, kare değil.
+           Aktif olunca üzerinde "GİZLİ" yazısı belirir (icon + label yan yana). */
+        .square-btn.visibility-compact {
+          aspect-ratio: auto;
+          height: calc(36px * var(--panel-scale));
+          padding: calc(4px * var(--panel-scale)) calc(10px * var(--panel-scale));
+          flex-direction: row;
+          gap: calc(8px * var(--panel-scale));
+          justify-content: center;
+        }
+        .square-btn.visibility-compact .premium-panel-icon {
+          width: 22px;
+          height: 22px;
+          margin: 0;
+        }
+        .square-btn.visibility-compact .square-btn__label {
+          font-size: calc(11px * var(--panel-scale));
+          font-weight: 800;
+          letter-spacing: 0.10em;
+          line-height: 1;
+        }
+
         /* ── Kare buton ── */
         .square-btn {
           --press-glow: rgba(255, 95, 125, 0.36);
@@ -1087,17 +1132,17 @@ export default function KumandaPaneli({
           <SecLabel text="Paylaşım" />
           <div className="grid grid-single">
             <SquareToggle
-              labelLines={[]}
+              labelLines={visibility === 'private' ? ['GİZLİ'] : []}
               ariaLabel={
-                visibility === 'team'
-                  ? 'Personel görebilir — toggle açık'
-                  : 'Gizli — sadece hazırlayan ve yönetici görür'
+                visibility === 'private'
+                  ? 'Gizli — sadece hazırlayan ve yönetici görür'
+                  : 'Personel görebilir — toggle kapalı'
               }
-              extraClass="button-visibility"
+              extraClass="button-visibility visibility-compact"
               icon={<PremiumVisibilityIcon visible={visibility === 'team'} />}
-              on={visibility === 'team'}
+              on={visibility === 'private'}
               onClick={() =>
-                onVisibilityDegistir(visibility === 'team' ? 'private' : 'team')
+                onVisibilityDegistir(visibility === 'private' ? 'team' : 'private')
               }
               disabled={readOnly}
             />
