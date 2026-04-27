@@ -55,6 +55,29 @@ import {
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
 
+const SATIR_GRUP_GORSEL: Record<NonNullable<Teklif['satirlar'][number]['grupRenk']>, { bg: string; border: string; pattern: string }> = {
+  amber: {
+    bg: '#f1f1f1',
+    border: '#9d9d9d',
+    pattern: 'none',
+  },
+  mint: {
+    bg: '#f7f7f7',
+    border: '#8e8e8e',
+    pattern: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.09) 0 2px, transparent 2px 6px)',
+  },
+  sky: {
+    bg: '#f7f7f7',
+    border: '#7f7f7f',
+    pattern: 'repeating-linear-gradient(-45deg, rgba(0,0,0,0.09) 0 2px, transparent 2px 6px)',
+  },
+  lavender: {
+    bg: '#f8f8f8',
+    border: '#707070',
+    pattern: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px)',
+  },
+};
+
 interface TeklifPagedDocumentProps {
   teklif: Teklif;
   totals: TeklifToplam;
@@ -322,6 +345,19 @@ function TableSection({
           {satirlar.map((satir, localIndex) => {
             const idx = rowStart + localIndex;
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
+            const grupGorsel = satir.grupRenk ? SATIR_GRUP_GORSEL[satir.grupRenk] : null;
+            const withGroupCellStyle = (style: React.CSSProperties): React.CSSProperties => {
+              if (!grupGorsel) return style;
+              return {
+                ...style,
+                backgroundColor: grupGorsel.bg,
+                backgroundImage: grupGorsel.pattern,
+                borderTopColor: grupGorsel.border,
+                borderBottomColor: grupGorsel.border,
+                borderLeftColor: grupGorsel.border,
+                borderRightColor: grupGorsel.border,
+              };
+            };
 
             return (
               <tr
@@ -335,19 +371,19 @@ function TableSection({
                     : null),
                 }}
               >
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx) })}>
                   {String(idx + 1).padStart(2, '0')}
                 </td>
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', ...rcCell('mid', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', ...rcCell('mid', idx) })}>
                   {satir.marka || '-'}
                 </td>
-                <td className="product-code-cell" style={{ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) }}>
+                <td className="product-code-cell" style={withGroupCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) })}>
                   {satir.urunKod || '-'}
                 </td>
-                <td className="description-cell" style={{ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) }}>
+                <td className="description-cell" style={withGroupCellStyle({ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) })}>
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
-                <td style={{ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
                       <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -359,19 +395,19 @@ function TableSection({
                     </div>
                   ) : '-'}
                 </td>
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx) })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
-                <td style={{ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) })}>
                   {(() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
-                <td style={{ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) })}>
                   {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                 </td>
-                <td style={{ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: C.textSoft, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx) }}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: C.textSoft, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx) })}>
                   {satir.teslimTarihi || '-'}
                 </td>
               </tr>
@@ -564,26 +600,28 @@ function SignatureBlock() {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
             <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
-              <div style={{ marginBottom: '6px' }}>
-                <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
-                <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+              <div style={{ position: 'relative', top: '16px' }}>
+                <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                <div style={{ marginBottom: '6px', marginTop: '2px' }}>
+                  <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                  <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                  <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+                </div>
               </div>
-              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px', marginBottom: '12px' }} />
-              <div style={{ marginBottom: '6px' }}>
+              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+              <div style={{ marginTop: '2px' }}>
                 <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
                 <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                 <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
               </div>
-              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
             </div>
-            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '0', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
-              <div style={{ marginBottom: '6px' }}>
+            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
+              <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+              <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
                 <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
                 <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                 <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
               </div>
-              <div style={{ borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
             </div>
           </div>
         </div>

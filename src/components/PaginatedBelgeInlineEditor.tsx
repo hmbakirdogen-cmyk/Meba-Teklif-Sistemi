@@ -3,7 +3,7 @@ import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi, SatirGrupRenk } from '../types';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
@@ -62,13 +62,22 @@ import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
 import {
   SatirCellEditor,
   SatirAksiyonlariPanel,
+  SatirIskontoRozeti,
 } from './InlineSatirEditor';
-import { SATIR_CELL_NAV_ORDER, type SatirCellField } from './inlineSatirEditorShared';
+import type { SatirCellField } from './inlineSatirEditorShared';
 import type { TeklifPagePlan } from '../services/documentPagination';
 
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
 const PAGE_GAP_PX = 24;
+const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
+
+const SATIR_GRUP_GORSEL: Record<NonNullable<TeklifSatiri['grupRenk']>, { bg: string; border: string }> = {
+  amber: { bg: '#fff8eb', border: '#f4bf75' },
+  mint: { bg: '#eefcf6', border: '#92ddbf' },
+  sky: { bg: '#eef5ff', border: '#9ec1f7' },
+  lavender: { bg: '#f5f0ff', border: '#c5aff6' },
+};
 
 export type { EditingAlan } from './belgeInlineConstants';
 
@@ -79,6 +88,7 @@ interface PaginatedBelgeInlineEditorProps {
   editingAlan: EditingAlan;
   onEditingAlanDegistir: (alan: EditingAlan) => void;
   onCariDegistir: (cari: Cari) => void;
+  onCariEPostaDegistir: (email: string) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
@@ -87,6 +97,8 @@ interface PaginatedBelgeInlineEditorProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
+  grupModuAktif: boolean;
+  seciliGrupRenk: SatirGrupRenk;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
@@ -220,6 +232,7 @@ export default function PaginatedBelgeInlineEditor({
   editingAlan,
   onEditingAlanDegistir,
   onCariDegistir,
+  onCariEPostaDegistir,
   contactName,
   contactTitle,
   onContactNameDegistir,
@@ -228,6 +241,8 @@ export default function PaginatedBelgeInlineEditor({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   satirBazliIskonto,
+  grupModuAktif,
+  seciliGrupRenk,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
@@ -272,27 +287,37 @@ export default function PaginatedBelgeInlineEditor({
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
   const handleSatirCellClick = useCallback(
-    (satirId: string, cell: SatirCellField) => (e: React.MouseEvent) => {
+    (satir: TeklifSatiri, cell: SatirCellField) => (e: React.MouseEvent) => {
       if (readOnly) return;
       e.stopPropagation();
+
+      if (grupModuAktif) {
+        const nextRenk = satir.grupRenk === seciliGrupRenk ? undefined : seciliGrupRenk;
+        onSatirGuncelle(satir.id, 'grupRenk', nextRenk);
+        setHoverRowId(null);
+        onEditingAlanDegistir(null);
+        return;
+      }
+
       setSatirFocusCell(cell);
-      onEditingAlanDegistir(`satir-${satirId}`);
+      onEditingAlanDegistir(`satir-${satir.id}`);
     },
-    [onEditingAlanDegistir, readOnly],
+    [grupModuAktif, onEditingAlanDegistir, onSatirGuncelle, readOnly, seciliGrupRenk],
   );
 
-  const handleEnterNext = useCallback(
-    (satirId: string, currentCell: SatirCellField, rowIdx: number) => {
-      const idx = SATIR_CELL_NAV_ORDER.indexOf(currentCell);
-      if (idx >= 0 && idx < SATIR_CELL_NAV_ORDER.length - 1) {
-        setSatirFocusCell(SATIR_CELL_NAV_ORDER[idx + 1]);
-        onEditingAlanDegistir(`satir-${satirId}`);
-      } else {
-        onSatirArayaEkle(rowIdx);
-      }
-    },
-    [onEditingAlanDegistir, onSatirArayaEkle],
-  );
+  const handleEnterNext = useCallback(() => {
+    setHoverRowId(null);
+    onEditingAlanDegistir(null);
+  }, [onEditingAlanDegistir]);
+
+  const handleGlobalEnter = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (readOnly || !editingAlan) return;
+    if (e.nativeEvent.isComposing || e.key !== 'Enter') return;
+    e.preventDefault();
+    e.stopPropagation();
+    setHoverRowId(null);
+    onEditingAlanDegistir(null);
+  }, [editingAlan, onEditingAlanDegistir, readOnly]);
 
   const handleAlanClick = (alan: EditingAlan, e: React.MouseEvent) => {
     if (readOnly) return;
@@ -437,13 +462,22 @@ export default function PaginatedBelgeInlineEditor({
                     dropdownStyle={{ minWidth: 90 }}
                   />
                 </div>
-                {(teklif.cari.telefon || teklif.cari.ePosta) && (
-                  <div>
-                    {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                    {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
-                    {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
+                  {teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
+                  <Input
+                    size="small"
+                    variant="borderless"
+                    style={{ flex: 1, minWidth: 120 }}
+                    value={teklif.cari.ePosta || ''}
+                    onChange={(e) => onCariEPostaDegistir(e.target.value)}
+                    onBlur={(e) => {
+                      const next = e.target.value.trim();
+                      if (!next) onCariEPostaDegistir(DEFAULT_TEKLIF_EMAIL);
+                    }}
+                    placeholder={DEFAULT_TEKLIF_EMAIL}
+                  />
+                </div>
                 {teklif.cari.vergiNo && (
                   <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
                 )}
@@ -455,11 +489,11 @@ export default function PaginatedBelgeInlineEditor({
               <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
               <div style={PARTY_BODY_STYLE}>
                 {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
-                {(teklif.cari.telefon || teklif.cari.ePosta) && (
+                {(teklif.cari.telefon || teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL) && (
                   <div>
                     {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                    {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
-                    {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
+                    {teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
+                    <span>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
                   </div>
                 )}
                 {teklif.cari.vergiNo && (
@@ -571,7 +605,20 @@ export default function PaginatedBelgeInlineEditor({
               const idx = page.rowStartIndex + localIndex;
               const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
               const isRowActive = editingSatirId === satir.id;
+              const grupGorsel = satir.grupRenk ? SATIR_GRUP_GORSEL[satir.grupRenk] : null;
               const colCount = OFFER_TABLE_COLUMN_COUNT;
+
+              const withGroupCellStyle = (style: React.CSSProperties): React.CSSProperties => {
+                if (!grupGorsel) return style;
+                return {
+                  ...style,
+                  background: grupGorsel.bg,
+                  borderTopColor: grupGorsel.border,
+                  borderBottomColor: grupGorsel.border,
+                  borderLeftColor: grupGorsel.border,
+                  borderRightColor: grupGorsel.border,
+                };
+              };
 
               const isLastRow = idx === teklif.satirlar.length - 1;
               const isFirstRow = idx === 0;
@@ -617,10 +664,13 @@ export default function PaginatedBelgeInlineEditor({
               const insertIndicator = isLastRow ? null : renderInsertButton(idx, `insert-${satir.id}`);
 
 
-              const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir.id, cell);
+              const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir, cell);
               const isActiveCell = (cell: SatirCellField) => isRowActive && satirFocusCell === cell;
               const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
-              const enterNext = (cell: SatirCellField) => () => handleEnterNext(satir.id, cell, idx);
+              const enterNext = (cell: SatirCellField) => () => {
+                void cell;
+                handleEnterNext();
+              };
 
               return (
                 <React.Fragment key={satir.id}>
@@ -636,10 +686,10 @@ export default function PaginatedBelgeInlineEditor({
                         : null),
                     }}
                   >
-                    <RowCell idx={idx} pos="first" onClick={cellClick('urunKod')} style={{ ...ROW_TEXT.no, cursor: 'pointer' }}>
+                    <RowCell idx={idx} pos="first" onClick={cellClick('urunKod')} style={withGroupCellStyle({ ...ROW_TEXT.no, cursor: 'pointer' })}>
                       {String(idx + 1).padStart(2, '0')}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} className={activeClass('marka')} style={{ cursor: 'pointer', textAlign: 'center' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('marka')} className={activeClass('marka')} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
                       {isActiveCell('marka') ? (
                         <SatirCellEditor
                           field="marka"
@@ -653,7 +703,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={{ cursor: 'pointer', textAlign: 'left' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
                       {isActiveCell('urunKod') ? (
                         <SatirCellEditor
                           field="urunKod"
@@ -667,7 +717,7 @@ export default function PaginatedBelgeInlineEditor({
                         <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={{ cursor: 'pointer', textAlign: 'left' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
                       {isActiveCell('aciklama') ? (
                         <SatirCellEditor
                           field="aciklama"
@@ -681,7 +731,7 @@ export default function PaginatedBelgeInlineEditor({
                         <DescText text={satir.aciklama || '-'} />
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={{ cursor: 'pointer', textAlign: 'left' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('miktar')} className={activeClass('miktar')} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
                       {isActiveCell('miktar') ? (
                         <SatirCellEditor
                           field="miktar"
@@ -705,7 +755,7 @@ export default function PaginatedBelgeInlineEditor({
                       pos="mid"
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
                       className={activeClass('paraBirimi')}
-                      style={{ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' }}
+                      style={withGroupCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' })}
                     >
                       {satirBazliParaBirimi ? (
                         isActiveCell('paraBirimi') ? (
@@ -722,7 +772,7 @@ export default function PaginatedBelgeInlineEditor({
                         )
                       ) : null}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} className={activeClass('birimFiyat')} style={{ cursor: 'pointer', textAlign: 'right' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} className={activeClass('birimFiyat')} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'right' })}>
                       {isActiveCell('birimFiyat') ? (
                         <SatirCellEditor
                           field="birimFiyat"
@@ -739,12 +789,12 @@ export default function PaginatedBelgeInlineEditor({
                         })()}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={{ cursor: 'pointer', textAlign: 'right' }}>
+                    <RowCell idx={idx} pos="mid" onClick={cellClick('birimFiyat')} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'right' })}>
                       <span style={ROW_TEXT.total}>
                         {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                       </span>
                     </RowCell>
-                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} className={activeClass('teslimat')} style={{ position: 'relative', cursor: 'pointer', textAlign: 'center' }}>
+                    <RowCell idx={idx} pos="last" onClick={cellClick('teslimat')} className={activeClass('teslimat')} style={withGroupCellStyle({ position: 'relative', cursor: 'pointer', textAlign: 'center' })}>
                       {isActiveCell('teslimat') ? (
                         <SatirCellEditor
                           field="teslimat"
@@ -757,10 +807,8 @@ export default function PaginatedBelgeInlineEditor({
                       ) : (
                         <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
                       )}
-                      {(satir.indirimOrani || 0) > 0 && !isRowActive && (
-                        <span style={{ position: 'absolute', top: 2, right: 2, fontSize: '7.5px', fontWeight: 700, color: C.accent, background: 'rgba(37,99,235,0.08)', borderRadius: '3px', padding: '1px 3px', lineHeight: 1, letterSpacing: '0.02em', pointerEvents: 'none' }}>
-                          -{satir.indirimOrani}%
-                        </span>
+                      {(satir.indirimOrani || 0) > 0 && !isRowActive && hoverRowId !== satir.id && (
+                        <SatirIskontoRozeti rowId={satir.id} oran={satir.indirimOrani || 0} />
                       )}
                       {!readOnly && (isRowActive || hoverRowId === satir.id) && (
                         <SatirAksiyonlariPanel
@@ -932,7 +980,10 @@ export default function PaginatedBelgeInlineEditor({
   );
 
   return (
-    <div className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}>
+    <div
+      className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}
+      onKeyDown={handleGlobalEnter}
+    >
       <style>{FIELD_CSS}{`
         .belge-inline .offer-table {
           ${LINE_ITEM_CSS_VARS}

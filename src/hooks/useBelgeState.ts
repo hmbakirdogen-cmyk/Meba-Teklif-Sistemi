@@ -21,6 +21,20 @@ import { sanitizeMultilineText } from '../utils/formatters';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
 import dayjs from 'dayjs';
 
+const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
+
+function cariEpostaVarsayilanla(cari: Cari): Cari {
+  const email = (cari.ePosta ?? '').trim();
+  return { ...cari, ePosta: email || DEFAULT_TEKLIF_EMAIL };
+}
+
+function normalizeSatirGrupRenk(value: unknown): TeklifSatiri['grupRenk'] {
+  if (value === 'amber' || value === 'mint' || value === 'sky' || value === 'lavender') {
+    return value;
+  }
+  return undefined;
+}
+
 export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
 
 export interface BelgeState {
@@ -70,6 +84,7 @@ export interface BelgeState {
 interface BelgeActions {
   // Cari
   setCari: (cari: Cari) => void;
+  setCariEPosta: (email: string) => void;
   setContactName: (name: string) => void;
   setContactTitle: (title: 'BEY' | 'HANIM') => void;
 
@@ -137,7 +152,7 @@ export function useBelgeState(
     mevcut ? 'hazir' : 'yukleniyor',
   );
   const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
-  const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ?? null);
+  const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ? cariEpostaVarsayilanla(mevcut.cari) : null);
   const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
   const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
@@ -193,7 +208,7 @@ export function useBelgeState(
   // ── Actions ──
 
   const setCari = useCallback((secilen: Cari) => {
-    setCariState(secilen);
+    setCariState(cariEpostaVarsayilanla(secilen));
     if (secilen.lastContactName) {
       setContactNameState(secilen.lastContactName);
       setContactTitleState(secilen.lastContactTitle ?? 'BEY');
@@ -202,6 +217,16 @@ export function useBelgeState(
       setContactTitleState('BEY');
     }
   }, []);
+
+  const setCariEPosta = useCallback((email: string) => {
+    if (!cari) return;
+    const yeniCari: Cari = {
+      ...cari,
+      ePosta: email,
+    };
+    setCariState(yeniCari);
+    cariService.cariKaydet(yeniCari);
+  }, [cari]);
 
   const setContactName = useCallback((name: string) => {
     setContactNameState(name);
@@ -270,7 +295,8 @@ export function useBelgeState(
   const satirGuncelle = useCallback((id: string, alan: keyof TeklifSatiri, deger: unknown) => {
     setSatirlarState(prev => prev.map(s => {
       if (s.id !== id) return s;
-      const g = { ...s, [alan]: deger };
+      const safeDeger = alan === 'grupRenk' ? normalizeSatirGrupRenk(deger) : deger;
+      const g = { ...s, [alan]: safeDeger };
       return { ...g, satirToplami: hesaplamaMotoru.satirToplamHesapla(g) };
     }));
   }, []);
@@ -319,6 +345,8 @@ export function useBelgeState(
   }, []);
 
   const teklifOlustur = useCallback((): Teklif => {
+    const normalizedCari = cariEpostaVarsayilanla(cari!);
+
     return {
       id: teklifId,
       teklifNo,
@@ -327,7 +355,7 @@ export function useBelgeState(
       satirBazliIskonto,
       paraBirimi,
       durum,
-      cari: cari!,
+      cari: normalizedCari,
       satirlar,
       araToplam: hesaplanan.araToplam,
       toplamIndirim: hesaplanan.toplamIndirim,
@@ -462,6 +490,7 @@ export function useBelgeState(
 
     // Actions
     setCari,
+    setCariEPosta,
     setContactName,
     setContactTitle,
     setSatirlar,

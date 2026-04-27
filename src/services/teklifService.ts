@@ -69,7 +69,7 @@ function teklifSil(id: string): void {
 
 function teklifKopyala(
   id: string,
-  kullanici?: { id: string; adSoyad: string; rol: string },
+  kullanici?: { id: string; adSoyad: string; rol: string; unvan?: string },
 ): Teklif | undefined {
   const kaynak = teklifGetir(id);
   if (!kaynak) return undefined;

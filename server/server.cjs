@@ -7,6 +7,7 @@ const os   = require('os');
 const { spawn } = require('child_process');
 
 const DB_PATH = path.join(__dirname, 'db.json');
+const EMAIL_TELEMETRY_LOG_PATH = path.join(__dirname, 'email_dispatch.log');
 const PORT    = 3001;
 const PDF_ROOT_FOLDER_NAME = 'MEBA MEKAN\u0130K TEKL\u0130FLER';
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*\u0000-\u001F]/g;
@@ -188,6 +189,34 @@ function mailGovdesiUret(teklif) {
   return satirlar.join('\r\n');
 }
 
+function mailtoTaslagiAc({ aliciEposta, konu, govde }) {
+  const toSegment = encodeURIComponent(aliciEposta || '');
+  const url = `mailto:${toSegment}?subject=${encodeURIComponent(konu || '')}&body=${encodeURIComponent(govde || '')}`;
+
+  try {
+    if (process.platform === 'win32') {
+      const child = spawn('cmd.exe', ['/c', 'start', '', url], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      return true;
+    }
+
+    if (process.platform === 'darwin') {
+      const child = spawn('open', [url], { detached: true, stdio: 'ignore' });
+      child.unref();
+      return true;
+    }
+
+    const child = spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
+    child.unref();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function mailHtmlGovdesiUret(teklif, logoBase64) {
   const kisi = normalizeWhitespace(teklif?.contactName ?? '');
   const title = teklif?.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
@@ -235,7 +264,7 @@ function mailHtmlGovdesiUret(teklif, logoBase64) {
 </body></html>`;
 }
 
-function outlookTaslagiAc({ aliciEposta, konu, htmlGovde, ekDosyaYolu }) {
+async function outlookTaslagiAc({ aliciEposta, konu, govde, htmlGovde, ekDosyaYolu }) {
   if (process.platform !== 'win32') {
     return {
       epostaHazirlandi: false,
@@ -249,97 +278,115 @@ function outlookTaslagiAc({ aliciEposta, konu, htmlGovde, ekDosyaYolu }) {
   try {
     fs.writeFileSync(tempFile, htmlGovde, 'utf-8');
   } catch {
-    return Promise.resolve({
+    return {
       epostaHazirlandi: false,
       epostaHatasi: 'Geçici mail dosyası oluşturulamadı.',
       epostaTaslakYontemi: null,
-    });
+    };
   }
 
-  const script = [
+  const runPowerShellScript = (scriptLines) => {
+    const scriptFile = path.join(os.tmpdir(), `meba-outlook-${Date.now()}-${Math.random().toString(36).slice(2)}.ps1`);
+
+    try {
+      fs.writeFileSync(scriptFile, '\uFEFF' + scriptLines.join('\r\n'), 'utf-8');
+    } catch {
+      return Promise.resolve({ ok: false, detail: 'Geçici PowerShell dosyası oluşturulamadı.' });
+    }
+
+    return new Promise((resolve) => {
+      const result = spawn('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', scriptFile], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      let stdoutOutput = '';
+      let stderrOutput = '';
+
+      if (result.stdout) result.stdout.on('data', (chunk) => { stdoutOutput += chunk.toString(); });
+      if (result.stderr) result.stderr.on('data', (chunk) => { stderrOutput += chunk.toString(); });
+
+      result.on('error', (err) => {
+        try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
+        resolve({ ok: false, detail: `PowerShell spawn hatası: ${err.message}` });
+      });
+
+      result.on('exit', (code) => {
+        try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
+        if (code === 0) {
+          resolve({ ok: true, detail: '' });
+          return;
+        }
+        const detail = `${stderrOutput}\n${stdoutOutput}`.trim().split('\n').slice(0, 3).join(' ').trim();
+        resolve({ ok: false, detail: detail || 'PowerShell komutu başarısız oldu.' });
+      });
+    });
+  };
+
+  const baseScriptLines = [
     "$ErrorActionPreference = 'Stop'",
-    // Adobe Acrobat "Share as a link" registry kaydını kapat (tüm sürümler)
-    "foreach ($ver in @('DC','2020','2017','11.0','10.0')) { $p = \"HKCU:\\Software\\Adobe\\Adobe Acrobat\\$ver\\Attachments\"; if (Test-Path $p) { Set-ItemProperty -Path $p -Name bShareAttachmentWithLink -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } }",
-    "foreach ($ver in @('DC','2020','2017','11.0','10.0')) { $p = \"HKLM:\\Software\\Policies\\Adobe\\Adobe Acrobat\\$ver\\FeatureLockDown\"; if (Test-Path $p) { Set-ItemProperty -Path $p -Name bShareAttachmentWithLink -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } }",
-    // $needsRestart bayrağı — bu bloktan sonra her iki koşul da yazılır
-    "$needsRestart = $false",
-    // Ek boyutu limitini kaldır (tek seferlik)
-    "$regPath = 'HKCU:\\Software\\Microsoft\\Office\\16.0\\Outlook\\Preferences'",
-    "if (Test-Path $regPath) { $cur = (Get-ItemProperty -Path $regPath -Name MaximumAttachmentSize -ErrorAction SilentlyContinue).MaximumAttachmentSize; if ($cur -ne 0) { Set-ItemProperty -Path $regPath -Name MaximumAttachmentSize -Value 0 -Type DWord -Force; $needsRestart = $true } } else { New-Item -Path $regPath -Force | Out-Null; Set-ItemProperty -Path $regPath -Name MaximumAttachmentSize -Value 0 -Type DWord -Force; $needsRestart = $true }",
-    // Adobe PDFMOutlook eklentisini devre dışı bırak — 'Send as Link' butonunu gizler (yeniden başlatma gerekir, tek seferlik)
-    "$addinPath = 'HKCU:\\Software\\Microsoft\\Office\\Outlook\\Addins\\PDFMOutlook.PDFMOutlook'; if (Test-Path $addinPath) { $curLB = (Get-ItemProperty -Path $addinPath -Name LoadBehavior -ErrorAction SilentlyContinue).LoadBehavior; if ($curLB -ne 2) { Set-ItemProperty -Path $addinPath -Name LoadBehavior -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue; $needsRestart = $true } }",
-    "$addinPath2 = 'HKLM:\\Software\\Microsoft\\Office\\Outlook\\Addins\\PDFMOutlook.PDFMOutlook'; if (Test-Path $addinPath2) { $curLB2 = (Get-ItemProperty -Path $addinPath2 -Name LoadBehavior -ErrorAction SilentlyContinue).LoadBehavior; if ($curLB2 -ne 2) { Set-ItemProperty -Path $addinPath2 -Name LoadBehavior -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue; $needsRestart = $true } }",
-    // Gerekiyorsa Outlook'u yeniden başlat (tek seferlik — sonraki açılışlarda bu blok atlanır)
-    "if ($needsRestart) { $proc = Get-Process OUTLOOK -ErrorAction SilentlyContinue; if ($proc) { $outlookExe = $proc.Path; Stop-Process -Name OUTLOOK -Force; Start-Sleep -Seconds 3; Start-Process $outlookExe; $waited = 0; while ($waited -lt 30) { Start-Sleep -Seconds 2; $waited += 2; try { $t = New-Object -ComObject Outlook.Application; $t = $null; break } catch { } } } }",
     '$outlook = New-Object -ComObject Outlook.Application',
     '$mail = $outlook.CreateItem(0)',
     `$mail.To = '${escapePowerShellLiteral(aliciEposta)}'`,
     `$mail.Subject = '${escapePowerShellLiteral(konu)}'`,
+  ];
+
+  const htmlAttempt = await runPowerShellScript([
+    ...baseScriptLines,
     `$mail.HTMLBody = [System.IO.File]::ReadAllText('${escapePowerShellLiteral(tempFile)}', [System.Text.Encoding]::UTF8)`,
     `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
     '$mail.Display()',
-    '$inspector = $mail.GetInspector; $inspector.WindowState = 0',
-    'Start-Sleep -Milliseconds 1200',
-    // AttachThreadInput ile foreground lock'u aşarak compose penceresini zorla öne getir
-    // $inspector.HWnd ile compose penceresinin HWND'ini doğrudan alıyoruz — EnumWindows'a gerek yok
-    'Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public class WinUtil { [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n); [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint t, uint f, bool a); [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId(); public static void Force(IntPtr hwnd) { IntPtr fg = GetForegroundWindow(); uint fgT; GetWindowThreadProcessId(fg, out fgT); uint myT = GetCurrentThreadId(); AttachThreadInput(myT, fgT, true); ShowWindow(hwnd, 9); BringWindowToTop(hwnd); SetForegroundWindow(hwnd); AttachThreadInput(myT, fgT, false); } }\'',
-    '[WinUtil]::Force([IntPtr]$inspector.HWnd)',
-    `Remove-Item '${escapePowerShellLiteral(tempFile)}' -Force -ErrorAction SilentlyContinue`,
-  ].join('\r\n');
+    'Start-Sleep -Milliseconds 350',
+    '$inspector = $mail.GetInspector',
+    'if ($null -eq $inspector) { throw "Outlook inspector açılamadı." }',
+  ]);
 
-  // Script'i ayrı bir geçici .ps1 dosyasına yaz (UTF-8 BOM ile, Türkçe yol sorununu önler)
-  const scriptFile = path.join(os.tmpdir(), `meba-outlook-${Date.now()}.ps1`);
-  try {
-    fs.writeFileSync(scriptFile, '\uFEFF' + script, 'utf-8');
-  } catch {
+  if (htmlAttempt.ok) {
     try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
-    return Promise.resolve({
-      epostaHazirlandi: false,
-      epostaHatasi: 'Geçici PowerShell dosyası oluşturulamadı.',
-      epostaTaslakYontemi: null,
-    });
+    return {
+      epostaHazirlandi: true,
+      epostaTaslakYontemi: 'outlook',
+    };
   }
 
-  const result = spawn('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', scriptFile], {
-    stdio: ['ignore', 'ignore', 'pipe'],
-  });
+  const plainAttempt = await runPowerShellScript([
+    ...baseScriptLines,
+    `$mail.Body = '${escapePowerShellLiteral(govde)}'`,
+    `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
+    '$mail.Display()',
+    'Start-Sleep -Milliseconds 350',
+    '$inspector = $mail.GetInspector',
+    'if ($null -eq $inspector) { throw "Outlook inspector açılamadı." }',
+  ]);
 
-  let stderrOutput = '';
-  if (result.stderr) {
-    result.stderr.on('data', (chunk) => { stderrOutput += chunk.toString(); });
+  try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+
+  if (plainAttempt.ok) {
+    return {
+      epostaHazirlandi: true,
+      epostaTaslakYontemi: 'outlook',
+      epostaHatasi: 'HTML gövde açılamadı; düz metin gövde ile Outlook taslağı hazırlandı.',
+    };
   }
 
-  return new Promise((resolve) => {
-    result.on('error', (err) => {
-      try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
-      try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
-      resolve({
-        epostaHazirlandi: false,
-        epostaHatasi: `Outlook gönder penceresi açılamadı. (spawn hatası: ${err.message})`,
-        epostaTaslakYontemi: null,
-      });
-    });
+  const rootDetail = [htmlAttempt.detail, plainAttempt.detail].filter(Boolean).join(' | ');
+  const fallbackOpened = mailtoTaslagiAc({ aliciEposta, konu, govde });
+  if (fallbackOpened) {
+    return {
+      epostaHazirlandi: true,
+      epostaHatasi: rootDetail
+        ? `Outlook açılamadı (${rootDetail}). Mailto taslağı açıldı; PDF ekini manuel ekleyin.`
+        : 'Outlook açılamadı. Mailto taslağı açıldı; PDF ekini manuel ekleyin.',
+      epostaTaslakYontemi: 'mailto',
+    };
+  }
 
-    result.on('exit', (code) => {
-      try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
-      if (code === 0) {
-        resolve({
-          epostaHazirlandi: true,
-          epostaTaslakYontemi: 'outlook',
-        });
-        return;
-      }
-      try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
-      const detay = stderrOutput.trim().split('\n').slice(0, 3).join(' ').trim();
-      resolve({
-        epostaHazirlandi: false,
-        epostaHatasi: detay
-          ? `Outlook gönder penceresi açılamadı: ${detay}`
-          : 'Outlook gönder penceresi açılamadı.',
-        epostaTaslakYontemi: null,
-      });
-    });
-  });
+  return {
+    epostaHazirlandi: false,
+    epostaHatasi: rootDetail
+      ? `Outlook gönder penceresi açılamadı: ${rootDetail}`
+      : 'Outlook gönder penceresi açılamadı.',
+    epostaTaslakYontemi: null,
+  };
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -366,6 +413,25 @@ function send(res, status, data) {
     'Content-Length': Buffer.byteLength(json, 'utf-8'),
   });
   res.end(json);
+}
+
+function emailTelemetryYaz(telemetry) {
+  const record = {
+    timestamp: new Date().toISOString(),
+    ...telemetry,
+  };
+
+  try {
+    fs.appendFileSync(EMAIL_TELEMETRY_LOG_PATH, JSON.stringify(record) + '\n', 'utf-8');
+  } catch {
+    // Telemetry yazimi işlevsel akışı bozmamalı.
+  }
+
+  try {
+    console.info('[EmailTelemetry]', JSON.stringify(record));
+  } catch {
+    // no-op
+  }
 }
 
 // ── Request router ────────────────────────────────────────────────────────────
@@ -450,6 +516,16 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+
+    // ── GET /api/health — lightweight health check ─────────────────────────
+    if (method === 'GET' && (url === '/api/health' || url.startsWith('/api/health?'))) {
+      return send(res, 200, {
+        ok: true,
+        service: 'meba-teklif-api',
+        timestamp: new Date().toISOString(),
+        uptimeSec: Math.floor(process.uptime()),
+      });
+    }
 
     // ── GET /api/init — fetch everything at once (used by frontend on startup) ──
     // Visibility filter teklifler üzerinde — /api/teklifler ile aynı kural.
@@ -617,6 +693,7 @@ const server = http.createServer(async (req, res) => {
           ? await outlookTaslagiAc({
             aliciEposta,
             konu: mailKonu,
+            govde: mailGovdesi,
             htmlGovde: mailHtmlGovdesi,
             ekDosyaYolu: tamYol,
           })
@@ -624,6 +701,19 @@ const server = http.createServer(async (req, res) => {
             epostaHazirlandi: false,
             epostaTaslakYontemi: null,
           };
+
+        if (hedef === 'email') {
+          emailTelemetryYaz({
+            hedef,
+            teklifId: teklif.id,
+            teklifNo: teklif.teklifNo || null,
+            aliciEposta: aliciEposta || null,
+            epostaHazirlandi: Boolean(epostaSonucu.epostaHazirlandi),
+            epostaTaslakYontemi: epostaSonucu.epostaTaslakYontemi || null,
+            epostaHatasi: epostaSonucu.epostaHatasi || null,
+            pdfYolu: tamYol,
+          });
+        }
 
         return send(res, 200, {
           teklif: teklifKaydi,
@@ -642,6 +732,19 @@ const server = http.createServer(async (req, res) => {
         });
       } catch (error) {
         const hataMesaji = error instanceof Error ? error.message : 'PDF kayit islemi tamamlanamadi.';
+
+        if (hedef === 'email') {
+          emailTelemetryYaz({
+            hedef,
+            teklifId: teklif?.id || null,
+            teklifNo: teklif?.teklifNo || null,
+            aliciEposta: normalizeWhitespace(teklif?.cari?.ePosta ?? '') || null,
+            epostaHazirlandi: false,
+            epostaTaslakYontemi: null,
+            epostaHatasi: hataMesaji,
+            pdfYolu: kaydedilenDosyaYolu || null,
+          });
+        }
 
         if (kaydedilenDosyaYolu && !teklifKaydiTamamlandi) {
           return send(res, 500, {

@@ -36,7 +36,7 @@ let store: Store = {
   cariler: [],
   urunler: [],
   referans: VARSAYILAN_REFERANS,
-  sayac: { yil: new Date().getFullYear(), deger: 0 },
+  sayac: { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
 };
 
 // ── One-time localStorage migration ──────────────────────────────────────────

@@ -52,6 +52,29 @@ import {
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
 
+const SATIR_GRUP_GORSEL: Record<NonNullable<Teklif['satirlar'][number]['grupRenk']>, { bg: string; border: string; pattern: string }> = {
+  amber: {
+    bg: '#f1f1f1',
+    border: '#9d9d9d',
+    pattern: 'none',
+  },
+  mint: {
+    bg: '#f7f7f7',
+    border: '#8e8e8e',
+    pattern: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.09) 0 2px, transparent 2px 6px)',
+  },
+  sky: {
+    bg: '#f7f7f7',
+    border: '#7f7f7f',
+    pattern: 'repeating-linear-gradient(-45deg, rgba(0,0,0,0.09) 0 2px, transparent 2px 6px)',
+  },
+  lavender: {
+    bg: '#f8f8f8',
+    border: '#707070',
+    pattern: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px)',
+  },
+};
+
 interface TeklifSablonuProps {
   teklif: Teklif;
   totals: TeklifToplam;
@@ -463,6 +486,19 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           </tr>
           {teklif.satirlar.map((satir, idx) => {
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
+            const grupGorsel = satir.grupRenk ? SATIR_GRUP_GORSEL[satir.grupRenk] : null;
+            const withGroupCellStyle = (style: React.CSSProperties): React.CSSProperties => {
+              if (!grupGorsel) return style;
+              return {
+                ...style,
+                backgroundColor: grupGorsel.bg,
+                backgroundImage: grupGorsel.pattern,
+                borderTopColor: grupGorsel.border,
+                borderBottomColor: grupGorsel.border,
+                borderLeftColor: grupGorsel.border,
+                borderRightColor: grupGorsel.border,
+              };
+            };
             return (
               <tr
                 key={satir.id}
@@ -477,7 +513,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 }}
               >
                 {/* No */}
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -485,11 +521,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   color: C.textMuted,
                   whiteSpace: 'nowrap',
                   ...rcCell('first', idx),
-                }}>
+                })}>
                   {String(idx + 1).padStart(2, '0')}
                 </td>
                 {/* Marka */}
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -497,11 +533,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   color: C.textMid,
                   whiteSpace: 'nowrap',
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   {satir.marka || '—'}
                 </td>
                 {/* Ürün Kodu — tek satır, içerik kadar geniş, kesilmez */}
-                <td className="product-code-cell" style={{
+                <td className="product-code-cell" style={withGroupCellStyle({
                   padding: CELL_PAD,
                   fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`,
                   fontWeight: 600,
@@ -510,22 +546,22 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   letterSpacing: '-0.1px',
                   ...URUN_KOD_OVERFLOW,
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   {satir.urunKod || '—'}
                 </td>
                 {/* Açıklama — kalan tüm alan; kesilmez, önce tek satır, sığmazsa 2 satır */}
-                <td className="description-cell" style={{
+                <td className="description-cell" style={withGroupCellStyle({
                   padding: CELL_PAD,
                   fontWeight: 400,
                   color: C.textMid,
                   verticalAlign: 'middle',
                   ...ACIKLAMA_OVERFLOW,
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
                 {/* Miktar */}
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11px',
@@ -533,7 +569,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
                       <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -545,7 +581,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     </div>
                   ) : '—'}
                 </td>
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -555,11 +591,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontWeight: 700,
                   letterSpacing: '0.03em',
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
                 {/* Birim Fiyat — nihai (bireysel iskonto uygulanmış) */}
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -568,14 +604,14 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   {(() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '—';
                   })()}
                 </td>
                 {/* Satır Toplam */}
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -585,11 +621,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx),
-                }}>
+                })}>
                   {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '—'}
                 </td>
                 {/* Teslimat */}
-                <td style={{
+                <td style={withGroupCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -598,7 +634,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
                   ...rcCell('last', idx),
-                }}>
+                })}>
                   {satir.teslimTarihi || '—'}
                 </td>
               </tr>

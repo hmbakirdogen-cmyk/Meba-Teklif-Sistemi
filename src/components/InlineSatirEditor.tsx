@@ -618,6 +618,8 @@ export function SatirAksiyonlariPanel({
         <div
           ref={panelRef}
           className="satir-aksiyonlari"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           style={{
             ...portalPanelStyle,
             top: pos.top,
@@ -637,6 +639,8 @@ export function SatirAksiyonlariPanel({
               step={1}
               onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
               onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             />
           </span>
           <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
@@ -661,6 +665,90 @@ export function SatirAksiyonlariPanel({
       >
         <DeleteOutlined style={{ fontSize: 10 }} />
       </span>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+interface IskontoRozetiProps {
+  rowId: string;
+  oran: number;
+}
+
+export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const update = () => {
+      const anchor = anchorRef.current;
+      if (!anchor) return;
+      let tr: HTMLElement | null = anchor.parentElement;
+      while (tr && tr.tagName !== 'TR') tr = tr.parentElement;
+      if (!tr) return;
+
+      const rect = tr.getBoundingClientRect();
+      const badgeW = badgeRef.current?.offsetWidth ?? 42;
+      const KUMANDA_GAP = 200;
+      const maxLeft = window.innerWidth - badgeW - KUMANDA_GAP;
+      let left = rect.right + 2;
+      if (left > maxLeft) left = Math.max(8, maxLeft);
+      const top = rect.top + rect.height / 2;
+      setPos({ top, left });
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    const anchor = anchorRef.current;
+    if (anchor) {
+      let tr: HTMLElement | null = anchor.parentElement;
+      while (tr && tr.tagName !== 'TR') tr = tr.parentElement;
+      if (tr) ro.observe(tr);
+    }
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [rowId, oran]);
+
+  const oranText = Number.isInteger(oran) ? String(oran) : oran.toFixed(2).replace(/\.00$/, '');
+
+  if (!pos) {
+    return <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />;
+  }
+
+  return (
+    <>
+      <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />
+      {createPortal(
+        <div
+          ref={badgeRef}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            transform: 'translateY(-50%)',
+            fontSize: '7.5px',
+            fontWeight: 700,
+            color: C.accent,
+            background: 'rgba(37,99,235,0.08)',
+            borderRadius: '3px',
+            padding: '1px 3px',
+            lineHeight: 1,
+            letterSpacing: '0.02em',
+            pointerEvents: 'none',
+            zIndex: 9998,
+            whiteSpace: 'nowrap',
+          }}
+          aria-hidden="true"
+        >
+          -{oranText}%
         </div>,
         document.body,
       )}

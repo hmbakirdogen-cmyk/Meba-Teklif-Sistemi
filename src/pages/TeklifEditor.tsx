@@ -14,7 +14,7 @@ import { App } from 'antd';
 import { useKullanici } from '../context/useKullanici';
 import { useColors } from '../hooks/useColors';
 import { useBelgeState, type PanelModu } from '../hooks/useBelgeState';
-import { buildPdf } from '../services/pdfService';
+import { buildPdf, buildEmailPdf, buildPrintImages } from '../services/pdfService';
 import { teklifService } from '../services/teklifService';
 import {
   teklifDisaAktar,
@@ -29,7 +29,7 @@ import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
 import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
-import type { Teklif } from '../types';
+import type { Teklif, SatirGrupRenk } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 
 function waitForNextPaint(): Promise<void> {
@@ -52,20 +52,36 @@ export default function TeklifEditor() {
 
   // Inline düzenleme state — popover yerine
   const [editingAlan, setEditingAlan] = useState<EditingAlan>(null);
+  const [grupModuAktif, setGrupModuAktif] = useState(false);
+  const [seciliGrupRenk, setSeciliGrupRenk] = useState<SatirGrupRenk>('amber');
 
   // Kilitli / Düzenleme modu — global tek state, URL'ye göre başlangıç:
   //   • Yeni teklif (id yok)   → editMode = true  (kilitli=false) → direkt yazmaya başla
   //   • Mevcut teklif (id var) → editMode = false (kilitli=true)  → güvenli görüntüleme
   const [modeKilitli, setModeKilitli] = useState<boolean>(() => Boolean(id));
-  const handleModeKilitliDegistir = useCallback((v: boolean) => {
-    setModeKilitli(v);
-    if (v) setEditingAlan(null);
-  }, []);
 
   const state = useBelgeState(
     id,
     aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan } : null,
   );
+
+  const stateCari = state.cari;
+  const stateSatirSayisi = state.satirlar.length;
+  const kaydetWithStatus = state.kaydetWithStatus;
+
+  const persistStatusByMode = useCallback(async (kilitli: boolean) => {
+    if (!stateCari || stateSatirSayisi === 0) return;
+    await kaydetWithStatus(kilitli ? 'kaydedildi' : 'taslak');
+  }, [kaydetWithStatus, stateCari, stateSatirSayisi]);
+
+  const handleModeKilitliDegistir = useCallback((v: boolean) => {
+    setModeKilitli(v);
+    if (v) {
+      setGrupModuAktif(false);
+      setEditingAlan(null);
+      void persistStatusByMode(true);
+    }
+  }, [persistStatusByMode]);
 
   // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve müşteri alanını aç (muhatap odak)
   const yeniTeklif = !id;
@@ -204,6 +220,11 @@ export default function TeklifEditor() {
       return;
     }
 
+    if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'mailto') {
+      message.warning('Teklif arşive işlendi ve mailto taslağı açıldı. PDF ekini manuel ekleyiniz.');
+      return;
+    }
+
     message.warning(
       sonuc.epostaHatasi
         ? `Teklif arşive işlendi, ancak e-posta göndericisi açılamadı. ${sonuc.epostaHatasi}`
@@ -240,7 +261,9 @@ export default function TeklifEditor() {
     try {
       await waitForNextPaint();
       // 2) PDF oluştur
-      const { pdf, pageImages } = await buildPdf(sablonRef.current);
+      const { pdf, pageImages } = hedef === 'email'
+        ? await buildEmailPdf(sablonRef.current)
+        : await buildPdf(sablonRef.current);
       printImagesRef.current = pageImages;
       const blob = pdf.output('blob');
       state.setPdfBlob(blob);
@@ -286,17 +309,14 @@ export default function TeklifEditor() {
     state.setUretiliyor(true);
 
     try {
-      let images = printImagesRef.current;
-      if (images.length === 0) {
-        const { pageImages } = await buildPdf(sablonRef.current);
-        images = pageImages;
-        printImagesRef.current = images;
-      }
+      await waitForNextPaint();
+      const images = await buildPrintImages(sablonRef.current);
+      printImagesRef.current = images;
 
       if (images.length === 0) { message.error('Yazdırma verisi oluşturulamadı.'); return; }
 
       const htmlContent = images.map(
-        (src) => `<div style="page-break-after:always;margin:0;padding:0;line-height:0;font-size:0;"><img src="${src}" style="width:210mm;height:297mm;display:block;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;" /></div>`,
+        (src) => `<div style="page-break-after:always;margin:0;padding:0;line-height:0;font-size:0;"><img src="${src}" style="width:210mm;height:297mm;display:block;image-rendering:auto;" /></div>`,
       ).join('');
 
       const iframe = document.createElement('iframe');
@@ -310,7 +330,7 @@ export default function TeklifEditor() {
       doc.write(`<!DOCTYPE html><html><head><title>Print</title><style>
         @page { size: A4 portrait; margin: 0; }
         html, body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
-        img { display: block; width: 210mm; height: 297mm; max-width: none; max-height: none; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; }
+        img { display: block; width: 210mm; height: 297mm; max-width: none; max-height: none; image-rendering: auto; }
         div { page-break-inside: avoid; }
       </style></head><body>${htmlContent}</body></html>`);
       doc.close();
@@ -332,9 +352,23 @@ export default function TeklifEditor() {
     }
   }, [teklifObj, state, message]);
 
-  const handleGeriDon = useCallback(() => {
+  const handleGeriDon = useCallback(async () => {
+    await persistStatusByMode(modeKilitli);
     navigate('/teklifler');
-  }, [navigate]);
+  }, [modeKilitli, navigate, persistStatusByMode]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Edit modunda sayfadan çıkış: taslak, kilitli modda çıkış: kaydedildi.
+      void persistStatusByMode(modeKilitli);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      void persistStatusByMode(modeKilitli);
+    };
+  }, [modeKilitli, persistStatusByMode]);
 
   // ── Resim ekleme ──
   // Default fallback: x %60, y %60 (sağ-alt). Doğal boyut yüklenince
@@ -422,6 +456,7 @@ export default function TeklifEditor() {
               editingAlan={editingAlan}
               onEditingAlanDegistir={setEditingAlan}
               onCariDegistir={state.setCari}
+              onCariEPostaDegistir={state.setCariEPosta}
               contactName={state.contactName}
               contactTitle={state.contactTitle}
               onContactNameDegistir={state.setContactName}
@@ -430,6 +465,8 @@ export default function TeklifEditor() {
               onParaBirimiDegistir={state.setParaBirimi}
               satirBazliParaBirimi={state.satirBazliParaBirimi}
               satirBazliIskonto={state.satirBazliIskonto}
+              grupModuAktif={grupModuAktif}
+              seciliGrupRenk={seciliGrupRenk}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onSatirGuncelle={state.satirGuncelle}
@@ -500,6 +537,10 @@ export default function TeklifEditor() {
           onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
           satirBazliIskonto={state.satirBazliIskonto}
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
+          grupModuAktif={grupModuAktif}
+          onGrupModuDegistir={setGrupModuAktif}
+          grupRenk={seciliGrupRenk}
+          onGrupRenkDegistir={setSeciliGrupRenk}
           sagPanelOpen={state.panelModu !== null}
           onResimEkle={handleResimEkle}
           visibility={state.visibility}

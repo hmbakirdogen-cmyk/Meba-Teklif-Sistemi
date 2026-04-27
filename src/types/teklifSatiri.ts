@@ -1,3 +1,5 @@
+export type SatirGrupRenk = 'amber' | 'mint' | 'sky' | 'lavender';
+
 export interface TeklifSatiri {
   id: string;
   marka: string;
@@ -14,6 +16,8 @@ export interface TeklifSatiri {
   manuelAltAciklama?: string;
   manuelAciklamaGuncelleyen?: string;
   manuelAciklamaGuncellemeTarihi?: string;
+  /** Satırın ait olduğu görsel grup rengi (opsiyonel). */
+  grupRenk?: SatirGrupRenk;
   /** Personel tarafından elle ayarlanmış satır yüksekliği (document-px).
    *  Tanımsızsa otomatik / standart yükseklik geçerli. */
   rowHeight?: number;

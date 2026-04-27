@@ -6,7 +6,7 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { calculateTeklifPagination, type TeklifPaginationResult } from '../services/documentPagination';
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import { ImageOverlayLayer } from './ImageOverlayLayer';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi, ImageItem } from '../types';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi, ImageItem, SatirGrupRenk } from '../types';
 
 const A4_W_PX = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
 const A4_H_PX = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
@@ -16,6 +16,7 @@ interface CanliA4BelgeProps {
   editingAlan: EditingAlan;
   onEditingAlanDegistir: (alan: EditingAlan) => void;
   onCariDegistir: (cari: Cari) => void;
+  onCariEPostaDegistir: (email: string) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
@@ -24,6 +25,8 @@ interface CanliA4BelgeProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
+  grupModuAktif: boolean;
+  seciliGrupRenk: SatirGrupRenk;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
@@ -59,6 +62,7 @@ export default function CanliA4Belge({
   editingAlan,
   onEditingAlanDegistir,
   onCariDegistir,
+  onCariEPostaDegistir,
   contactName,
   contactTitle,
   onContactNameDegistir,
@@ -67,6 +71,8 @@ export default function CanliA4Belge({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   satirBazliIskonto,
+  grupModuAktif,
+  seciliGrupRenk,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
@@ -236,6 +242,7 @@ export default function CanliA4Belge({
             editingAlan={editingAlan}
             onEditingAlanDegistir={onEditingAlanDegistir}
             onCariDegistir={onCariDegistir}
+            onCariEPostaDegistir={onCariEPostaDegistir}
             contactName={contactName}
             contactTitle={contactTitle}
             onContactNameDegistir={onContactNameDegistir}
@@ -244,6 +251,8 @@ export default function CanliA4Belge({
             onParaBirimiDegistir={onParaBirimiDegistir}
             satirBazliParaBirimi={satirBazliParaBirimi}
             satirBazliIskonto={satirBazliIskonto}
+            grupModuAktif={grupModuAktif}
+            seciliGrupRenk={seciliGrupRenk}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
             onSatirGuncelle={onSatirGuncelle}
