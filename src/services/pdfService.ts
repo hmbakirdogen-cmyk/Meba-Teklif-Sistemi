@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 export const HTML2CANVAS_OPTIONS = {
-  scale: 2,
+  scale: 3.5,
   useCORS: true,
   logging: false,
   backgroundColor: '#ffffff',
