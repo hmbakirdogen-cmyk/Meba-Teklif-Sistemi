@@ -242,6 +242,29 @@ export default function KumandaPaneli({
           will-change: transform, box-shadow, backdrop-filter;
         }
 
+        /* ── Kilit kapalıyken (readOnly): tüm tuşlar pasif ──
+           Lock butonu HARİÇ — onun disabled prop'u verilmediği için her zaman
+           tıklanabilir. Native :disabled tıklamayı tamamen engeller; CSS ile
+           soluk + cursor not-allowed feedback. */
+        .control-panel button:disabled {
+          opacity: 0.32;
+          cursor: not-allowed;
+          filter: grayscale(0.4);
+          pointer-events: none;
+        }
+        .control-panel button:disabled:hover,
+        .control-panel button:disabled:active {
+          transform: none;
+          background: inherit;
+          box-shadow: none;
+          backdrop-filter: blur(0px);
+          -webkit-backdrop-filter: blur(0px);
+        }
+        .control-panel input.kp-rate:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
         /* Default karakter — .control-panel'e konuldu (en düşük specificity).
            Per-buton class'lar (.button-tax vb.) bunu rahatça override eder. */
         .control-panel {
@@ -918,6 +941,7 @@ export default function KumandaPaneli({
             type="button"
             className="image-add button-image"
             onClick={onResimSec}
+            disabled={readOnly}
             title="Resim Ekle"
             aria-label="Resim Ekle"
           >
@@ -944,6 +968,7 @@ export default function KumandaPaneli({
               icon={<PremiumRowDiscountIcon />}
               on={satirBazliIskonto}
               onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
+              disabled={readOnly}
             />
             <SquareToggle
               labelLines={[]}
@@ -952,6 +977,7 @@ export default function KumandaPaneli({
               icon={<PremiumRowCurrencyIcon />}
               on={satirBazliParaBirimi}
               onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
+              disabled={readOnly}
             />
           </div>
         </section>
@@ -966,6 +992,7 @@ export default function KumandaPaneli({
               icon={<PremiumKdvIcon />}
               on={kdvOn}
               onClick={toggleKdv}
+              disabled={readOnly}
             />
             <SquareToggle
               labelLines={[]}
@@ -974,6 +1001,7 @@ export default function KumandaPaneli({
               icon={<PremiumDiscountIcon />}
               on={iskOn}
               onClick={toggleIsk}
+              disabled={readOnly}
             />
           </div>
 
@@ -984,6 +1012,7 @@ export default function KumandaPaneli({
                 <input
                   type="number"
                   className="kp-rate panel-rate__input"
+                  disabled={readOnly}
                   min={0.5}
                   max={100}
                   step={0.5}
@@ -1018,6 +1047,7 @@ export default function KumandaPaneli({
               onClick={() =>
                 onVisibilityDegistir(visibility === 'team' ? 'private' : 'team')
               }
+              disabled={readOnly}
             />
           </div>
         </section>
@@ -1033,6 +1063,7 @@ function SquareToggle({
   on,
   onClick,
   extraClass,
+  disabled,
 }: {
   labelLines: readonly string[];
   ariaLabel: string;
@@ -1040,6 +1071,7 @@ function SquareToggle({
   on: boolean;
   onClick: () => void;
   extraClass?: string;
+  disabled?: boolean;
 }) {
   const cls = `square-btn${on ? ' is-active' : ''}${extraClass ? ' ' + extraClass : ''}`;
   return (
@@ -1047,6 +1079,7 @@ function SquareToggle({
       type="button"
       className={cls}
       onClick={onClick}
+      disabled={disabled}
       title={ariaLabel}
       aria-label={ariaLabel}
       aria-pressed={on}
