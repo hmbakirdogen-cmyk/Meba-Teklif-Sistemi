@@ -789,6 +789,29 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   MIKTAR EDITOR — flex layout: InputNumber 58% + Unit Select kalan
+   Genel .inline-table-field { width: 100% !important } kuralı flex-basis
+   58%'i eziyor → InputNumber tüm satırı kaplıyor, birim "Ad." → "A"
+   kırpılıyor. Miktar scope'unda width override + unit-wrap min-width. */
+.belge-inline .miktar-edit-wrap > .inline-table-field.miktar-edit-input {
+  width: 58% !important;
+  flex: 0 0 58% !important;
+}
+.belge-inline .miktar-edit-wrap > .miktar-edit-unit-wrap {
+  flex: 1 1 auto !important;
+  min-width: 28px !important;
+  overflow: visible !important;
+}
+.belge-inline .miktar-edit-wrap .inline-table-field.miktar-edit-unit {
+  width: 100% !important;
+  min-width: 24px !important;
+  overflow: visible !important;
+}
+.belge-inline .miktar-edit-wrap .miktar-edit-unit .ant-select-content {
+  overflow: visible !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    CHECKBOX
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline input[type="checkbox"] {

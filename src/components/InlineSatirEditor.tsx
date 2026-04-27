@@ -271,9 +271,10 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 
 function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   return (
-    <div style={ROW_SHELL.quantityWrap}>
+    <div className="miktar-edit-wrap" style={ROW_SHELL.quantityWrap}>
       <InlineTableNumberField
         autoFocus={autoFocus}
+        className="miktar-edit-input"
         style={ROW_SHELL.quantityInputStyle}
         value={satir.miktar}
         min={0}
@@ -286,8 +287,9 @@ function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorP
           }
         }}
       />
-      <div style={ROW_SHELL.quantityUnitWrap}>
+      <div className="miktar-edit-unit-wrap" style={ROW_SHELL.quantityUnitWrap}>
         <InlineTableSelectField
+          className="miktar-edit-unit"
           value={satir.birim || 'Adet'}
           onChange={(value) => onGuncelle('birim', value)}
           options={UNIT_OPTIONS as unknown as { label: string; value: string }[]}
