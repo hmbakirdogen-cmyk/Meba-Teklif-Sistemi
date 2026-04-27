@@ -601,7 +601,38 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
 
 export default function TeklifPagedDocument({ teklif, totals, pages, renderPageOverlay }: TeklifPagedDocumentProps) {
   return (
-    <div>
+    <div style={{
+      WebkitPrintColorAdjust: 'exact',
+      printColorAdjust: 'exact',
+      colorAdjust: 'exact',
+    } as React.CSSProperties}>
+      <style>{`
+        @media print {
+          body, html {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+          [data-pdf-page] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            background: #fff !important;
+            page-break-after: always;
+          }
+          [data-pdf-page] * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          img {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            max-width: none !important;
+            max-height: none !important;
+          }
+        }
+      `}</style>
       {pages.map((page, idx) => (
         <div
           key={page.pageNumber}

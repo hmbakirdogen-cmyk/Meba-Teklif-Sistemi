@@ -161,8 +161,39 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       id="teklif-sablon"
       style={{
         ...DOCUMENT_ROOT_STYLE,
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact',
+        colorAdjust: 'exact',
       } as React.CSSProperties}
     >
+      <style>{`
+        @media print {
+          body, html {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+          #teklif-sablon {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #teklif-sablon * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          img {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            max-width: none !important;
+            max-height: none !important;
+          }
+        }
+      `}</style>
 
       {/* İçerik alanı — flex: 1 ile footer'ı en alta iter */}
       <div style={{ flex: 1 }}>
