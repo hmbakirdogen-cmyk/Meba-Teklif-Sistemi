@@ -3,7 +3,8 @@
  * Kalem satırı hücre-bazlı inline düzenleme bileşenleri.
  * Tüm satır tek seferde edit moduna geçmez; sadece aktif hücre editöre döner.
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Input } from 'antd';
 import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi } from '../types';
@@ -274,23 +275,21 @@ function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
   );
 }
 
-const floatingPanelStyle: React.CSSProperties = {
-  // Satırın aynı hizasında — Teslimat hücresinin sağ kenarına yapışır.
-  // Compact (height ≈ row height) — A4 sayfasından taşmaz.
-  position: 'absolute',
-  right: 2,
-  top: '50%',
-  transform: 'translateY(-50%)',
-  zIndex: 50,
+// Panel base style (portal ile document.body'ye basılır, fixed pozisyon
+// JS hesabıyla viewport içinde clamp edilir). Satırın TR'sinin SAĞINDA
+// dikey merkez hizada belirir; sayfa kenarına çıkıp kırpılmaz.
+const portalPanelStyle: React.CSSProperties = {
+  position: 'fixed',
+  zIndex: 9999,
   display: 'flex',
   alignItems: 'center',
   gap: '2px',
   padding: '2px 3px',
-  height: 20,
-  background: 'rgba(250,250,248,0.92)',
+  height: 22,
+  background: 'rgba(250,250,248,0.96)',
   border: `0.75px solid ${C.borderSoft}`,
   borderRadius: '5px',
-  boxShadow: '0 2px 6px rgba(26,43,66,0.10)',
+  boxShadow: '0 4px 12px rgba(26,43,66,0.16), 0 0 0 1px rgba(26,43,66,0.05)',
   whiteSpace: 'nowrap',
   backdropFilter: 'blur(10px)',
 };
@@ -324,9 +323,75 @@ export function SatirAksiyonlariPanel({
   onGuncelle,
   onSil,
 }: ActionPanelProps) {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Anchor span'inden TR'yi bul, TR'nin viewport rect'ine göre panel'i
+  // sağına yerleştir; viewport'a göre clamp et (kumanda paneli ~180px sağda).
+  useLayoutEffect(() => {
+    const update = () => {
+      const anchor = anchorRef.current;
+      if (!anchor) return;
+      let tr: HTMLElement | null = anchor.parentElement;
+      while (tr && tr.tagName !== 'TR') tr = tr.parentElement;
+      if (!tr) return;
+      const rect = tr.getBoundingClientRect();
+      const panelW = panelRef.current?.offsetWidth ?? 80;
+      const KUMANDA_GAP = 200; // viewport sağındaki kumanda paneli için pay
+      const maxLeft = window.innerWidth - panelW - KUMANDA_GAP;
+      let left = rect.right + 8;
+      if (left > maxLeft) left = Math.max(8, maxLeft);
+      const top = rect.top + rect.height / 2;
+      setPos({ top, left });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    const anchor = anchorRef.current;
+    if (anchor) {
+      let tr: HTMLElement | null = anchor.parentElement;
+      while (tr && tr.tagName !== 'TR') tr = tr.parentElement;
+      if (tr) ro.observe(tr);
+    }
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [satir.id]);
+
+  // Panel ölçüldüğünde re-position (ilk render'da panelW=80 fallback)
+  useEffect(() => {
+    if (!panelRef.current || !pos) return;
+    const real = panelRef.current.offsetWidth;
+    const KUMANDA_GAP = 200;
+    const maxLeft = window.innerWidth - real - KUMANDA_GAP;
+    if (pos.left > maxLeft && maxLeft > 8) {
+      setPos((p) => (p ? { ...p, left: Math.max(8, maxLeft) } : p));
+    }
+  }, [pos, satirBazliIskonto]);
+
+  if (!pos) {
+    return <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />;
+  }
+
   return (
-    <div className="satir-aksiyonlari" style={floatingPanelStyle}>
-      {satirBazliIskonto && (
+    <>
+      <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />
+      {createPortal(
+        <div
+          ref={panelRef}
+          className="satir-aksiyonlari"
+          style={{
+            ...portalPanelStyle,
+            top: pos.top,
+            left: pos.left,
+            transform: 'translateY(-50%)',
+          }}
+        >
+          {satirBazliIskonto && (
         <>
           <span style={{ ...actionBtnStyle, color: C.textMid }}>
             <PercentageOutlined style={{ fontSize: 9 }} />
@@ -362,6 +427,9 @@ export function SatirAksiyonlariPanel({
       >
         <DeleteOutlined style={{ fontSize: 10 }} />
       </span>
-    </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
