@@ -177,6 +177,10 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
       }}
       onBlur={handleBlur}
       options={options}
+      // Input alaninda sadece kod (value) gorunur — dropdown'da rich label
+      // (kod — aciklama) korunur. Bu olmayinca AutoComplete eslesen option'in
+      // label'ini input'a basar ve hucre "X — uzun aciklama" seklinde tasar.
+      optionLabelProp="value"
       filterOption={(input, option) => {
         const q = input.toLowerCase();
         return (
