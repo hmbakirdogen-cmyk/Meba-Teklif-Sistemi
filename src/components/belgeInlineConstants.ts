@@ -823,6 +823,20 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   PRODUCT CODE CELL — edit mode'da text mode ile birebir aynı görünüm
+   AntD AutoComplete iç katmanlarında font: inherit zinciri (rule 1, rule 4,
+   rule 7, rule 9, rule 11 hepsi farklı yerden ezme yapıyor) → final
+   garantici override. Wrapper + tüm iç elemanlar 10.5px / 600 / accent.
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline tr[data-satir-id] > td.product-code-cell.is-active-cell .inline-table-field,
+.belge-inline tr[data-satir-id] > td.product-code-cell.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  color: #1E3A5F !important;
+  letter-spacing: -0.1px !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    CHECKBOX
    ══════════════════════════════════════════════════════════════════════ */
 .belge-inline input[type="checkbox"] {
