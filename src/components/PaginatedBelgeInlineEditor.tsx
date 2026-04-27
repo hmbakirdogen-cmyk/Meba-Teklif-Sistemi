@@ -576,11 +576,21 @@ export default function PaginatedBelgeInlineEditor({
 
               const isLastRow = idx === teklif.satirlar.length - 1;
               const isFirstRow = idx === 0;
-              // Aktif satirin alt komsusu hover edildiginde de gosterilsin diye
-              // hem mevcut hem de bir onceki satirin id'si CSS hedefi olabilir.
+              // Indicator zone: 0-yukseklik tr; tek bir buton + ince HIT AREA
+              // satir sinirinde ortalanir. Satir hover'i ile tetiklenmez →
+              // ayni anda iki buton gorunmesi (ust + alt) imkansiz; yalniz
+              // imlec tam sinira yakinken o tek buton parlar.
               const renderInsertButton = (afterIndex: number, key: string) => (
                 <tr key={key} className="satir-araya-ekle-zone" style={{ height: 0 }}>
                   <td colSpan={colCount} style={{ padding: 0, border: 'none', position: 'relative', height: 0, overflow: 'visible' }}>
+                    <div
+                      className="satir-araya-ekle-hit"
+                      onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirArayaEkle(afterIndex); }}
+                      style={{
+                        position: 'absolute', left: 0, right: 0, top: -7, height: 14,
+                        cursor: readOnly ? 'default' : 'pointer', zIndex: 44,
+                      }}
+                    />
                     <div
                       className="satir-araya-ekle-btn"
                       onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirArayaEkle(afterIndex); }}
@@ -941,10 +951,11 @@ export default function PaginatedBelgeInlineEditor({
         .belge-inline-table-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) { background: rgba(237, 242, 251, 0.9); }
         .belge-inline-table-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) { background: rgba(226, 232, 240, 0.94); color: ${C.navy}; }
         .satir-araya-ekle-zone { pointer-events: none; }
-        .satir-araya-ekle-zone:hover { pointer-events: auto; }
-        .satir-araya-ekle-zone:hover .satir-araya-ekle-btn,
-        tr[data-satir-id]:hover + .satir-araya-ekle-zone .satir-araya-ekle-btn,
-        .satir-araya-ekle-zone:has(+ tr[data-satir-id]:hover) .satir-araya-ekle-btn { opacity: 1 !important; pointer-events: auto !important; }
+        /* HIT AREA: ince serit (14px) tam satir sinirinda. Sadece bu seride
+           imlec varken buton parlar. Satir gövdesine hover etmek tetiklemez
+           → asla iki buton ayni anda gorunmez. */
+        .satir-araya-ekle-hit:hover ~ .satir-araya-ekle-btn,
+        .satir-araya-ekle-btn:hover { opacity: 1 !important; pointer-events: auto !important; }
       `}</style>
 
       {pages.map((page, pageIdx) => (
