@@ -836,10 +836,16 @@ export const FIELD_CSS = `
   letter-spacing: -0.1px !important;
 }
 
-/* AutoComplete edit modunda hem display layer (.ant-select-content-value /
-   -content-item / -selection-item) hem .ant-select-input ayni text'i ust
-   uste basiyor → "kalin/cift" gorunum. Active cell'de tum display layer
-   varyantlari gizlenir; sadece input gorunur. */
+/* "Hayalet text" fix: AutoComplete active cell'de span/div seklindeki TUM
+   text node'lar gizlenir. Sadece input/textarea text rendering yapar.
+   AntD'nin display layer class isimleri (content-value/-item/-selection-
+   item/-content-search/etc.) versiyon arasi degisken — span:not(input)
+   universal selector ile hepsini yakala. */
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-select span,
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-select-auto-complete span {
+  color: transparent !important;
+  text-shadow: none !important;
+}
 .belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content-value,
 .belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content-item,
 .belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-selection-item {
