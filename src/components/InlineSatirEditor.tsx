@@ -12,7 +12,6 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
 import {
-  InlineTableAutocompleteField,
   InlineTableNumberField,
   InlineTableSelectField,
 } from './InlineTableFields';
@@ -105,17 +104,50 @@ function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorPr
 function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   const { modal } = App.useApp();
   const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
-  const options = useMemo(
-    () => urunler.map((u) => ({ value: u.urunKod, label: `${u.urunKod} — ${u.aciklama}` })),
-    [urunler],
-  );
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   // Mount anındaki kod — onaylanmamış değişikliği tespit için baseline
   const initialKodRef = useRef(satir.urunKod);
-  // Dropdown'dan seçimle gelen değer DB'de zaten var → confirm sorma
+  // Suggestion'dan seçimle gelen değer DB'de zaten var → confirm sorma
   const justSelectedRef = useRef(false);
-  // Sadece ILK odaklanmada hepsini sec; sonraki re-focus'lar (dropdown
-  // close vb.) kullanicinin imlec konumunu bozmasin.
   const didInitialSelectRef = useRef(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(0);
+  const [panelPos, setPanelPos] = useState<{ left: number; top: number } | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = (satir.urunKod ?? '').trim().toLowerCase();
+    if (!q) return urunler.slice(0, 50);
+    return urunler
+      .filter((u) =>
+        u.urunKod.toLowerCase().includes(q) ||
+        (u.aciklama ?? '').toLowerCase().includes(q),
+      )
+      .slice(0, 50);
+  }, [urunler, satir.urunKod]);
+
+  // Suggestion paneli pozisyonu — input altinda, viewport icinde
+  useLayoutEffect(() => {
+    if (!showSuggestions) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPanelPos({ left: r.left, top: r.bottom + 2 });
+  }, [showSuggestions, satir.urunKod, filtered.length]);
+
+  // Dropdown disinda click → kapat
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      const panel = document.getElementById('urunkod-suggest-panel');
+      if (panel?.contains(target)) return;
+      setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showSuggestions]);
 
   const handleSelect = (kod: string) => {
     justSelectedRef.current = true;
@@ -126,81 +158,139 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
       if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
       if (urun.birim) onGuncelle('birim', urun.birim);
     }
+    setShowSuggestions(false);
     onEnterNext?.();
   };
 
   const handleBlur = () => {
-    // Dropdown'dan seçildiyse hiçbir şey sorma
-    if (justSelectedRef.current) {
-      justSelectedRef.current = false;
-      return;
-    }
-    const yeni = satir.urunKod?.trim();
-    if (!yeni) return;
-    if (yeni === initialKodRef.current?.trim()) return; // değişiklik yok
-    // Mevcut urunler listesinde var mı (case-insensitive)
-    const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
-    if (exists) return; // zaten DB'de
-    // Yeni kod — kullanıcıya sor
-    modal.confirm({
-      title: 'Yeni Ürün Kaydı',
-      content: `"${yeni}" kodu veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi?`,
-      okText: 'Kaydet',
-      cancelText: 'İptal',
-      onOk: () => {
-        const yeniUrun: Urun = {
-          id: urunService.urunIdUret(),
-          urunKod: yeni,
-          urunAdi: yeni,
-          aciklama: satir.aciklama ?? '',
-          kategori: '',
-          birim: satir.birim || 'Adet',
-          varsayilanFiyat: satir.birimFiyat || 0,
-        };
-        urunService.urunKaydet(yeniUrun);
-        initialKodRef.current = yeni; // tekrar sormasın
-      },
-    });
+    // setTimeout: panel item'a click olabilir; blur once tetiklenirse
+    // suggestion seçimi kaybolur. Kucuk bir gecikme ile sectiyse handle.
+    setTimeout(() => {
+      if (justSelectedRef.current) {
+        justSelectedRef.current = false;
+        return;
+      }
+      const yeni = satir.urunKod?.trim();
+      if (!yeni) return;
+      if (yeni === initialKodRef.current?.trim()) return;
+      const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
+      if (exists) return;
+      modal.confirm({
+        title: 'Yeni Ürün Kaydı',
+        content: `"${yeni}" kodu veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi?`,
+        okText: 'Kaydet',
+        cancelText: 'İptal',
+        onOk: () => {
+          const yeniUrun: Urun = {
+            id: urunService.urunIdUret(),
+            urunKod: yeni,
+            urunAdi: yeni,
+            aciklama: satir.aciklama ?? '',
+            kategori: '',
+            birim: satir.birim || 'Adet',
+            varsayilanFiyat: satir.birimFiyat || 0,
+          };
+          urunService.urunKaydet(yeniUrun);
+          initialKodRef.current = yeni;
+        },
+      });
+    }, 150);
   };
 
   return (
-    <InlineTableAutocompleteField
-      autoFocus={autoFocus}
-      style={ROW_TEXT.code}
-      value={satir.urunKod}
-      onChange={(value) => onGuncelle('urunKod', value)}
-      onSelect={(value) => handleSelect(String(value))}
-      onFocus={(e) => {
-        if (didInitialSelectRef.current) return;
-        didInitialSelectRef.current = true;
-        (e.target as HTMLInputElement).select?.();
-      }}
-      onBlur={handleBlur}
-      options={options}
-      // Input alaninda sadece kod (value) gorunur — dropdown'da rich label
-      // (kod — aciklama) korunur. Bu olmayinca AutoComplete eslesen option'in
-      // label'ini input'a basar ve hucre "X — uzun aciklama" seklinde tasar.
-      optionLabelProp="value"
-      filterOption={(input, option) => {
-        const q = input.toLowerCase();
-        return (
-          (option?.value?.toString().toLowerCase().includes(q) ||
-            option?.label?.toString().toLowerCase().includes(q)) ?? false
-        );
-      }}
-      placeholder="Ürün kodu"
-      popupMatchSelectWidth={false}
-      dropdownStyle={{ minWidth: 300 }}
-      onKeyDown={(e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-          const dropdown = document.querySelector('.ant-select-dropdown:not([style*="display: none"])');
-          if (!dropdown) {
-            e.preventDefault();
-            onEnterNext?.();
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <Input
+        ref={inputRef}
+        autoFocus={autoFocus}
+        className="inline-table-field"
+        variant="borderless"
+        size="small"
+        style={ROW_TEXT.code}
+        value={satir.urunKod}
+        onChange={(e) => {
+          onGuncelle('urunKod', e.target.value);
+          setShowSuggestions(true);
+          setHighlightIdx(0);
+        }}
+        onFocus={(e) => {
+          setShowSuggestions(true);
+          if (didInitialSelectRef.current) return;
+          didInitialSelectRef.current = true;
+          (e.target as HTMLInputElement).select?.();
+        }}
+        onBlur={handleBlur}
+        placeholder="Ürün kodu"
+        onKeyDown={(e) => {
+          if (!showSuggestions || filtered.length === 0) {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onEnterNext?.();
+            }
+            return;
           }
-        }
-      }}
-    />
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setHighlightIdx((i) => Math.min(i + 1, filtered.length - 1));
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightIdx((i) => Math.max(i - 1, 0));
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const sel = filtered[highlightIdx];
+            if (sel) handleSelect(sel.urunKod);
+            else onEnterNext?.();
+          } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+          }
+        }}
+      />
+      {showSuggestions && filtered.length > 0 && panelPos &&
+        createPortal(
+          <div
+            id="urunkod-suggest-panel"
+            style={{
+              position: 'fixed',
+              left: panelPos.left,
+              top: panelPos.top,
+              minWidth: 300,
+              maxHeight: 280,
+              overflowY: 'auto',
+              background: '#fff',
+              border: '1px solid rgba(0,0,0,0.10)',
+              borderRadius: 6,
+              boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
+              zIndex: 1500,
+              fontSize: 11,
+            }}
+          >
+            {filtered.map((u, i) => (
+              <div
+                key={u.id}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(u.urunKod);
+                }}
+                onMouseEnter={() => setHighlightIdx(i)}
+                style={{
+                  padding: '5px 8px',
+                  cursor: 'pointer',
+                  background: i === highlightIdx ? 'rgba(237, 242, 251, 0.92)' : 'transparent',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: C.textMid,
+                }}
+              >
+                <span style={{ fontWeight: 600, color: C.accent }}>{u.urunKod}</span>
+                {u.aciklama && (
+                  <span style={{ color: C.textMid, marginLeft: 6 }}>— {u.aciklama}</span>
+                )}
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </div>
   );
 }
 
