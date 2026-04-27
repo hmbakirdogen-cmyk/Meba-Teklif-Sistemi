@@ -59,7 +59,7 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   return true;
 };
 
-// 4px hit area satırın TAM ALTINDA (= row.bottom çizgisi). Görsel 1px hat
+// 4px hit area satırın TAM ALTINDA (= row.bottom çizgisi). Görsel ince hat
 // container'ın üst kenarına (cell border hizası) yerleşir.
 const HANDLE_HIT_HEIGHT = 4;
 
@@ -72,6 +72,7 @@ export function RowResizerLayer({
 }: RowResizerLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const [rows, setRows] = useState<RowGeom[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{
     id: string;
     trEl: HTMLElement;
@@ -84,10 +85,27 @@ export function RowResizerLayer({
 
   const satirIdsKey = satirIds.join('|');
 
+  useEffect(() => {
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    if (isDragging) {
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [isDragging]);
+
   // ── Satır geometrilerini ölç ve observer'larla takip et ───────────────
   useLayoutEffect(() => {
     if (readOnly) {
-      setRows([]);
       return;
     }
     if (!layerRef.current) return;
@@ -183,8 +201,7 @@ export function RowResizerLayer({
       rafId: null,
       pendingH: null,
     };
-    document.body.style.cursor = 'ns-resize';
-    document.body.style.userSelect = 'none';
+    setIsDragging(true);
     tr.setAttribute('data-resizing', 'true');
     (e.currentTarget as HTMLElement).setAttribute('data-active', 'true');
   };
@@ -220,8 +237,7 @@ export function RowResizerLayer({
       d.trEl.style.height = `${d.pendingH}px`;
       d.pendingH = null;
     }
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    setIsDragging(false);
     d.trEl.removeAttribute('data-resizing');
     (e.currentTarget as HTMLElement).removeAttribute('data-active');
     const finalHeight = Math.round(d.trEl.getBoundingClientRect().height / scale);
@@ -233,8 +249,6 @@ export function RowResizerLayer({
   // Cleanup — komponent unmount olursa body cursor kilidini bırak
   useEffect(() => () => {
     if (dragRef.current?.rafId != null) cancelAnimationFrame(dragRef.current.rafId);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
   }, []);
 
   if (readOnly) return null;
@@ -271,11 +285,11 @@ export function RowResizerLayer({
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // 2px neon canlı mavi hat — hat kendisi doygun parlak; CSS hover/
-            // active'te hafif drop-shadow halesi (yumuşak ışık).
+            // İnce ve zarif mavi hat — hit area aynı kalır, sadece görünen çizgi
+            // daha hafif ve elegan tutulur.
             background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(56,140,255,1) 30%, rgba(96,180,255,1) 70%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 12px) 2px',
+              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(74,144,226,0.82) 28%, rgba(122,176,244,0.92) 50%, rgba(74,144,226,0.82) 72%, rgba(15,23,42,0) 100%)',
+            backgroundSize: 'calc(100% - 18px) 1px',
             backgroundPosition: 'center bottom',
             backgroundRepeat: 'no-repeat',
             opacity: 0,

@@ -45,6 +45,7 @@ export interface BelgeState {
   hazirlayanKullaniciId?: string;
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
+  hazirlayanUnvan?: string;
   gorseller: ImageItem[];
   status: TeklifStatus;
   visibility: TeklifVisibility;
@@ -120,6 +121,7 @@ interface KullaniciBilgisi {
   id: string;
   adSoyad: string;
   rol: string;
+  unvan?: string;
 }
 
 export function useBelgeState(
@@ -340,6 +342,7 @@ export function useBelgeState(
       hazirlayanKullaniciId: kullanici?.id,
       hazirlayanAdSoyad: kullanici?.adSoyad,
       hazirlayanRol: kullanici?.rol,
+      hazirlayanUnvan: kullanici?.unvan,
       gecerlilikSuresi: '1 Hafta',
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
@@ -442,6 +445,7 @@ export function useBelgeState(
     hazirlayanKullaniciId: kullanici?.id,
     hazirlayanAdSoyad: kullanici?.adSoyad,
     hazirlayanRol: kullanici?.rol,
+    hazirlayanUnvan: kullanici?.unvan,
     gorseller,
     status,
     visibility,

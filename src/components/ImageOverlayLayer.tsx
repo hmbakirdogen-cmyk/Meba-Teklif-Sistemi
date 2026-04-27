@@ -40,6 +40,8 @@ export function ImageOverlayLayer({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const items = gorseller.filter((g) => g.pageIndex === pageIndex);
+  const effectiveSelectedId =
+    selectedId && gorseller.some((g) => g.id === selectedId) ? selectedId : null;
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
@@ -47,9 +49,9 @@ export function ImageOverlayLayer({
 
   // Klavye olayları — sadece interactive mod ve seçili öğe varken
   useEffect(() => {
-    if (!interactive || !selectedId) return;
+    if (!interactive || !effectiveSelectedId) return;
     const onKey = (e: KeyboardEvent) => {
-      const sel = gorseller.find((g) => g.id === selectedId);
+      const sel = gorseller.find((g) => g.id === effectiveSelectedId);
       if (!sel) return;
       const target = e.target as HTMLElement | null;
       // Inputtaysa yutma — kullanici metin yaziyordur
@@ -58,7 +60,7 @@ export function ImageOverlayLayer({
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        onDelete?.(selectedId);
+        onDelete?.(effectiveSelectedId);
         setSelectedId(null);
         return;
       }
@@ -72,24 +74,19 @@ export function ImageOverlayLayer({
       e.preventDefault();
       const x = Math.max(0, Math.min(pageWidthPx  - sel.width,  sel.x + dx));
       const y = Math.max(0, Math.min(pageHeightPx - sel.height, sel.y + dy));
-      onUpdate?.(selectedId, { x, y });
+      onUpdate?.(effectiveSelectedId, { x, y });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [interactive, selectedId, gorseller, onDelete, onUpdate, pageWidthPx, pageHeightPx]);
+  }, [effectiveSelectedId, gorseller, interactive, onDelete, onUpdate, pageWidthPx, pageHeightPx]);
 
   // Görsel pageIndex değişince ve seçili kaybolursa temizle
-  useEffect(() => {
-    if (selectedId && !gorseller.some((g) => g.id === selectedId)) {
-      setSelectedId(null);
-    }
-  }, [gorseller, selectedId]);
 
   // Document-level outside-click → deselect.
   // Layer'ın kendisi pointer-events:none olduğu için tıklamaları yakalayamaz;
   // bu yüzden global listener ile resim dışına tıklamayı tespit ederiz.
   useEffect(() => {
-    if (!interactive || !selectedId) return;
+    if (!interactive || !effectiveSelectedId) return;
     const onDocDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && target.closest('[data-image-overlay-item]')) return;
@@ -97,7 +94,7 @@ export function ImageOverlayLayer({
     };
     document.addEventListener('mousedown', onDocDown, true);
     return () => document.removeEventListener('mousedown', onDocDown, true);
-  }, [interactive, selectedId]);
+  }, [effectiveSelectedId, interactive]);
 
   if (items.length === 0 && !interactive) return null;
 
@@ -124,7 +121,7 @@ export function ImageOverlayLayer({
           pageWidthPx={pageWidthPx}
           pageHeightPx={pageHeightPx}
           interactive={interactive}
-          selected={interactive && selectedId === g.id}
+          selected={interactive && effectiveSelectedId === g.id}
           onSelect={handleSelect}
           onCommit={onUpdate}
         />

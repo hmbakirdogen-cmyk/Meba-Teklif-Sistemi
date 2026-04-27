@@ -153,7 +153,7 @@ export default function KumandaPaneli({
         transform: `scale(${pos.scale})`,
         transformOrigin: 'top left',
         transition: 'transform 200ms ease, left 200ms ease',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       <style>{`

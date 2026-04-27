@@ -1,5 +1,4 @@
-import { useState, useEffect, Component } from 'react'
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo, Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
@@ -135,7 +134,7 @@ function ServerErrorScreen({ msg, onRetry }: { msg: string; onRetry: () => void 
 function ThemedApp() {
   const { isDark } = useTheme();
   const { aktifKullanici } = useKullanici();
-  const [hazir, setHazir] = useState(false);
+  const [hazirSessionKey, setHazirSessionKey] = useState<string | null>(null);
   const [hataMsg, setHataMsg] = useState<string | null>(null);
   const antdTheme = useMemo(() => getAntdTokens(isDark), [isDark]);
 
@@ -143,20 +142,30 @@ function ThemedApp() {
   // ilk veri çekimi için. (Login/logout/kullanıcı değişimi tetikler.)
   const userId = aktifKullanici?.id;
   const userRol = aktifKullanici?.rol;
+  const oturumAnahtari = `${userId ?? ''}:${userRol ?? ''}`;
+  const hazir = hazirSessionKey === oturumAnahtari;
 
   useEffect(() => {
-    setHazir(false);
+    let aktif = true;
     const kullanici = userId && userRol ? { id: userId, rol: userRol } : undefined;
     initDataStore(kullanici)
-      .then(() => setHazir(true))
+      .then(() => {
+        if (!aktif) return;
+        setHataMsg(null);
+        setHazirSessionKey(oturumAnahtari);
+      })
       .catch((err: unknown) => {
+        if (!aktif) return;
         console.error('[App] Veri sunucusuna bağlanılamadı:', err);
         setHataMsg(
           'Veri sunucusuna bağlanılamadı.\n' +
           'Lütfen "baslat.bat" ile uygulamayı başlatın ve sayfayı yenileyin.'
         );
       });
-  }, [userId, userRol]);
+    return () => {
+      aktif = false;
+    };
+  }, [userId, userRol, oturumAnahtari]);
 
   return (
     <ConfigProvider theme={antdTheme}>

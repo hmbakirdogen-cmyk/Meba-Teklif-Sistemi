@@ -86,6 +86,7 @@ function teklifKopyala(
       hazirlayanKullaniciId: kullanici.id,
       hazirlayanAdSoyad: kullanici.adSoyad,
       hazirlayanRol: kullanici.rol,
+      hazirlayanUnvan: kullanici.unvan,
     }),
   };
 }

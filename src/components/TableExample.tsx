@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import { useState } from 'react';
 
-function EditableCell({ value: initialValue }) {
+function EditableCell({ value: initialValue }: { value: string }) {
   const [value, setValue] = useState(initialValue);
 
   const handleClick = () => {

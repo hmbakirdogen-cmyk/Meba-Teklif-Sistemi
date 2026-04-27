@@ -194,6 +194,8 @@ export const dataStore = {
   async incrementSayac(): Promise<string> {
     const result = await api.sayac.increment();
     store.sayac = result;
-    return `${result.yil}-${String(result.deger).padStart(3, '0')}`;
+    const yy = String(result.yil).slice(-2);
+    const mm = String(result.ay ?? new Date().getMonth() + 1).padStart(2, '0');
+    return `${yy}${mm}-${String(result.deger).padStart(3, '0')}`;
   },
 };

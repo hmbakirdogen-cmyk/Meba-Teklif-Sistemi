@@ -54,6 +54,7 @@ export function ImageOverlayItem({
   onCommit,
 }: ImageOverlayItemProps) {
   const [optimistic, setOptimistic] = useState<Geom | null>(null);
+  const [dragMode, setDragMode] = useState<'move' | Corner | null>(null);
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -91,6 +92,7 @@ export function ImageOverlayItem({
       rafRef.current = null;
     }
     setOptimistic(null);
+    setDragMode(null);
     onCommit?.(item.id, {
       x: Math.round(g.x),
       y: Math.round(g.y),
@@ -105,6 +107,7 @@ export function ImageOverlayItem({
     e.preventDefault();
     onSelect?.(item.id);
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    setDragMode(mode);
     dragRef.current = {
       pointerId: e.pointerId,
       mode,
@@ -215,7 +218,7 @@ export function ImageOverlayItem({
         width: `${geom.width}px`,
         height: `${geom.height}px`,
         zIndex: item.zIndex,
-        cursor: interactive ? (dragRef.current?.mode === 'move' ? 'grabbing' : 'grab') : 'default',
+        cursor: interactive ? (dragMode === 'move' ? 'grabbing' : 'grab') : 'default',
         boxSizing: 'border-box',
         outline: showHandles ? '1px solid #2563EB' : 'none',
         outlineOffset: '0px',

@@ -19,7 +19,7 @@ const DB_DEFAULTS = {
   cariler: [],
   urunler: [],
   referans: { markalar: [], birimler: [], teslimSecenekleri: [] },
-  sayac: { yil: new Date().getFullYear(), deger: 0 },
+  sayac: { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
 };
 
 function readDB() {
@@ -199,34 +199,38 @@ function mailHtmlGovdesiUret(teklif, logoBase64) {
   const govdeMetni = `${cariAdi ? cariAdi + ' için hazırladığımız teklif belgemiz' : 'Teklif belgemiz'}${teklifNo ? ' (No: ' + teklifNo + ')' : ''} ekte yer almaktadır. Herhangi bir sorunuz olması durumunda lütfen bizimle iletişime geçiniz.`;
 
   const logoHtml = logoBase64
-    ? `<td style="padding-right:20px;vertical-align:middle;"><img src="data:image/png;base64,${logoBase64}" width="130" alt="MEBA" style="display:block;width:130px;height:auto;"></td>`
+    ? `<td style="padding-right:16px;vertical-align:top;width:195px;line-height:0;font-size:0;"><img src="data:image/png;base64,${logoBase64}" width="195" height="89" alt="MEBA" style="display:block;width:195px;height:89px;"></td>`
     : '';
-  const infoBorderStyle = logoBase64 ? 'border-left:2px solid #1A2B42;padding-left:18px;' : '';
+  const separatorHtml = logoBase64
+    ? `<td style="width:1px;background:#1A2B42;padding:0;"></td>`
+    : '';
+  const hazirlayanUnvan = normalizeWhitespace(teklif?.hazirlayanUnvan ?? '');
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#ffffff;">
-<div style="max-width:600px;padding:28px 32px 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;line-height:1.65;">
+<div style="max-width:600px;padding:28px 32px 32px;font-family:Arial,Helvetica,sans-serif;font-size:13.5px;color:#1e293b;line-height:1.7;">
   <p style="margin:0 0 14px;">${hitap}</p>
   <p style="margin:0 0 14px;">${govdeMetni}</p>
-  <p style="margin:0 0 28px;">Saygılarımızla,</p>
-  <table style="width:100%;border-collapse:collapse;border-top:1px solid #e2e8f0;"><tr><td style="padding-top:20px;">
-    <table style="border-collapse:collapse;">
+  <p style="margin:0 0 24px;">Saygılarımızla,</p>
+  <div style="border-top:1px solid #dde3ec;padding-top:16px;">
+    <table style="border-collapse:collapse;" cellpadding="0" cellspacing="0">
       <tr>
         ${logoHtml}
-        <td style="vertical-align:top;${infoBorderStyle}">
-          ${hazirlayanAdi ? `<div style="font-weight:700;font-size:13px;color:#1A2B42;margin-bottom:3px;">${hazirlayanAdi}</div>` : ''}
-          <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:10px;">MEBA Pnömatik Hidrolik Makina Elektrik Elektronik<br>Mühendislik San. Tic. Ltd. Şti.</div>
-          <table style="border-collapse:collapse;font-size:12px;color:#334155;line-height:1.85;">
-            <tr><td style="padding-right:6px;color:#64748b;white-space:nowrap;">T:</td><td>+90 352 502 07 80</td></tr>
-            <tr><td style="color:#64748b;">E:</td><td>info@mebamekanik.com</td></tr>
-            <tr><td style="color:#64748b;">W:</td><td>www.mebamekanik.com</td></tr>
-          </table>
-          <div style="font-size:11px;color:#94a3b8;margin-top:9px;">Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv.<br>No:252/D Melikgazi / KAYSERİ</div>
+        ${separatorHtml}
+        <td style="vertical-align:top;padding-left:16px;">
+          ${hazirlayanAdi ? `<div style="font-size:13px;font-weight:700;color:#1A2B42;line-height:1.3;margin-bottom:1px;">${hazirlayanAdi}${hazirlayanUnvan ? `<span style="font-weight:400;color:#64748b;font-size:12px;"> &nbsp;·&nbsp; ${hazirlayanUnvan}</span>` : ''}</div>` : ''}
+          <div style="font-size:11px;color:#64748b;line-height:1.3;margin-bottom:7px;">MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Müh. San. Tic. Ltd. Şti.</div>
+          <div style="font-size:12px;color:#334155;line-height:1.9;">
+            <span style="color:#94a3b8;">T</span>&nbsp; +90 352 502 07 80 &nbsp;&nbsp;
+            <span style="color:#94a3b8;">E</span>&nbsp; info@mebamekanik.com &nbsp;&nbsp;
+            <span style="color:#94a3b8;">W</span>&nbsp; www.mebamekanik.com
+          </div>
+          <div style="font-size:11px;color:#94a3b8;line-height:1.4;margin-top:3px;">Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ</div>
         </td>
       </tr>
     </table>
-  </td></tr></table>
+  </div>
 </div>
 </body></html>`;
 }
@@ -254,6 +258,19 @@ function outlookTaslagiAc({ aliciEposta, konu, htmlGovde, ekDosyaYolu }) {
 
   const script = [
     "$ErrorActionPreference = 'Stop'",
+    // Adobe Acrobat "Share as a link" registry kaydını kapat (tüm sürümler)
+    "foreach ($ver in @('DC','2020','2017','11.0','10.0')) { $p = \"HKCU:\\Software\\Adobe\\Adobe Acrobat\\$ver\\Attachments\"; if (Test-Path $p) { Set-ItemProperty -Path $p -Name bShareAttachmentWithLink -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } }",
+    "foreach ($ver in @('DC','2020','2017','11.0','10.0')) { $p = \"HKLM:\\Software\\Policies\\Adobe\\Adobe Acrobat\\$ver\\FeatureLockDown\"; if (Test-Path $p) { Set-ItemProperty -Path $p -Name bShareAttachmentWithLink -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } }",
+    // $needsRestart bayrağı — bu bloktan sonra her iki koşul da yazılır
+    "$needsRestart = $false",
+    // Ek boyutu limitini kaldır (tek seferlik)
+    "$regPath = 'HKCU:\\Software\\Microsoft\\Office\\16.0\\Outlook\\Preferences'",
+    "if (Test-Path $regPath) { $cur = (Get-ItemProperty -Path $regPath -Name MaximumAttachmentSize -ErrorAction SilentlyContinue).MaximumAttachmentSize; if ($cur -ne 0) { Set-ItemProperty -Path $regPath -Name MaximumAttachmentSize -Value 0 -Type DWord -Force; $needsRestart = $true } } else { New-Item -Path $regPath -Force | Out-Null; Set-ItemProperty -Path $regPath -Name MaximumAttachmentSize -Value 0 -Type DWord -Force; $needsRestart = $true }",
+    // Adobe PDFMOutlook eklentisini devre dışı bırak — 'Send as Link' butonunu gizler (yeniden başlatma gerekir, tek seferlik)
+    "$addinPath = 'HKCU:\\Software\\Microsoft\\Office\\Outlook\\Addins\\PDFMOutlook.PDFMOutlook'; if (Test-Path $addinPath) { $curLB = (Get-ItemProperty -Path $addinPath -Name LoadBehavior -ErrorAction SilentlyContinue).LoadBehavior; if ($curLB -ne 2) { Set-ItemProperty -Path $addinPath -Name LoadBehavior -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue; $needsRestart = $true } }",
+    "$addinPath2 = 'HKLM:\\Software\\Microsoft\\Office\\Outlook\\Addins\\PDFMOutlook.PDFMOutlook'; if (Test-Path $addinPath2) { $curLB2 = (Get-ItemProperty -Path $addinPath2 -Name LoadBehavior -ErrorAction SilentlyContinue).LoadBehavior; if ($curLB2 -ne 2) { Set-ItemProperty -Path $addinPath2 -Name LoadBehavior -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue; $needsRestart = $true } }",
+    // Gerekiyorsa Outlook'u yeniden başlat (tek seferlik — sonraki açılışlarda bu blok atlanır)
+    "if ($needsRestart) { $proc = Get-Process OUTLOOK -ErrorAction SilentlyContinue; if ($proc) { $outlookExe = $proc.Path; Stop-Process -Name OUTLOOK -Force; Start-Sleep -Seconds 3; Start-Process $outlookExe; $waited = 0; while ($waited -lt 30) { Start-Sleep -Seconds 2; $waited += 2; try { $t = New-Object -ComObject Outlook.Application; $t = $null; break } catch { } } } }",
     '$outlook = New-Object -ComObject Outlook.Application',
     '$mail = $outlook.CreateItem(0)',
     `$mail.To = '${escapePowerShellLiteral(aliciEposta)}'`,
@@ -261,24 +278,50 @@ function outlookTaslagiAc({ aliciEposta, konu, htmlGovde, ekDosyaYolu }) {
     `$mail.HTMLBody = [System.IO.File]::ReadAllText('${escapePowerShellLiteral(tempFile)}', [System.Text.Encoding]::UTF8)`,
     `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
     '$mail.Display()',
+    '$inspector = $mail.GetInspector; $inspector.WindowState = 0',
+    'Start-Sleep -Milliseconds 1200',
+    // AttachThreadInput ile foreground lock'u aşarak compose penceresini zorla öne getir
+    // $inspector.HWnd ile compose penceresinin HWND'ini doğrudan alıyoruz — EnumWindows'a gerek yok
+    'Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public class WinUtil { [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n); [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint t, uint f, bool a); [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId(); public static void Force(IntPtr hwnd) { IntPtr fg = GetForegroundWindow(); uint fgT; GetWindowThreadProcessId(fg, out fgT); uint myT = GetCurrentThreadId(); AttachThreadInput(myT, fgT, true); ShowWindow(hwnd, 9); BringWindowToTop(hwnd); SetForegroundWindow(hwnd); AttachThreadInput(myT, fgT, false); } }\'',
+    '[WinUtil]::Force([IntPtr]$inspector.HWnd)',
     `Remove-Item '${escapePowerShellLiteral(tempFile)}' -Force -ErrorAction SilentlyContinue`,
-  ].join('; ');
+  ].join('\r\n');
 
-  const result = spawn('powershell.exe', ['-NoProfile', '-STA', '-Command', script], {
-    stdio: 'ignore',
+  // Script'i ayrı bir geçici .ps1 dosyasına yaz (UTF-8 BOM ile, Türkçe yol sorununu önler)
+  const scriptFile = path.join(os.tmpdir(), `meba-outlook-${Date.now()}.ps1`);
+  try {
+    fs.writeFileSync(scriptFile, '\uFEFF' + script, 'utf-8');
+  } catch {
+    try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+    return Promise.resolve({
+      epostaHazirlandi: false,
+      epostaHatasi: 'Geçici PowerShell dosyası oluşturulamadı.',
+      epostaTaslakYontemi: null,
+    });
+  }
+
+  const result = spawn('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', scriptFile], {
+    stdio: ['ignore', 'ignore', 'pipe'],
   });
 
+  let stderrOutput = '';
+  if (result.stderr) {
+    result.stderr.on('data', (chunk) => { stderrOutput += chunk.toString(); });
+  }
+
   return new Promise((resolve) => {
-    result.on('error', () => {
+    result.on('error', (err) => {
       try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+      try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
       resolve({
         epostaHazirlandi: false,
-        epostaHatasi: 'Outlook gönder penceresi açılamadı.',
+        epostaHatasi: `Outlook gönder penceresi açılamadı. (spawn hatası: ${err.message})`,
         epostaTaslakYontemi: null,
       });
     });
 
     result.on('exit', (code) => {
+      try { fs.unlinkSync(scriptFile); } catch { /* ignore */ }
       if (code === 0) {
         resolve({
           epostaHazirlandi: true,
@@ -287,9 +330,12 @@ function outlookTaslagiAc({ aliciEposta, konu, htmlGovde, ekDosyaYolu }) {
         return;
       }
       try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
+      const detay = stderrOutput.trim().split('\n').slice(0, 3).join(' ').trim();
       resolve({
         epostaHazirlandi: false,
-        epostaHatasi: 'Outlook gönder penceresi açılamadı.',
+        epostaHatasi: detay
+          ? `Outlook gönder penceresi açılamadı: ${detay}`
+          : 'Outlook gönder penceresi açılamadı.',
         epostaTaslakYontemi: null,
       });
     });
@@ -475,13 +521,15 @@ const server = http.createServer(async (req, res) => {
     if (url === '/api/sayac/increment' && method === 'POST') {
       const db    = readDB();
       const buYil = new Date().getFullYear();
-      if (db.sayac.yil !== buYil) {
+      const buAy  = new Date().getMonth() + 1;
+      if (db.sayac.yil !== buYil || db.sayac.ay !== buAy) {
         db.sayac.yil  = buYil;
+        db.sayac.ay   = buAy;
         db.sayac.deger = 0;
       }
       db.sayac.deger += 1;
       writeDB(db);
-      return send(res, 200, { yil: db.sayac.yil, deger: db.sayac.deger });
+      return send(res, 200, { yil: db.sayac.yil, ay: db.sayac.ay, deger: db.sayac.deger });
     }
 
     if ((url === '/api/teklif/disa-aktar' || url === '/api/pdf/kaydet-ve-ac') && method === 'POST') {

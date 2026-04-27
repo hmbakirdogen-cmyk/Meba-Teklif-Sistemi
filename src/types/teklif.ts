@@ -51,6 +51,7 @@ export interface Teklif {
   hazirlayanKullaniciId?: string;
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
+  hazirlayanUnvan?: string;
   contactName?: string;
   contactTitle?: 'BEY' | 'HANIM';
   gorseller?: ImageItem[];

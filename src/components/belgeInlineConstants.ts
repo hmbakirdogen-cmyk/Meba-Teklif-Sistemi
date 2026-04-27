@@ -7,6 +7,8 @@
 export const FIELD = {
   activeOutline: '1px solid rgba(37, 99, 235, 0.18)',
   activeBg:      'rgba(237, 242, 251, 0.45)',
+  activeText:    '#224E81',
+  activeTextSoft:'#4C6C93',
   radius:        '4px',
   transition:    'all 0.15s ease',
   focusLine:     'inset 0 -2px 0 rgba(37, 99, 235, 0.20)',
@@ -545,12 +547,12 @@ export const FIELD_CSS = `
    2px hat etrafında, tüm hit area'da değil — drop-shadow alpha-aware). */
 .row-resize-handle:hover {
   opacity: 1 !important;
-  filter: drop-shadow(0 0 3px rgba(56, 140, 255, 0.55)) !important;
+  filter: drop-shadow(0 0 2px rgba(74, 144, 226, 0.35)) !important;
 }
 
 .row-resize-handle[data-active="true"] {
   opacity: 1 !important;
-  filter: drop-shadow(0 0 5px rgba(56, 140, 255, 0.70)) !important;
+  filter: drop-shadow(0 0 3px rgba(74, 144, 226, 0.48)) !important;
 }
 
 @media print {
@@ -762,6 +764,22 @@ export const FIELD_CSS = `
    fontSize/fontWeight'i (orn. ROW_TEXT.code: 10.5px / 600) korur.
    Sadece IÇ elemanlar wrapper'dan inherit eder. Aksi halde Urun Kodu
    editorune girince font 10.5px → 11px, weight 600 → 400 sıçrardı. */
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field,
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-input,
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-input-number,
+.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-select,
+.belge-inline tr[data-satir-id] > td.is-active-cell input,
+.belge-inline tr[data-satir-id] > td.is-active-cell textarea,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-input-number-input {
+  color: ${FIELD.activeText} !important;
+}
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-placeholder,
+.belge-inline tr[data-satir-id] > td.is-active-cell input::placeholder,
+.belge-inline tr[data-satir-id] > td.is-active-cell textarea::placeholder {
+  color: ${FIELD.activeTextSoft} !important;
+  opacity: 0.68 !important;
+}
 .belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
   font-family: inherit !important;
   font-size: inherit !important;
@@ -804,21 +822,30 @@ export const FIELD_CSS = `
    Genel .inline-table-field { width: 100% !important } kuralı flex-basis
    58%'i eziyor → InputNumber tüm satırı kaplıyor, birim "Ad." → "A"
    kırpılıyor. Miktar scope'unda width override + unit-wrap min-width. */
-.belge-inline .miktar-edit-wrap > .inline-table-field.miktar-edit-input {
-  width: 58% !important;
+.belge-inline .miktar-edit-wrap > .miktar-edit-value-wrap {
   flex: 0 0 58% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.belge-inline .miktar-edit-wrap > .miktar-edit-value-wrap > .inline-table-field.miktar-edit-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
 }
 .belge-inline .miktar-edit-wrap > .miktar-edit-unit-wrap {
-  flex: 1 1 auto !important;
-  min-width: 28px !important;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
   overflow: visible !important;
 }
 .belge-inline .miktar-edit-wrap .inline-table-field.miktar-edit-unit {
   width: 100% !important;
-  min-width: 24px !important;
+  min-width: 0 !important;
   overflow: visible !important;
 }
 .belge-inline .miktar-edit-wrap .miktar-edit-unit .ant-select-content {
+  display: flex !important;
+  justify-content: flex-end !important;
   overflow: visible !important;
 }
 

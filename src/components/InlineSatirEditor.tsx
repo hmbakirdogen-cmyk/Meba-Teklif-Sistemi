@@ -6,6 +6,7 @@
 import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { App, Input } from 'antd';
+import type { InputRef } from 'antd';
 import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
@@ -20,25 +21,9 @@ import {
   DOCUMENT_COLORS,
   LINE_ITEM_METRICS,
 } from '../templates/teklifDocumentShared';
+import type { SatirCellField } from './inlineSatirEditorShared';
 
 const C = DOCUMENT_COLORS;
-
-export type SatirCellField =
-  | 'marka'
-  | 'urunKod'
-  | 'aciklama'
-  | 'miktar'
-  | 'paraBirimi'
-  | 'birimFiyat'
-  | 'teslimat';
-
-export const SATIR_CELL_NAV_ORDER: SatirCellField[] = [
-  'urunKod',
-  'aciklama',
-  'miktar',
-  'birimFiyat',
-  'teslimat',
-];
 
 const ACIKLAMA_EDIT: React.CSSProperties = {
   display: 'block',
@@ -104,7 +89,7 @@ function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorPr
 function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   const { modal } = App.useApp();
   const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<InputRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Mount anındaki kod — onaylanmamış değişikliği tespit için baseline
   const initialKodRef = useRef(satir.urunKod);
@@ -113,7 +98,13 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
   const didInitialSelectRef = useRef(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightIdx, setHighlightIdx] = useState(0);
-  const [panelPos, setPanelPos] = useState<{ left: number; top: number } | null>(null);
+  const [anchorRect, setAnchorRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    bottom: number;
+  } | null>(null);
 
   const filtered = useMemo(() => {
     const q = (satir.urunKod ?? '').trim().toLowerCase();
@@ -128,12 +119,48 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
 
   // Suggestion paneli pozisyonu — input altinda, viewport icinde
   useLayoutEffect(() => {
-    if (!showSuggestions) return;
-    const el = containerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setPanelPos({ left: r.left, top: r.bottom + 2 });
-  }, [showSuggestions, satir.urunKod, filtered.length]);
+    const updateAnchorRect = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setAnchorRect({
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+        bottom: rect.bottom,
+      });
+    };
+
+    updateAnchorRect();
+
+    const container = containerRef.current;
+    const ro = new ResizeObserver(updateAnchorRect);
+    if (container) ro.observe(container);
+
+    window.addEventListener('scroll', updateAnchorRect, true);
+    window.addEventListener('resize', updateAnchorRect);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('scroll', updateAnchorRect, true);
+      window.removeEventListener('resize', updateAnchorRect);
+    };
+  }, [satir.urunKod, filtered.length, showSuggestions]);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const timer = window.setTimeout(() => {
+      const input = inputRef.current?.input;
+      if (!input) return;
+      input.focus();
+      if (!didInitialSelectRef.current) {
+        didInitialSelectRef.current = true;
+        input.select();
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [autoFocus]);
 
   // Dropdown disinda click → kapat
   useEffect(() => {
@@ -205,7 +232,13 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
         className="inline-table-field"
         variant="borderless"
         size="small"
-        style={ROW_TEXT.code}
+        style={{
+          ...ROW_TEXT.code,
+          background: '#fff',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitFontSmoothing: 'antialiased',
+        }}
         value={satir.urunKod}
         onChange={(e) => {
           onGuncelle('urunKod', e.target.value);
@@ -244,15 +277,15 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
           }
         }}
       />
-      {showSuggestions && filtered.length > 0 && panelPos &&
+      {showSuggestions && filtered.length > 0 && anchorRect &&
         createPortal(
           <div
             id="urunkod-suggest-panel"
             style={{
               position: 'fixed',
-              left: panelPos.left,
-              top: panelPos.top,
-              minWidth: 300,
+              left: anchorRect.left,
+              top: anchorRect.bottom + 2,
+              minWidth: Math.max(anchorRect.width, 300),
               maxHeight: 280,
               overflowY: 'auto',
               background: '#fff',
@@ -374,21 +407,23 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   return (
     <div className="miktar-edit-wrap" style={ROW_SHELL.quantityWrap}>
-      <InlineTableNumberField
-        autoFocus={autoFocus}
-        className="miktar-edit-input"
-        style={ROW_SHELL.quantityInputStyle}
-        value={satir.miktar}
-        min={0}
-        onChange={(value) => onGuncelle('miktar', value ?? 0)}
-        onFocus={(e) => (e.target as HTMLInputElement).select?.()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            onEnterNext?.();
-          }
-        }}
-      />
+      <div className="miktar-edit-value-wrap" style={ROW_SHELL.quantityValueWrap}>
+        <InlineTableNumberField
+          autoFocus={autoFocus}
+          className="miktar-edit-input"
+          style={ROW_SHELL.quantityInputStyle}
+          value={satir.miktar}
+          min={0}
+          onChange={(value) => onGuncelle('miktar', value ?? 0)}
+          onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onEnterNext?.();
+            }
+          }}
+        />
+      </div>
       <div className="miktar-edit-unit-wrap" style={ROW_SHELL.quantityUnitWrap}>
         <InlineTableSelectField
           className="miktar-edit-unit"

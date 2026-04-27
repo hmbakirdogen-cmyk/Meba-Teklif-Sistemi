@@ -62,9 +62,8 @@ import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
 import {
   SatirCellEditor,
   SatirAksiyonlariPanel,
-  SATIR_CELL_NAV_ORDER,
-  type SatirCellField,
 } from './InlineSatirEditor';
+import { SATIR_CELL_NAV_ORDER, type SatirCellField } from './inlineSatirEditorShared';
 import type { TeklifPagePlan } from '../services/documentPagination';
 
 const C = DOCUMENT_COLORS;
@@ -585,12 +584,12 @@ export default function PaginatedBelgeInlineEditor({
                   <td colSpan={colCount} style={{ padding: 0, border: 'none', position: 'relative', height: 0, overflow: 'visible' }}>
                     <div
                       className="satir-araya-ekle-hit"
-                      onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirArayaEkle(afterIndex); }}
                       style={{
                         position: 'absolute', left: 0, right: 0, top: -7, height: 14,
-                        cursor: readOnly ? 'default' : 'pointer', zIndex: 44,
+                        cursor: 'default', zIndex: 24,
                         // Parent .satir-araya-ekle-zone pointer-events:none →
-                        // hit area icin override; aksi halde hover/click yakalanmiyor.
+                        // hit area icin override; ancak resize handle'in
+                        // UZERINE cikmamali; aksi halde mavi cizgi hover alamaz.
                         pointerEvents: readOnly ? 'none' : 'auto',
                       }}
                     />

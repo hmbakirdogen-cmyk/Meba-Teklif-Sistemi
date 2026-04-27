@@ -64,7 +64,7 @@ export default function TeklifEditor() {
 
   const state = useBelgeState(
     id,
-    aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol } : null,
+    aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan } : null,
   );
 
   // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve müşteri alanını aç (muhatap odak)
@@ -126,6 +126,7 @@ export default function TeklifEditor() {
       hazirlayanKullaniciId: state.hazirlayanKullaniciId,
       hazirlayanAdSoyad: state.hazirlayanAdSoyad,
       hazirlayanRol: state.hazirlayanRol,
+      hazirlayanUnvan: state.hazirlayanUnvan,
       gecerlilikSuresi: '1 Hafta',
       contactName: state.contactName.trim() || undefined,
       contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
@@ -152,6 +153,7 @@ export default function TeklifEditor() {
     state.hazirlayanKullaniciId,
     state.hazirlayanAdSoyad,
     state.hazirlayanRol,
+    state.hazirlayanUnvan,
     state.contactName,
     state.contactTitle,
     state.gorseller,
@@ -294,7 +296,7 @@ export default function TeklifEditor() {
       if (images.length === 0) { message.error('Yazdırma verisi oluşturulamadı.'); return; }
 
       const htmlContent = images.map(
-        (src) => `<div style="page-break-after:always;margin:0;padding:0;"><img src="${src}" style="width:210mm;height:297mm;display:block;" /></div>`,
+        (src) => `<div style="page-break-after:always;margin:0;padding:0;line-height:0;font-size:0;"><img src="${src}" style="width:210mm;height:297mm;display:block;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;" /></div>`,
       ).join('');
 
       const iframe = document.createElement('iframe');
@@ -305,7 +307,12 @@ export default function TeklifEditor() {
       if (!doc) return;
 
       doc.open();
-      doc.write(`<!DOCTYPE html><html><head><title>Print</title><style>@page{size:A4 portrait;margin:0}body{margin:0}</style></head><body>${htmlContent}</body></html>`);
+      doc.write(`<!DOCTYPE html><html><head><title>Print</title><style>
+        @page { size: A4 portrait; margin: 0; }
+        html, body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+        img { display: block; width: 210mm; height: 297mm; max-width: none; max-height: none; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; }
+        div { page-break-inside: avoid; }
+      </style></head><body>${htmlContent}</body></html>`);
       doc.close();
 
       const imagesInIframe = doc.querySelectorAll('img');

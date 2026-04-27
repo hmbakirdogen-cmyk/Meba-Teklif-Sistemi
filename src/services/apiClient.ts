@@ -52,6 +52,7 @@ export interface Referans {
 
 export interface Sayac {
   yil: number;
+  ay: number;
   deger: number;
 }
 

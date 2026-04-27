@@ -64,7 +64,8 @@ export const ROW_SHELL = {
   } satisfies React.CSSProperties,
   /** Edit-mode: AntD InputNumber ile uyumlu — display/width override yok */
   quantityInputStyle: {
-    flex: '0 0 58%',
+    display: 'block',
+    width: '100%',
     minWidth: 0,
     textAlign: 'left',
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
