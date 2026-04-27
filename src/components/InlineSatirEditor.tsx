@@ -113,6 +113,9 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
   const initialKodRef = useRef(satir.urunKod);
   // Dropdown'dan seçimle gelen değer DB'de zaten var → confirm sorma
   const justSelectedRef = useRef(false);
+  // Sadece ILK odaklanmada hepsini sec; sonraki re-focus'lar (dropdown
+  // close vb.) kullanicinin imlec konumunu bozmasin.
+  const didInitialSelectRef = useRef(false);
 
   const handleSelect = (kod: string) => {
     justSelectedRef.current = true;
@@ -167,7 +170,11 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
       value={satir.urunKod}
       onChange={(value) => onGuncelle('urunKod', value)}
       onSelect={(value) => handleSelect(String(value))}
-      onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+      onFocus={(e) => {
+        if (didInitialSelectRef.current) return;
+        didInitialSelectRef.current = true;
+        (e.target as HTMLInputElement).select?.();
+      }}
       onBlur={handleBlur}
       options={options}
       filterOption={(input, option) => {

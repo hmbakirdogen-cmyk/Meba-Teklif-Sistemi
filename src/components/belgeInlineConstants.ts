@@ -750,7 +750,10 @@ export const FIELD_CSS = `
   max-height: var(--line-row-height) !important;
   overflow: hidden !important;
 }
-.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field,
+/* Wrapper'in KENDISI hedeflenmez — wrapper kendi inline style'indaki
+   fontSize/fontWeight'i (orn. ROW_TEXT.code: 10.5px / 600) korur.
+   Sadece IÇ elemanlar wrapper'dan inherit eder. Aksi halde Urun Kodu
+   editorune girince font 10.5px → 11px, weight 600 → 400 sıçrardı. */
 .belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
   font-family: inherit !important;
   font-size: inherit !important;
