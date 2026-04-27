@@ -799,27 +799,31 @@ export default function PaginatedBelgeInlineEditor({
           </tbody>
         </table>
         </PageTableWithResizer>
-        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && !readOnly && (
+        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && (
+          // Yer her iki modda da rezerve edilir → kilit yesile donunce
+          // toplamlar karti ASLA kaymasin. readOnly'de icerik gizli ama
+          // ayni yukseklik korunur.
           <div
             className="belge-kalem-ekle-bar"
-            onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
+            onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirEkle(); }}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-start',
               gap: 5,
               padding: '5px 0',
-              cursor: 'pointer',
+              cursor: readOnly ? 'default' : 'pointer',
               fontSize: '9.5px',
               fontWeight: 600,
               color: C.accent,
               letterSpacing: '0.01em',
-              opacity: 0.55,
+              opacity: readOnly ? 0 : 0.55,
+              visibility: readOnly ? 'hidden' : 'visible',
               userSelect: 'none',
               transition: 'opacity 0.18s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.55'; }}
+            onMouseEnter={readOnly ? undefined : (e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={readOnly ? undefined : (e) => { e.currentTarget.style.opacity = '0.55'; }}
           >
             <PlusOutlined style={{ fontSize: 9 }} /> Yeni kalem ekle
           </div>
