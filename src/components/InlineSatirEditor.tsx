@@ -167,6 +167,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
       value={satir.urunKod}
       onChange={(value) => onGuncelle('urunKod', value)}
       onSelect={(value) => handleSelect(String(value))}
+      onFocus={(e) => (e.target as HTMLInputElement).select?.()}
       onBlur={handleBlur}
       options={options}
       filterOption={(input, option) => {

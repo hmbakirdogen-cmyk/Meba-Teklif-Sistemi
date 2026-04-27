@@ -741,7 +741,9 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala }: T
   const toplamSatirlari = teklifToplamOzeti(teklif);
   const renk = isim ? personelRenk(isim) : PALET[0];
   const inits = isim ? initials(isim) : '?';
-  const durumGosterim = isDark ? DURUM_CFG_DARK[teklif.durum] : DURUM_CFG[teklif.durum];
+  const durumGosterim =
+    (isDark ? DURUM_CFG_DARK[teklif.durum] : DURUM_CFG[teklif.durum]) ??
+    (isDark ? DURUM_CFG_DARK.taslak : DURUM_CFG.taslak);
 
   const actionButtonStyle: CSSProperties = {
     color: C.textFaint,
