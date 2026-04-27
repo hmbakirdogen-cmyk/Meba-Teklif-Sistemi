@@ -2945,7 +2945,7 @@
       "tarih": "2026-01-12",
       "satirBazliParaBirimi": false,
       "satirBazliIskonto": false,
-      "paraBirimi": "USD",
+      "paraBirimi": "EUR",
       "durum": "gonderildi",
       "cari": {
         "id": "c-0954",
@@ -3137,13 +3137,19 @@
       "odemeVadesi": "60 Gün",
       "notlar": "Teknik özellikler değişiklik gösterebilir. Lütfen sipariş öncesi onaylayınız.",
       "olusturmaTarihi": "2026-01-12T09:25:00.000Z",
-      "guncellemeTarihi": "2026-01-12T09:25:00.000Z",
+      "guncellemeTarihi": "2026-04-27T12:22:52.230Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
-      "hazirlayanRol": "engineer",
-      "gecerlilikSuresi": "45 Gün",
+      "hazirlayanRol": "admin",
+      "hazirlayanUnvan": "Makine Yüksek Mühendisi\nMaster of Science",
+      "gecerlilikSuresi": "1 Hafta",
       "contactName": "Barış",
-      "contactTitle": "BEY"
+      "contactTitle": "BEY",
+      "status": "kaydedildi",
+      "visibility": "team",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\MTM ELEKTRİK\\MTM ELEKTRİK - 2026-458 (2).pdf",
+      "pdfDosyaAdi": "MTM ELEKTRİK - 2026-458 (2).pdf",
+      "pdfOlusturmaTarihi": "2026-04-27T12:22:52.230Z"
     },
     {
       "id": "tmobgiw0u4rod9d",
@@ -14007,7 +14013,7 @@
       "odemeVadesi": "60 Gün",
       "notlar": "Sipariş üzerine imalat gerektiren kalemler için teslim süresi uzayabilir.",
       "olusturmaTarihi": "2025-12-14T14:29:00.000Z",
-      "guncellemeTarihi": "2026-04-27T12:13:01.210Z",
+      "guncellemeTarihi": "2026-04-27T12:17:57.716Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
       "hazirlayanRol": "admin",
@@ -64352,7 +64358,7 @@
   },
   "sayac": {
     "yil": 2026,
-    "deger": 8,
+    "deger": 10,
     "ay": 4
   }
 }

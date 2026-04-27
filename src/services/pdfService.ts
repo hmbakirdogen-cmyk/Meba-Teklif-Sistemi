@@ -46,6 +46,15 @@ export async function buildPdf(
           clonedEl.style.printColorAdjust = 'exact';
           clonedEl.style.colorAdjust = 'exact';
         }
+        // Tüm elements için font-family preserve et
+        const allElements = clonedEl.querySelectorAll('*');
+        allElements.forEach((el) => {
+          const computed = window.getComputedStyle(el);
+          const ff = computed.fontFamily;
+          if (ff && ff !== 'serif') {
+            (el as HTMLElement).style.fontFamily = ff;
+          }
+        });
         // Offscreen (-9999px) container'ı viewport'a çek — font hinting düzgün çalışsın
         const offscreen = clonedEl.closest<HTMLElement>('[style*="-9999px"]');
         if (offscreen) {

@@ -513,7 +513,10 @@ function NotesBlock({ teklif }: { teklif: Teklif }) {
 
 function SignatureBlock() {
   return (
-    <div style={SIGNATURE_SECTION_STYLE}>
+    <div style={{
+      ...SIGNATURE_SECTION_STYLE,
+      fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+    } as React.CSSProperties}>
       <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
 
         {/* Sol: 2-satır dikey başlık */}
@@ -532,6 +535,7 @@ function SignatureBlock() {
             textAlign: 'left',
             userSelect: 'none',
             whiteSpace: 'nowrap',
+            fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
           }}>
             <div style={{
               fontSize: '10.8px',
@@ -559,7 +563,7 @@ function SignatureBlock() {
         {/* Sağ: İçerik — isim, tarih, imza */}
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
+            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
               <div style={{ marginBottom: '6px' }}>
                 <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
                 <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
@@ -573,7 +577,7 @@ function SignatureBlock() {
               </div>
               <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
             </div>
-            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '0' }}>
+            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '0', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
               <div style={{ marginBottom: '6px' }}>
                 <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
                 <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
