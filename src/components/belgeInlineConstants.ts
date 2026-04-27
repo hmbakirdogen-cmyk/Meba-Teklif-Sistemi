@@ -836,14 +836,16 @@ export const FIELD_CSS = `
   letter-spacing: -0.1px !important;
 }
 
-/* AutoComplete edit modunda hem .ant-select-content-value hem
-   .ant-select-input ayni text'i ust uste basiyor → "kalin / cift" gorunum.
-   Active cell'de content-value gizlenir (input zaten controlled value'yi
-   gosterir, ekstrasi gereksiz).  */
+/* AutoComplete edit modunda hem display layer (.ant-select-content-value /
+   -content-item / -selection-item) hem .ant-select-input ayni text'i ust
+   uste basiyor → "kalin/cift" gorunum. Active cell'de tum display layer
+   varyantlari gizlenir; sadece input gorunur. */
 .belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content-value,
+.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content-item,
 .belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-selection-item {
   opacity: 0 !important;
   visibility: hidden !important;
+  color: transparent !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
