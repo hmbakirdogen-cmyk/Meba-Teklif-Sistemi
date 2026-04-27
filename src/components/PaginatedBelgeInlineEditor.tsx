@@ -799,33 +799,37 @@ export default function PaginatedBelgeInlineEditor({
           </tbody>
         </table>
         </PageTableWithResizer>
-        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && (
-          // Yer her iki modda da rezerve edilir → kilit yesile donunce
-          // toplamlar karti ASLA kaymasin. readOnly'de icerik gizli ama
-          // ayni yukseklik korunur.
-          <div
-            className="belge-kalem-ekle-bar"
-            onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirEkle(); }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 5,
-              padding: '5px 0',
-              cursor: readOnly ? 'default' : 'pointer',
-              fontSize: '9.5px',
-              fontWeight: 600,
-              color: C.accent,
-              letterSpacing: '0.01em',
-              opacity: readOnly ? 0 : 0.55,
-              visibility: readOnly ? 'hidden' : 'visible',
-              userSelect: 'none',
-              transition: 'opacity 0.18s',
-            }}
-            onMouseEnter={readOnly ? undefined : (e) => { e.currentTarget.style.opacity = '1'; }}
-            onMouseLeave={readOnly ? undefined : (e) => { e.currentTarget.style.opacity = '0.55'; }}
-          >
-            <PlusOutlined style={{ fontSize: 9 }} /> Yeni kalem ekle
+        {page.pageNumber === pages.length && teklif.satirlar.length > 0 && !readOnly && (
+          // 0-yukseklik wrapper + absolutely positioned bar → tabloya
+          // YERLESTIR ama altindaki Genel Toplam karti ASLA kaymasin.
+          // Bar tablonun hemen altinda yuzer (uzeri-altinda totals'a degil,
+          // table+totals arasi mevcut bosluga oturmus gorunur).
+          <div style={{ position: 'relative', height: 0, overflow: 'visible' }}>
+            <div
+              className="belge-kalem-ekle-bar"
+              onClick={(e) => { e.stopPropagation(); onSatirEkle(); }}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 5,
+                padding: '5px 0',
+                cursor: 'pointer',
+                fontSize: '9.5px',
+                fontWeight: 600,
+                color: C.accent,
+                letterSpacing: '0.01em',
+                opacity: 0.55,
+                userSelect: 'none',
+                transition: 'opacity 0.18s',
+                zIndex: 5,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.55'; }}
+            >
+              <PlusOutlined style={{ fontSize: 9 }} /> Yeni kalem ekle
+            </div>
           </div>
         )}
       </>
