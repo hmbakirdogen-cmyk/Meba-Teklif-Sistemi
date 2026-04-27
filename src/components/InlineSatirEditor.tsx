@@ -275,10 +275,11 @@ function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 }
 
 const floatingPanelStyle: React.CSSProperties = {
+  // Satırın aynı hizasında — yan boşlukta (alt yerine sağda yatay merkez)
   position: 'absolute',
-  right: 0,
-  top: '100%',
-  marginTop: '3px',
+  right: -4,
+  top: '50%',
+  transform: 'translateY(-50%)',
   zIndex: 50,
   display: 'flex',
   alignItems: 'center',
