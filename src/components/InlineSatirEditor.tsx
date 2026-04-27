@@ -19,7 +19,6 @@ import {
 import { UNIT_OPTIONS, ROW_SHELL, ROW_TEXT } from './InlineTableRowShared';
 import {
   DOCUMENT_COLORS,
-  LINE_ITEM_EDITOR_HEIGHT,
   LINE_ITEM_METRICS,
 } from '../templates/teklifDocumentShared';
 
@@ -46,8 +45,10 @@ const ACIKLAMA_EDIT: React.CSSProperties = {
   display: 'block',
   width: '100%',
   minWidth: 0,
-  minHeight: LINE_ITEM_EDITOR_HEIGHT,
-  fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
+  // minHeight kaldırıldı — TD'nin min-height (var --line-row-height = 20px)
+  // satır yüksekliğini yönetir; editor doğal text height'ında (~14px) kalır.
+  // 12px = DescText df-1 (varsayılan fit) ile birebir → font değişimi yok.
+  fontSize: '12px',
   fontWeight: 400,
   color: C.textMid,
   lineHeight: LINE_ITEM_METRICS.lineHeight,
@@ -252,7 +253,7 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
       className="inline-table-field description-editor"
       variant="borderless"
       size="small"
-      autoSize={{ minRows: 1, maxRows: 3 }}
+      autoSize={{ minRows: 1, maxRows: 1 }}
       style={ACIKLAMA_EDIT}
       value={satir.aciklama}
       onChange={(e) => onGuncelle('aciklama', e.target.value)}
