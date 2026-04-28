@@ -8,10 +8,11 @@ import { createPortal } from 'react-dom';
 import { App, Input } from 'antd';
 import type { InputRef } from 'antd';
 import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
-import type { TeklifSatiri, ParaBirimi, Urun } from '../types';
+import type { TeklifSatiri, ParaBirimi, Urun, UrunSeti } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
+import { urunSetService } from '../services/urunSetService';
 import {
   InlineTableNumberField,
   InlineTableSelectField,
@@ -48,6 +49,7 @@ interface CellEditorProps {
   paraBirimi: ParaBirimi;
   autoFocus?: boolean;
   onGuncelle: (alan: keyof TeklifSatiri, deger: unknown) => void;
+  onSetUygula?: (setId: string) => void;
   onEnterNext?: () => void;
 }
 
@@ -86,9 +88,10 @@ function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorPr
   );
 }
 
-function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
+function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext }: CellEditorProps) {
   const { modal } = App.useApp();
   const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
+  const setler = useMemo(() => urunSetService.tumSetleriGetir(), []);
   const inputRef = useRef<InputRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Mount anındaki kod — onaylanmamış değişikliği tespit için baseline
@@ -108,14 +111,38 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
 
   const filtered = useMemo(() => {
     const q = (satir.urunKod ?? '').trim().toLowerCase();
-    if (!q) return urunler.slice(0, 50);
-    return urunler
-      .filter((u) =>
-        u.urunKod.toLowerCase().includes(q) ||
-        (u.aciklama ?? '').toLowerCase().includes(q),
-      )
-      .slice(0, 50);
-  }, [urunler, satir.urunKod]);
+    const urunOnerileri = (q
+      ? urunler.filter((u) =>
+          u.urunKod.toLowerCase().includes(q) ||
+          (u.aciklama ?? '').toLowerCase().includes(q),
+        )
+      : urunler)
+      .slice(0, 40)
+      .map((u) => ({
+        type: 'urun' as const,
+        id: u.id,
+        kod: u.urunKod,
+        aciklama: u.aciklama,
+        payload: u,
+      }));
+
+    const setOnerileri = (q
+      ? setler.filter((s) =>
+          s.setKod.toLowerCase().includes(q) ||
+          (s.aciklama ?? '').toLowerCase().includes(q),
+        )
+      : setler)
+      .slice(0, 20)
+      .map((s) => ({
+        type: 'set' as const,
+        id: s.id,
+        kod: s.setKod,
+        aciklama: s.aciklama,
+        payload: s,
+      }));
+
+    return [...setOnerileri, ...urunOnerileri].slice(0, 50);
+  }, [setler, urunler, satir.urunKod]);
 
   // Suggestion paneli pozisyonu — input altinda, viewport icinde
   useLayoutEffect(() => {
@@ -176,15 +203,28 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [showSuggestions]);
 
-  const handleSelect = (kod: string) => {
+  const handleSelect = (item: {
+    type: 'urun' | 'set';
+    kod: string;
+    payload: Urun | UrunSeti;
+  }) => {
     justSelectedRef.current = true;
-    onGuncelle('urunKod', kod);
-    const urun = urunler.find((u) => u.urunKod === kod);
-    if (urun) {
-      onGuncelle('aciklama', urun.aciklama ?? '');
-      if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
-      if (urun.birim) onGuncelle('birim', urun.birim);
+    onGuncelle('urunKod', item.kod);
+
+    if (item.type === 'set') {
+      const set = item.payload as UrunSeti;
+      onGuncelle('aciklama', set.aciklama ?? '');
+      onSetUygula?.(set.id);
+      setShowSuggestions(false);
+      onEnterNext?.();
+      return;
     }
+
+    onGuncelle('setId', undefined);
+    const urun = item.payload as Urun;
+    onGuncelle('aciklama', urun.aciklama ?? '');
+    if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
+    if (urun.birim) onGuncelle('birim', urun.birim);
     setShowSuggestions(false);
     onEnterNext?.();
   };
@@ -270,7 +310,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
           } else if (e.key === 'Enter') {
             e.preventDefault();
             const sel = filtered[highlightIdx];
-            if (sel) handleSelect(sel.urunKod);
+            if (sel) handleSelect(sel);
             else onEnterNext?.();
           } else if (e.key === 'Escape') {
             setShowSuggestions(false);
@@ -298,10 +338,10 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
           >
             {filtered.map((u, i) => (
               <div
-                key={u.id}
+                key={`${u.type}-${u.id}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  handleSelect(u.urunKod);
+                  handleSelect(u);
                 }}
                 onMouseEnter={() => setHighlightIdx(i)}
                 style={{
@@ -314,7 +354,10 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditor
                   color: C.textMid,
                 }}
               >
-                <span style={{ fontWeight: 600, color: C.accent }}>{u.urunKod}</span>
+                {u.type === 'set' && (
+                  <span style={{ fontWeight: 700, color: '#7c3aed', marginRight: 6 }}>[SET]</span>
+                )}
+                <span style={{ fontWeight: 600, color: C.accent }}>{u.kod}</span>
                 {u.aciklama && (
                   <span style={{ color: C.textMid, marginLeft: 6 }}>— {u.aciklama}</span>
                 )}

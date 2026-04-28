@@ -4,6 +4,7 @@ import {
   App, Card, Upload, Button, Table, Alert, Typography, Input,
   Space, Divider, Tag, Statistic, Row, Col, Popconfirm,
   Modal, Form, Tabs,
+  InputNumber,
 } from 'antd';
 import {
   UploadOutlined, TeamOutlined, AppstoreOutlined,
@@ -19,7 +20,8 @@ import {
 import type { CariImportSonucu, UrunImportSonucu } from '../services/excelImportService';
 import { cariService } from '../services/musteriService';
 import { urunService } from '../services/urunService';
-import type { Cari, Urun } from '../types';
+import { urunSetService } from '../services/urunSetService';
+import type { Cari, Urun, UrunSeti } from '../types';
 import {
   normalizeProductCode, cleanTextInput, normalizeEmail,
   formatCariAdi,
@@ -217,6 +219,165 @@ function UrunModal({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Ürün Seti Modal — Ekle / Düzenle
+// ─────────────────────────────────────────────────────────────────────────────
+function UrunSetModal({
+  acik,
+  set,
+  urunler,
+  onKaydet,
+  onIptal,
+}: {
+  acik: boolean;
+  set: UrunSeti | null;
+  urunler: Urun[];
+  onKaydet: () => void;
+  onIptal: () => void;
+}) {
+  const { message, modal } = App.useApp();
+  const [form] = Form.useForm();
+  const isMobile = useIsMobile(640);
+  const yeni = !set;
+
+  function koddanAciklamaGetir(kod: string): string {
+    const urun = urunler.find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+    return urun?.aciklama ?? '';
+  }
+
+  function kaydet() {
+    form.validateFields().then((vals) => {
+      const kalemler = (vals.kalemler ?? [])
+        .filter((k: { urunKod?: string }) => (k.urunKod ?? '').trim())
+        .map((k: { id?: string; urunKod: string; aciklama?: string; miktar?: number; birim?: string }) => ({
+          id: k.id || urunSetService.setKalemIdUret(),
+          urunKod: normalizeProductCode(k.urunKod ?? ''),
+          aciklama: cleanTextInput(k.aciklama ?? ''),
+          miktar: Math.max(0, Number(k.miktar ?? 0)),
+          birim: cleanTextInput(k.birim ?? '') || 'Adet',
+        }));
+
+      if (kalemler.length === 0) {
+        message.warning('Set için en az 1 alt kalem giriniz.');
+        return;
+      }
+
+      modal.confirm({
+        title: yeni ? 'Set kaydedilsin mi?' : 'Set güncellensin mi?',
+        content: `${vals.setKod} kodlu set ${kalemler.length} alt kalem ile kaydedilecek.`,
+        okText: 'Onayla',
+        cancelText: 'İptal',
+        onOk: () => {
+          const now = new Date().toISOString();
+          const kayit: UrunSeti = {
+            id: set?.id ?? urunSetService.setIdUret(),
+            setKod: normalizeProductCode(vals.setKod ?? ''),
+            aciklama: cleanTextInput(vals.aciklama ?? ''),
+            kalemler,
+            olusturmaTarihi: set?.olusturmaTarihi ?? now,
+            guncellemeTarihi: now,
+          };
+          urunSetService.setKaydet(kayit);
+          message.success(yeni ? 'Set eklendi.' : 'Set güncellendi.');
+          form.resetFields();
+          onKaydet();
+        },
+      });
+    });
+  }
+
+  return (
+    <Modal
+      title={yeni ? 'Yeni Set Ekle' : 'Set Düzenle'}
+      open={acik}
+      onOk={kaydet}
+      onCancel={() => { form.resetFields(); onIptal(); }}
+      okText="Kaydet"
+      cancelText="İptal"
+      width={isMobile ? 'calc(100vw - 20px)' : 760}
+      afterOpenChange={(open) => {
+        if (!open) return;
+        if (!set) {
+          form.setFieldsValue({ kalemler: [{ id: urunSetService.setKalemIdUret(), urunKod: '', aciklama: '', miktar: 1, birim: 'Adet' }] });
+          return;
+        }
+        form.setFieldsValue({
+          setKod: set.setKod,
+          aciklama: set.aciklama,
+          kalemler: set.kalemler,
+        });
+      }}
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
+        <Row gutter={12}>
+          <Col span={10}>
+            <Form.Item name="setKod" label="Set Kodu" rules={[{ required: true, message: 'Zorunlu' }]}>
+              <Input placeholder="SET-001" />
+            </Form.Item>
+          </Col>
+          <Col span={14}>
+            <Form.Item name="aciklama" label="Set Açıklaması" rules={[{ required: true, message: 'Zorunlu' }]}>
+              <Input placeholder="Örn: Pano Montaj Seti" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Divider style={{ margin: '8px 0 14px' }} />
+
+        <Form.List name="kalemler">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map((field) => (
+                <Row gutter={8} key={field.key} align="middle" style={{ marginBottom: 8 }}>
+                  <Col span={8}>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'urunKod']}
+                      label="Alt Ürün Kodu"
+                      rules={[{ required: true, message: 'Zorunlu' }]}
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Input
+                        onBlur={(e) => {
+                          const kod = normalizeProductCode(e.target.value ?? '');
+                          const aciklama = koddanAciklamaGetir(kod);
+                          form.setFieldValue(['kalemler', field.name, 'urunKod'], kod);
+                          if (aciklama) form.setFieldValue(['kalemler', field.name, 'aciklama'], aciklama);
+                        }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={10}>
+                    <Form.Item {...field} name={[field.name, 'aciklama']} label="Açıklama" style={{ marginBottom: 0 }}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col span={3}>
+                    <Form.Item {...field} name={[field.name, 'miktar']} label="Adet" style={{ marginBottom: 0 }}>
+                      <InputNumber min={0} step={1} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={2}>
+                    <Form.Item {...field} name={[field.name, 'birim']} label="Birim" style={{ marginBottom: 0 }}>
+                      <Input placeholder="Adet" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={1} style={{ paddingTop: 22, textAlign: 'right' }}>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} className={buttonClassNames.smallActionDanger} />
+                  </Col>
+                </Row>
+              ))}
+              <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ id: urunSetService.setKalemIdUret(), urunKod: '', aciklama: '', miktar: 1, birim: 'Adet' })}>
+                Alt Kalem Ekle
+              </Button>
+            </>
+          )}
+        </Form.List>
+      </Form>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Ana Sayfa
 // ─────────────────────────────────────────────────────────────────────────────
 export default function VeriYonetimiSayfasi() {
@@ -224,9 +385,11 @@ export default function VeriYonetimiSayfasi() {
   // ── Veri state ──────────────────────────────────────────────────────────────
   const [cariler, setCariler] = useState<Cari[]>(() => cariService.tumCarileriGetir());
   const [urunler, setUrunler] = useState<Urun[]>(() => urunService.tumUrunleriGetir());
+  const [setler, setSetler] = useState<UrunSeti[]>(() => urunSetService.tumSetleriGetir());
 
   function cariListesiYenile() { setCariler(cariService.tumCarileriGetir()); }
   function urunListesiYenile() { setUrunler(urunService.tumUrunleriGetir()); }
+  function setListesiYenile() { setSetler(urunSetService.tumSetleriGetir()); }
 
   // ── Referans veri state — üçü de aynı yapı (localStorage + useState) ──────
   const [markalar, setMarkalar]                   = useState(() => referansVeriService.markalar.tumunuGetir());
@@ -246,6 +409,8 @@ export default function VeriYonetimiSayfasi() {
   const [seciliCari, setSeciliCari]           = useState<Cari | null>(null);
   const [urunModalAcik, setUrunModalAcik]     = useState(false);
   const [seciliUrun, setSeciliUrun]           = useState<Urun | null>(null);
+  const [setModalAcik, setSetModalAcik]       = useState(false);
+  const [seciliSet, setSeciliSet]             = useState<UrunSeti | null>(null);
 
   // ── Cari işlemleri ──────────────────────────────────────────────────────────
   async function cariDosyaOku(file: File) {
@@ -296,6 +461,15 @@ export default function VeriYonetimiSayfasi() {
 
   function urunDuzenle(urun: Urun) { setSeciliUrun(urun); setUrunModalAcik(true); }
   function urunEkleAc()             { setSeciliUrun(null);  setUrunModalAcik(true); }
+
+  function setSil(id: string) {
+    urunSetService.setSil(id);
+    setListesiYenile();
+    message.success('Set silindi.');
+  }
+
+  function setDuzenle(set: UrunSeti) { setSeciliSet(set); setSetModalAcik(true); }
+  function setEkleAc()               { setSeciliSet(null); setSetModalAcik(true); }
 
   function urunleriSifirla() {
     urunService.urunleriSifirla();
@@ -350,6 +524,34 @@ export default function VeriYonetimiSayfasi() {
             title="Ürün silinecek"
             description="Bu işlem geri alınamaz."
             onConfirm={() => urunSil(rec.id)}
+            okText="Sil" cancelText="İptal" okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} className={buttonClassNames.smallActionDanger} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const setKolonlar = [
+    {
+      title: 'Set Kodu', dataIndex: 'setKod', key: 'setKod', width: 140,
+      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{v}</span>,
+    },
+    { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama', ellipsis: true },
+    {
+      title: 'Alt Kalem', key: 'kalem', width: 100,
+      render: (_: unknown, rec: UrunSeti) => <Tag color="purple">{rec.kalemler.length}</Tag>,
+    },
+    {
+      title: '', key: 'islem', width: 80, fixed: 'right' as const,
+      render: (_: unknown, rec: UrunSeti) => (
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => setDuzenle(rec)} className={buttonClassNames.smallAction} />
+          <Popconfirm
+            title="Set silinecek"
+            description="Bu işlem geri alınamaz."
+            onConfirm={() => setSil(rec.id)}
             okText="Sil" cancelText="İptal" okButtonProps={{ danger: true }}
           >
             <Button size="small" danger icon={<DeleteOutlined />} className={buttonClassNames.smallActionDanger} />
@@ -494,6 +696,42 @@ export default function VeriYonetimiSayfasi() {
     </Row>
   );
 
+  const tabSetler = (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={setEkleAc} className={buttonClassNames.primary}>
+          Yeni Set
+        </Button>
+      </div>
+
+      <Table
+        dataSource={setler}
+        columns={setKolonlar}
+        rowKey="id"
+        size="small"
+        pagination={{ pageSize: 12, showSizeChanger: false, showTotal: (t) => `${t} set` }}
+        locale={{ emptyText: 'Henüz set tanımı yok.' }}
+        scroll={{ x: 620 }}
+        expandable={{
+          expandedRowRender: (rec: UrunSeti) => (
+            <Table
+              size="small"
+              pagination={false}
+              rowKey="id"
+              dataSource={rec.kalemler}
+              columns={[
+                { title: 'Ürün Kodu', dataIndex: 'urunKod', key: 'urunKod', width: 160 },
+                { title: 'Açıklama', dataIndex: 'aciklama', key: 'aciklama' },
+                { title: 'Adet', dataIndex: 'miktar', key: 'miktar', width: 90, align: 'right' as const },
+                { title: 'Birim', dataIndex: 'birim', key: 'birim', width: 100 },
+              ]}
+            />
+          ),
+        }}
+      />
+    </div>
+  );
+
   const isMobile = useIsMobile(768);
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -517,6 +755,11 @@ export default function VeriYonetimiSayfasi() {
             <Statistic title="Kayıtlı Ürün" value={urunler.length} prefix={<AppstoreOutlined />} />
           </Card>
         </Col>
+        <Col xs={12} sm={5}>
+          <Card size="small">
+            <Statistic title="Ürün Seti" value={setler.length} prefix={<TagsOutlined />} />
+          </Card>
+        </Col>
       </Row>
 
       <Card styles={{ body: { paddingTop: 0 } }}>
@@ -538,6 +781,11 @@ export default function VeriYonetimiSayfasi() {
               label: <><TagsOutlined /> Referans Veriler</>,
               children: tabReferans,
             },
+            {
+              key: 'setler',
+              label: <><TagsOutlined /> Set Listeleri <Tag style={{ marginLeft: 4 }}>{setler.length}</Tag></>,
+              children: tabSetler,
+            },
           ]}
         />
       </Card>
@@ -556,6 +804,14 @@ export default function VeriYonetimiSayfasi() {
         urun={seciliUrun}
         onKaydet={() => { setUrunModalAcik(false); urunListesiYenile(); }}
         onIptal={() => setUrunModalAcik(false)}
+      />
+
+      <UrunSetModal
+        acik={setModalAcik}
+        set={seciliSet}
+        urunler={urunler}
+        onKaydet={() => { setSetModalAcik(false); setListesiYenile(); }}
+        onIptal={() => setSetModalAcik(false)}
       />
     </div>
   );

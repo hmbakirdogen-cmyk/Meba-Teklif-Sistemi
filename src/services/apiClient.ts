@@ -4,7 +4,7 @@
  * Uses window.location.hostname so it works for both localhost dev and LAN IPs.
  */
 
-import type { Teklif, Cari, Urun } from '../types';
+import type { Teklif, Cari, Urun, UrunSeti } from '../types';
 import { APP_CONFIG } from '../config';
 
 const BASE = APP_CONFIG.API_BASE;
@@ -60,6 +60,7 @@ export interface InitData {
   teklifler: Teklif[];
   cariler: Cari[];
   urunler: Urun[];
+  urunSetleri?: UrunSeti[];
   referans: Referans;
   sayac: Sayac;
 }
@@ -99,6 +100,13 @@ export const api = {
     upsert:      (u: Urun)              => put<Urun>(`/urunler/${u.id}`, u),
     sil:         (id: string)           => del(`/urunler/${id}`),
     bulkReplace: (liste: Urun[])        => put<Urun[]>('/urunler', liste),
+  },
+
+  urunSetleri: {
+    list:        ()                      => get<UrunSeti[]>('/urunSetleri'),
+    upsert:      (s: UrunSeti)           => put<UrunSeti>(`/urunSetleri/${s.id}`, s),
+    sil:         (id: string)            => del(`/urunSetleri/${id}`),
+    bulkReplace: (liste: UrunSeti[])     => put<UrunSeti[]>('/urunSetleri', liste),
   },
 
   referans: {

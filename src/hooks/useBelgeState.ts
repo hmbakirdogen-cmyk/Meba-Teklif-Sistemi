@@ -16,12 +16,14 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
+import { urunSetService } from '../services/urunSetService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import { sanitizeMultilineText } from '../utils/formatters';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
 import dayjs from 'dayjs';
 
 const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
+const SET_GRUP_RENK_DONGUSU: Array<NonNullable<TeklifSatiri['grupRenk']>> = ['amber', 'mint', 'sky', 'lavender'];
 
 function cariEpostaVarsayilanla(cari: Cari): Cari {
   const email = (cari.ePosta ?? '').trim();
@@ -33,6 +35,65 @@ function normalizeSatirGrupRenk(value: unknown): TeklifSatiri['grupRenk'] {
     return value;
   }
   return undefined;
+}
+
+function pickSetGrupRenk(satirlar: TeklifSatiri[], currentParentId: string): NonNullable<TeklifSatiri['grupRenk']> {
+  const parentSetRows = satirlar.filter((s) => s.id !== currentParentId && !s.setAltKalem && Boolean(s.setId));
+  const used = new Set<NonNullable<TeklifSatiri['grupRenk']>>();
+
+  parentSetRows.forEach((row) => {
+    const renk = normalizeSatirGrupRenk(row.grupRenk);
+    if (renk) used.add(renk);
+  });
+
+  const firstUnused = SET_GRUP_RENK_DONGUSU.find((renk) => !used.has(renk));
+  if (firstUnused) return firstUnused;
+
+  const countByRenk: Record<NonNullable<TeklifSatiri['grupRenk']>, number> = {
+    amber: 0,
+    mint: 0,
+    sky: 0,
+    lavender: 0,
+  };
+
+  parentSetRows.forEach((row) => {
+    const renk = normalizeSatirGrupRenk(row.grupRenk);
+    if (renk) countByRenk[renk] += 1;
+  });
+
+  let selected = SET_GRUP_RENK_DONGUSU[0];
+  let minCount = countByRenk[selected];
+  for (const renk of SET_GRUP_RENK_DONGUSU) {
+    if (countByRenk[renk] < minCount) {
+      selected = renk;
+      minCount = countByRenk[renk];
+    }
+  }
+
+  return selected;
+}
+
+function applySetRenkDagilimi(satirlar: TeklifSatiri[]): TeklifSatiri[] {
+  const parentRows = satirlar.filter((s) => !s.setAltKalem && Boolean(s.setId));
+  if (parentRows.length <= 1) return satirlar;
+
+  const parentToRenk = new Map<string, NonNullable<TeklifSatiri['grupRenk']>>();
+  parentRows.forEach((parent, index) => {
+    const renk = SET_GRUP_RENK_DONGUSU[index % SET_GRUP_RENK_DONGUSU.length];
+    parentToRenk.set(parent.id, renk);
+  });
+
+  return satirlar.map((row) => {
+    if (!row.setId) return row;
+
+    const parentId = row.setAltKalem ? row.setAnaSatirId : row.id;
+    if (!parentId) return row;
+
+    const renk = parentToRenk.get(parentId);
+    if (!renk) return row;
+    if (row.grupRenk === renk) return row;
+    return { ...row, grupRenk: renk };
+  });
 }
 
 export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
@@ -94,6 +155,7 @@ interface BelgeActions {
   satirArayaEkle: (afterIndex: number) => void;
   satirSil: (id: string) => void;
   satirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  satiraSetUygula: (satirId: string, setId: string) => void;
 
   // Parametreler
   setParaBirimi: (pb: ParaBirimi) => void;
@@ -153,7 +215,7 @@ export function useBelgeState(
   );
   const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
   const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ? cariEpostaVarsayilanla(mevcut.cari) : null);
-  const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
+  const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(() => applySetRenkDagilimi(mevcut?.satirlar ?? []));
   const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
   const [satirBazliIskonto, setSatirBazliIskontoState] = useState(mevcut?.satirBazliIskonto ?? false);
@@ -238,9 +300,70 @@ export function useBelgeState(
     if (cari) cariService.cariMuhatapGuncelle(cari.id, contactName.trim(), title);
   }, [cari, contactName]);
 
+  const satirDegisimiAnlikKaydet = useCallback((nextSatirlar: TeklifSatiri[]) => {
+    if (!cari) return;
+    if (nextSatirlar.length === 0) return;
+    if (teklifNoDurumu !== 'hazir' || teklifNo === 'ERR') return;
+
+    const normalizedCari = cariEpostaVarsayilanla(cari);
+    const toplamlar = hesaplamaMotoru.genelToplamHesapla(nextSatirlar, kdvOrani, iskontoOrani);
+    teklifService.teklifKaydet({
+      id: teklifId,
+      teklifNo,
+      tarih,
+      satirBazliParaBirimi,
+      satirBazliIskonto,
+      paraBirimi,
+      durum,
+      cari: normalizedCari,
+      satirlar: nextSatirlar,
+      araToplam: toplamlar.araToplam,
+      toplamIndirim: toplamlar.toplamIndirim,
+      toplamVergi: toplamlar.kdvTutar,
+      genelToplam: toplamlar.genelToplam,
+      kdvOrani,
+      iskontoOrani,
+      odemeVadesi,
+      notlar: sanitizeMultilineText(notlar),
+      olusturmaTarihi,
+      guncellemeTarihi: dayjs().toISOString(),
+      hazirlayanKullaniciId: kullanici?.id,
+      hazirlayanAdSoyad: kullanici?.adSoyad,
+      hazirlayanRol: kullanici?.rol,
+      hazirlayanUnvan: kullanici?.unvan,
+      gecerlilikSuresi: '1 Hafta',
+      contactName: contactName.trim() || undefined,
+      contactTitle: contactName.trim() ? contactTitle : undefined,
+      gorseller: gorseller.length > 0 ? gorseller : undefined,
+      status: 'taslak',
+      visibility,
+    });
+  }, [
+    cari,
+    teklifNoDurumu,
+    teklifNo,
+    teklifId,
+    tarih,
+    satirBazliParaBirimi,
+    satirBazliIskonto,
+    paraBirimi,
+    durum,
+    kdvOrani,
+    iskontoOrani,
+    odemeVadesi,
+    notlar,
+    olusturmaTarihi,
+    kullanici,
+    contactName,
+    contactTitle,
+    gorseller,
+    visibility,
+  ]);
+
   const setSatirlar = useCallback((yeniSatirlar: TeklifSatiri[]) => {
     setSatirlarState(yeniSatirlar);
-  }, []);
+    satirDegisimiAnlikKaydet(yeniSatirlar);
+  }, [satirDegisimiAnlikKaydet]);
 
   const satirEkle = useCallback(() => {
     const yeni: TeklifSatiri = {
@@ -257,9 +380,13 @@ export function useBelgeState(
       teslimTarihi: '2-3 Gün',
       satirToplami: 0,
     };
-    setSatirlarState(prev => [...prev, yeni]);
+    setSatirlarState(prev => {
+      const next = [...prev, yeni];
+      satirDegisimiAnlikKaydet(next);
+      return next;
+    });
     setSeciliSatirId(yeni.id);
-  }, [paraBirimi, birimler]);
+  }, [paraBirimi, birimler, satirDegisimiAnlikKaydet]);
 
   const satirArayaEkle = useCallback((afterIndex: number) => {
     const yeni: TeklifSatiri = {
@@ -279,27 +406,93 @@ export function useBelgeState(
     setSatirlarState(prev => {
       const next = [...prev];
       next.splice(afterIndex + 1, 0, yeni);
+      satirDegisimiAnlikKaydet(next);
       return next;
     });
     setSeciliSatirId(yeni.id);
-  }, [paraBirimi, birimler]);
+  }, [paraBirimi, birimler, satirDegisimiAnlikKaydet]);
 
   const satirSil = useCallback((id: string) => {
-    setSatirlarState(prev => prev.filter(s => s.id !== id));
+    setSatirlarState(prev => {
+      const next = prev.filter((s) => s.id !== id && s.setAnaSatirId !== id);
+      satirDegisimiAnlikKaydet(next);
+      return next;
+    });
     if (seciliSatirId === id) {
       setSeciliSatirId(null);
       setPanelModu(null);
     }
-  }, [seciliSatirId]);
+  }, [seciliSatirId, satirDegisimiAnlikKaydet]);
 
   const satirGuncelle = useCallback((id: string, alan: keyof TeklifSatiri, deger: unknown) => {
-    setSatirlarState(prev => prev.map(s => {
-      if (s.id !== id) return s;
-      const safeDeger = alan === 'grupRenk' ? normalizeSatirGrupRenk(deger) : deger;
-      const g = { ...s, [alan]: safeDeger };
-      return { ...g, satirToplami: hesaplamaMotoru.satirToplamHesapla(g) };
-    }));
-  }, []);
+    setSatirlarState(prev => {
+      const next = prev.map(s => {
+        if (s.id !== id) return s;
+        if (s.setAltKalem && (alan === 'birimFiyat' || alan === 'indirimOrani' || alan === 'teslimTarihi')) {
+          return s;
+        }
+        const safeDeger = alan === 'grupRenk' ? normalizeSatirGrupRenk(deger) : deger;
+        const g = { ...s, [alan]: safeDeger };
+        if (g.setAltKalem) {
+          return { ...g, birimFiyat: 0, indirimOrani: 0, satirToplami: 0 };
+        }
+        return { ...g, satirToplami: hesaplamaMotoru.satirToplamHesapla(g) };
+      });
+      satirDegisimiAnlikKaydet(next);
+      return next;
+    });
+  }, [satirDegisimiAnlikKaydet]);
+
+  const satiraSetUygula = useCallback((satirId: string, setId: string) => {
+    const set = urunSetService.setGetir(setId);
+    if (!set) return;
+
+    setSatirlarState((prev) => {
+      const parentIndex = prev.findIndex((s) => s.id === satirId);
+      if (parentIndex < 0) return prev;
+
+      const cleanList = prev.filter((s) => s.setAnaSatirId !== satirId);
+      const nextParentIndex = cleanList.findIndex((s) => s.id === satirId);
+      if (nextParentIndex < 0) return prev;
+
+      const setGrupRengi = pickSetGrupRenk(cleanList, satirId);
+
+      const parent = cleanList[nextParentIndex];
+      const updatedParent: TeklifSatiri = {
+        ...parent,
+        urunKod: set.setKod,
+        aciklama: set.aciklama,
+        setId: set.id,
+        setAltKalem: false,
+        grupRenk: setGrupRengi,
+      };
+
+      const altKalemler: TeklifSatiri[] = set.kalemler.map((kalem) => ({
+        id: hesaplamaMotoru.satirIdUret(),
+        marka: parent.marka || VARSAYILAN_MARKA,
+        urunKod: kalem.urunKod,
+        urunAdi: '',
+        aciklama: kalem.aciklama,
+        paraBirimi: parent.paraBirimi ?? hesaplamaMotoru.varsayilanSatirParaBirimi(paraBirimi),
+        miktar: kalem.miktar,
+        birim: kalem.birim || birimler[0] || 'Adet',
+        birimFiyat: 0,
+        indirimOrani: 0,
+        teslimTarihi: parent.teslimTarihi || '2-3 Gün',
+        satirToplami: 0,
+        setId: set.id,
+        setAnaSatirId: satirId,
+        setAltKalem: true,
+        grupRenk: setGrupRengi,
+      }));
+
+      const next = [...cleanList];
+      next[nextParentIndex] = updatedParent;
+      next.splice(nextParentIndex + 1, 0, ...altKalemler);
+      satirDegisimiAnlikKaydet(next);
+      return next;
+    });
+  }, [birimler, paraBirimi, satirDegisimiAnlikKaydet]);
 
   const setParaBirimi = useCallback((pb: ParaBirimi) => {
     setParaBirimiState(pb);
@@ -498,6 +691,7 @@ export function useBelgeState(
     satirArayaEkle,
     satirSil,
     satirGuncelle,
+    satiraSetUygula,
     setParaBirimi,
     setSatirBazliParaBirimi,
     setSatirBazliIskonto: setSatirBazliIskontoState,

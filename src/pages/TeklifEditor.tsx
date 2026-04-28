@@ -18,6 +18,7 @@ import { buildPdf, buildEmailPdf, buildPrintImages } from '../services/pdfServic
 import { teklifService } from '../services/teklifService';
 import {
   teklifDisaAktar,
+  teklifDisaAktarVeGerekirseYerelTaslakAc,
   type TeklifDisaAktarimHedefi,
   type TeklifDisaAktarimSonucu,
   TeklifDisaAktarimHatasi,
@@ -182,7 +183,11 @@ export default function TeklifEditor() {
   const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu) => {
     if (sonuc.hedef === 'pdf') {
       if (sonuc.kayitYontemi === 'tarayici') {
-        message.success('PDF indirildi. Bu ortamda otomatik masaustu kaydi kullanilamadigi icin tarayici indirmesi kullanildi.');
+        message.success(
+          sonuc.yerelKayitYolu
+            ? `PDF yerel klasore kaydedildi: ${sonuc.yerelKayitYolu}`
+            : 'PDF indirildi. Bu ortamda otomatik masaustu kaydi kullanilamadigi icin tarayici indirmesi kullanildi.',
+        );
         return;
       }
 
@@ -202,7 +207,9 @@ export default function TeklifEditor() {
     if (sonuc.kayitYontemi === 'tarayici') {
       if (sonuc.epostaTaslakYontemi === 'mailto') {
         message.warning(
-          'PDF indirildi ve e-posta taslağı açıldı. Tarayıcı ortamında PDF eki otomatik eklenemediğinden eki lütfen kendiniz ekleyiniz.',
+          sonuc.yerelKayitYolu
+            ? `PDF yerel klasore kaydedildi: ${sonuc.yerelKayitYolu}. E-posta taslağı açıldı; PDF ekini manuel ekleyiniz.`
+            : 'PDF indirildi ve e-posta taslağı açıldı. Tarayıcı ortamında PDF eki otomatik eklenemediğinden eki lütfen kendiniz ekleyiniz.',
         );
         return;
       }
@@ -270,7 +277,9 @@ export default function TeklifEditor() {
       state.setPdfHazir(true);
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
-      const sonuc = await teklifDisaAktar(blob, kayitliTeklif, hedef);
+      const sonuc = hedef === 'email'
+        ? await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, kayitliTeklif, hedef)
+        : await teklifDisaAktar(blob, kayitliTeklif, hedef);
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
 
@@ -470,6 +479,7 @@ export default function TeklifEditor() {
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onSatirGuncelle={state.satirGuncelle}
+              onSatiraSetUygula={state.satiraSetUygula}
               onSatirSil={state.satirSil}
               onSatirEkle={state.satirEkle}
               onSatirArayaEkle={state.satirArayaEkle}

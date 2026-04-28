@@ -8,6 +8,7 @@ import {
   URUN_KOD_OVERFLOW,
   rcCell,
   type CellPos,
+  type SetGroupPos,
 } from '../templates/teklifDocumentShared';
 
 export { DescText, MagnetIcon } from '../templates/teklifDocumentShared';
@@ -19,6 +20,7 @@ export function RowCell({
   idx,
   pos,
   rowHeight,
+  setGroupPos,
   style,
   children,
   ...props
@@ -26,6 +28,7 @@ export function RowCell({
   idx: number;
   pos: CellPos;
   rowHeight?: number;
+  setGroupPos?: SetGroupPos;
 }) {
   return (
     <td
@@ -33,7 +36,7 @@ export function RowCell({
       style={{
         padding: CELL_PAD,
         verticalAlign: 'middle',
-        ...rcCell(pos, idx, rowHeight),
+        ...rcCell(pos, idx, rowHeight, setGroupPos ?? null),
         ...style,
       }}
     >

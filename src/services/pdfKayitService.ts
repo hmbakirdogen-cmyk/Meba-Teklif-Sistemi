@@ -3,6 +3,18 @@ import type { Teklif } from '../types';
 
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
+const PDF_ROOT_FOLDER_NAME = 'MEBA MEKANIK TEKLIFLER';
+
+type ShowDirectoryPickerOptionsLike = {
+  mode?: 'read' | 'readwrite';
+  startIn?: 'downloads';
+};
+
+type WindowWithDirectoryPicker = Window & typeof globalThis & {
+  showDirectoryPicker?: (options?: ShowDirectoryPickerOptionsLike) => Promise<FileSystemDirectoryHandle>;
+};
+
+let cachedDownloadsDirectoryHandle: FileSystemDirectoryHandle | null = null;
 
 export type TeklifDisaAktarimHedefi = 'pdf' | 'email';
 export type TeklifDisaAktarimYontemi = 'otomatik' | 'tarayici';
@@ -24,6 +36,8 @@ export interface TeklifDisaAktarimSonucu {
   aliciEposta?: string;
   mailKonu?: string;
   mailGovdesi?: string;
+  istemciTarafindaMailtoGerekli?: boolean;
+  yerelKayitYolu?: string;
 }
 
 export class TeklifDisaAktarimHatasi extends Error {
@@ -60,6 +74,10 @@ function buildFallbackFileName(teklif: Teklif): string {
   const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
   const teklifNo = sanitizeWindowsSegment(teklif.teklifNo ?? '', '').trim();
   return teklifNo ? `${cariStem} - ${teklifNo}.pdf` : `${cariStem}.pdf`;
+}
+
+function buildCariFolderName(teklif: Teklif): string {
+  return extractCariStem(teklif.cari?.firmaAdi ?? '');
 }
 
 function buildMailSubject(teklif: Teklif): string {
@@ -111,6 +129,79 @@ function browserDownload(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function createUniqueFileHandle(
+  directoryHandle: FileSystemDirectoryHandle,
+  fileName: string,
+): Promise<{ fileHandle: FileSystemFileHandle; finalFileName: string }> {
+  const dotIndex = fileName.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+  const extension = dotIndex > 0 ? fileName.slice(dotIndex) : '';
+  let counter = 1;
+  let candidate = fileName;
+
+  while (true) {
+    try {
+      await directoryHandle.getFileHandle(candidate);
+      counter += 1;
+      candidate = `${baseName} (${counter})${extension}`;
+    } catch {
+      const fileHandle = await directoryHandle.getFileHandle(candidate, { create: true });
+      return { fileHandle, finalFileName: candidate };
+    }
+  }
+}
+
+async function getDownloadsDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
+  if (!window.isSecureContext) return null;
+
+  const pickerWindow = window as WindowWithDirectoryPicker;
+
+  if (!pickerWindow.showDirectoryPicker) {
+    return null;
+  }
+
+  if (cachedDownloadsDirectoryHandle) {
+    return cachedDownloadsDirectoryHandle;
+  }
+
+  cachedDownloadsDirectoryHandle = await pickerWindow.showDirectoryPicker({
+    mode: 'readwrite',
+    startIn: 'downloads',
+  });
+
+  return cachedDownloadsDirectoryHandle;
+}
+
+async function saveBlobIntoDownloadsTree(
+  blob: Blob,
+  teklif: Teklif,
+): Promise<{ saved: boolean; relativePath?: string }> {
+  try {
+    const downloadsDirectoryHandle = await getDownloadsDirectoryHandle();
+
+    if (!downloadsDirectoryHandle) {
+      return { saved: false }; 
+    }
+
+    const rootDirectoryHandle = await downloadsDirectoryHandle.getDirectoryHandle(PDF_ROOT_FOLDER_NAME, { create: true });
+    const cariFolderName = buildCariFolderName(teklif);
+    const cariDirectoryHandle = await rootDirectoryHandle.getDirectoryHandle(cariFolderName, { create: true });
+    const requestedFileName = buildFallbackFileName(teklif);
+    const { fileHandle, finalFileName } = await createUniqueFileHandle(cariDirectoryHandle, requestedFileName);
+    const writable = await fileHandle.createWritable();
+
+    await writable.write(blob);
+    await writable.close();
+
+    return {
+      saved: true,
+      relativePath: `${PDF_ROOT_FOLDER_NAME}/${cariFolderName}/${finalFileName}`,
+    };
+  } catch {
+    return { saved: false };
+  }
+}
+
 function openMailtoDraft(aliciEposta: string | undefined, konu: string, govde: string): boolean {
   try {
     const toSegment = aliciEposta ? encodeURIComponent(aliciEposta) : '';
@@ -145,13 +236,16 @@ function buildFallbackResult(
   blob: Blob,
   teklif: Teklif,
   hedef: TeklifDisaAktarimHedefi,
+  localSave?: { saved: boolean; relativePath?: string },
 ): TeklifDisaAktarimSonucu {
   const fallbackFileName = buildFallbackFileName(teklif);
   const aliciEposta = teklif.cari?.ePosta?.trim() || undefined;
   const mailKonu = buildMailSubject(teklif);
   const mailGovdesi = buildMailBody(teklif);
 
-  browserDownload(blob, fallbackFileName);
+  if (!localSave?.saved) {
+    browserDownload(blob, fallbackFileName);
+  }
 
   if (hedef === 'email') {
     const acildi = openMailtoDraft(aliciEposta, mailKonu, mailGovdesi);
@@ -170,6 +264,7 @@ function buildFallbackResult(
       aliciEposta,
       mailKonu,
       mailGovdesi,
+      yerelKayitYolu: localSave?.relativePath,
     };
   }
 
@@ -184,6 +279,7 @@ function buildFallbackResult(
     dosyaAcildi: false,
     epostaHazirlandi: false,
     epostaTaslakYontemi: null,
+    yerelKayitYolu: localSave?.relativePath,
   };
 }
 
@@ -229,14 +325,53 @@ export async function teklifDisaAktar(
       aliciEposta: payload.aliciEposta,
       mailKonu: payload.mailKonu,
       mailGovdesi: payload.mailGovdesi,
+      istemciTarafindaMailtoGerekli: payload.istemciTarafindaMailtoGerekli ?? false,
     };
   } catch (error) {
     if (error instanceof TeklifDisaAktarimHatasi || !(error instanceof TypeError)) {
       throw error;
     }
 
-    return buildFallbackResult(blob, teklif, hedef);
+    const localSave = await saveBlobIntoDownloadsTree(blob, teklif);
+    return buildFallbackResult(blob, teklif, hedef, localSave);
   }
+}
+
+export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
+  blob: Blob,
+  teklif: Teklif,
+  hedef: TeklifDisaAktarimHedefi,
+): Promise<TeklifDisaAktarimSonucu> {
+  const sonuc = await teklifDisaAktar(blob, teklif, hedef);
+
+  if (hedef !== 'email' || !sonuc.istemciTarafindaMailtoGerekli) {
+    return sonuc;
+  }
+
+  const localSave = await saveBlobIntoDownloadsTree(blob, teklif);
+
+  if (!localSave.saved) {
+    const dosyaAdi = sonuc.pdfDosyaAdi || buildFallbackFileName(teklif);
+    browserDownload(blob, dosyaAdi);
+  }
+
+  const konu = sonuc.mailKonu || buildMailSubject(teklif);
+  const govde = sonuc.mailGovdesi || buildMailBody(teklif);
+  const acildi = openMailtoDraft(sonuc.aliciEposta, konu, govde);
+
+  return {
+    ...sonuc,
+    epostaHazirlandi: acildi,
+    epostaTaslakYontemi: acildi ? 'mailto' : null,
+    yerelKayitYolu: localSave.relativePath,
+    epostaHatasi: acildi
+      ? localSave.saved
+        ? 'PDF bu bilgisayarda yerel MEBA klasor yapisina kaydedildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.'
+        : 'PDF bu bilgisayara indirildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.'
+      : localSave.saved
+      ? 'PDF bu bilgisayarda yerel MEBA klasor yapisina kaydedildi, ancak yerel e-posta taslağı açılamadı.'
+      : 'PDF bu bilgisayara indirildi, ancak yerel e-posta taslağı açılamadı.',
+  };
 }
 
 export async function pdfKaydetVeAc(blob: Blob, teklif: Teklif): Promise<TeklifDisaAktarimSonucu> {

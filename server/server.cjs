@@ -19,6 +19,7 @@ const DB_DEFAULTS = {
   teklifler: [],
   cariler: [],
   urunler: [],
+  urunSetleri: [],
   referans: { markalar: [], birimler: [], teslimSecenekleri: [] },
   sayac: { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
 };
@@ -46,6 +47,34 @@ function getLocalIP() {
     }
   }
   return 'localhost';
+}
+
+function getLocalIPv4Addresses() {
+  const ifaces = os.networkInterfaces();
+  const addresses = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+  for (const list of Object.values(ifaces)) {
+    for (const info of list || []) {
+      if (info.family === 'IPv4') {
+        addresses.add(info.address);
+        addresses.add(`::ffff:${info.address}`);
+      }
+    }
+  }
+
+  return addresses;
+}
+
+function normalizeRemoteAddress(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return raw.startsWith('::ffff:') ? raw.slice(7) : raw;
+}
+
+function isSameMachineClient(req) {
+  const localAddresses = getLocalIPv4Addresses();
+  const remoteAddress = normalizeRemoteAddress(req.socket?.remoteAddress);
+  return localAddresses.has(remoteAddress) || localAddresses.has(req.socket?.remoteAddress);
 }
 
 function normalizeWhitespace(value) {
@@ -330,14 +359,35 @@ async function outlookTaslagiAc({ aliciEposta, konu, govde, htmlGovde, ekDosyaYo
     `$mail.Subject = '${escapePowerShellLiteral(konu)}'`,
   ];
 
+  const focusScriptLines = [
+    '$inspector = $mail.GetInspector',
+    'if ($null -eq $inspector) { throw "Outlook inspector açılamadı." }',
+    '$inspector.Activate()',
+    'try {',
+    "  Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue | Out-Null",
+    "  Add-Type -Namespace Win32 -Name User32 -MemberDefinition '[System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(System.IntPtr hWnd); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool ShowWindowAsync(System.IntPtr hWnd, int nCmdShow);' -ErrorAction SilentlyContinue | Out-Null",
+    '  $hwndValue = 0',
+    '  try { $hwndValue = [int64]$inspector.Hwnd } catch { $hwndValue = 0 }',
+    '  if ($hwndValue -gt 0) {',
+    '    [Win32.User32]::ShowWindowAsync([System.IntPtr]$hwndValue, 9) | Out-Null',
+    '    [Win32.User32]::SetForegroundWindow([System.IntPtr]$hwndValue) | Out-Null',
+    '  } else {',
+    "    [Microsoft.VisualBasic.Interaction]::AppActivate('Outlook') | Out-Null",
+    '  }',
+    '} catch {',
+    '  # Odak zorlamasi platform/surum kisitlarinda sessizce gecilir.',
+    '}',
+    'Start-Sleep -Milliseconds 120',
+    '$inspector.Activate()',
+  ];
+
   const htmlAttempt = await runPowerShellScript([
     ...baseScriptLines,
     `$mail.HTMLBody = [System.IO.File]::ReadAllText('${escapePowerShellLiteral(tempFile)}', [System.Text.Encoding]::UTF8)`,
     `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
     '$mail.Display()',
     'Start-Sleep -Milliseconds 350',
-    '$inspector = $mail.GetInspector',
-    'if ($null -eq $inspector) { throw "Outlook inspector açılamadı." }',
+    ...focusScriptLines,
   ]);
 
   if (htmlAttempt.ok) {
@@ -354,8 +404,7 @@ async function outlookTaslagiAc({ aliciEposta, konu, govde, htmlGovde, ekDosyaYo
     `$mail.Attachments.Add('${escapePowerShellLiteral(ekDosyaYolu)}') | Out-Null`,
     '$mail.Display()',
     'Start-Sleep -Milliseconds 350',
-    '$inspector = $mail.GetInspector',
-    'if ($null -eq $inspector) { throw "Outlook inspector açılamadı." }',
+    ...focusScriptLines,
   ]);
 
   try { fs.unlinkSync(tempFile); } catch { /* ignore */ }
@@ -447,7 +496,7 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
       return url === basePath && method === 'GET';
     },
     handleList(res) {
-      return send(res, 200, readDB()[collectionKey]);
+      return send(res, 200, readDB()[collectionKey] || []);
     },
 
     /** PUT /api/<collection> — bulk replace */
@@ -470,7 +519,7 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
       const id = url.split('/')[3];
       const body = await parseBody(req);
       const db = readDB();
-      const arr = db[collectionKey];
+      const arr = db[collectionKey] || (db[collectionKey] = []);
       const idx = arr.findIndex((item) => item.id === id);
       if (idx >= 0) {
         arr[idx] = body;
@@ -490,7 +539,7 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
     handleRemove(res, url) {
       const id = url.split('/')[3];
       const db = readDB();
-      db[collectionKey] = db[collectionKey].filter((item) => item.id !== id);
+      db[collectionKey] = (db[collectionKey] || []).filter((item) => item.id !== id);
       writeDB(db);
       return send(res, 200, { ok: true });
     },
@@ -500,6 +549,7 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
 const teklifCrud = crudRoutes('teklifler', { insertMethod: 'unshift' });
 const cariCrud   = crudRoutes('cariler');
 const urunCrud   = crudRoutes('urunler');
+const urunSetCrud = crudRoutes('urunSetleri');
 
 const server = http.createServer(async (req, res) => {
   const { method } = req;
@@ -578,6 +628,12 @@ const server = http.createServer(async (req, res) => {
     if (urunCrud.upsert(url, method))         return await urunCrud.handleUpsert(req, res, url);
     if (urunCrud.remove(url, method))         return urunCrud.handleRemove(res, url);
 
+    // ── URUN SETLERI ─────────────────────────────────────────────────────────
+    if (urunSetCrud.list(url, method))        return urunSetCrud.handleList(res);
+    if (urunSetCrud.bulkReplace(url, method)) return await urunSetCrud.handleBulkReplace(req, res);
+    if (urunSetCrud.upsert(url, method))      return await urunSetCrud.handleUpsert(req, res, url);
+    if (urunSetCrud.remove(url, method))      return urunSetCrud.handleRemove(res, url);
+
     // ── REFERANS ─────────────────────────────────────────────────────────────
 
     if (url === '/api/referans' && method === 'GET') {
@@ -613,6 +669,7 @@ const server = http.createServer(async (req, res) => {
       const teklif = body?.teklif;
       const pdfBase64 = typeof body?.pdfBase64 === 'string' ? body.pdfBase64.trim() : '';
       const hedef = body?.hedef === 'email' ? 'email' : 'pdf';
+      const ayniMakineIstemci = isSameMachineClient(req);
       let kaydedilenDosyaYolu = '';
       let kaydedilenDosyaAdi = '';
       let teklifKaydiTamamlandi = false;
@@ -689,7 +746,7 @@ const server = http.createServer(async (req, res) => {
         const acmaSonucu = hedef === 'pdf'
           ? dosyaAc(tamYol)
           : { acildi: false };
-        const epostaSonucu = hedef === 'email'
+        const epostaSonucu = hedef === 'email' && ayniMakineIstemci
           ? await outlookTaslagiAc({
             aliciEposta,
             konu: mailKonu,
@@ -697,6 +754,12 @@ const server = http.createServer(async (req, res) => {
             htmlGovde: mailHtmlGovdesi,
             ekDosyaYolu: tamYol,
           })
+          : hedef === 'email'
+          ? {
+            epostaHazirlandi: false,
+            epostaTaslakYontemi: null,
+            epostaHatasi: 'Istemci uzak bilgisayarda oldugu icin Outlook taslagi tarayici tarafinda acilacak.',
+          }
           : {
             epostaHazirlandi: false,
             epostaTaslakYontemi: null,
@@ -726,6 +789,7 @@ const server = http.createServer(async (req, res) => {
           epostaHazirlandi: epostaSonucu.epostaHazirlandi,
           epostaHatasi: epostaSonucu.epostaHatasi,
           epostaTaslakYontemi: epostaSonucu.epostaTaslakYontemi,
+          istemciTarafindaMailtoGerekli: hedef === 'email' && !ayniMakineIstemci,
           aliciEposta: aliciEposta || undefined,
           mailKonu: hedef === 'email' ? mailKonu : undefined,
           mailGovdesi: hedef === 'email' ? mailGovdesi : undefined,

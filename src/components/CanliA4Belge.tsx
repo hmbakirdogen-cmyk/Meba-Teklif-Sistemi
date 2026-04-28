@@ -30,6 +30,7 @@ interface CanliA4BelgeProps {
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  onSatiraSetUygula: (satirId: string, setId: string) => void;
   onSatirSil: (id: string) => void;
   onSatirEkle: () => void;
   onSatirArayaEkle: (afterIndex: number) => void;
@@ -76,6 +77,7 @@ export default function CanliA4Belge({
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
+  onSatiraSetUygula,
   onSatirSil,
   onSatirEkle,
   onSatirArayaEkle,
@@ -256,6 +258,7 @@ export default function CanliA4Belge({
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
             onSatirGuncelle={onSatirGuncelle}
+            onSatiraSetUygula={onSatiraSetUygula}
             onSatirSil={onSatirSil}
             onSatirEkle={onSatirEkle}
             onSatirArayaEkle={onSatirArayaEkle}

@@ -19,13 +19,22 @@ const SATIR_GRUP_RENK_ETIKETI: Record<SatirGrupRenk, string> = {
   sky: 'Mavi',
   lavender: 'Mor',
 };
+const SATIR_GRUP_RENK_SWATCH: Record<SatirGrupRenk, { bg: string; border: string }> = {
+  amber: { bg: '#d97706', border: '#f59e0b' },
+  mint: { bg: '#059669', border: '#10b981' },
+  sky: { bg: '#2563eb', border: '#60a5fa' },
+  lavender: { bg: '#7c3aed', border: '#a78bfa' },
+};
 
 const K = {
-  WIDTH: 156,
+  WIDTH: 128,
   TOP: 97,
-  BOTTOM_GAP: 24,
+  // BOTTOM_GAP: panel'in viewport alt kenarına olan minimum mesafesi.
+  // Dev imzası kartı için (~14px bottom + ~22px height + buffer) → 44px
+  // ayrılır; böylece panel bottomReach ≤ viewportH-44 < signature.top.
+  BOTTOM_GAP: 44,
   EDGE_MIN: 24,
-  RIGHT_CLOSED_OFFSET: 585, // 397 (A4 half) + 156 (panel) + 32 (gap)
+  RIGHT_CLOSED_OFFSET: 557, // 397 (A4 half) + 128 (panel) + 32 (gap)
   RIGHT_OPEN_OFFSET: 376,   // SagPanel 360 + 16px boşluk
 } as const;
 
@@ -69,6 +78,7 @@ export default function KumandaPaneli({
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
+  const [grupRenkPenceresiAcik, setGrupRenkPenceresiAcik] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
   // Genel Finans, Paylaşım) varsayılan KAPALI. Genişletme butonuyla açılır.
@@ -116,10 +126,21 @@ export default function KumandaPaneli({
     onIskontoOraniDegistir(lastIsk);
   };
 
-  const sonrakiGrupRenk = () => {
-    const idx = SATIR_GRUP_RENK_DONGUSU.indexOf(grupRenk);
-    const next = SATIR_GRUP_RENK_DONGUSU[(idx + 1) % SATIR_GRUP_RENK_DONGUSU.length];
-    onGrupRenkDegistir(next);
+  const handleGrupModuButonu = () => {
+    if (!grupModuAktif) {
+      onGrupModuDegistir(true);
+    }
+    setGrupRenkPenceresiAcik(true);
+  };
+
+  const handleGrupRenkSec = (renk: SatirGrupRenk) => {
+    onGrupRenkDegistir(renk);
+    setGrupRenkPenceresiAcik(false);
+  };
+
+  const handleGrupModunuKapat = () => {
+    onGrupModuDegistir(false);
+    setGrupRenkPenceresiAcik(false);
   };
 
   const onResimSec = () => fileInputRef.current?.click();
@@ -137,9 +158,13 @@ export default function KumandaPaneli({
     reader.readAsDataURL(file);
   };
 
-  // A4 belgesinin top + right edge'i ölçülür → panel A4'ün hemen sağına
-  // konumlanır; viewport daralırsa panel SCALE DOWN olur (kaybolmaz),
-  // çok dar olursa minimum 0.55 scale.
+  // A4'ün konumu ölçülür → panel A4'ün üst-sağ köşesine yerleşir;
+  // viewport daralırsa SCALE DOWN olur (min 0.55 — okunabilirlik sınırı).
+  //
+  // top = rect.top + scrollY → A4'ün DOCUMENT-MUTLAK Y'si. Sayfa scroll
+  // edildiğinde rect.top azalır, scrollY aynı oranda artar; toplam sabit
+  // kalır. position:fixed bu değere bağlı olduğu için panel scroll'dan
+  // bağımsız olarak A4'ün ilk hizasında durmaya devam eder.
   const [pos, setPos] = useState<{ top: number; left: number; scale: number }>(
     { top: K.TOP, left: 0, scale: 1 },
   );
@@ -147,22 +172,23 @@ export default function KumandaPaneli({
     const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
     if (!a4El) return;
     const rect = a4El.getBoundingClientRect();
-    const top = Math.round(rect.top);
     const a4Right = Math.round(rect.right);
+    const docTop = Math.round(rect.top + window.scrollY);
     const sagPanelExtra = sagPanelOpen ? K.RIGHT_OPEN_OFFSET - K.EDGE_MIN : 0;
     const desiredLeft = a4Right + 16 + sagPanelExtra;
     // Panel ile viewport arası mevcut yatay alan
     const availableWidth = window.innerWidth - desiredLeft - K.EDGE_MIN;
-    // Scale: 1 ideal; alan azsa K.WIDTH'a oran (min 0.55 — okunabilirlik sınırı)
     const scale =
       availableWidth >= K.WIDTH
         ? 1
         : Math.max(0.55, availableWidth / K.WIDTH);
-    setPos({
-      top: top > 0 ? top : K.TOP,
-      left: Math.max(K.EDGE_MIN, desiredLeft),
-      scale,
-    });
+    const nextLeft = Math.max(K.EDGE_MIN, desiredLeft);
+    const nextTop = docTop > 0 ? docTop : K.TOP;
+    setPos((prev) =>
+      prev.top === nextTop && prev.left === nextLeft && prev.scale === scale
+        ? prev
+        : { top: nextTop, left: nextLeft, scale },
+    );
   };
 
   useLayoutEffect(() => {
@@ -201,7 +227,7 @@ export default function KumandaPaneli({
     >
       <style>{`
         :root {
-          --panel-scale: 0.65;
+          --panel-scale: 0.52;
           --panel-bg-1: #1a0308;
           --panel-bg-2: #2b0610;
           --panel-bg-3: #090103;
@@ -362,6 +388,114 @@ export default function KumandaPaneli({
         /* Görünürlük (Paylaşım) — kurumsal slate-mavi (göz ikonu) */
         .control-panel button.button-visibility   { --button-accent: #6b8ba6; --button-glow: rgba(107, 139, 166, 0.28); }
 
+        .group-color-dialog-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(8, 5, 10, 0.48);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+          z-index: 150;
+          display: grid;
+          place-items: center;
+          padding: 18px;
+        }
+
+        .group-color-dialog {
+          width: min(420px, calc(100vw - 30px));
+          border-radius: 18px;
+          border: 1px solid rgba(167, 139, 250, 0.45);
+          background:
+            radial-gradient(circle at 24% 0%, rgba(124, 58, 237, 0.22), transparent 45%),
+            linear-gradient(180deg, rgba(40, 14, 58, 0.95), rgba(20, 7, 30, 0.98));
+          box-shadow:
+            0 24px 70px rgba(0, 0, 0, 0.55),
+            0 0 34px rgba(167, 139, 250, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          padding: 18px;
+          color: var(--text-main);
+        }
+
+        .group-color-dialog__title {
+          margin: 0 0 6px;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: 0.02em;
+        }
+
+        .group-color-dialog__hint {
+          margin: 0 0 14px;
+          color: rgba(255, 220, 215, 0.82);
+          font-size: 12px;
+        }
+
+        .group-color-dialog__grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .group-color-option {
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          padding: 12px 10px;
+          background: rgba(255, 255, 255, 0.06);
+          color: var(--text-main);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .group-color-option.is-selected {
+          border-color: rgba(255, 255, 255, 0.55);
+          box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.18),
+            0 0 20px rgba(167, 139, 250, 0.24);
+        }
+
+        .group-color-option__swatch {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          flex-shrink: 0;
+          border: 1px solid transparent;
+        }
+
+        .group-color-option__name {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+        }
+
+        .group-color-dialog__actions {
+          margin-top: 14px;
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .group-color-dialog__action {
+          flex: 1;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--text-main);
+          height: 38px;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .group-color-dialog__action.close {
+          border-color: rgba(148, 163, 184, 0.5);
+        }
+
+        .group-color-dialog__action.disable {
+          border-color: rgba(248, 113, 113, 0.55);
+          background: rgba(239, 68, 68, 0.16);
+        }
+
         /* Lock state vars — yeşil (editing) / kırmızı (locked) güçlü neon */
         .control-panel button.lock-button.is-editing {
           --button-accent: #42ff9b;
@@ -466,10 +600,12 @@ export default function KumandaPaneli({
         /* ── Premium filled-symbol ikon ailesi ──
            Yarı dolgulu ana form (.pi-body) + ince stroke 1.7 + iç sembol
            (.pi-glyph stroke 2 / .pi-detail filled accent). Çizgi ikon, neon
-           tüp, emoji yok. Apple/Tesla tarzı kurumsal anlam-yoğun pictogram. */
+           tüp, emoji yok. Apple/Tesla tarzı kurumsal anlam-yoğun pictogram.
+           Boyutlar --panel-scale ile orantılı → panel küçüldükçe ikon da
+           küçülür, butonun içinde her zaman uygun nefes payıyla durur. */
         .premium-panel-icon {
-          width: 44px;
-          height: 44px;
+          width: calc(68px * var(--panel-scale));
+          height: calc(68px * var(--panel-scale));
           color: var(--button-accent);
           flex-shrink: 0;
           filter:
@@ -511,11 +647,14 @@ export default function KumandaPaneli({
           stroke: none;
         }
 
-        .lock-button .premium-panel-icon { width: 52px; height: 52px; }
-        .image-add  .premium-panel-icon { width: 34px; height: 34px; }
+        /* Buton-bazlı ikon boyutları — hepsi --panel-scale ile orantılı.
+           Notional değerler scale=1 referansı; her ikon kendi butonunda
+           içeride ~%70-80 doluluk ile durur, ~2-4px nefes payı kalır. */
+        .lock-button .premium-panel-icon { width: calc(70px * var(--panel-scale)); height: calc(70px * var(--panel-scale)); }
+        .image-add  .premium-panel-icon { width: calc(36px * var(--panel-scale)); height: calc(36px * var(--panel-scale)); }
         /* Kare butonlarda etiket yok — ikon ortalı + parent flex gap'i value
            ile arada boşluk yönetir. */
-        .square-btn .premium-panel-icon { width: 46px; height: 46px; }
+        .square-btn .premium-panel-icon { width: calc(70px * var(--panel-scale)); height: calc(70px * var(--panel-scale)); }
 
         /* Aktif/basılı — daha parlak + daha canlı + per-buton renkte hafif
            glow halesi. Neon değil; kurumsal yoğunlaşma. */
@@ -755,6 +894,7 @@ export default function KumandaPaneli({
           );
         }
 
+
         /* ── Grid (Satır Ayarları + Genel Finans) ── */
         .grid {
           display: grid;
@@ -777,8 +917,8 @@ export default function KumandaPaneli({
           justify-content: center;
         }
         .square-btn.visibility-compact .premium-panel-icon {
-          width: 22px;
-          height: 22px;
+          width: calc(34px * var(--panel-scale));
+          height: calc(34px * var(--panel-scale));
           margin: 0;
         }
         .square-btn.visibility-compact .square-btn__label {
@@ -1130,16 +1270,7 @@ export default function KumandaPaneli({
               extraClass="button-row-group"
               icon={<GroupModeIcon />}
               on={grupModuAktif}
-              onClick={() => onGrupModuDegistir(!grupModuAktif)}
-              disabled={readOnly}
-            />
-            <SquareToggle
-              labelLines={[]}
-              ariaLabel={`Grup rengi: ${SATIR_GRUP_RENK_ETIKETI[grupRenk]} (değiştir)`}
-              extraClass="button-row-group"
-              icon={<GroupColorIcon renk={grupRenk} />}
-              on={grupModuAktif}
-              onClick={sonrakiGrupRenk}
+              onClick={handleGrupModuButonu}
               disabled={readOnly}
             />
           </div>
@@ -1222,6 +1353,64 @@ export default function KumandaPaneli({
         </>
         )}
       </div>
+
+      {grupRenkPenceresiAcik && !readOnly && (
+        <div
+          className="group-color-dialog-overlay"
+          role="presentation"
+          onClick={() => setGrupRenkPenceresiAcik(false)}
+        >
+          <div
+            className="group-color-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Grup rengi sec"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="group-color-dialog__title">Grup rengi seçin</h4>
+            <p className="group-color-dialog__hint">Renk seçince grup modu açık kalır ve satırlara direkt uygulanır.</p>
+
+            <div className="group-color-dialog__grid">
+              {SATIR_GRUP_RENK_DONGUSU.map((renk) => {
+                const swatch = SATIR_GRUP_RENK_SWATCH[renk];
+                return (
+                  <button
+                    key={renk}
+                    type="button"
+                    className={`group-color-option${grupRenk === renk ? ' is-selected' : ''}`}
+                    onClick={() => handleGrupRenkSec(renk)}
+                    aria-label={`Grup rengi ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
+                    title={`Renk: ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
+                  >
+                    <span
+                      className="group-color-option__swatch"
+                      style={{ background: swatch.bg, borderColor: swatch.border }}
+                    />
+                    <span className="group-color-option__name">{SATIR_GRUP_RENK_ETIKETI[renk]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="group-color-dialog__actions">
+              <button
+                type="button"
+                className="group-color-dialog__action close"
+                onClick={() => setGrupRenkPenceresiAcik(false)}
+              >
+                Kapat
+              </button>
+              <button
+                type="button"
+                className="group-color-dialog__action disable"
+                onClick={handleGrupModunuKapat}
+              >
+                Grup Modunu Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1232,24 +1421,6 @@ function GroupModeIcon() {
       <rect className="pi-body" x="9" y="10" width="46" height="44" rx="10" />
       <path className="pi-glyph" d="M20 24h24M20 33h16M20 42h20" />
       <circle className="pi-detail" cx="46" cy="33" r="4" />
-    </svg>
-  );
-}
-
-function GroupColorIcon({ renk }: { renk: SatirGrupRenk }) {
-  const fill = renk === 'amber'
-    ? '#d97706'
-    : renk === 'mint'
-      ? '#059669'
-      : renk === 'sky'
-        ? '#2563eb'
-        : '#7c3aed';
-
-  return (
-    <svg className="premium-panel-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <rect className="pi-body" x="9" y="10" width="46" height="44" rx="10" />
-      <circle cx="32" cy="32" r="12" fill={fill} opacity="0.9" />
-      <path className="pi-glyph" d="M20 46h24" />
     </svg>
   );
 }

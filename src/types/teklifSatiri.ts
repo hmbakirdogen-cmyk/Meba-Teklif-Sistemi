@@ -16,6 +16,12 @@ export interface TeklifSatiri {
   manuelAltAciklama?: string;
   manuelAciklamaGuncelleyen?: string;
   manuelAciklamaGuncellemeTarihi?: string;
+  /** Satır bir ürün setinin ana kalemi ise set kaydı id'si tutulur. */
+  setId?: string;
+  /** Alt set kalemlerinde, bağlı olduğu ana satır id'si. */
+  setAnaSatirId?: string;
+  /** Alt kalem satırı işareti (fiyat girilmez). */
+  setAltKalem?: boolean;
   /** Satırın ait olduğu görsel grup rengi (opsiyonel). */
   grupRenk?: SatirGrupRenk;
   /** Personel tarafından elle ayarlanmış satır yüksekliği (document-px).

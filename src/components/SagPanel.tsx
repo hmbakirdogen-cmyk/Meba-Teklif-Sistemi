@@ -248,77 +248,82 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
           </div>
         </div>
 
-        {/* Para Birimi (satır bazlı) */}
-        {satirBazliParaBirimi && (
-          <div>
-            <div style={{ ...sectionLabel, color: C.textFaint }}>Para Birimi</div>
-            <Select
-              value={satir.paraBirimi ?? paraBirimi}
-              onChange={v => guncelle('paraBirimi', v)}
-              style={{ width: '100%' }}
-              options={[
-                { label: 'EUR (€)', value: 'EUR' },
-                { label: 'USD ($)', value: 'USD' },
-                { label: 'TRY (₺)', value: 'TRY' },
-              ]}
-            />
-          </div>
+        {/* Set alt kalemlerde panel miktardan sonra biter. */}
+        {!satir.setAltKalem && (
+          <>
+            {/* Para Birimi (satır bazlı) */}
+            {satirBazliParaBirimi && (
+              <div>
+                <div style={{ ...sectionLabel, color: C.textFaint }}>Para Birimi</div>
+                <Select
+                  value={satir.paraBirimi ?? paraBirimi}
+                  onChange={v => guncelle('paraBirimi', v)}
+                  style={{ width: '100%' }}
+                  options={[
+                    { label: 'EUR (€)', value: 'EUR' },
+                    { label: 'USD ($)', value: 'USD' },
+                    { label: 'TRY (₺)', value: 'TRY' },
+                  ]}
+                />
+              </div>
+            )}
+
+            {/* Birim Fiyat */}
+            <div>
+              <div style={{ ...sectionLabel, color: C.textFaint }}>Birim Fiyat</div>
+              <InputNumber
+                value={satir.birimFiyat}
+                onChange={v => guncelle('birimFiyat', v ?? 0)}
+                style={{ width: '100%' }}
+                min={0}
+                precision={2}
+                formatter={v => v ? Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : ''}
+              />
+            </div>
+
+            {/* İskonto — yalnız satır bazlı iskonto aktifse görünür */}
+            {satirBazliIskonto && (
+              <div>
+                <div style={{ ...sectionLabel, color: C.textFaint }}>Satır İskontosu (%)</div>
+                <InputNumber
+                  value={satir.indirimOrani}
+                  onChange={v => guncelle('indirimOrani', v ?? 0)}
+                  style={{ width: '100%' }}
+                  min={0}
+                  max={100}
+                  precision={2}
+                />
+              </div>
+            )}
+
+            {/* Teslimat */}
+            <div>
+              <div style={{ ...sectionLabel, color: C.textFaint }}>Teslimat Süresi</div>
+              <AutoComplete
+                value={satir.teslimTarihi ?? ''}
+                onChange={v => guncelle('teslimTarihi', v)}
+                style={{ width: '100%' }}
+                options={referansVeriService.teslimSecenekleri.tumunuGetir().map(v => ({ value: v }))}
+              />
+            </div>
+
+            {/* Toplam (salt okunur) */}
+            <div style={{
+              padding: '12px 14px',
+              background: C.bgElevated,
+              borderRadius: 10,
+              border: `1px solid ${C.border}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Satır Toplam</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+                {satir.satirToplami.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          </>
         )}
-
-        {/* Birim Fiyat */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Birim Fiyat</div>
-          <InputNumber
-            value={satir.birimFiyat}
-            onChange={v => guncelle('birimFiyat', v ?? 0)}
-            style={{ width: '100%' }}
-            min={0}
-            precision={2}
-            formatter={v => v ? Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : ''}
-          />
-        </div>
-
-        {/* İskonto — yalnız satır bazlı iskonto aktifse görünür */}
-        {satirBazliIskonto && (
-          <div>
-            <div style={{ ...sectionLabel, color: C.textFaint }}>Satır İskontosu (%)</div>
-            <InputNumber
-              value={satir.indirimOrani}
-              onChange={v => guncelle('indirimOrani', v ?? 0)}
-              style={{ width: '100%' }}
-              min={0}
-              max={100}
-              precision={2}
-            />
-          </div>
-        )}
-
-        {/* Teslimat */}
-        <div>
-          <div style={{ ...sectionLabel, color: C.textFaint }}>Teslimat Süresi</div>
-          <AutoComplete
-            value={satir.teslimTarihi ?? ''}
-            onChange={v => guncelle('teslimTarihi', v)}
-            style={{ width: '100%' }}
-            options={referansVeriService.teslimSecenekleri.tumunuGetir().map(v => ({ value: v }))}
-          />
-        </div>
-
-        {/* Toplam (salt okunur) */}
-        <div style={{
-          padding: '12px 14px',
-          background: C.bgElevated,
-          borderRadius: 10,
-          border: `1px solid ${C.border}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Satır Toplam</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
-            {satir.satirToplami.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-        </div>
 
         {/* Sil butonu */}
         <Button

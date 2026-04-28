@@ -24,6 +24,7 @@ import {
   LOGO_OPT_TOP,
   LOGO_OPT_W,
   NOTES_BOX_STYLE,
+  OFFER_TABLE_ROW_GAP_PX,
   PARA_BIRIMI_ETIKETI,
   PARTY_BODY_STYLE,
   PARTY_CARD_STYLE,
@@ -48,6 +49,7 @@ import {
   getTableHeadCellStyle,
   noBreak,
   rcCell,
+  computeSetGroupPos,
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
 } from './teklifDocumentShared';
@@ -57,24 +59,24 @@ const BRAND = DOCUMENT_BRAND;
 
 const SATIR_GRUP_GORSEL: Record<NonNullable<Teklif['satirlar'][number]['grupRenk']>, { bg: string; border: string; pattern: string }> = {
   amber: {
-    bg: '#f1f1f1',
-    border: '#9d9d9d',
+    bg: '#fff8eb',
+    border: '#f4bf75',
     pattern: 'none',
   },
   mint: {
-    bg: '#f7f7f7',
-    border: '#8e8e8e',
-    pattern: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.09) 0 2px, transparent 2px 6px)',
+    bg: '#eefcf6',
+    border: '#92ddbf',
+    pattern: 'none',
   },
   sky: {
-    bg: '#f7f7f7',
-    border: '#7f7f7f',
-    pattern: 'repeating-linear-gradient(-45deg, rgba(0,0,0,0.09) 0 2px, transparent 2px 6px)',
+    bg: '#eef5ff',
+    border: '#9ec1f7',
+    pattern: 'none',
   },
   lavender: {
-    bg: '#f8f8f8',
-    border: '#707070',
-    pattern: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px)',
+    bg: '#f5f0ff',
+    border: '#c5aff6',
+    pattern: 'none',
   },
 };
 
@@ -193,7 +195,7 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
           </div>
         </div>
         <div style={{ flex: '0 0 32%', maxWidth: '32%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', boxSizing: 'border-box' }}>
-          <div style={{ width: '202px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', boxSizing: 'border-box' }}>
+          <div style={{ width: '202px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'visible', boxSizing: 'border-box' }}>
             <div style={{
               background: BRAND.gradient,
               printColorAdjust: 'exact',
@@ -215,20 +217,20 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
               <colgroup><col style={{ width: '42%' }} /><col style={{ width: '58%' }} /></colgroup>
               <tbody>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.2, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
+                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
+                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
                     {teklif.teklifNo}
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.2, letterSpacing: '0.04em' }}>Tarih</td>
-                  <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Tarih</td>
+                  <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
                     {formatDate(teklif.tarih)}
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: 0, lineHeight: 1.2, letterSpacing: '0.04em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: 0, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
+                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {teklif.hazirlayanAdSoyad || 'MEBA Mekanik'}
                   </td>
                 </tr>
@@ -346,6 +348,9 @@ function TableSection({
             const idx = rowStart + localIndex;
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
             const grupGorsel = satir.grupRenk ? SATIR_GRUP_GORSEL[satir.grupRenk] : null;
+            const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
+            const isLastInPage = localIndex === satirlar.length - 1;
+            const renderSpacer = !isLastInPage && setGroupPos !== 'top' && setGroupPos !== 'middle';
             const withGroupCellStyle = (style: React.CSSProperties): React.CSSProperties => {
               if (!grupGorsel) return style;
               return {
@@ -360,8 +365,8 @@ function TableSection({
             };
 
             return (
+              <React.Fragment key={satir.id}>
               <tr
-                key={satir.id}
                 data-satir-id={satir.id}
                 style={{
                   pageBreakInside: 'avoid',
@@ -371,19 +376,27 @@ function TableSection({
                     : null),
                 }}
               >
-                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx) })}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx, undefined, setGroupPos) })}>
                   {String(idx + 1).padStart(2, '0')}
                 </td>
-                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', ...rcCell('mid', idx) })}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.marka || '-'}
                 </td>
-                <td className="product-code-cell" style={withGroupCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx) })}>
+                <td className="product-code-cell" style={withGroupCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.urunKod || '-'}
                 </td>
-                <td className="description-cell" style={withGroupCellStyle({ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx) })}>
+                <td className="description-cell" style={withGroupCellStyle({ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
-                <td style={withGroupCellStyle({ padding: CELL_PAD, verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) })}>
+                <td style={withGroupCellStyle({
+                  padding: CELL_PAD,
+                  verticalAlign: 'middle',
+                  fontSize: '11px',
+                  color: C.textMid,
+                  whiteSpace: 'nowrap',
+                  fontVariantNumeric: 'tabular-nums',
+                  ...rcCell('mid', idx, undefined, setGroupPos),
+                })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
                       <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -395,22 +408,28 @@ function TableSection({
                     </div>
                   ) : '-'}
                 </td>
-                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx) })}>
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
-                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) })}>
-                  {(() => {
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                  {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
-                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx) })}>
-                  {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                  {satir.setAltKalem ? '' : (satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
                 </td>
-                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: C.textSoft, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx) })}>
-                  {satir.teslimTarihi || '-'}
+                <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: C.textSoft, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx, undefined, setGroupPos) })}>
+                  {satir.setAltKalem ? '' : (satir.teslimTarihi || '-')}
                 </td>
               </tr>
+              {renderSpacer && (
+                <tr aria-hidden="true">
+                  <td colSpan={OFFER_TABLE_COLUMN_COUNT} style={{ height: `${OFFER_TABLE_ROW_GAP_PX}px`, padding: 0, border: 'none', background: 'transparent' }} />
+                </tr>
+              )}
+              </React.Fragment>
             );
           })}
         </tbody>

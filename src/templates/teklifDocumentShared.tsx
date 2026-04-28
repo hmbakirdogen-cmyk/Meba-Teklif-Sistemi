@@ -443,7 +443,69 @@ export const ROW_CARD = {
 
 export type CellPos = 'first' | 'mid' | 'last';
 
-export function rcCell(pos: CellPos, idx = 0, rowHeight?: number): CSSProperties {
+/**
+ * Set grubu içindeki bir satırın grup çerçevesindeki konumu.
+ * - 'top': grubun üst satırı (set ana kalemi); altta hiçbir iç çizgi yok
+ * - 'middle': grubun ortasındaki alt kalem; üst+alt iç çizgi yok
+ * - 'bottom': grubun en alt satırı; üstte iç çizgi yok
+ * - null: gruba dahil değil veya tek başına bir kalem
+ *
+ * "Single-row group" (alt kalemi olmayan set ana kalemi) → null.
+ */
+export type SetGroupPos = 'top' | 'middle' | 'bottom' | null;
+
+interface SetGroupRow {
+  id: string;
+  setId?: string;
+  setAltKalem?: boolean;
+  setAnaSatirId?: string;
+}
+
+/**
+ * `rows[index]` için grup içi konumu hesaplar. Set ana kalemi + ardışık alt
+ * kalemler tek bir grup oluşturur. Tüm grubun çerçevesi tek parça çizilir.
+ */
+export function computeSetGroupPos(
+  rows: ReadonlyArray<SetGroupRow>,
+  index: number,
+): SetGroupPos {
+  const row = rows[index];
+  if (!row) return null;
+
+  const isParent = !!row.setId && !row.setAltKalem;
+  const isAlt    = row.setAltKalem === true;
+  if (!isParent && !isAlt) return null;
+
+  const groupParentId = isAlt ? row.setAnaSatirId : row.id;
+  if (!groupParentId) return null;
+
+  // Alt kalemi olmayan set ana kalemi tek başına bir grup sayılmaz —
+  // çerçevesi normal satır gibi çizilir.
+  const hasAlt = rows.some((r) => r.setAltKalem === true && r.setAnaSatirId === groupParentId);
+  if (!hasAlt) return null;
+
+  const inSameGroup = (r?: SetGroupRow): boolean => {
+    if (!r) return false;
+    if (r.setAltKalem && r.setAnaSatirId === groupParentId) return true;
+    if (!r.setAltKalem && r.id === groupParentId) return true;
+    return false;
+  };
+
+  const prevSame = inSameGroup(rows[index - 1]);
+  const nextSame = inSameGroup(rows[index + 1]);
+
+  if (!prevSame && nextSame) return 'top';
+  if (prevSame && !nextSame) return 'bottom';
+  if (prevSame && nextSame)  return 'middle';
+  return null;
+}
+
+export function rcCell(
+  pos: CellPos,
+  idx = 0,
+  rowHeight?: number,
+  setGroupPos: SetGroupPos = null,
+): CSSProperties {
   const border = `0.75px solid ${ROW_CARD.borderClr}`;
   const radius = ROW_CARD.radius;
 
@@ -454,6 +516,13 @@ export function rcCell(pos: CellPos, idx = 0, rowHeight?: number): CSSProperties
     ? { height: `${rowHeight}px` }
     : {};
 
+  // Grup içi: alt sınır 'top'+'middle' satırlarında, üst sınır 'middle'+
+  // 'bottom' satırlarında çizilmez. Köşe radius'ları yalnızca dış kenarlarda.
+  const hideTopEdge    = setGroupPos === 'middle' || setGroupPos === 'bottom';
+  const hideBottomEdge = setGroupPos === 'top'    || setGroupPos === 'middle';
+  const isFirst = pos === 'first';
+  const isLast  = pos === 'last';
+
   return {
     // Sabit yükseklik yok; kısa açıklamalar min-height'te kalır,
     // 2. satıra düşen açıklama varsa sadece o satır büyür.
@@ -463,15 +532,17 @@ export function rcCell(pos: CellPos, idx = 0, rowHeight?: number): CSSProperties
     background:             idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
     printColorAdjust:       'exact',
     WebkitPrintColorAdjust: 'exact',
-    borderTop:              border,
-    borderBottom:           border,
-    borderLeft:             pos === 'first' ? border : 'none',
-    borderRight:            pos === 'last' ? border : 'none',
-    borderTopLeftRadius:    pos === 'first' ? radius : 0,
-    borderBottomLeftRadius: pos === 'first' ? radius : 0,
-    borderTopRightRadius:   pos === 'last' ? radius : 0,
-    borderBottomRightRadius: pos === 'last' ? radius : 0,
-    boxShadow:              pos === 'first' ? ROW_CARD.shadow : 'none',
+    borderTop:              hideTopEdge    ? 'none' : border,
+    borderBottom:           hideBottomEdge ? 'none' : border,
+    borderLeft:             isFirst ? border : 'none',
+    borderRight:            isLast  ? border : 'none',
+    borderTopLeftRadius:    isFirst && !hideTopEdge    ? radius : 0,
+    borderBottomLeftRadius: isFirst && !hideBottomEdge ? radius : 0,
+    borderTopRightRadius:   isLast  && !hideTopEdge    ? radius : 0,
+    borderBottomRightRadius: isLast && !hideBottomEdge ? radius : 0,
+    // Drop shadow yalnızca grubun en alt (veya tekil) satırının ilk hücresinde:
+    // grubun ortasında/üstünde shadow olursa frame'i bölen iç gölge oluşur.
+    boxShadow: isFirst && !hideBottomEdge ? ROW_CARD.shadow : 'none',
   };
 }
 
@@ -579,7 +650,8 @@ export const SETTINGS_CARD_STYLE: CSSProperties = {
   alignItems: 'center',
   flex: 1,
   boxSizing: 'border-box',
-  overflow: 'hidden',
+  // Etiket wrap olduğunda kart kendisi büyür; içeriği kırpmasın.
+  overflow: 'visible',
   background: HEADER_SURFACE.bg,
   border: `1px solid ${HEADER_SURFACE.border}`,
   borderRadius: '8px',
@@ -594,18 +666,19 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
   flexDirection: 'row',
   alignItems: 'baseline',
   justifyContent: 'center',
-  gap: '3px',
+  gap: '2px',
   width: '100%',
-  overflow: 'hidden',
+  // Tek satır: en uzun etiketler (örn. "Ödeme Vadesi / Payment Terms",
+  // "Döviz Kuru / Exchange Rate") font küçültmesiyle tek satıra sığar.
   flexWrap: 'nowrap',
   marginBottom: '3px',
 };
 
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
-  fontSize: '8px',
+  fontSize: '7.2px',
   fontWeight: 600,
   color: HEADER_SURFACE.textSub,
-  letterSpacing: '0.07em',
+  letterSpacing: '0.05em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
@@ -613,7 +686,7 @@ export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_SEP_STYLE: CSSProperties = {
-  fontSize: '6px',
+  fontSize: '5.5px',
   color: HEADER_SURFACE.textLabel,
   lineHeight: 1.2,
   flexShrink: 0,
@@ -622,10 +695,10 @@ export const SETTINGS_SEP_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
-  fontSize: '6.5px',
+  fontSize: '5.8px',
   fontWeight: 400,
   color: HEADER_SURFACE.textLabel,
-  letterSpacing: '0.03em',
+  letterSpacing: '0.02em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
   flexShrink: 0,
@@ -653,8 +726,9 @@ export const TABLE_TITLE_STYLE: CSSProperties = {
 export const TABLE_STYLE: CSSProperties = {
   width: '100%',
   borderCollapse: 'separate',
-  // Satırlar arasında görünür hava — 3px × 0.75 ≈ 2px (sıkı kompakt)
-  borderSpacing: '0 2px',
+  // Satırlar arası boşluk artık explicit spacer <tr>'larla yönetiliyor;
+  // border-spacing 0 olunca set grubu içi satırlar pürüzsüz birleşiyor.
+  borderSpacing: '0',
   borderLeft: 'none',
   borderRight: 'none',
   marginBottom: 0,
@@ -662,6 +736,9 @@ export const TABLE_STYLE: CSSProperties = {
   printColorAdjust: 'exact',
   WebkitPrintColorAdjust: 'exact',
 };
+
+/** Bağımsız satırlar arasındaki dikey boşluk (px). Set grubu içinde uygulanmaz. */
+export const OFFER_TABLE_ROW_GAP_PX = 2;
 
 export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSProperties {
   return {

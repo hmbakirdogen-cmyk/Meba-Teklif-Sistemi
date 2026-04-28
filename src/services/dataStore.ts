@@ -11,7 +11,7 @@
  * components need zero changes.
  */
 
-import type { Teklif, Cari, Urun } from '../types';
+import type { Teklif, Cari, Urun, UrunSeti } from '../types';
 import { api } from './apiClient';
 import type { Referans, Sayac } from './apiClient';
 
@@ -21,6 +21,7 @@ interface Store {
   teklifler: Teklif[];
   cariler: Cari[];
   urunler: Urun[];
+  urunSetleri: UrunSeti[];
   referans: Referans;
   sayac: Sayac;
 }
@@ -35,6 +36,7 @@ let store: Store = {
   teklifler: [],
   cariler: [],
   urunler: [],
+  urunSetleri: [],
   referans: VARSAYILAN_REFERANS,
   sayac: { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
 };
@@ -94,6 +96,7 @@ export async function initDataStore(
     teklifler: data.teklifler,
     cariler:   data.cariler,
     urunler:   data.urunler,
+    urunSetleri: data.urunSetleri ?? [],
     referans:  data.referans,
     sayac:     data.sayac,
   };
@@ -177,6 +180,27 @@ export const dataStore = {
   bulkReplaceUrunler(liste: Urun[]): void {
     store.urunler = liste;
     sync(api.urunler.bulkReplace(liste));
+  },
+
+  // ── Ürün Setleri ─────────────────────────────────────────────────────────
+
+  getUrunSetleri: ()               => store.urunSetleri,
+
+  upsertUrunSeti(s: UrunSeti): void {
+    const idx = store.urunSetleri.findIndex((x) => x.id === s.id);
+    if (idx >= 0) { store.urunSetleri[idx] = s; }
+    else { store.urunSetleri.push(s); }
+    sync(api.urunSetleri.upsert(s));
+  },
+
+  deleteUrunSeti(id: string): void {
+    store.urunSetleri = store.urunSetleri.filter((x) => x.id !== id);
+    sync(api.urunSetleri.sil(id));
+  },
+
+  bulkReplaceUrunSetleri(liste: UrunSeti[]): void {
+    store.urunSetleri = liste;
+    sync(api.urunSetleri.bulkReplace(liste));
   },
 
   // ── Referans ──────────────────────────────────────────────────────────────

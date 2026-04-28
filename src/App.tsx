@@ -54,29 +54,33 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 }
 
 /* ── Dev İmzası ──────────────────────────────────────────── */
+/* Sağ-alt köşede sade, kart/arkaplansız, küçük tek satır metin.
+ *   - 8px font + sade navy ton → A4 ile yan yana geldiğinde bile görsel
+ *     olarak rahatsız etmez; köşede nazik bir attribution rozeti.
+ *   - z-index 1 + pointer-events:none → mouse'u engellemez, panel/dialog
+ *     daima üstte kalır.
+ *   - data-html2canvas-ignore → PDF/yazdırma'da görünmez.
+ */
 function DevSignature() {
-  const [hovered, setHovered] = useState(false)
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       data-html2canvas-ignore="true"
       style={{
         position: 'fixed',
-        bottom: 14,
-        right: 20,
-        zIndex: 9999,
-        fontSize: 10.5,
-        letterSpacing: 0.6,
-        color: '#BEBEBE',
-        opacity: hovered ? 0.80 : 0.45,
-        fontFamily: '"Segoe UI", "Inter", "Arial", sans-serif',
-        fontWeight: 400,
+        bottom: 8,
+        right: 14,
+        zIndex: 1,
+        fontSize: 8,
+        letterSpacing: 0.28,
+        fontFamily: '"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontWeight: 500,
+        color: '#1E3A5F',
+        opacity: 0.72,
+        pointerEvents: 'none',
         userSelect: 'none',
         whiteSpace: 'nowrap',
-        cursor: 'default',
-        transition: 'opacity 0.4s ease',
-        textShadow: '0 1px 3px rgba(0,0,0,0.50)',
+        textShadow:
+          '0 0 1px rgba(255, 255, 255, 0.72), 0 0.5px 1.5px rgba(255, 255, 255, 0.55)',
       }}
     >
       This software was developed by Mehmet Bakırdöğen
