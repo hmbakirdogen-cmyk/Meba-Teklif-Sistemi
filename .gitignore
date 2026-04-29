@@ -4,8 +4,9 @@ node_modules/
 # Build outputs
 dist/
 dist-ssr/
-build/
 release/
+# build/ klasörü icon.ico içeriyor — onu commit'liyoruz; sadece geçici
+# build artefaktlarını (varsa) ignore et. icon.ico assets/icon/'a kopyalandı.
 
 # Logs
 logs/
@@ -41,3 +42,13 @@ Thumbs.db
 project_dump_clean.txt
 *.blockmap
 *_verification_report.json
+
+# MEBA runtime — config'lerin gerçek (deviceId'li) kopyaları kullanıcıya özel.
+# Sadece *.template.json git'e dahildir.
+config/client-config.json
+config/server-config.json
+.meba-running.pid
+server/db.json.lock
+sync_telemetry.log
+server/sync_telemetry.log
+server/email_dispatch.log

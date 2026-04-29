@@ -60,4 +60,16 @@ export interface Teklif {
   /** Görünürlük yetkisi — private (gizli) / team (ekibe açık).
    *  undefined → 'team' kabul (geriye uyumluluk için mevcut kayıtlar). */
   visibility?: TeklifVisibility;
+
+  // ── Sync alanları (LAN senkronizasyonu için, geriye uyumlu) ─────────
+  /** Optimistic concurrency için sürüm numarası. PUT'ta backend +1 yapar. */
+  version?: number;
+  /** Soft delete — bu alan dolu ise kayıt UI'dan gizlenir, sync'te tombstone. */
+  deletedAt?: string;
+  /** Son yazan cihazın deviceId'si (config/*-config.json'dan). */
+  deviceId?: string;
+  /** Son güncelleyen kullanıcının id'si (createdBy = hazirlayanKullaniciId). */
+  updatedBy?: string;
+  /** Pull/push başarıyla tamamlandığında set edilir (ISO). */
+  lastSyncedAt?: string;
 }

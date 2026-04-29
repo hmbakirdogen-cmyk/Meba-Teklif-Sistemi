@@ -3,9 +3,11 @@
  * In-memory cache of all shared data.
  *
  * Strategy:
- *  - App start: fetch everything from server → populate cache
- *  - Reads: synchronous, from cache (no await needed in services)
- *  - Writes: update cache immediately + fire-and-forget PUT/DELETE to server
+ *  - App start: fetch everything from server → populate cache. Server
+ *    erişilemiyorsa localStorage snapshot'tan restore (offline-first).
+ *  - Reads: synchronous, from cache (no await needed in services).
+ *  - Writes: update cache immediately + try server (PUT/DELETE). Network
+ *    fail olursa syncEngine.enqueue() ile offline queue'ya yazılır.
  *
  * This keeps all existing service method signatures synchronous so React
  * components need zero changes.
@@ -14,6 +16,7 @@
 import type { Teklif, Cari, Urun, UrunSeti } from '../types';
 import { api } from './apiClient';
 import type { Referans, Sayac } from './apiClient';
+import { syncEngine } from './syncEngine';
 
 // ── Store shape ───────────────────────────────────────────────────────────────
 
@@ -87,23 +90,64 @@ async function migrasyonDene(): Promise<void> {
 export async function initDataStore(
   kullanici?: { id: string; rol: string },
 ): Promise<void> {
-  // Try migrating old localStorage data to server first
-  await migrasyonDene();
-
-  // Then fetch current server state into memory (visibility filter aware)
-  const data = await api.init(kullanici);
-  store = {
-    teklifler: data.teklifler,
-    cariler:   data.cariler,
-    urunler:   data.urunler,
-    urunSetleri: data.urunSetleri ?? [],
-    referans:  data.referans,
-    sayac:     data.sayac,
-  };
+  // Server erişilebiliyorsa migration + init dene
+  try {
+    await migrasyonDene();
+    const data = await api.init(kullanici);
+    store = {
+      teklifler: data.teklifler,
+      cariler:   data.cariler,
+      urunler:   data.urunler,
+      urunSetleri: data.urunSetleri ?? [],
+      referans:  data.referans,
+      sayac:     data.sayac,
+    };
+    // Başarılı init sonrası snapshot kaydet (offline restore için)
+    syncEngine.saveSnapshot({
+      teklifler: store.teklifler,
+      cariler: store.cariler,
+      urunler: store.urunler,
+      urunSetleri: store.urunSetleri,
+      referans: store.referans,
+      sayac: store.sayac,
+    });
+  } catch (err) {
+    // Server'a ulaşılamadı → localStorage snapshot'tan restore et (offline mode)
+    const snapshot = syncEngine.loadSnapshot();
+    if (!snapshot) {
+      // Hiç snapshot yok → hata fırlat (App.tsx ServerErrorScreen gösterir)
+      throw err;
+    }
+    store = {
+      teklifler: snapshot.teklifler ?? [],
+      cariler:   snapshot.cariler ?? [],
+      urunler:   snapshot.urunler ?? [],
+      urunSetleri: snapshot.urunSetleri ?? [],
+      referans:  snapshot.referans ?? VARSAYILAN_REFERANS,
+      sayac:     snapshot.sayac ?? { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
+    };
+    syncEngine.setOnlineState(false);
+    console.warn('[initDataStore] Offline mod: localStorage snapshot kullanildi.');
+  }
 }
 
-// ── Fire-and-forget write helper ──────────────────────────────────────────────
+// ── Fire-and-forget write helper with offline fallback ────────────────────────
 
+/**
+ * Server'a yazma denemesi; network hata olursa syncEngine queue'sine ekler.
+ * `op`/`collection`/`id`/`payload` queue item'i için gerekli.
+ */
+function syncWithFallback<T>(
+  promise: Promise<T>,
+  fallback: { collection: 'teklifler' | 'cariler' | 'urunler' | 'urunSetleri'; op: 'upsert' | 'delete'; id: string; payload: unknown },
+): void {
+  promise.catch(() => {
+    syncEngine.enqueue(fallback);
+  });
+}
+
+// Backwards-compat: eski `sync()` helper'i hala kullanan yerler için.
+// Yeni kod syncWithFallback kullanmalı.
 function sync(promise: Promise<unknown>): void {
   promise.catch(() => {});
 }
@@ -132,28 +176,29 @@ export const dataStore = {
     const idx = store.teklifler.findIndex((x) => x.id === t.id);
     if (idx >= 0) { store.teklifler[idx] = t; }
     else { store.teklifler.unshift(t); }
-    sync(api.teklifler.upsert(t));
+    syncWithFallback(api.teklifler.upsert(t), { collection: 'teklifler', op: 'upsert', id: t.id, payload: t });
   },
 
   deleteTeklif(id: string): void {
     store.teklifler = store.teklifler.filter((x) => x.id !== id);
-    sync(api.teklifler.sil(id));
+    syncWithFallback(api.teklifler.sil(id), { collection: 'teklifler', op: 'delete', id, payload: { id } });
   },
 
   // ── Cariler ───────────────────────────────────────────────────────────────
 
-  getCariler: ()           => store.cariler,
+  getCariler: ()                => store.cariler,
+  setCariler: (v: Cari[])       => { store.cariler = v; },
 
   upsertCari(c: Cari): void {
     const idx = store.cariler.findIndex((x) => x.id === c.id);
     if (idx >= 0) { store.cariler[idx] = c; }
     else { store.cariler.push(c); }
-    sync(api.cariler.upsert(c));
+    syncWithFallback(api.cariler.upsert(c), { collection: 'cariler', op: 'upsert', id: c.id, payload: c });
   },
 
   deleteCari(id: string): void {
     store.cariler = store.cariler.filter((x) => x.id !== id);
-    sync(api.cariler.sil(id));
+    syncWithFallback(api.cariler.sil(id), { collection: 'cariler', op: 'delete', id, payload: { id } });
   },
 
   bulkReplaceCariler(liste: Cari[]): void {
@@ -163,18 +208,19 @@ export const dataStore = {
 
   // ── Urunler ───────────────────────────────────────────────────────────────
 
-  getUrunler: ()           => store.urunler,
+  getUrunler: ()                => store.urunler,
+  setUrunler: (v: Urun[])       => { store.urunler = v; },
 
   upsertUrun(u: Urun): void {
     const idx = store.urunler.findIndex((x) => x.id === u.id);
     if (idx >= 0) { store.urunler[idx] = u; }
     else { store.urunler.push(u); }
-    sync(api.urunler.upsert(u));
+    syncWithFallback(api.urunler.upsert(u), { collection: 'urunler', op: 'upsert', id: u.id, payload: u });
   },
 
   deleteUrun(id: string): void {
     store.urunler = store.urunler.filter((x) => x.id !== id);
-    sync(api.urunler.sil(id));
+    syncWithFallback(api.urunler.sil(id), { collection: 'urunler', op: 'delete', id, payload: { id } });
   },
 
   bulkReplaceUrunler(liste: Urun[]): void {
@@ -184,18 +230,19 @@ export const dataStore = {
 
   // ── Ürün Setleri ─────────────────────────────────────────────────────────
 
-  getUrunSetleri: ()               => store.urunSetleri,
+  getUrunSetleri: ()                => store.urunSetleri,
+  setUrunSetleri: (v: UrunSeti[])   => { store.urunSetleri = v; },
 
   upsertUrunSeti(s: UrunSeti): void {
     const idx = store.urunSetleri.findIndex((x) => x.id === s.id);
     if (idx >= 0) { store.urunSetleri[idx] = s; }
     else { store.urunSetleri.push(s); }
-    sync(api.urunSetleri.upsert(s));
+    syncWithFallback(api.urunSetleri.upsert(s), { collection: 'urunSetleri', op: 'upsert', id: s.id, payload: s });
   },
 
   deleteUrunSeti(id: string): void {
     store.urunSetleri = store.urunSetleri.filter((x) => x.id !== id);
-    sync(api.urunSetleri.sil(id));
+    syncWithFallback(api.urunSetleri.sil(id), { collection: 'urunSetleri', op: 'delete', id, payload: { id } });
   },
 
   bulkReplaceUrunSetleri(liste: UrunSeti[]): void {
@@ -213,6 +260,8 @@ export const dataStore = {
   },
 
   // ── Sayac ─────────────────────────────────────────────────────────────────
+
+  getSayac: () => store.sayac,
 
   /** Increments counter on server (atomic) and updates local cache. Returns new teklifNo. */
   async incrementSayac(): Promise<string> {

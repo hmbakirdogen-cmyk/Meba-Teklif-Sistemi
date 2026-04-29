@@ -27,14 +27,14 @@ const SATIR_GRUP_RENK_SWATCH: Record<SatirGrupRenk, { bg: string; border: string
 };
 
 const K = {
-  WIDTH: 128,
+  WIDTH: 154,
   TOP: 97,
   // BOTTOM_GAP: panel'in viewport alt kenarına olan minimum mesafesi.
   // Dev imzası kartı için (~14px bottom + ~22px height + buffer) → 44px
   // ayrılır; böylece panel bottomReach ≤ viewportH-44 < signature.top.
   BOTTOM_GAP: 44,
   EDGE_MIN: 24,
-  RIGHT_CLOSED_OFFSET: 557, // 397 (A4 half) + 128 (panel) + 32 (gap)
+  RIGHT_CLOSED_OFFSET: 583, // 397 (A4 half) + 154 (panel) + 32 (gap)
   RIGHT_OPEN_OFFSET: 376,   // SagPanel 360 + 16px boşluk
 } as const;
 
@@ -227,7 +227,7 @@ export default function KumandaPaneli({
     >
       <style>{`
         :root {
-          --panel-scale: 0.52;
+          --panel-scale: 0.62;
           --panel-bg-1: #1a0308;
           --panel-bg-2: #2b0610;
           --panel-bg-3: #090103;

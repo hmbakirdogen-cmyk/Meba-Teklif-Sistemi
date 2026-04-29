@@ -10,6 +10,7 @@ import { useTheme } from './context/useTheme';
 import { useColors } from './hooks/useColors';
 import { useIsMobile } from './hooks/useIsMobile';
 import { buttonClassNames } from './styles/buttonStyles';
+import { SyncStatusBar } from './components/SyncStatusBar';
 
 const { Header, Content } = Layout;
 
@@ -129,6 +130,9 @@ export default function AppLayout() {
 
         {/* ── SPACER (mobile) ── */}
         {isMobile && <div style={{ flex: 1 }} />}
+
+        {/* ── SYNC STATUS BAR (sadece desktop, header sağında) ── */}
+        {!isMobile && <SyncStatusBar />}
 
         {/* ── TEMA TOGGLE ── */}
         <Tooltip title={isDark ? 'Aydınlık Mod' : 'Koyu Mod'} placement="bottomRight">

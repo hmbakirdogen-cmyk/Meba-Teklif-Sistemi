@@ -4,6 +4,8 @@ import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
+import { initNetworkConfig } from './services/networkConfig'
+import { syncEngine } from './services/syncEngine'
 import { ThemeProvider } from './context/ThemeContext'
 import { useTheme } from './context/useTheme'
 import { useKullanici } from './context/useKullanici'
@@ -152,7 +154,10 @@ function ThemedApp() {
   useEffect(() => {
     let aktif = true;
     const kullanici = userId && userRol ? { id: userId, rol: userRol } : undefined;
-    initDataStore(kullanici)
+    // initNetworkConfig önce çalışır → API_BASE'i resolve eder; sonra
+    // initDataStore sunucudan veri çeker (offline ise localStorage snapshot'a düşer).
+    initNetworkConfig()
+      .then(() => initDataStore(kullanici))
       .then(() => {
         if (!aktif) return;
         setHataMsg(null);
@@ -160,16 +165,31 @@ function ThemedApp() {
       })
       .catch((err: unknown) => {
         if (!aktif) return;
-        console.error('[App] Veri sunucusuna bağlanılamadı:', err);
+        console.error('[App] Veri sunucusuna bağlanılamadı (snapshot da yok):', err);
         setHataMsg(
-          'Veri sunucusuna bağlanılamadı.\n' +
-          'Lütfen "baslat.bat" ile uygulamayı başlatın ve sayfayı yenileyin.'
+          'Veri sunucusuna bağlanılamadı ve yerel yedek yok.\n' +
+          'Lütfen ana bilgisayarın açık ve ağa bağlı olduğunu kontrol edin.'
         );
       });
     return () => {
       aktif = false;
     };
   }, [userId, userRol, oturumAnahtari]);
+
+  // Otomatik senkronizasyon — kullanıcı login olduktan sonra her 5 dk'da bir
+  // pull + push tetiklenir. Tab kapalıyken çalışmaz (setInterval).
+  useEffect(() => {
+    if (!hazir || !userId || !userRol) return;
+    const kullanici = { id: userId, rol: userRol };
+    const tick = () => { void syncEngine.syncNow(kullanici); };
+    // İlk tetik 5 sn sonra (initial pull initDataStore zaten yaptı)
+    const initialDelay = window.setTimeout(tick, 5_000);
+    const id = window.setInterval(tick, 5 * 60 * 1000);
+    return () => {
+      window.clearTimeout(initialDelay);
+      window.clearInterval(id);
+    };
+  }, [hazir, userId, userRol]);
 
   return (
     <ConfigProvider theme={antdTheme}>

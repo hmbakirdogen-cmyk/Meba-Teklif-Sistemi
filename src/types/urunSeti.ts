@@ -13,4 +13,10 @@ export interface UrunSeti {
   kalemler: UrunSetKalemi[];
   olusturmaTarihi: string;
   guncellemeTarihi: string;
+  // ── Sync alanları (LAN senkronizasyonu için, geriye uyumlu) ─────────
+  version?: number;
+  deletedAt?: string;
+  deviceId?: string;
+  updatedBy?: string;
+  lastSyncedAt?: string;
 }

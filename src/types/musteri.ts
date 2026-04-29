@@ -11,4 +11,10 @@ export interface Cari {
   /** Teklif bazlı — bu cari için en son kullanılan muhatap */
   lastContactName?: string;
   lastContactTitle?: 'BEY' | 'HANIM';
+  // ── Sync alanları (LAN senkronizasyonu için, geriye uyumlu) ─────────
+  version?: number;
+  deletedAt?: string;
+  deviceId?: string;
+  updatedBy?: string;
+  lastSyncedAt?: string;
 }

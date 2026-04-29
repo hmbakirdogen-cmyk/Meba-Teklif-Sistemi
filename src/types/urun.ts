@@ -7,4 +7,10 @@ export interface Urun {
   marka?: string;
   birim: string;
   varsayilanFiyat: number;
+  // ── Sync alanları (LAN senkronizasyonu için, geriye uyumlu) ─────────
+  version?: number;
+  deletedAt?: string;
+  deviceId?: string;
+  updatedBy?: string;
+  lastSyncedAt?: string;
 }

@@ -7,8 +7,40 @@ const os   = require('os');
 const { spawn } = require('child_process');
 
 const DB_PATH = path.join(__dirname, 'db.json');
+const DB_LOCK_PATH = DB_PATH + '.lock';
+const SYNC_TELEMETRY_LOG_PATH = path.join(__dirname, 'sync_telemetry.log');
 const EMAIL_TELEMETRY_LOG_PATH = path.join(__dirname, 'email_dispatch.log');
-const PORT    = 3001;
+const SERVER_CONFIG_PATH = path.join(__dirname, '..', 'config', 'server-config.json');
+
+// ── Server Config (config/server-config.json) ────────────────────────────────
+let cachedServerConfig = null;
+function loadServerConfig() {
+  if (cachedServerConfig) return cachedServerConfig;
+  const defaults = {
+    mode: 'server',
+    deviceId: 'OFIS-MERKEZ-PC',
+    deviceLabel: 'Ofis Ana Bilgisayar',
+    listenPort: 3001,
+    frontendPort: 5173,
+    logLevel: 'info',
+  };
+  try {
+    if (fs.existsSync(SERVER_CONFIG_PATH)) {
+      const raw = JSON.parse(fs.readFileSync(SERVER_CONFIG_PATH, 'utf-8'));
+      cachedServerConfig = { ...defaults, ...raw };
+    } else {
+      console.warn('[loadServerConfig] config/server-config.json yok, defaultlar kullanilir.');
+      cachedServerConfig = defaults;
+    }
+  } catch (err) {
+    console.warn('[loadServerConfig] okuma hatasi:', err.message);
+    cachedServerConfig = defaults;
+  }
+  return cachedServerConfig;
+}
+
+const SERVER_CONFIG = loadServerConfig();
+const PORT = SERVER_CONFIG.listenPort || 3001;
 const PDF_ROOT_FOLDER_NAME = 'MEBA MEKAN\u0130K TEKL\u0130FLER';
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*\u0000-\u001F]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
@@ -22,19 +54,89 @@ const DB_DEFAULTS = {
   urunSetleri: [],
   referans: { markalar: [], birimler: [], teslimSecenekleri: [] },
   sayac: { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
+  _devices: [],
 };
 
 function readDB() {
   try {
-    return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    // Geriye uyumluluk: eski db.json'larda _devices yoksa init et
+    if (!Array.isArray(data._devices)) data._devices = [];
+    return data;
   } catch (err) {
-    console.warn('[readDB] db.json okunamadı, varsayılan yapı kullanılıyor:', err.message);
+    console.warn('[readDB] db.json okunamadi, varsayilan yapi kullaniliyor:', err.message);
     return { ...DB_DEFAULTS };
   }
 }
 
+// File lock ile yazma — multi-process write race condition'larina karsi
+// ikinci hat savunma. Launcher PID lock primary.
+function writeDBLocked(data) {
+  let fd = null;
+  let retries = 5;
+  while (retries-- > 0) {
+    try {
+      fd = fs.openSync(DB_LOCK_PATH, 'wx'); // exclusive create
+      break;
+    } catch (err) {
+      if (err.code === 'EEXIST' && retries > 0) {
+        // 50ms backoff
+        const wait = Date.now() + 50;
+        while (Date.now() < wait) { /* busy wait — kisa surede biter */ }
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (fd === null) {
+    throw new Error('writeDBLocked: lock alinamadi (5 deneme)');
+  }
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } finally {
+    try { fs.closeSync(fd); } catch { /* ignore */ }
+    try { fs.unlinkSync(DB_LOCK_PATH); } catch { /* ignore */ }
+  }
+}
+
+// Geri uyumluluk: eski writeDB cagrilarini lock'lu surume yonlendir.
 function writeDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  writeDBLocked(data);
+}
+
+// ── Sync alan helper'lari ────────────────────────────────────────────────────
+
+/**
+ * Bir record'a sync alanlarini set eder/gunceller. PUT/POST handler'lari bunu
+ * cagirmali. createdBy'i bos kayit ise hazirlayanKullaniciId'den alir, mevcutsa
+ * korur. updatedBy ve deviceId her cagrida gunceller.
+ */
+function bumpRecord(prev, incoming, ctx) {
+  const { deviceId, userId } = ctx || {};
+  const prevVersion = (prev && typeof prev.version === 'number') ? prev.version : 0;
+  return {
+    ...prev,
+    ...incoming,
+    version: prevVersion + 1,
+    deviceId: deviceId || incoming.deviceId || (prev && prev.deviceId) || SERVER_CONFIG.deviceId,
+    updatedBy: userId || incoming.updatedBy || (prev && prev.updatedBy) || (incoming.hazirlayanKullaniciId || (prev && prev.hazirlayanKullaniciId)) || null,
+    lastSyncedAt: new Date().toISOString(),
+    // Eski kayitlarda guncellemeTarihi varsa onu da yansit (Teklif tipi)
+    guncellemeTarihi: incoming.guncellemeTarihi || new Date().toISOString(),
+  };
+}
+
+/**
+ * Soft-delete: mevcut record'u silmek yerine deletedAt ile isaretler ve
+ * version'ini bumpleyerek diger client'lar da pull'da tombstone alir.
+ */
+function softDeleteRecord(prev, ctx) {
+  if (!prev) return null;
+  return bumpRecord(prev, { deletedAt: new Date().toISOString() }, ctx);
+}
+
+function isLiveRecord(record) {
+  return record && !record.deletedAt;
 }
 
 // ── Network helper ────────────────────────────────────────────────────────────
@@ -464,6 +566,16 @@ function send(res, status, data) {
   res.end(json);
 }
 
+function syncTelemetryYaz(telemetry) {
+  const record = { timestamp: new Date().toISOString(), ...telemetry };
+  try {
+    fs.appendFileSync(SYNC_TELEMETRY_LOG_PATH, JSON.stringify(record) + '\n', 'utf-8');
+  } catch { /* ignore */ }
+  if (SERVER_CONFIG.logLevel === 'debug') {
+    try { console.info('[SyncTelemetry]', JSON.stringify(record)); } catch { /* ignore */ }
+  }
+}
+
 function emailTelemetryYaz(telemetry) {
   const record = {
     timestamp: new Date().toISOString(),
@@ -486,6 +598,9 @@ function emailTelemetryYaz(telemetry) {
 // ── Request router ────────────────────────────────────────────────────────────
 
 // ── Generic CRUD factory — DRY handler for teklifler/cariler/urunler ──────────
+// Sync alanları (version, deletedAt, deviceId, updatedBy, lastSyncedAt) burada
+// yönetilir. Liste handler'ları soft-deleted (deletedAt) kayıtları gizler;
+// sync/pull endpoint'leri ham veriyi (tombstone'lar dahil) doğrudan döner.
 function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
   const basePath = `/api/${collectionKey}`;
   const itemRegex = new RegExp(`^/api/${collectionKey}/[^/]+$`);
@@ -496,7 +611,9 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
       return url === basePath && method === 'GET';
     },
     handleList(res) {
-      return send(res, 200, readDB()[collectionKey] || []);
+      const all = readDB()[collectionKey] || [];
+      // Soft-deleted kayıtları UI'dan gizle
+      return send(res, 200, all.filter(isLiveRecord));
     },
 
     /** PUT /api/<collection> — bulk replace */
@@ -505,10 +622,30 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
     },
     async handleBulkReplace(req, res) {
       const body = await parseBody(req);
+      const ctx = parseRequestCtx(req);
       const db = readDB();
-      db[collectionKey] = body;
+      const existing = db[collectionKey] || [];
+      const existingMap = new Map(existing.map((r) => [r.id, r]));
+
+      // Her item için mevcut kaydı bumpla (version artar, eski deletedAt korunur).
+      // Yeni item'lar version=1 ile gelir. bulkReplace, içerikteki kayıtların
+      // versiyonlarını sıfırlamaz — sync'i kırmaz.
+      const incomingIds = new Set(body.map((r) => r.id));
+      const merged = body.map((item) => bumpRecord(existingMap.get(item.id) || null, item, ctx));
+
+      // body'de olmayan eski kayıtları soft-delete et (eğer aktifse)
+      for (const old of existing) {
+        if (!incomingIds.has(old.id) && isLiveRecord(old)) {
+          merged.push(softDeleteRecord(old, ctx));
+        } else if (!incomingIds.has(old.id)) {
+          // Zaten silinmişse koru (tombstone)
+          merged.push(old);
+        }
+      }
+
+      db[collectionKey] = merged;
       writeDB(db);
-      return send(res, 200, body);
+      return send(res, 200, merged.filter(isLiveRecord));
     },
 
     /** PUT /api/<collection>/:id — upsert single */
@@ -518,31 +655,61 @@ function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
     async handleUpsert(req, res, url) {
       const id = url.split('/')[3];
       const body = await parseBody(req);
+      const ctx = parseRequestCtx(req);
       const db = readDB();
       const arr = db[collectionKey] || (db[collectionKey] = []);
       const idx = arr.findIndex((item) => item.id === id);
       if (idx >= 0) {
-        arr[idx] = body;
-      } else if (insertMethod === 'unshift') {
-        arr.unshift(body);
+        arr[idx] = bumpRecord(arr[idx], body, ctx);
       } else {
-        arr.push(body);
+        const fresh = bumpRecord(null, body, ctx);
+        if (insertMethod === 'unshift') arr.unshift(fresh);
+        else arr.push(fresh);
       }
       writeDB(db);
-      return send(res, 200, body);
+      const final = arr[idx >= 0 ? idx : (insertMethod === 'unshift' ? 0 : arr.length - 1)];
+      return send(res, 200, final);
     },
 
-    /** DELETE /api/<collection>/:id */
+    /** DELETE /api/<collection>/:id — soft delete (tombstone) */
     remove(url, method) {
       return itemRegex.test(url) && method === 'DELETE';
     },
-    handleRemove(res, url) {
+    handleRemove(req, res, url) {
       const id = url.split('/')[3];
+      const ctx = parseRequestCtx(req);
       const db = readDB();
-      db[collectionKey] = (db[collectionKey] || []).filter((item) => item.id !== id);
-      writeDB(db);
+      const arr = db[collectionKey] || [];
+      const idx = arr.findIndex((item) => item.id === id);
+      if (idx >= 0) {
+        arr[idx] = softDeleteRecord(arr[idx], ctx);
+        writeDB(db);
+      }
       return send(res, 200, { ok: true });
     },
+  };
+}
+
+/**
+ * Request'ten deviceId / userId / rol bilgisi çekme. Header (X-Device-Id,
+ * X-User-Id, X-User-Role) öncelikli; yoksa query string'e düş.
+ */
+function parseRequestCtx(req) {
+  const headers = req.headers || {};
+  const url = req.url || '';
+  let qUserId = '';
+  let qRol = '';
+  let qDeviceId = '';
+  try {
+    const parsed = new URL(url, 'http://localhost');
+    qUserId = parsed.searchParams.get('userId') || '';
+    qRol = parsed.searchParams.get('rol') || '';
+    qDeviceId = parsed.searchParams.get('deviceId') || '';
+  } catch { /* ignore */ }
+  return {
+    deviceId: headers['x-device-id'] || qDeviceId || null,
+    userId:   headers['x-user-id']   || qUserId   || null,
+    rol:      headers['x-user-role'] || qRol      || null,
   };
 }
 
@@ -579,31 +746,40 @@ const server = http.createServer(async (req, res) => {
 
     // ── GET /api/init — fetch everything at once (used by frontend on startup) ──
     // Visibility filter teklifler üzerinde — /api/teklifler ile aynı kural.
+    // Soft-deleted (deletedAt'lı) kayıtlar UI'dan gizlenir.
     if (method === 'GET' && (url === '/api/init' || url.startsWith('/api/init?'))) {
       const parsed = new URL(url, 'http://localhost');
       const qUserId = parsed.searchParams.get('userId') || '';
       const qRol = parsed.searchParams.get('rol') || '';
       const db = readDB();
+      const filterLive = (arr) => (arr || []).filter(isLiveRecord);
+      const cleanDb = {
+        ...db,
+        teklifler:   filterLive(db.teklifler),
+        cariler:     filterLive(db.cariler),
+        urunler:     filterLive(db.urunler),
+        urunSetleri: filterLive(db.urunSetleri),
+      };
       if (!qRol || qRol === 'admin') {
-        return send(res, 200, db);
+        return send(res, 200, cleanDb);
       }
-      const filteredTeklifler = db.teklifler.filter((t) => {
+      const filteredTeklifler = cleanDb.teklifler.filter((t) => {
         const vis = t.visibility || 'team';
         return vis === 'team' || t.hazirlayanKullaniciId === qUserId;
       });
-      return send(res, 200, { ...db, teklifler: filteredTeklifler });
+      return send(res, 200, { ...cleanDb, teklifler: filteredTeklifler });
     }
 
     // ── TEKLIFLER ─────────────────────────────────────────────────────────────
     // Custom GET /api/teklifler — visibility filter (userId+rol query params).
     // Admin tüm teklifleri görür; engineer/sales sadece kendi tekliflerini ve
     // visibility='team' (veya undefined → backward compat 'team') olanları.
-    // Query yoksa (legacy caller) → tüm liste döner.
+    // Query yoksa (legacy caller) → tüm liste döner. Soft-deleted gizli.
     if (method === 'GET' && (url === '/api/teklifler' || url.startsWith('/api/teklifler?'))) {
       const parsed = new URL(url, 'http://localhost');
       const qUserId = parsed.searchParams.get('userId') || '';
       const qRol = parsed.searchParams.get('rol') || '';
-      const all = readDB().teklifler;
+      const all = readDB().teklifler.filter(isLiveRecord);
       if (!qRol || qRol === 'admin') {
         return send(res, 200, all);
       }
@@ -614,25 +790,25 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, filtered);
     }
     if (teklifCrud.upsert(url, method))       return await teklifCrud.handleUpsert(req, res, url);
-    if (teklifCrud.remove(url, method))       return teklifCrud.handleRemove(res, url);
+    if (teklifCrud.remove(url, method))       return teklifCrud.handleRemove(req, res, url);
 
     // ── CARILER ──────────────────────────────────────────────────────────────
     if (cariCrud.list(url, method))           return cariCrud.handleList(res);
     if (cariCrud.bulkReplace(url, method))    return await cariCrud.handleBulkReplace(req, res);
     if (cariCrud.upsert(url, method))         return await cariCrud.handleUpsert(req, res, url);
-    if (cariCrud.remove(url, method))         return cariCrud.handleRemove(res, url);
+    if (cariCrud.remove(url, method))         return cariCrud.handleRemove(req, res, url);
 
     // ── URUNLER ──────────────────────────────────────────────────────────────
     if (urunCrud.list(url, method))           return urunCrud.handleList(res);
     if (urunCrud.bulkReplace(url, method))    return await urunCrud.handleBulkReplace(req, res);
     if (urunCrud.upsert(url, method))         return await urunCrud.handleUpsert(req, res, url);
-    if (urunCrud.remove(url, method))         return urunCrud.handleRemove(res, url);
+    if (urunCrud.remove(url, method))         return urunCrud.handleRemove(req, res, url);
 
     // ── URUN SETLERI ─────────────────────────────────────────────────────────
     if (urunSetCrud.list(url, method))        return urunSetCrud.handleList(res);
     if (urunSetCrud.bulkReplace(url, method)) return await urunSetCrud.handleBulkReplace(req, res);
     if (urunSetCrud.upsert(url, method))      return await urunSetCrud.handleUpsert(req, res, url);
-    if (urunSetCrud.remove(url, method))      return urunSetCrud.handleRemove(res, url);
+    if (urunSetCrud.remove(url, method))      return urunSetCrud.handleRemove(req, res, url);
 
     // ── REFERANS ─────────────────────────────────────────────────────────────
 
@@ -708,14 +884,19 @@ const server = http.createServer(async (req, res) => {
 
         const pdfOlusturmaTarihi = new Date().toISOString();
         const db = readDB();
-        const teklifKaydi = {
-          ...teklif,
-          pdfYolu: tamYol,
-          pdfDosyaAdi: dosyaAdi,
-          pdfOlusturmaTarihi,
-          guncellemeTarihi: pdfOlusturmaTarihi,
-        };
+        const ctx = parseRequestCtx(req);
         const teklifIndex = db.teklifler.findIndex((item) => item.id === teklif.id);
+        const teklifKaydi = bumpRecord(
+          teklifIndex >= 0 ? db.teklifler[teklifIndex] : null,
+          {
+            ...teklif,
+            pdfYolu: tamYol,
+            pdfDosyaAdi: dosyaAdi,
+            pdfOlusturmaTarihi,
+            guncellemeTarihi: pdfOlusturmaTarihi,
+          },
+          ctx,
+        );
 
         if (teklifIndex >= 0) {
           db.teklifler[teklifIndex] = teklifKaydi;
@@ -824,6 +1005,186 @@ const server = http.createServer(async (req, res) => {
           pdfDosyaAdi: kaydedilenDosyaAdi || undefined,
         });
       }
+    }
+
+    // ══ SYNC ENDPOINTS ════════════════════════════════════════════════════════
+    // Multi-PC LAN senkronizasyonu için. Tüm endpoint'ler defense-in-depth
+    // visibility filter uygular (admin değilse private + ekibinin teklifleri).
+    // Soft-deleted (deletedAt) kayıtlar pull'da tombstone olarak döner; UI
+    // listelerinde gizli (handleList'te filter).
+
+    if (method === 'GET' && (url === '/api/sync/status' || url.startsWith('/api/sync/status?'))) {
+      const db = readDB();
+      const stats = {
+        ok: true,
+        serverTime: new Date().toISOString(),
+        deviceId: SERVER_CONFIG.deviceId,
+        deviceLabel: SERVER_CONFIG.deviceLabel,
+        recordCounts: {
+          teklifler:   db.teklifler.length,
+          cariler:     db.cariler.length,
+          urunler:     db.urunler.length,
+          urunSetleri: db.urunSetleri.length,
+        },
+        liveCounts: {
+          teklifler:   db.teklifler.filter(isLiveRecord).length,
+          cariler:     db.cariler.filter(isLiveRecord).length,
+          urunler:     db.urunler.filter(isLiveRecord).length,
+          urunSetleri: db.urunSetleri.filter(isLiveRecord).length,
+        },
+        registeredDevices: (db._devices || []).length,
+      };
+      return send(res, 200, stats);
+    }
+
+    // GET /api/sync/pull?since=<ISO>&userId=&rol=
+    // since'den sonra updatedAt/lastSyncedAt'lı tüm kayıtları döner (tombstone'lar dahil).
+    // Visibility filter ZORUNLU.
+    if (method === 'GET' && url.startsWith('/api/sync/pull')) {
+      const parsed = new URL(url, 'http://localhost');
+      const since = parsed.searchParams.get('since') || '';
+      const qUserId = parsed.searchParams.get('userId') || '';
+      const qRol = parsed.searchParams.get('rol') || '';
+      const db = readDB();
+
+      // since filter: lastSyncedAt > since OR (since boşsa tümü)
+      const sinceFilter = (rec) => {
+        if (!since) return true;
+        const ts = rec.lastSyncedAt || rec.guncellemeTarihi || rec.olusturmaTarihi || '';
+        return ts > since;
+      };
+
+      // Visibility filter teklifler için
+      const visibilityOk = (t) => {
+        if (qRol === 'admin') return true;
+        const vis = t.visibility || 'team';
+        return vis === 'team' || t.hazirlayanKullaniciId === qUserId;
+      };
+
+      const teklifler   = db.teklifler.filter((r) => sinceFilter(r) && visibilityOk(r));
+      const cariler     = db.cariler.filter(sinceFilter);
+      const urunler     = db.urunler.filter(sinceFilter);
+      const urunSetleri = db.urunSetleri.filter(sinceFilter);
+
+      return send(res, 200, {
+        serverTime: new Date().toISOString(),
+        teklifler,
+        cariler,
+        urunler,
+        urunSetleri,
+      });
+    }
+
+    // POST /api/sync/push — bulk upsert with version-vector check
+    // Body: { teklifler?, cariler?, urunler?, urunSetleri? } — her biri sync alanlarıyla
+    // Conflict: incoming.version <= existing.version ise reddedilir (existing döner).
+    if (method === 'POST' && url === '/api/sync/push') {
+      const body = await parseBody(req);
+      const ctx = parseRequestCtx(req);
+      const db = readDB();
+      const conflicts = [];
+      const accepted = [];
+
+      const collections = ['teklifler', 'cariler', 'urunler', 'urunSetleri'];
+      for (const col of collections) {
+        const incoming = Array.isArray(body[col]) ? body[col] : [];
+        const arr = db[col] || (db[col] = []);
+        for (const item of incoming) {
+          if (!item || !item.id) continue;
+          const idx = arr.findIndex((r) => r.id === item.id);
+          const existing = idx >= 0 ? arr[idx] : null;
+
+          // Yetki kontrolü — sadece teklifler için (cari/ürün paylaşımlı)
+          if (col === 'teklifler' && existing && ctx.rol !== 'admin') {
+            if (existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
+              conflicts.push({ collection: col, id: item.id, reason: 'forbidden', existing });
+              continue;
+            }
+          }
+
+          // Version-vector check
+          const incomingVer = typeof item.version === 'number' ? item.version : 0;
+          const existingVer = existing && typeof existing.version === 'number' ? existing.version : 0;
+          if (existing && incomingVer <= existingVer && incomingVer > 0) {
+            // Client eski sürüm gönderdi — conflict
+            conflicts.push({ collection: col, id: item.id, reason: 'version_conflict', existing });
+            continue;
+          }
+
+          // Bumpla ve kabul et
+          if (idx >= 0) {
+            arr[idx] = bumpRecord(existing, item, ctx);
+            accepted.push({ collection: col, id: item.id, version: arr[idx].version });
+          } else {
+            const fresh = bumpRecord(null, item, ctx);
+            if (col === 'teklifler') arr.unshift(fresh);
+            else arr.push(fresh);
+            accepted.push({ collection: col, id: item.id, version: fresh.version });
+          }
+        }
+      }
+
+      writeDB(db);
+      syncTelemetryYaz({
+        op: 'push',
+        deviceId: ctx.deviceId,
+        userId: ctx.userId,
+        accepted: accepted.length,
+        conflicts: conflicts.length,
+      });
+      return send(res, 200, {
+        serverTime: new Date().toISOString(),
+        accepted,
+        conflicts,
+      });
+    }
+
+    // POST /api/sync/full — admin + same-machine only; tüm DB'yi replace eder.
+    // Acil durum kurtarma için — yanlış makineden çağrılırsa yıkıcı olur.
+    if (method === 'POST' && url === '/api/sync/full') {
+      const ctx = parseRequestCtx(req);
+      if (ctx.rol !== 'admin') {
+        return send(res, 403, { error: 'Sadece admin /api/sync/full kullanabilir.' });
+      }
+      if (!isSameMachineClient(req)) {
+        return send(res, 403, { error: 'Full restore yalnızca server makinesinden tetiklenebilir.' });
+      }
+      const body = await parseBody(req);
+      const db = readDB();
+      const merged = {
+        ...db,
+        teklifler:   Array.isArray(body.teklifler)   ? body.teklifler   : db.teklifler,
+        cariler:     Array.isArray(body.cariler)     ? body.cariler     : db.cariler,
+        urunler:     Array.isArray(body.urunler)     ? body.urunler     : db.urunler,
+        urunSetleri: Array.isArray(body.urunSetleri) ? body.urunSetleri : db.urunSetleri,
+      };
+      writeDB(merged);
+      syncTelemetryYaz({ op: 'full', deviceId: ctx.deviceId, userId: ctx.userId });
+      return send(res, 200, { ok: true, replaced: true, serverTime: new Date().toISOString() });
+    }
+
+    if (method === 'GET' && (url === '/api/sync/devices' || url.startsWith('/api/sync/devices?'))) {
+      const db = readDB();
+      return send(res, 200, db._devices || []);
+    }
+
+    if (method === 'POST' && url === '/api/sync/register-device') {
+      const body = await parseBody(req);
+      if (!body.deviceId) return send(res, 400, { error: 'deviceId zorunlu.' });
+      const db = readDB();
+      if (!Array.isArray(db._devices)) db._devices = [];
+      const idx = db._devices.findIndex((d) => d.deviceId === body.deviceId);
+      const record = {
+        deviceId:    body.deviceId,
+        deviceLabel: body.deviceLabel || 'Bilinmeyen Cihaz',
+        firstSeenAt: idx >= 0 ? db._devices[idx].firstSeenAt : new Date().toISOString(),
+        lastSeenAt:  new Date().toISOString(),
+        userAgent:   req.headers['user-agent'] || '',
+      };
+      if (idx >= 0) db._devices[idx] = record;
+      else db._devices.push(record);
+      writeDB(db);
+      return send(res, 200, record);
     }
 
     // ── MIGRATION endpoint — frontend pushes its localStorage data once ───────
