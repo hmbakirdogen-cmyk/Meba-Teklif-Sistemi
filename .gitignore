@@ -52,3 +52,6 @@ server/db.json.lock
 sync_telemetry.log
 server/sync_telemetry.log
 server/email_dispatch.log
+
+# bin/node.exe — USB hazırlığında manuel kopyalanır (87 MB, Git LFS'siz).
+bin/

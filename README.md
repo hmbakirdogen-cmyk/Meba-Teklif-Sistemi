@@ -72,16 +72,34 @@ Detay → [USB Kurulumu](#usb-kurulumu).
 
 ## <a id="usb-kurulumu"></a>3. USB Kurulumu (Adım Adım)
 
-USB belleğe **tüm proje + node_modules + dist** kopyalanır. Şu klasörler
-zorunlu:
+USB belleğe **tüm proje + node_modules + dist + Node.js binary'si** kopyalanır.
+Şu klasörler zorunlu:
 
 - `server/` — backend kodu + `db.json` (server modunda canlı, client'ta lokal kopya)
 - `dist/` — production frontend build'i (önceden `npm run build` ile üretilmeli)
 - `node_modules/` — bağımlılıklar (USB'de hazır → hedef PC'de internet/install gerekmez)
+- **`bin/node.exe`** — Node.js binary'si (~87 MB; hedef PC'de Node.js kurulumu gerekmesin diye)
 - `config/` — `*.template.json` şablonları (KUR.bat runtime config'leri üretir)
 - `launcher.cjs`, `launcher/` — başlatıcı modülleri
 - `MEBA-*.bat` — Windows başlatma/durdurma scriptleri
 - `assets/icon/meba-premium.ico` — masaüstü kısayolu için
+
+### `bin/node.exe`'yi USB'ye eklemek (server PC'de bir kerelik)
+
+Git repo'da `bin/` ignore'lu (87 MB binary GitHub'a push edilmez). USB
+hazırlarken manuel kopyalanır:
+
+```powershell
+# Server PC'de, Node.js kurulu olduğu varsayılır
+mkdir C:\MEBA-USB-HAZIRLIK\bin
+copy "C:\Program Files\nodejs\node.exe" "C:\MEBA-USB-HAZIRLIK\bin\node.exe"
+```
+
+Veya hazır kurulumdan: `C:\MEBA\Meba-Teklif-Sistemi\bin\node.exe` zaten var
+ise USB'ye doğrudan klasörüyle birlikte sürükle-bırak.
+
+`MEBA-BASLAT.bat` öncelikle `bin\node.exe`'yi kullanır; yoksa sistem PATH'ine
+düşer (Node.js elle kurulmuşsa). İkisi de yoksa anlaşılır hata mesajı verir.
 
 ### Adımlar
 
