@@ -218,7 +218,7 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
               <tbody>
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
+                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {teklif.teklifNo}
                   </td>
                 </tr>
@@ -480,7 +480,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                   kdvTutar={kdvTutar}
                   genelToplam={genelToplam}
                   paraBirimi={teklif.paraBirimi}
-                  variant="light"
+                  variant="dark"
                   amountRightOffsetPx={amountRightOffsetPx}
                 />
               </td>
@@ -654,7 +654,7 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
   return (
     <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
       <div>MEBA Pnömatik Hidrolik Makina | KAYSERİ | info@mebamekanik.com</div>
-      <div style={{ fontVariantNumeric: 'tabular-nums' }}>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
+      <div>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
       <div style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>Sayfa {pageNumber} / {totalPages}</div>
     </div>
   );

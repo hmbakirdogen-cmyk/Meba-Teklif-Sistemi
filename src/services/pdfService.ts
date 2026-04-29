@@ -28,7 +28,10 @@ const PRINT_HTML2CANVAS_OPTIONS = {
 
 const EMAIL_HTML2CANVAS_OPTIONS = {
   ...HTML2CANVAS_OPTIONS,
-  scale: 4.2,
+  // Email PDF'inde de yüksek çözünürlük tercih edildi (eskiden 4.2 ile
+  // ~85 DPI çıkıyordu — font kenarları yumuşak, pixelated görünüm).
+  // 5.5 ile ~155 DPI; JPEG attempts cap'i (1 MB) aşılırsa downscale devreye girer.
+  scale: 5.5,
 };
 
 type JpegAttempt = {

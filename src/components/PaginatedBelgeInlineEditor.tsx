@@ -222,7 +222,7 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
   return (
     <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
       <div>MEBA Pnömatik Hidrolik Makina | KAYSERİ | info@mebamekanik.com</div>
-      <div style={{ fontVariantNumeric: 'tabular-nums' }}>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
+      <div>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
       <div style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>Sayfa {pageNumber} / {totalPages}</div>
     </div>
   );

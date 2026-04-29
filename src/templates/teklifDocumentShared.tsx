@@ -666,7 +666,7 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
   flexDirection: 'row',
   alignItems: 'baseline',
   justifyContent: 'center',
-  gap: '2px',
+  gap: '1.5px',
   width: '100%',
   // Tek satır: en uzun etiketler (örn. "Ödeme Vadesi / Payment Terms",
   // "Döviz Kuru / Exchange Rate") font küçültmesiyle tek satıra sığar.
@@ -675,10 +675,10 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
-  fontSize: '7.2px',
+  fontSize: '7px',
   fontWeight: 600,
   color: HEADER_SURFACE.textSub,
-  letterSpacing: '0.05em',
+  letterSpacing: '0.03em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
@@ -686,7 +686,7 @@ export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_SEP_STYLE: CSSProperties = {
-  fontSize: '5.5px',
+  fontSize: '5px',
   color: HEADER_SURFACE.textLabel,
   lineHeight: 1.2,
   flexShrink: 0,
@@ -695,10 +695,10 @@ export const SETTINGS_SEP_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
-  fontSize: '5.8px',
+  fontSize: '5.4px',
   fontWeight: 400,
   color: HEADER_SURFACE.textLabel,
-  letterSpacing: '0.02em',
+  letterSpacing: '0.01em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
   flexShrink: 0,

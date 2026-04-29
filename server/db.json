@@ -1,6 +1,63 @@
 {
   "teklifler": [
     {
+      "id": "tmojqf7ka",
+      "teklifNo": "2604-049",
+      "tarih": "2026-04-29",
+      "satirBazliParaBirimi": false,
+      "satirBazliIskonto": false,
+      "paraBirimi": "EUR",
+      "durum": "taslak",
+      "cari": {
+        "id": "c-0004",
+        "cariKod": "C-0004",
+        "firmaAdi": "AKTEK ENDÜSTRİYEL EKİPMAN VE ENSTRÜMANTASYON LTD. ŞTİ.",
+        "yetkiliKisi": "",
+        "telefon": "0352 540 73 00",
+        "ePosta": "info@mebamekanik.com",
+        "adres": "",
+        "vergiDairesi": "",
+        "vergiNo": ""
+      },
+      "satirlar": [
+        {
+          "id": "smojqfa0fa78",
+          "marka": "SMC",
+          "urunKod": "",
+          "urunAdi": "",
+          "aciklama": "",
+          "paraBirimi": "EUR",
+          "miktar": 1,
+          "birim": "Adet",
+          "birimFiyat": 0,
+          "indirimOrani": 0,
+          "teslimTarihi": "2-3 Gün",
+          "satirToplami": 0
+        }
+      ],
+      "araToplam": 0,
+      "toplamIndirim": 0,
+      "toplamVergi": 0,
+      "genelToplam": 0,
+      "kdvOrani": 0,
+      "iskontoOrani": 0,
+      "odemeVadesi": "45 Gün",
+      "notlar": "",
+      "olusturmaTarihi": "2026-04-29T07:27:03.178Z",
+      "guncellemeTarihi": "2026-04-29T07:48:25.102Z",
+      "hazirlayanKullaniciId": "u2",
+      "hazirlayanAdSoyad": "Furkan Öztürk",
+      "hazirlayanRol": "sales",
+      "hazirlayanUnvan": "Satış Sorumlusu",
+      "gecerlilikSuresi": "1 Hafta",
+      "status": "taslak",
+      "visibility": "team",
+      "version": 3,
+      "deviceId": "web-m2cz4qmf-mojpnbg2",
+      "updatedBy": "u2",
+      "lastSyncedAt": "2026-04-29T07:48:25.117Z"
+    },
+    {
       "id": "tmoibh1q4",
       "teklifNo": "2604-044",
       "tarih": "2026-04-28",
@@ -86,7 +143,7 @@
       "odemeVadesi": "45 Gün",
       "notlar": "memo",
       "olusturmaTarihi": "2026-04-28T07:40:48.508Z",
-      "guncellemeTarihi": "2026-04-29T05:30:15.336Z",
+      "guncellemeTarihi": "2026-04-29T08:24:42.358Z",
       "hazirlayanKullaniciId": "u3",
       "hazirlayanAdSoyad": "Mehmet Bakırdöğen",
       "hazirlayanRol": "admin",
@@ -95,7 +152,14 @@
       "contactName": "ALİ",
       "contactTitle": "BEY",
       "status": "kaydedildi",
-      "visibility": "team"
+      "visibility": "team",
+      "version": 12,
+      "deviceId": "web-m2cz4qmf-mojpnbg2",
+      "updatedBy": "u3",
+      "lastSyncedAt": "2026-04-29T08:24:42.373Z",
+      "pdfYolu": "C:\\Users\\Admin\\Desktop\\MEBA MEKANİK TEKLİFLER\\MEKOSAN MAK.İNŞ\\MEKOSAN MAK.İNŞ - 2604-044 (32).pdf",
+      "pdfDosyaAdi": "MEKOSAN MAK.İNŞ - 2604-044 (32).pdf",
+      "pdfOlusturmaTarihi": "2026-04-29T08:24:38.819Z"
     }
   ],
   "cariler": [
@@ -48813,7 +48877,7 @@
   "sayac": {
     "yil": 2026,
     "ay": 4,
-    "deger": 48
+    "deger": 51
   },
   "urunSetleri": [
     {
@@ -48876,5 +48940,6 @@
       "olusturmaTarihi": "2026-04-28T07:36:58.509Z",
       "guncellemeTarihi": "2026-04-28T07:36:58.509Z"
     }
-  ]
+  ],
+  "_devices": []
 }

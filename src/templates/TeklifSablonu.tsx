@@ -357,7 +357,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                      yarısı kırpılmaz. */}
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
+                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {teklif.teklifNo}
                   </td>
                 </tr>
@@ -904,7 +904,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         {/* ── FOOTER (navy şerit) ── */}
         <div id="pdf-page-footer" style={FOOTER_BAR_STYLE}>
           <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
-          <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <div>
             Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com
           </div>
         </div>
