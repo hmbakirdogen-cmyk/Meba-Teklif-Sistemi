@@ -43,12 +43,20 @@ project_dump_clean.txt
 *.blockmap
 *_verification_report.json
 
-# MEBA runtime — config'lerin gerçek (deviceId'li) kopyaları kullanıcıya özel.
+# Runtime — config'lerin gerçek (deviceId'li) kopyaları kullanıcıya özel.
 # Sadece *.template.json git'e dahildir.
 config/client-config.json
 config/server-config.json
 .meba-running.pid
+.app-running.pid
 server/db.json.lock
+
+# Server runtime artefaktları (otomatik üretilir, kullanıcıya özel)
+server/backups/
+server/sync_telemetry.log
+
+# Kullanıcı yüklediği profil fotoğrafları (kişisel veri)
+public/profil-fotograflari/
 sync_telemetry.log
 server/sync_telemetry.log
 server/email_dispatch.log

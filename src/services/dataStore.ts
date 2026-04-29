@@ -14,9 +14,17 @@
  */
 
 import type { Teklif, Cari, Urun, UrunSeti } from '../types';
-import { api } from './apiClient';
+import { api, getActiveFirmaId } from './apiClient';
 import type { Referans, Sayac } from './apiClient';
 import { syncEngine } from './syncEngine';
+
+/** Yeni eklenen kayda (firmaId yoksa) aktif firmaId'yi inject eder.
+ *  Mevcut firmaId varsa dokunulmaz — eski kayitlari koruyalim. */
+function withFirmaId<T extends { firmaId?: string }>(rec: T): T {
+  if (rec.firmaId) return rec;
+  const firmaId = getActiveFirmaId();
+  return firmaId ? { ...rec, firmaId } : rec;
+}
 
 // ── Store shape ───────────────────────────────────────────────────────────────
 
@@ -100,7 +108,7 @@ export async function initDataStore(
       urunler:   data.urunler,
       urunSetleri: data.urunSetleri ?? [],
       referans:  data.referans,
-      sayac:     data.sayac,
+      sayac:     data.sayac ?? { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
     };
     // Başarılı init sonrası snapshot kaydet (offline restore için)
     syncEngine.saveSnapshot({
@@ -173,10 +181,11 @@ export const dataStore = {
   },
 
   upsertTeklif(t: Teklif): void {
-    const idx = store.teklifler.findIndex((x) => x.id === t.id);
-    if (idx >= 0) { store.teklifler[idx] = t; }
-    else { store.teklifler.unshift(t); }
-    syncWithFallback(api.teklifler.upsert(t), { collection: 'teklifler', op: 'upsert', id: t.id, payload: t });
+    const enriched = withFirmaId(t);
+    const idx = store.teklifler.findIndex((x) => x.id === enriched.id);
+    if (idx >= 0) { store.teklifler[idx] = enriched; }
+    else { store.teklifler.unshift(enriched); }
+    syncWithFallback(api.teklifler.upsert(enriched), { collection: 'teklifler', op: 'upsert', id: enriched.id, payload: enriched });
   },
 
   deleteTeklif(id: string): void {
@@ -190,10 +199,11 @@ export const dataStore = {
   setCariler: (v: Cari[])       => { store.cariler = v; },
 
   upsertCari(c: Cari): void {
-    const idx = store.cariler.findIndex((x) => x.id === c.id);
-    if (idx >= 0) { store.cariler[idx] = c; }
-    else { store.cariler.push(c); }
-    syncWithFallback(api.cariler.upsert(c), { collection: 'cariler', op: 'upsert', id: c.id, payload: c });
+    const enriched = withFirmaId(c);
+    const idx = store.cariler.findIndex((x) => x.id === enriched.id);
+    if (idx >= 0) { store.cariler[idx] = enriched; }
+    else { store.cariler.push(enriched); }
+    syncWithFallback(api.cariler.upsert(enriched), { collection: 'cariler', op: 'upsert', id: enriched.id, payload: enriched });
   },
 
   deleteCari(id: string): void {
@@ -202,8 +212,9 @@ export const dataStore = {
   },
 
   bulkReplaceCariler(liste: Cari[]): void {
-    store.cariler = liste;
-    sync(api.cariler.bulkReplace(liste));
+    const enriched = liste.map(withFirmaId);
+    store.cariler = enriched;
+    sync(api.cariler.bulkReplace(enriched));
   },
 
   // ── Urunler ───────────────────────────────────────────────────────────────
@@ -212,10 +223,11 @@ export const dataStore = {
   setUrunler: (v: Urun[])       => { store.urunler = v; },
 
   upsertUrun(u: Urun): void {
-    const idx = store.urunler.findIndex((x) => x.id === u.id);
-    if (idx >= 0) { store.urunler[idx] = u; }
-    else { store.urunler.push(u); }
-    syncWithFallback(api.urunler.upsert(u), { collection: 'urunler', op: 'upsert', id: u.id, payload: u });
+    const enriched = withFirmaId(u);
+    const idx = store.urunler.findIndex((x) => x.id === enriched.id);
+    if (idx >= 0) { store.urunler[idx] = enriched; }
+    else { store.urunler.push(enriched); }
+    syncWithFallback(api.urunler.upsert(enriched), { collection: 'urunler', op: 'upsert', id: enriched.id, payload: enriched });
   },
 
   deleteUrun(id: string): void {
@@ -224,8 +236,9 @@ export const dataStore = {
   },
 
   bulkReplaceUrunler(liste: Urun[]): void {
-    store.urunler = liste;
-    sync(api.urunler.bulkReplace(liste));
+    const enriched = liste.map(withFirmaId);
+    store.urunler = enriched;
+    sync(api.urunler.bulkReplace(enriched));
   },
 
   // ── Ürün Setleri ─────────────────────────────────────────────────────────
@@ -234,10 +247,11 @@ export const dataStore = {
   setUrunSetleri: (v: UrunSeti[])   => { store.urunSetleri = v; },
 
   upsertUrunSeti(s: UrunSeti): void {
-    const idx = store.urunSetleri.findIndex((x) => x.id === s.id);
-    if (idx >= 0) { store.urunSetleri[idx] = s; }
-    else { store.urunSetleri.push(s); }
-    syncWithFallback(api.urunSetleri.upsert(s), { collection: 'urunSetleri', op: 'upsert', id: s.id, payload: s });
+    const enriched = withFirmaId(s);
+    const idx = store.urunSetleri.findIndex((x) => x.id === enriched.id);
+    if (idx >= 0) { store.urunSetleri[idx] = enriched; }
+    else { store.urunSetleri.push(enriched); }
+    syncWithFallback(api.urunSetleri.upsert(enriched), { collection: 'urunSetleri', op: 'upsert', id: enriched.id, payload: enriched });
   },
 
   deleteUrunSeti(id: string): void {
@@ -246,8 +260,9 @@ export const dataStore = {
   },
 
   bulkReplaceUrunSetleri(liste: UrunSeti[]): void {
-    store.urunSetleri = liste;
-    sync(api.urunSetleri.bulkReplace(liste));
+    const enriched = liste.map(withFirmaId);
+    store.urunSetleri = enriched;
+    sync(api.urunSetleri.bulkReplace(enriched));
   },
 
   // ── Referans ──────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import type { Teklif } from '../types';
+import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
@@ -88,6 +89,7 @@ interface TeklifSablonuProps {
  * ardından PDF motorunda içerik dilimleriyle compositing yapılır.
  */
 export function KompaktAntet({ teklif }: { teklif: Teklif }) {
+  const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   // S: optH = LOGO_OPT_H × S ≈ metin bloğu yüksekliği
   // Metin bloğu: 3 satır (10.4px×1.25 + 9px×1.3 × 2) + 2×gap(2px) ≈ 40.4px
   // LOGO_OPT_H (FILE_HEIGHT=128) ≈ 84.58px → S = 40.4 / 84.58 ≈ 0.478
@@ -125,8 +127,8 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
           flexShrink: 0,
         }}>
           <img
-            src="/logo-meba.png"
-            alt="MEBA"
+            src={firmaBilgi.logoPath}
+            alt={firmaBilgi.kisaAd}
             style={{
               position: 'absolute',
               top:  `${optTop}px`,
@@ -142,16 +144,18 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
             }}
           />
         </div>
-        {/* MEBA firma bilgileri — müşteri bilgisi yok */}
+        {/* Firma bilgileri — aktif teklifin firmaId'sinden */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span style={{ fontSize: '10.4px', fontWeight: 800, color: C.navy, letterSpacing: '-0.015em', lineHeight: 1.25 }}>
-            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.
+            {firmaBilgi.ad}
           </span>
+          {firmaBilgi.adres && (
+            <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
+              {firmaBilgi.adres}
+            </span>
+          )}
           <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ
-          </span>
-          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            Tel: 0352 502 07 80 &nbsp;·&nbsp; info@mebamekanik.com &nbsp;·&nbsp; www.mebamekanik.com
+            {[firmaBilgi.telefon && `Tel: ${firmaBilgi.telefon}`, firmaBilgi.eposta, firmaBilgi.web].filter(Boolean).join(' · ')}
           </span>
         </div>
         {/* Teklif no + tarih */}
@@ -170,6 +174,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
 
 
 export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
+  const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
@@ -256,8 +261,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             overflow: 'hidden',
           }}>
             <img
-              src="/logo-meba.png"
-              alt="MEBA Mekanik"
+              src={firmaBilgi.logoPath}
+              alt={firmaBilgi.kisaAd}
               style={{
                 position: 'absolute',
                 top: `${LOGO_OPT_TOP}px`,
@@ -275,9 +280,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           </div>
         </div>
 
-        {/* ── Sütun 2: Firma bilgileri ────────────────────────────── */}
-        {/* space-between → isim grubu logo üst sınırında,            */}
-        {/* adres bloğu logo alt sınırında.                           */}
+        {/* ── Sütun 2: Firma bilgileri (firma profilinden) ─────────── */}
         <div style={{
           flex: '0 0 31%',
           maxWidth: '31%',
@@ -287,16 +290,14 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           justifyContent: 'space-between',
           boxSizing: 'border-box',
         }}>
-          {/* Firma isim grubu — logonun üst sınırına oturur */}
           <div style={{ fontWeight: 800, fontSize: '11.5px', color: C.navy, lineHeight: '1.25', letterSpacing: '-0.012em' }}>
-            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik<br />
-            San. Tic. Ltd. Şti.
+            {firmaBilgi.ad}
           </div>
-          {/* Adres — logonun alt sınırına oturur */}
-          <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
-            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv.<br />
-            No:252/D Melikgazi / KAYSERİ
-          </div>
+          {firmaBilgi.adres && (
+            <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
+              {firmaBilgi.adres}
+            </div>
+          )}
         </div>
 
         {/* ── Sütun 3: Teklif bilgi bloğu ────────────────────────── */}
@@ -372,7 +373,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
                   <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {teklif.hazirlayanAdSoyad || 'MEBA Mekanik'}
+                    {teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}
                   </td>
                 </tr>
               </tbody>
@@ -390,11 +391,11 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
           </div>
           <div style={PARTY_NAME_STYLE}>
-            MEBA Mekanik Ltd. Şti.
+            {firmaBilgi.kisaAd}{firmaBilgi.kisaAd === 'MEBA Mekanik' ? ' Ltd. Şti.' : ''}
           </div>
           <div style={PARTY_BODY_STYLE}>
-            Tel: {formatPhone('03525020780')}<br />
-            www.mebamekanik.com
+            {firmaBilgi.telefon ? <>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}<br /></> : null}
+            {firmaBilgi.web}
           </div>
         </div>
         {/* Alıcı */}
@@ -903,9 +904,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
         {/* ── FOOTER (navy şerit) ── */}
         <div id="pdf-page-footer" style={FOOTER_BAR_STYLE}>
-          <div>MEBA Pnömatik Hidrolik Makina &nbsp;|&nbsp; KAYSERİ &nbsp;|&nbsp; info@mebamekanik.com</div>
+          <div>{[firmaBilgi.kisaAd, firmaBilgi.eposta].filter(Boolean).join(' | ')}</div>
           <div>
-            Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)} &nbsp;|&nbsp; www.mebamekanik.com
+            Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)}{firmaBilgi.web ? ` | ${firmaBilgi.web}` : ''}
           </div>
         </div>
 

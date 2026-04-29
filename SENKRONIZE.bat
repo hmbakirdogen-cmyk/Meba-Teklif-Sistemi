@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
-title MEBA Teklif Sistemi - Senkronize
+title Grup Sirketleri Teklif Sistemi - Senkronize
 
 cd /d "%~dp0"
 
 echo.
-echo   MEBA Teklif Sistemi - Manuel Senkronizasyon
+echo   Grup Sirketleri Teklif Sistemi - Manuel Senkronizasyon
 echo.
 
 REM Backend portunu config'den oku

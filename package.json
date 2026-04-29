@@ -1,8 +1,8 @@
 {
-  "name": "meba-teklif-sistemi",
-  "productName": "MEBA Teklif Sistemi",
-  "description": "MEBA Mekanik — Profesyonel teklif hazırlama ve yönetim sistemi",
-  "author": "MEBA Mekanik Ltd. Şti.",
+  "name": "group-companies-teklif-sistemi",
+  "productName": "Grup Şirketleri Teklif Sistemi",
+  "description": "MEBA · MESA · ELMOS Grup Şirketleri — Profesyonel teklif hazırlama ve yönetim sistemi",
+  "author": "MEBA · MESA · ELMOS Grup Şirketleri",
   "private": true,
   "version": "1.0.0",
   "type": "module",

@@ -19,4 +19,6 @@ export interface UrunSeti {
   deviceId?: string;
   updatedBy?: string;
   lastSyncedAt?: string;
+  /** Multi-tenant: bu set'in hangi grup şirketine ait olduğu. */
+  firmaId?: string;
 }

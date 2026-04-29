@@ -1,43 +1,31 @@
-export type KullaniciRol = 'admin' | 'engineer' | 'sales';
+export type KullaniciRol = 'super_admin' | 'firma_admin' | 'engineer' | 'sales' | 'admin';
 
 export interface Kullanici {
   id: string;
+  kullaniciAdi?: string;
   adSoyad: string;
   rol: KullaniciRol;
   unvan: string;
   initials: string;
   aktifMi: boolean;
+  firmaId?: string | null;
+  profilFotoUrl?: string;
+  mustChangePassword?: boolean;
+  olusturmaTarihi?: string;
+  olusturanKullaniciId?: string;
+  silmeTarihi?: string;
+  sifreDegisikligi?: string;
+  profilFotoYuklemeTarihi?: string;
 }
 
-export const KULLANICILAR: Kullanici[] = [
-  {
-    id: 'u1',
-    adSoyad: 'Yusuf Bostancı',
-    rol: 'engineer',
-    unvan: 'Makine Mühendisi',
-    initials: 'YB',
-    aktifMi: true,
-  },
-  {
-    id: 'u2',
-    adSoyad: 'Furkan Öztürk',
-    rol: 'sales',
-    unvan: 'Satış Sorumlusu',
-    initials: 'FÖ',
-    aktifMi: true,
-  },
-  {
-    id: 'u3',
-    adSoyad: 'Mehmet Bakırdöğen',
-    rol: 'admin',
-    unvan: 'Makine Yüksek Mühendisi\nMaster of Science',
-    initials: 'MB',
-    aktifMi: true,
-  },
-];
-
 export const ROL_ETIKET: Record<KullaniciRol, string> = {
-  admin: "Makine Yüksek Mühendisi (Master's Degree)",
-  engineer: 'Makine Mühendisi',
+  super_admin: 'Süper Yönetici',
+  firma_admin: 'Firma Yöneticisi',
+  admin: 'Yönetici',
+  engineer: 'Mühendis',
   sales: 'Satış Sorumlusu',
 };
+
+// Eski kod referansı: KULLANICILAR sabit dizisi artık kullanılmıyor; backend'den
+// /api/kullanicilar uzerinden gelir. Geriye uyum icin bos array export ediyoruz.
+export const KULLANICILAR: Kullanici[] = [];

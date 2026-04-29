@@ -72,4 +72,6 @@ export interface Teklif {
   updatedBy?: string;
   /** Pull/push başarıyla tamamlandığında set edilir (ISO). */
   lastSyncedAt?: string;
+  /** Multi-tenant: bu kaydın hangi grup şirketine ait olduğu (meba/elmos/mesa). */
+  firmaId?: string;
 }

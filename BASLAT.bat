@@ -1,11 +1,12 @@
 @echo off
 chcp 65001 >nul
-title MEBA Teklif Sistemi
+title Grup Sirketleri Teklif Sistemi
 
 cd /d "%~dp0"
 
 echo.
-echo   MEBA Teklif Sistemi baslatiliyor...
+echo   Grup Sirketleri Teklif Sistemi baslatiliyor...
+echo   (MEBA - MESA - ELMOS)
 echo.
 
 REM 1) Onceligi paket icindeki bin\node.exe'ye ver (USB'den geldi, kurulum gerekmez)
@@ -23,7 +24,7 @@ if "%NODE_EXE%"=="" (
   echo.
   echo   Cozum 1: USB'den paketle birlikte gelen bin\node.exe eksik.
   echo            USB icerigini eksiksiz kopyaladiginizdan emin olun.
-  echo   Cozum 2: https://nodejs.org/ adresinden Node.js LTS sürümünü kurun.
+  echo   Cozum 2: https://nodejs.org/ adresinden Node.js LTS surumunu kurun.
   echo.
   pause
   exit /b 1
@@ -32,7 +33,7 @@ if "%NODE_EXE%"=="" (
 REM dist/ klasoru var mi?
 if not exist "dist\index.html" (
   echo   UYARI: dist\ klasoru yok veya bos.
-  echo   Once "npm run build" calistirilmali. Yoksa dev modunda calistirilamaz.
+  echo   Once "npm run build" calistirilmali.
   echo.
 )
 

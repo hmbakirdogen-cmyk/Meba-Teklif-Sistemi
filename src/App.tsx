@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
+import SplashScreen from './components/SplashScreen'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
 import { initNetworkConfig } from './services/networkConfig'
@@ -55,34 +56,41 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
 }
 
-/* ── Dev İmzası ──────────────────────────────────────────── */
+/* ── Software İmzası ─────────────────────────────────────── */
 /* Sağ-alt köşede sade, kart/arkaplansız, küçük tek satır metin.
+ * Hem dev hem production'da görünür (kullanıcı her ekranda istedi).
  *   - 8px font + sade navy ton → A4 ile yan yana geldiğinde bile görsel
  *     olarak rahatsız etmez; köşede nazik bir attribution rozeti.
  *   - z-index 1 + pointer-events:none → mouse'u engellemez, panel/dialog
  *     daima üstte kalır.
  *   - data-html2canvas-ignore → PDF/yazdırma'da görünmez.
  */
-function DevSignature() {
+function SoftwareSignature() {
   return (
     <div
       data-html2canvas-ignore="true"
       style={{
         position: 'fixed',
-        bottom: 8,
-        right: 14,
+        bottom: 10,
+        right: 16,
         zIndex: 1,
-        fontSize: 8,
-        letterSpacing: 0.28,
+        fontSize: 11,
+        letterSpacing: 0.4,
         fontFamily: '"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        fontWeight: 500,
+        fontWeight: 600,
         color: '#1E3A5F',
-        opacity: 0.72,
+        opacity: 0.95,
         pointerEvents: 'none',
         userSelect: 'none',
         whiteSpace: 'nowrap',
+        padding: '4px 10px',
+        borderRadius: 6,
+        background: 'rgba(255, 255, 255, 0.42)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
         textShadow:
-          '0 0 1px rgba(255, 255, 255, 0.72), 0 0.5px 1.5px rgba(255, 255, 255, 0.55)',
+          '0 0 2px rgba(255, 255, 255, 0.95), 0 1px 2px rgba(255, 255, 255, 0.75)',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
       }}
     >
       This software was developed by Mehmet Bakırdöğen
@@ -142,13 +150,17 @@ function ThemedApp() {
   const { aktifKullanici } = useKullanici();
   const [hazirSessionKey, setHazirSessionKey] = useState<string | null>(null);
   const [hataMsg, setHataMsg] = useState<string | null>(null);
+  // Her sayfa yuklenmesinde splash bir kez oynar — login durumu fark etmez.
+  const [splashAcik, setSplashAcik] = useState(true);
   const antdTheme = useMemo(() => getAntdTokens(isDark), [isDark]);
 
-  // Kullanıcı id/rol değişince store'u re-init et — visibility filter uygulu
-  // ilk veri çekimi için. (Login/logout/kullanıcı değişimi tetikler.)
+  // Kullanıcı id/rol/firmaId değişince store'u re-init et — visibility +
+  // firma filtresi için ilk veri çekimi yenilensin. (Login/logout/firma
+  // değişimi tetikler.)
   const userId = aktifKullanici?.id;
   const userRol = aktifKullanici?.rol;
-  const oturumAnahtari = `${userId ?? ''}:${userRol ?? ''}`;
+  const firmaId = aktifKullanici?.firmaId || '';
+  const oturumAnahtari = `${userId ?? ''}:${userRol ?? ''}:${firmaId}`;
   const hazir = hazirSessionKey === oturumAnahtari;
 
   useEffect(() => {
@@ -201,9 +213,13 @@ function ThemedApp() {
         ) : (
           <ErrorBoundary>
             <AppRouter />
-            {import.meta.env.DEV ? <DevSignature /> : null}
+            <SoftwareSignature />
           </ErrorBoundary>
         )}
+        {/* Splash en üstte — her açılışta oynar, atlanırsa veya biterse kapanır.
+         *  zIndex 9000 → diğer her şeyin üzerinde. Position fixed → AppRouter
+         *  zaten render olurken splash görünür, kullanıcı ilk önce splash'i görür. */}
+        {splashAcik && <SplashScreen onDone={() => setSplashAcik(false)} />}
       </AntdApp>
     </ConfigProvider>
   );

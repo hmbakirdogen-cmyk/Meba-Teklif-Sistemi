@@ -1,13 +1,13 @@
 @echo off
 chcp 65001 >nul
 setlocal enabledelayedexpansion
-title MEBA Teklif Sistemi - LAN Sunucu
+title Grup Sirketleri Teklif Sistemi - LAN Sunucu
 
 cd /d "%~dp0"
 
 echo.
 echo ====================================================================
-echo   MEBA Teklif Sistemi - Yerel Ag Sunucusu
+echo   Grup Sirketleri Teklif Sistemi - Yerel Ag Sunucusu
 echo ====================================================================
 echo.
 

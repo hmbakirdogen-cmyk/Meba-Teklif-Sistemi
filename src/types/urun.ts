@@ -13,4 +13,6 @@ export interface Urun {
   deviceId?: string;
   updatedBy?: string;
   lastSyncedAt?: string;
+  /** Multi-tenant: bu ürünün hangi grup şirketine ait olduğu. */
+  firmaId?: string;
 }

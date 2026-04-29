@@ -17,4 +17,6 @@ export interface Cari {
   deviceId?: string;
   updatedBy?: string;
   lastSyncedAt?: string;
+  /** Multi-tenant: bu cari'nin hangi grup şirketine ait olduğu. */
+  firmaId?: string;
 }

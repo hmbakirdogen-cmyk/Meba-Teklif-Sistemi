@@ -5,6 +5,8 @@ const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
 const { spawn } = require('child_process');
+const { createAuthRoutes, getAuthContext } = require('./auth-routes.cjs');
+const { startBackupScheduler } = require('./backupScheduler.cjs');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const DB_LOCK_PATH = DB_PATH + '.lock';
@@ -41,7 +43,14 @@ function loadServerConfig() {
 
 const SERVER_CONFIG = loadServerConfig();
 const PORT = SERVER_CONFIG.listenPort || 3001;
-const PDF_ROOT_FOLDER_NAME = 'MEBA MEKAN\u0130K TEKL\u0130FLER';
+const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP \u015eIRKETLER\u0130 TEKL\u0130FLER';
+
+// Aktif teklif icin PDF kok klasor adi: firma profilinde pdfKlasorAdi varsa onu
+// kullan, yoksa fallback. teklif.firmaId'den firma cozulur.
+function pdfKokKlasorAdiUret(firmaProfili) {
+  const ad = (firmaProfili && firmaProfili.pdfKlasorAdi) || '';
+  return ad ? sanitizeWindowsSegment(ad, PDF_ROOT_FOLDER_NAME_FALLBACK) : PDF_ROOT_FOLDER_NAME_FALLBACK;
+}
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*\u0000-\u001F]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
 
@@ -560,7 +569,7 @@ function send(res, status, data) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role, X-Session-Token, X-Firma-Id',
     'Content-Length': Buffer.byteLength(json, 'utf-8'),
   });
   res.end(json);
@@ -601,19 +610,45 @@ function emailTelemetryYaz(telemetry) {
 // Sync alanları (version, deletedAt, deviceId, updatedBy, lastSyncedAt) burada
 // yönetilir. Liste handler'ları soft-deleted (deletedAt) kayıtları gizler;
 // sync/pull endpoint'leri ham veriyi (tombstone'lar dahil) doğrudan döner.
-function crudRoutes(collectionKey, { insertMethod = 'push' } = {}) {
+function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = false } = {}) {
   const basePath = `/api/${collectionKey}`;
   const itemRegex = new RegExp(`^/api/${collectionKey}/[^/]+$`);
+
+  // firmaId scope: query string ?firmaId=meba veya header X-Firma-Id'den oku.
+  // super_admin tum firmalari gorebilir (firmaId verilmezse tumu doner);
+  // diger roller iste seviyesinde DOGRULANIR (kullanici.firmaId zorlanir).
+  function resolveFirmaScope(req) {
+    if (!firmaIdScoped) return { tumu: true, firmaId: null };
+    const ctx = parseRequestCtx(req);
+    const headerFirma = req.headers['x-firma-id'] || '';
+    let qFirma = '';
+    try {
+      qFirma = new URL(req.url || '', 'http://localhost').searchParams.get('firmaId') || '';
+    } catch { /* ignore */ }
+    const requested = headerFirma || qFirma || '';
+    // Eski client (firmaId yollamaz): super_admin/admin ise tumu, degilse user.firmaId
+    if (!requested) {
+      if (ctx.rol === 'super_admin' || ctx.rol === 'admin') {
+        return { tumu: true, firmaId: null };
+      }
+      return { tumu: false, firmaId: null };
+    }
+    // firma_admin/engineer/sales sadece kendi firmasini sorabilir; super_admin her firmayi
+    return { tumu: false, firmaId: requested };
+  }
 
   return {
     /** GET /api/<collection> */
     list(url, method) {
-      return url === basePath && method === 'GET';
+      return (url === basePath || url.startsWith(basePath + '?')) && method === 'GET';
     },
-    handleList(res) {
+    handleList(req, res) {
       const all = readDB()[collectionKey] || [];
-      // Soft-deleted kayıtları UI'dan gizle
-      return send(res, 200, all.filter(isLiveRecord));
+      const live = all.filter(isLiveRecord);
+      const scope = resolveFirmaScope(req);
+      if (scope.tumu) return send(res, 200, live);
+      if (!scope.firmaId) return send(res, 200, []);
+      return send(res, 200, live.filter((r) => r.firmaId === scope.firmaId));
     },
 
     /** PUT /api/<collection> — bulk replace */
@@ -700,23 +735,30 @@ function parseRequestCtx(req) {
   let qUserId = '';
   let qRol = '';
   let qDeviceId = '';
+  let qFirmaId = '';
   try {
     const parsed = new URL(url, 'http://localhost');
     qUserId = parsed.searchParams.get('userId') || '';
     qRol = parsed.searchParams.get('rol') || '';
     qDeviceId = parsed.searchParams.get('deviceId') || '';
+    qFirmaId = parsed.searchParams.get('firmaId') || '';
   } catch { /* ignore */ }
   return {
-    deviceId: headers['x-device-id'] || qDeviceId || null,
-    userId:   headers['x-user-id']   || qUserId   || null,
-    rol:      headers['x-user-role'] || qRol      || null,
+    deviceId: headers['x-device-id']    || qDeviceId || null,
+    userId:   headers['x-user-id']      || qUserId   || null,
+    rol:      headers['x-user-role']    || qRol      || null,
+    firmaId:  headers['x-firma-id']     || qFirmaId  || null,
+    sessionToken: headers['x-session-token'] || null,
   };
 }
 
-const teklifCrud = crudRoutes('teklifler', { insertMethod: 'unshift' });
-const cariCrud   = crudRoutes('cariler');
-const urunCrud   = crudRoutes('urunler');
-const urunSetCrud = crudRoutes('urunSetleri');
+const teklifCrud  = crudRoutes('teklifler',   { insertMethod: 'unshift', firmaIdScoped: true });
+const cariCrud    = crudRoutes('cariler',     { firmaIdScoped: true });
+const urunCrud    = crudRoutes('urunler',     { firmaIdScoped: true });
+const urunSetCrud = crudRoutes('urunSetleri', { firmaIdScoped: true });
+
+// Auth route'larini olustur (auth-routes.cjs uzerinden)
+const authRoutes = createAuthRoutes({ readDB, writeDB, parseBody, send });
 
 const server = http.createServer(async (req, res) => {
   const { method } = req;
@@ -727,7 +769,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role, X-Session-Token, X-Firma-Id',
     });
     return res.end();
   }
@@ -738,29 +780,64 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && (url === '/api/health' || url.startsWith('/api/health?'))) {
       return send(res, 200, {
         ok: true,
-        service: 'meba-teklif-api',
+        service: 'group-companies-teklif-api',
         timestamp: new Date().toISOString(),
         uptimeSec: Math.floor(process.uptime()),
       });
     }
 
+    // ══ AUTH + MULTI-TENANT ROUTES ═══════════════════════════════════════════
+    if (method === 'POST' && url === '/api/auth/login')           return await authRoutes.login(req, res);
+    if (method === 'POST' && url === '/api/auth/logout')          return await authRoutes.logout(req, res);
+    if (method === 'GET'  && url === '/api/auth/me')              return await authRoutes.me(req, res);
+    if (method === 'POST' && url === '/api/auth/change-password') return await authRoutes.changePassword(req, res);
+    if (method === 'POST' && url === '/api/auth/upload-photo')    return await authRoutes.uploadPhoto(req, res);
+
+    // Firmalar — listeleme login oncesi splash icin public, detay/update auth gerekir
+    if (method === 'GET'   && (url === '/api/firmalar' || url.startsWith('/api/firmalar?'))) return await authRoutes.listFirmalar(req, res);
+    if (method === 'GET'   && /^\/api\/firma\/[^/]+$/.test(url))   return await authRoutes.getFirma(req, res, url);
+    if (method === 'PATCH' && /^\/api\/firma\/[^/]+$/.test(url))   return await authRoutes.updateFirma(req, res, url);
+
+    // Kullanicilar
+    if (method === 'GET'    && url === '/api/kullanicilar')                       return await authRoutes.listKullanicilar(req, res);
+    if (method === 'POST'   && url === '/api/kullanicilar')                       return await authRoutes.createKullanici(req, res);
+    if (method === 'PATCH'  && /^\/api\/kullanicilar\/[^/]+$/.test(url))          return await authRoutes.updateKullanici(req, res, url);
+    if (method === 'POST'   && /^\/api\/kullanicilar\/[^/]+\/sifre-sifirla$/.test(url)) return await authRoutes.resetKullaniciSifre(req, res, url);
+    if (method === 'DELETE' && /^\/api\/kullanicilar\/[^/]+$/.test(url))          return await authRoutes.deleteKullanici(req, res, url);
+
+    // Per-firma sayac (yeni)
+    if (method === 'POST' && /^\/api\/sayac\/[^/]+\/increment$/.test(url))        return await authRoutes.incrementSayac(req, res, url);
+
     // ── GET /api/init — fetch everything at once (used by frontend on startup) ──
-    // Visibility filter teklifler üzerinde — /api/teklifler ile aynı kural.
+    // Yeni: firmaId scope (header X-Firma-Id veya ?firmaId=) — kullanicinin aktif
+    // firmasinin verilerini doner. super_admin firmaId vermezse tum kayitlar doner.
     // Soft-deleted (deletedAt'lı) kayıtlar UI'dan gizlenir.
     if (method === 'GET' && (url === '/api/init' || url.startsWith('/api/init?'))) {
       const parsed = new URL(url, 'http://localhost');
       const qUserId = parsed.searchParams.get('userId') || '';
-      const qRol = parsed.searchParams.get('rol') || '';
+      const qRol    = parsed.searchParams.get('rol') || '';
+      const qFirmaId = parsed.searchParams.get('firmaId') || (req.headers['x-firma-id'] || '');
       const db = readDB();
       const filterLive = (arr) => (arr || []).filter(isLiveRecord);
+      const filterByFirma = (arr) => {
+        if (!qFirmaId) return arr;
+        return arr.filter((r) => r && r.firmaId === qFirmaId);
+      };
+      const apply = (arr) => filterByFirma(filterLive(arr));
       const cleanDb = {
         ...db,
-        teklifler:   filterLive(db.teklifler),
-        cariler:     filterLive(db.cariler),
-        urunler:     filterLive(db.urunler),
-        urunSetleri: filterLive(db.urunSetleri),
+        teklifler:   apply(db.teklifler),
+        cariler:     apply(db.cariler),
+        urunler:     apply(db.urunler),
+        urunSetleri: apply(db.urunSetleri),
+        sayac:       (db.sayaclar && qFirmaId && db.sayaclar[qFirmaId]) || db.sayac || null,
       };
-      if (!qRol || qRol === 'admin') {
+      // Hassas verileri (kullanici sifre hash'leri, oturumlar) gonderme
+      delete cleanDb.kullanicilar;
+      delete cleanDb.oturumlar;
+      delete cleanDb.auditLog;
+      const isAdminLike = qRol === 'admin' || qRol === 'super_admin' || qRol === 'firma_admin';
+      if (isAdminLike || !qRol) {
         return send(res, 200, cleanDb);
       }
       const filteredTeklifler = cleanDb.teklifler.filter((t) => {
@@ -779,8 +856,11 @@ const server = http.createServer(async (req, res) => {
       const parsed = new URL(url, 'http://localhost');
       const qUserId = parsed.searchParams.get('userId') || '';
       const qRol = parsed.searchParams.get('rol') || '';
-      const all = readDB().teklifler.filter(isLiveRecord);
-      if (!qRol || qRol === 'admin') {
+      const qFirmaId = parsed.searchParams.get('firmaId') || (req.headers['x-firma-id'] || '');
+      let all = readDB().teklifler.filter(isLiveRecord);
+      if (qFirmaId) all = all.filter((t) => t.firmaId === qFirmaId);
+      const isAdminLike = qRol === 'admin' || qRol === 'super_admin' || qRol === 'firma_admin';
+      if (!qRol || isAdminLike) {
         return send(res, 200, all);
       }
       const filtered = all.filter((t) => {
@@ -793,19 +873,19 @@ const server = http.createServer(async (req, res) => {
     if (teklifCrud.remove(url, method))       return teklifCrud.handleRemove(req, res, url);
 
     // ── CARILER ──────────────────────────────────────────────────────────────
-    if (cariCrud.list(url, method))           return cariCrud.handleList(res);
+    if (cariCrud.list(url, method))           return cariCrud.handleList(req, res);
     if (cariCrud.bulkReplace(url, method))    return await cariCrud.handleBulkReplace(req, res);
     if (cariCrud.upsert(url, method))         return await cariCrud.handleUpsert(req, res, url);
     if (cariCrud.remove(url, method))         return cariCrud.handleRemove(req, res, url);
 
     // ── URUNLER ──────────────────────────────────────────────────────────────
-    if (urunCrud.list(url, method))           return urunCrud.handleList(res);
+    if (urunCrud.list(url, method))           return urunCrud.handleList(req, res);
     if (urunCrud.bulkReplace(url, method))    return await urunCrud.handleBulkReplace(req, res);
     if (urunCrud.upsert(url, method))         return await urunCrud.handleUpsert(req, res, url);
     if (urunCrud.remove(url, method))         return urunCrud.handleRemove(req, res, url);
 
     // ── URUN SETLERI ─────────────────────────────────────────────────────────
-    if (urunSetCrud.list(url, method))        return urunSetCrud.handleList(res);
+    if (urunSetCrud.list(url, method))        return urunSetCrud.handleList(req, res);
     if (urunSetCrud.bulkReplace(url, method)) return await urunSetCrud.handleBulkReplace(req, res);
     if (urunSetCrud.upsert(url, method))      return await urunSetCrud.handleUpsert(req, res, url);
     if (urunSetCrud.remove(url, method))      return urunSetCrud.handleRemove(req, res, url);
@@ -826,18 +906,26 @@ const server = http.createServer(async (req, res) => {
 
     // ── SAYAC ─────────────────────────────────────────────────────────────────
 
+    // Eski endpoint — backward compat. Yeni: POST /api/sayac/:firmaId/increment
+    // Eski client header/query'den firmaId verirse o firma sayacini arttir;
+    // yoksa "meba" varsayilani kullan (eski tek-tenant davranis).
     if (url === '/api/sayac/increment' && method === 'POST') {
-      const db    = readDB();
+      const db = readDB();
+      const ctx = parseRequestCtx(req);
+      const firmaId = ctx.firmaId || 'meba';
+      if (!db.sayaclar || typeof db.sayaclar !== 'object') db.sayaclar = {};
+      if (!db.sayaclar[firmaId]) {
+        db.sayaclar[firmaId] = { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 };
+      }
+      const s = db.sayaclar[firmaId];
       const buYil = new Date().getFullYear();
       const buAy  = new Date().getMonth() + 1;
-      if (db.sayac.yil !== buYil || db.sayac.ay !== buAy) {
-        db.sayac.yil  = buYil;
-        db.sayac.ay   = buAy;
-        db.sayac.deger = 0;
+      if (s.yil !== buYil || s.ay !== buAy) {
+        s.yil = buYil; s.ay = buAy; s.deger = 0;
       }
-      db.sayac.deger += 1;
+      s.deger += 1;
       writeDB(db);
-      return send(res, 200, { yil: db.sayac.yil, ay: db.sayac.ay, deger: db.sayac.deger });
+      return send(res, 200, { firmaId, yil: s.yil, ay: s.ay, deger: s.deger });
     }
 
     if ((url === '/api/teklif/disa-aktar' || url === '/api/pdf/kaydet-ve-ac') && method === 'POST') {
@@ -860,7 +948,14 @@ const server = http.createServer(async (req, res) => {
 
       try {
         const masaustuYolu = masaustuYolunuBul();
-        const anaKlasorYolu = path.join(masaustuYolu, PDF_ROOT_FOLDER_NAME);
+        // Firma profilinden klasor adi cek (teklif.firmaId'ye gore); yoksa fallback.
+        const dbForFirma = readDB();
+        const teklifFirmaId = teklif?.firmaId || null;
+        const teklifFirmaProfili = teklifFirmaId
+          ? (dbForFirma.firmalar || []).find((f) => f.id === teklifFirmaId)
+          : null;
+        const kokKlasorAdi = pdfKokKlasorAdiUret(teklifFirmaProfili);
+        const anaKlasorYolu = path.join(masaustuYolu, kokKlasorAdi);
         const altKlasorYolu = path.join(anaKlasorYolu, cariKlasorAdiUret(teklif?.cari?.firmaAdi ?? ''));
         const dosyaGovdesi = pdfDosyaGovdesiUret(teklif);
         const pdfBuffer = Buffer.from(pdfBase64, 'base64');
@@ -1229,8 +1324,9 @@ server.on('error', (err) => {
 server.listen(PORT, '0.0.0.0', () => {
   const ip = getLocalIP();
   console.log('');
-  console.log('  MEBA Teklif — API Sunucusu');
+  console.log('  Grup Sirketleri Teklif — API Sunucusu');
   console.log('  Yerel:  http://localhost:' + PORT);
   console.log('  Ag:     http://' + ip + ':' + PORT);
   console.log('');
+  startBackupScheduler();
 });

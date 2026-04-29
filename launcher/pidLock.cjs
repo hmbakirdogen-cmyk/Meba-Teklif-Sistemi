@@ -3,14 +3,14 @@
 /**
  * launcher/pidLock.cjs — Single-instance lock dosyası yönetimi.
  *
- * .meba-running.pid dosyası: { pid, startedAt, url, mode }
+ * .app-running.pid dosyası: { pid, startedAt, url, mode }
  * Mevcut process aktifse openBrowser ile mevcut URL'i tarayıcıda aç ve exit.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const PID_PATH = path.join(__dirname, '..', '.meba-running.pid');
+const PID_PATH = path.join(__dirname, '..', '.app-running.pid');
 
 function isPidAlive(pid) {
   if (!pid || typeof pid !== 'number') return false;

@@ -1,50 +1,82 @@
 /**
  * apiClient.ts
- * Thin fetch wrapper for the MEBA backend (server/server.cjs on port 3001).
+ * Thin fetch wrapper for the Grup Şirketleri backend (server/server.cjs on port 3001).
  * Uses window.location.hostname so it works for both localhost dev and LAN IPs.
  *
- * Tüm istekler X-Device-Id header'ı ile gider (sync için server tarafında
- * deviceId tracking). 8 saniyelik timeout ile network hata durumlarında
+ * Tüm istekler X-Device-Id, X-Session-Token ve X-Firma-Id header'ları ile gider
+ * (multi-tenant + auth için). 8 saniyelik timeout ile network hata durumlarında
  * UI'nın takılmasını engeller.
  */
 
-import type { Teklif, Cari, Urun, UrunSeti } from '../types';
+import type { Teklif, Cari, Urun, UrunSeti, Kullanici, Firma } from '../types';
 import { APP_CONFIG } from '../config';
 
 const BASE = APP_CONFIG.API_BASE;
 const TIMEOUT_MS = 8000;
 
-/** Device id — localStorage'tan oku, yoksa üret. */
-function getDeviceId(): string {
-  if (typeof window === 'undefined') return 'server';
-  let id = localStorage.getItem('meba_device_id');
-  if (!id) {
-    id = 'web-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
-    localStorage.setItem('meba_device_id', id);
-  }
-  return id;
+const SESSION_TOKEN_KEY = 'gc_session_token';
+const ACTIVE_FIRMA_KEY = 'gc_active_firma_id';
+const ACTIVE_USER_KEY = 'gc_aktif_kullanici';
+
+export function getSessionToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(SESSION_TOKEN_KEY);
+}
+export function setSessionToken(token: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (token) localStorage.setItem(SESSION_TOKEN_KEY, token);
+  else localStorage.removeItem(SESSION_TOKEN_KEY);
 }
 
-/** Aktif kullanıcı bilgisi (header'lara enjekte). */
-function getActiveUser(): { id: string; rol: string } | null {
+export function getActiveFirmaId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACTIVE_FIRMA_KEY);
+}
+export function setActiveFirmaId(firmaId: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (firmaId) localStorage.setItem(ACTIVE_FIRMA_KEY, firmaId);
+  else localStorage.removeItem(ACTIVE_FIRMA_KEY);
+}
+
+export function getStoredKullanici(): Kullanici | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem('meba_aktif_kullanici');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.id && parsed?.rol ? { id: parsed.id, rol: parsed.rol } : null;
+    const raw = localStorage.getItem(ACTIVE_USER_KEY);
+    return raw ? (JSON.parse(raw) as Kullanici) : null;
   } catch {
     return null;
   }
 }
+export function setStoredKullanici(kullanici: Kullanici | null): void {
+  if (typeof window === 'undefined') return;
+  if (kullanici) localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(kullanici));
+  else localStorage.removeItem(ACTIVE_USER_KEY);
+}
+
+/** Device id — localStorage'tan oku, yoksa üret. */
+function getDeviceId(): string {
+  if (typeof window === 'undefined') return 'server';
+  // Eski anahtardan migrate (geriye uyum)
+  const eski = localStorage.getItem('meba_device_id');
+  let id = localStorage.getItem('gc_device_id') || eski;
+  if (!id) {
+    id = 'web-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+  }
+  localStorage.setItem('gc_device_id', id);
+  return id;
+}
 
 function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   const h: Record<string, string> = { 'X-Device-Id': getDeviceId(), ...extra };
-  const user = getActiveUser();
-  if (user) {
-    h['X-User-Id'] = user.id;
-    h['X-User-Role'] = user.rol;
+  const k = getStoredKullanici();
+  if (k) {
+    h['X-User-Id'] = k.id;
+    h['X-User-Role'] = k.rol;
   }
+  const token = getSessionToken();
+  if (token) h['X-Session-Token'] = token;
+  const firmaId = getActiveFirmaId();
+  if (firmaId) h['X-Firma-Id'] = firmaId;
   return h;
 }
 
@@ -60,12 +92,45 @@ function withTimeout(signal?: AbortSignal): { signal: AbortSignal; clear: () => 
 
 // ── Generic helpers ───────────────────────────────────────────────────────────
 
+/** Yardimci: response'u json'a cevirir; hata durumunda body'deki error mesajini
+ *  ekleyerek throw eder. */
+async function parseOrThrow<T>(res: Response, label: string): Promise<T> {
+  const ct = res.headers.get('content-type') || '';
+  let body: unknown = null;
+  if (ct.includes('application/json')) {
+    try { body = await res.json(); } catch { /* ignore */ }
+  }
+  if (!res.ok) {
+    const errMsg = (body && typeof body === 'object' && 'error' in (body as Record<string, unknown>))
+      ? String((body as Record<string, unknown>).error)
+      : `${label} → ${res.status}`;
+    const err = new Error(errMsg) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return (body as T);
+}
+
 async function get<T>(path: string): Promise<T> {
   const { signal, clear } = withTimeout();
   try {
     const res = await fetch(`${BASE}${path}`, { headers: buildHeaders(), signal });
-    if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
-    return res.json() as Promise<T>;
+    return parseOrThrow<T>(res, `GET ${path}`);
+  } finally {
+    clear();
+  }
+}
+
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'PATCH',
+      headers: buildHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+      signal,
+    });
+    return parseOrThrow<T>(res, `PATCH ${path}`);
   } finally {
     clear();
   }
@@ -80,8 +145,7 @@ async function put<T>(path: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
       signal,
     });
-    if (!res.ok) throw new Error(`PUT ${path} → ${res.status}`);
-    return res.json() as Promise<T>;
+    return parseOrThrow<T>(res, `PUT ${path}`);
   } finally {
     clear();
   }
@@ -91,7 +155,9 @@ async function del(path: string): Promise<void> {
   const { signal, clear } = withTimeout();
   try {
     const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers: buildHeaders(), signal });
-    if (!res.ok) throw new Error(`DELETE ${path} → ${res.status}`);
+    if (!res.ok) {
+      await parseOrThrow<void>(res, `DELETE ${path}`);
+    }
   } finally {
     clear();
   }
@@ -106,8 +172,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
       signal,
     });
-    if (!res.ok) throw new Error(`POST ${path} → ${res.status}`);
-    return res.json() as Promise<T>;
+    return parseOrThrow<T>(res, `POST ${path}`);
   } finally {
     clear();
   }
@@ -133,7 +198,8 @@ export interface InitData {
   urunler: Urun[];
   urunSetleri?: UrunSeti[];
   referans: Referans;
-  sayac: Sayac;
+  sayac: Sayac | null;
+  firmalar?: Firma[];
 }
 
 // ── User-aware query string helper ────────────────────────────────────────────
@@ -186,7 +252,40 @@ export const api = {
   },
 
   sayac: {
+    /** Backward compat: header'daki X-Firma-Id'ye gore artirir. */
     increment: ()                       => post<Sayac>('/sayac/increment', {}),
+    /** Yeni: explicit firmaId ile. */
+    incrementFor: (firmaId: string)     => post<Sayac & { firmaId: string }>(`/sayac/${firmaId}/increment`, {}),
+  },
+
+  // ── Auth ────────────────────────────────────────────────────────────────────
+  auth: {
+    login: (kullaniciAdi: string, sifre: string) =>
+      post<{ token: string; expiresAt: string; kullanici: Kullanici; firma: Firma | null }>('/auth/login', { kullaniciAdi, sifre }),
+    logout: ()                                   => post<{ ok: boolean }>('/auth/logout', {}),
+    me:     ()                                   => get<{ kullanici: Kullanici; firma: Firma | null }>('/auth/me'),
+    changePassword: (mevcutSifre: string, yeniSifre: string) =>
+      post<{ ok: boolean; mustChangePassword: boolean }>('/auth/change-password', { mevcutSifre, yeniSifre }),
+    uploadPhoto: (fotoBase64: string) =>
+      post<{ profilFotoUrl: string; kullanici: Kullanici }>('/auth/upload-photo', { fotoBase64 }),
+  },
+
+  // ── Firmalar ────────────────────────────────────────────────────────────────
+  firmalar: {
+    /** Public — login ekranindaki splash icin token gerektirmez. */
+    list:   ()                          => get<Firma[]>('/firmalar'),
+    detay:  (id: string)                => get<Firma>(`/firma/${id}`),
+    update: (id: string, patchBody: Partial<Firma>) => patch<Firma>(`/firma/${id}`, patchBody),
+  },
+
+  // ── Kullanicilar ────────────────────────────────────────────────────────────
+  kullanicilar: {
+    list:    ()                                                   => get<Kullanici[]>('/kullanicilar'),
+    create:  (payload: { kullaniciAdi: string; adSoyad: string; unvan?: string; rol?: string; firmaId?: string }) =>
+      post<{ kullanici: Kullanici; varsayilanSifre: string }>('/kullanicilar', payload),
+    update:  (id: string, patchBody: Partial<Kullanici>)          => patch<Kullanici>(`/kullanicilar/${id}`, patchBody),
+    sifirla: (id: string)                                         => post<{ ok: boolean; varsayilanSifre: string }>(`/kullanicilar/${id}/sifre-sifirla`, {}),
+    sil:     (id: string)                                         => del(`/kullanicilar/${id}`),
   },
 
   /** One-time localStorage → server migration */

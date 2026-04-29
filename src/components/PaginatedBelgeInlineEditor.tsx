@@ -4,6 +4,7 @@ import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi, SatirGrupRenk } from '../types';
+import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
@@ -115,6 +116,7 @@ interface PaginatedBelgeInlineEditorProps {
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
+  const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const S = 0.478;
   const logoW = LOGO_FILE_W * S;
   const logoH = LOGO.FILE_HEIGHT * S;
@@ -134,8 +136,8 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
       }}>
         <div style={{ position: 'relative', width: `${optW}px`, height: `${optH}px`, overflow: 'hidden', flexShrink: 0 }}>
           <img
-            src="/logo-meba.png"
-            alt="MEBA"
+            src={firmaBilgi.logoPath}
+            alt={firmaBilgi.kisaAd}
             style={{
               position: 'absolute',
               top: `${optTop}px`,
@@ -153,13 +155,15 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span style={{ fontSize: '10.4px', fontWeight: 800, color: C.navy, letterSpacing: '-0.015em', lineHeight: 1.25 }}>
-            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.
+            {firmaBilgi.ad}
           </span>
+          {firmaBilgi.adres && (
+            <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
+              {firmaBilgi.adres}
+            </span>
+          )}
           <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ
-          </span>
-          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            Tel: 0352 502 07 80 | info@mebamekanik.com | www.mebamekanik.com
+            {[firmaBilgi.telefon && `Tel: ${firmaBilgi.telefon}`, firmaBilgi.eposta, firmaBilgi.web].filter(Boolean).join(' | ')}
           </span>
         </div>
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -219,9 +223,10 @@ function PageTableWithResizer({
 }
 
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
+  const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   return (
     <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
-      <div>MEBA Pnömatik Hidrolik Makina | KAYSERİ | info@mebamekanik.com</div>
+      <div>{[firmaBilgi.kisaAd, firmaBilgi.eposta].filter(Boolean).join(' | ')}</div>
       <div>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
       <div style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>Sayfa {pageNumber} / {totalPages}</div>
     </div>
@@ -258,6 +263,7 @@ export default function PaginatedBelgeInlineEditor({
   renderPageOverlay,
   scale = 1,
 }: PaginatedBelgeInlineEditorProps) {
+  const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
@@ -357,7 +363,7 @@ export default function PaginatedBelgeInlineEditor({
       }}>
         <div style={{ flex: '0 0 37%', maxWidth: '37%', paddingRight: '8px', boxSizing: 'border-box', lineHeight: 0 }}>
           <div style={{ position: 'relative', width: `${LOGO_OPT_W}px`, height: `${LOGO_OPT_H}px`, overflow: 'hidden' }}>
-            <img src="/logo-meba.png" alt="MEBA Mekanik" style={{
+            <img src={firmaBilgi.logoPath} alt={firmaBilgi.kisaAd} style={{
               position: 'absolute', top: `${LOGO_OPT_TOP}px`, left: `${LOGO_OPT_LEFT}px`,
               width: `${LOGO_FILE_W}px`, height: `${LOGO.FILE_HEIGHT}px`,
               maxWidth: 'none', maxHeight: 'none', display: 'block',
@@ -368,11 +374,13 @@ export default function PaginatedBelgeInlineEditor({
         </div>
         <div style={{ flex: '0 0 31%', maxWidth: '31%', paddingRight: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
           <div style={{ fontWeight: 800, fontSize: '11.5px', color: C.navy, lineHeight: '1.25', letterSpacing: '-0.012em' }}>
-            MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik<br />San. Tic. Ltd. Şti.
+            {firmaBilgi.ad}
           </div>
-          <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
-            Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv.<br />No:252/D Melikgazi / KAYSERİ
-          </div>
+          {firmaBilgi.adres && (
+            <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
+              {firmaBilgi.adres}
+            </div>
+          )}
         </div>
         <div style={{ flex: '0 0 32%', maxWidth: '32%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', boxSizing: 'border-box' }}>
           <div style={{ width: '202px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'visible', boxSizing: 'border-box' }}>
@@ -409,7 +417,7 @@ export default function PaginatedBelgeInlineEditor({
                 </tr>
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{teklif.hazirlayanAdSoyad || 'MEBA Mekanik'}</td>
+                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}</td>
                 </tr>
               </tbody>
             </table>
@@ -422,8 +430,11 @@ export default function PaginatedBelgeInlineEditor({
           <div style={PARTY_LABEL_STYLE}>
             Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
           </div>
-          <div style={PARTY_NAME_STYLE}>MEBA Mekanik Ltd. Şti.</div>
-          <div style={PARTY_BODY_STYLE}>Tel: {formatPhone('03525020780')}<br />www.mebamekanik.com</div>
+          <div style={PARTY_NAME_STYLE}>{firmaBilgi.kisaAd}{firmaBilgi.kisaAd === 'MEBA Mekanik' ? ' Ltd. Şti.' : ''}</div>
+          <div style={PARTY_BODY_STYLE}>
+            {firmaBilgi.telefon ? <>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}<br /></> : null}
+            {firmaBilgi.web}
+          </div>
         </div>
         <div data-alan="musteri" onClick={(e) => handleAlanClick('musteri', e)} style={{ ...PARTY_CARD_STYLE, cursor: isMusteriEditing ? 'default' : 'pointer', background: 'transparent' }}>
           <div style={PARTY_LABEL_STYLE}>

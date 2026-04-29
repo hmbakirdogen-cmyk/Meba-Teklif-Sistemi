@@ -3,9 +3,10 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Tooltip, Button, Drawer } from 'antd';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
-  MoonOutlined, SunOutlined,
+  MoonOutlined, SunOutlined, TeamOutlined, BankOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
+import { useFirma } from './context/useFirma';
 import { useTheme } from './context/useTheme';
 import { useColors } from './hooks/useColors';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -23,13 +24,20 @@ export default function AppLayout() {
   const navigate   = useNavigate();
   const location   = useLocation();
   const { aktifKullanici, cikisYap } = useKullanici();
+  const { aktifFirma } = useFirma();
   const { isDark, temaToggle } = useTheme();
   const C          = useColors();
   const isMobile   = useIsMobile(768);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const seciliMenu = location.pathname.startsWith('/veri') ? 'veri' : 'teklifler';
-  const isYonetici = aktifKullanici?.rol === 'admin';
+  const seciliMenu =
+    location.pathname.startsWith('/veri') ? 'veri'
+    : location.pathname.startsWith('/personel') ? 'personel'
+    : location.pathname.startsWith('/firma-profili') ? 'firma-profili'
+    : 'teklifler';
+  const rol = aktifKullanici?.rol;
+  const isAdminLike = rol === 'super_admin' || rol === 'firma_admin' || rol === 'admin';
+  const isYonetici = isAdminLike;
 
   function navigate_(path: string) {
     setDrawerOpen(false);
@@ -49,6 +57,20 @@ export default function AppLayout() {
       label: 'Veri Yönetimi',
       onClick: () => navigate_('/veri'),
     },
+    ...(isAdminLike ? [
+      {
+        key: 'personel',
+        icon: <TeamOutlined />,
+        label: 'Personel',
+        onClick: () => navigate_('/personel'),
+      },
+      {
+        key: 'firma-profili',
+        icon: <BankOutlined />,
+        label: 'Firma Profili',
+        onClick: () => navigate_('/firma-profili'),
+      },
+    ] : []),
   ];
 
   return (
@@ -96,19 +118,28 @@ export default function AppLayout() {
             overflow: 'hidden',
           }}>
             <img
-              src="/logo-meba.png"
-              alt="MEBA Mekanik"
+              src={aktifFirma?.logoPath || '/logo-meba.png'}
+              alt={aktifFirma?.kisaAd || 'Logo'}
               draggable={false}
               style={{
                 height: '100%',
                 width: 'auto',
                 display: 'block',
                 imageRendering: 'auto',
-                transform: 'scale(1.17)',
+                transform: 'scale(1.05)',
                 transformOrigin: '42% 50%',
               }}
             />
           </div>
+          {aktifFirma && !isMobile && (
+            <div style={{
+              marginLeft: 12, fontSize: 10, color: 'rgba(170,190,220,0.55)',
+              letterSpacing: 1.2, textTransform: 'uppercase' as const,
+              fontWeight: 500,
+            }}>
+              {aktifFirma.kisaAd}
+            </div>
+          )}
         </div>
 
         {/* ── DESKTOP NAV ── */}
@@ -162,22 +193,35 @@ export default function AppLayout() {
               height: '60%',
             }}
           >
-            {/* Avatar */}
-            <div
-              style={{
-                width: 32, height: 32, borderRadius: '50%',
-                background: isYonetici ? 'rgba(251,191,36,0.18)' : 'rgba(59,130,246,0.20)',
-                border: `1px solid ${isYonetici ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700,
-                color: isYonetici ? '#fbbf24' : '#93c5fd',
-                flexShrink: 0,
-                fontFamily: '"Arial", sans-serif',
-                letterSpacing: 0.5,
-              }}
-            >
-              {aktifKullanici.initials}
-            </div>
+            {/* Avatar — profil foto varsa onu, yoksa initials göster */}
+            {aktifKullanici.profilFotoUrl ? (
+              <img
+                src={aktifKullanici.profilFotoUrl}
+                alt={aktifKullanici.adSoyad}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: `1px solid ${isYonetici ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: isYonetici ? 'rgba(251,191,36,0.18)' : 'rgba(59,130,246,0.20)',
+                  border: `1px solid ${isYonetici ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700,
+                  color: isYonetici ? '#fbbf24' : '#93c5fd',
+                  flexShrink: 0,
+                  fontFamily: '"Arial", sans-serif',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {aktifKullanici.initials}
+              </div>
+            )}
 
             {/* İsim — sadece desktop */}
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, lineHeight: 1.15 }}>

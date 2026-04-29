@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * launcher.cjs — MEBA Teklif Sistemi başlatıcısı.
+ * launcher.cjs — Grup Şirketleri Teklif Sistemi başlatıcısı.
  *
  * Akış:
  *   1. PID lock kontrol — başka instance varsa tarayıcıda mevcut URL'i aç ve exit
@@ -87,7 +87,8 @@ process.on('exit',    () => releaseInstance());
 (async () => {
   console.log('');
   console.log('  ════════════════════════════════════════════════');
-  console.log('  MEBA Teklif Sistemi — Başlatıcı');
+  console.log('  Grup Şirketleri Teklif Sistemi — Başlatıcı');
+  console.log('  (MEBA · MESA · ELMOS)');
   console.log('  Mode:     ' + (config.mode || 'server'));
   console.log('  Backend:  http://localhost:' + BACKEND_PORT);
   console.log('  Frontend: ' + FRONTEND_URL);
