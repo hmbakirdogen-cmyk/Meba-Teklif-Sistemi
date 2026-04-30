@@ -99,9 +99,7 @@ export default function KumandaPaneli({
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
   const [grupRenkPenceresiAcik, setGrupRenkPenceresiAcik] = useState(false);
-  const grupButtonRef = useRef<HTMLButtonElement>(null);
-  const grupPopoverRef = useRef<HTMLDivElement>(null);
-  const [grupPopoverPos, setGrupPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  const grupWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
   // Genel Finans, Paylaşım) varsayılan KAPALI. Genişletme butonuyla açılır.
@@ -167,48 +165,13 @@ export default function KumandaPaneli({
     setGrupRenkPenceresiAcik(false);
   };
 
-  // Popover pozisyonu — grup butonunun SOLUNDA, butonun dikey merkezine hizalı.
-  // Viewport'a göre clamp; ekran kenarına çıkmaz.
-  useLayoutEffect(() => {
-    if (!grupRenkPenceresiAcik) {
-      setGrupPopoverPos(null);
-      return;
-    }
-    const update = () => {
-      const btn = grupButtonRef.current;
-      if (!btn) return;
-      const rect = btn.getBoundingClientRect();
-      const popW = grupPopoverRef.current?.offsetWidth ?? 122;
-      const popH = grupPopoverRef.current?.offsetHeight ?? 122;
-      // Sol açılır (kumanda paneli sağda); sığmazsa sağa fallback.
-      let left = rect.left - popW - 8;
-      if (left < 8) left = Math.min(window.innerWidth - popW - 8, rect.right + 8);
-      // Dikey: butonun dikey merkezine hizala, viewport içine clamp.
-      const desiredTop = rect.top + rect.height / 2 - popH / 2;
-      const top = Math.max(8, Math.min(window.innerHeight - popH - 8, desiredTop));
-      setGrupPopoverPos({ top, left });
-    };
-    update();
-    // Panel ölçüldüğünde re-position
-    const id = window.requestAnimationFrame(update);
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-    return () => {
-      window.cancelAnimationFrame(id);
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
-    };
-  }, [grupRenkPenceresiAcik]);
-
-  // Outside click + Escape ile popover kapanır.
+  // Outside click + Escape ile popover kapanır. grupWrapperRef hem butonu
+  // hem popover'ı içerdiği için tek contains() kontrolü yeterli.
   useEffect(() => {
     if (!grupRenkPenceresiAcik) return;
     const onMouseDown = (e: MouseEvent) => {
       const t = e.target as Node | null;
-      if (
-        grupPopoverRef.current?.contains(t) ||
-        grupButtonRef.current?.contains(t)
-      ) return;
+      if (grupWrapperRef.current?.contains(t)) return;
       setGrupRenkPenceresiAcik(false);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -1343,16 +1306,99 @@ export default function KumandaPaneli({
               onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
               disabled={readOnly}
             />
-            <SquareToggle
-              ref={grupButtonRef}
-              labelLines={[]}
-              ariaLabel={grupModuAktif ? `Grup modu açık — renk ${SATIR_GRUP_RENK_ETIKETI[grupRenk]}` : 'Grup modu kapalı'}
-              extraClass="button-row-group"
-              icon={<GroupModeIcon />}
-              on={grupModuAktif}
-              onClick={handleGrupModuButonu}
-              disabled={readOnly}
-            />
+            <div ref={grupWrapperRef} style={{ position: 'relative', display: 'contents' }}>
+              <SquareToggle
+                labelLines={[]}
+                ariaLabel={grupModuAktif ? `Grup modu açık — renk ${SATIR_GRUP_RENK_ETIKETI[grupRenk]}` : 'Grup modu kapalı'}
+                extraClass="button-row-group"
+                icon={<GroupModeIcon />}
+                on={grupModuAktif}
+                onClick={handleGrupModuButonu}
+                disabled={readOnly}
+              />
+              {grupRenkPenceresiAcik && !readOnly && (
+                <div
+                  role="dialog"
+                  aria-label="Grup rengi seç"
+                  style={{
+                    // Kumanda paneli sağda fixed; popover panel'in solunda
+                    // viewport'a göre sabit pozisyonda.
+                    position: 'fixed',
+                    top: '50%',
+                    right: K.WIDTH + 32,
+                    transform: 'translateY(-50%)',
+                    zIndex: 10000,
+                    padding: 6,
+                    background: '#FFFFFF',
+                    border: '0.75px solid rgba(26, 43, 66, 0.12)',
+                    borderRadius: 10,
+                    boxShadow: '0 8px 24px rgba(15, 25, 40, 0.14), 0 1px 3px rgba(15, 25, 40, 0.06)',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 26px)',
+                    gridAutoRows: '26px',
+                    gap: 4,
+                  }}
+                >
+                  {SATIR_GRUP_RENK_DONGUSU.map((renk) => {
+                    const swatch = SATIR_GRUP_RENK_SWATCH[renk];
+                    const isSelected = grupModuAktif && grupRenk === renk;
+                    return (
+                      <button
+                        key={renk}
+                        type="button"
+                        onClick={() => handleGrupRenkSec(renk)}
+                        aria-label={`Grup rengi ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
+                        title={SATIR_GRUP_RENK_ETIKETI[renk]}
+                        style={{
+                          width: 26, height: 26,
+                          background: swatch.bg,
+                          border: `1.5px solid ${isSelected ? '#1A2B42' : swatch.border}`,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          padding: 0,
+                          transition: 'transform 0.12s ease, border-color 0.12s ease',
+                          boxShadow: isSelected ? '0 0 0 2px rgba(26,43,66,0.10)' : 'none',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                      />
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={handleGrupModunuKapat}
+                    aria-label="Grup modunu kapat / geri al"
+                    title="Geri al"
+                    style={{
+                      width: 26, height: 26,
+                      background: '#FFFFFF',
+                      border: '1.5px solid rgba(185, 28, 28, 0.32)',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#b91c1c',
+                      transition: 'transform 0.12s ease, border-color 0.12s ease, background 0.12s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.08)';
+                      e.currentTarget.style.background = 'rgba(185, 28, 28, 0.06)';
+                      e.currentTarget.style.borderColor = 'rgba(185, 28, 28, 0.55)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.background = '#FFFFFF';
+                      e.currentTarget.style.borderColor = 'rgba(185, 28, 28, 0.32)';
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M3 7v6h6" />
+                      <path d="M3 13a9 9 0 1 0 3-7l-3 4" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
             <SquareToggle
               labelLines={[]}
               ariaLabel={notlarGosterilsin ? 'Not alanı gösteriliyor' : 'Not alanı gizli'}
