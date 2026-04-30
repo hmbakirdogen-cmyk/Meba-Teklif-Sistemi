@@ -109,12 +109,15 @@ export default function AppLayout() {
           }}
         >
           <div style={{
-            height: HEADER_H - 14,
+            height: HEADER_H - 8,
+            width: 160,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             background: '#fff',
             borderRadius: 10,
-            padding: '0 8px',
+            padding: '4px 10px',
+            boxSizing: 'border-box',
             overflow: 'hidden',
           }}>
             <img
@@ -122,12 +125,15 @@ export default function AppLayout() {
               alt={aktifFirma?.kisaAd || 'Logo'}
               draggable={false}
               style={{
+                width: '100%',
                 height: '100%',
-                width: 'auto',
+                objectFit: 'contain',
                 display: 'block',
                 imageRendering: 'auto',
-                transform: 'scale(1.05)',
-                transformOrigin: '42% 50%',
+                WebkitBackfaceVisibility: 'hidden',
+                backfaceVisibility: 'hidden',
+                transform: `scale(${aktifFirma?.logoScale ?? 1}) translateZ(0)`,
+                transformOrigin: 'center',
               }}
             />
           </div>

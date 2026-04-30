@@ -109,6 +109,18 @@ export function mmToPx(mm: number): number {
 
 export const HIGH_QUALITY_IMAGE_RENDERING = 'high-quality' as unknown as CSSProperties['imageRendering'];
 
+/** Logo görüntü kalitesini en üst seviyeye çıkaran ortak CSS özellikleri.
+ *  - imageRendering: 'auto' → modern tarayıcılarda lanczos/bicubic interpolasyon
+ *  - backfaceVisibility: hidden → kenarlarda subpixel artifact'leri önler
+ *  - willChange: transform → GPU compositing
+ *  Not: transform değeri inline atanır (scale uygulamak için). */
+export const LOGO_QUALITY_STYLE: CSSProperties = {
+  imageRendering: 'auto',
+  WebkitBackfaceVisibility: 'hidden',
+  backfaceVisibility: 'hidden',
+  willChange: 'transform',
+};
+
 export const PARA_BIRIMI_ETIKETI: Record<string, string> = {
   TRY: 'TL',
   EUR: 'EUR',
@@ -641,7 +653,7 @@ export const SETTINGS_GRID_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_CARD_STYLE: CSSProperties = {
-  padding: '9px 10px',
+  padding: '9px 6px',
   textAlign: 'center',
   minHeight: 52,
   display: 'flex',
@@ -672,13 +684,14 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
   // "Döviz Kuru / Exchange Rate") font küçültmesiyle tek satıra sığar.
   flexWrap: 'nowrap',
   marginBottom: '3px',
+  overflow: 'hidden',
 };
 
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
-  fontSize: '7px',
+  fontSize: '9.5px',
   fontWeight: 600,
   color: HEADER_SURFACE.textSub,
-  letterSpacing: '0.03em',
+  letterSpacing: '0.01em',
   textTransform: 'uppercase',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
@@ -686,7 +699,7 @@ export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_SEP_STYLE: CSSProperties = {
-  fontSize: '5px',
+  fontSize: '6.5px',
   color: HEADER_SURFACE.textLabel,
   lineHeight: 1.2,
   flexShrink: 0,
@@ -695,13 +708,16 @@ export const SETTINGS_SEP_STYLE: CSSProperties = {
 };
 
 export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
-  fontSize: '5.4px',
+  fontSize: '7px',
   fontWeight: 400,
   color: HEADER_SURFACE.textLabel,
   letterSpacing: '0.01em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
-  flexShrink: 0,
+  flexShrink: 1,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  minWidth: 0,
 };
 
 export const SETTINGS_VALUE_STYLE: CSSProperties = {

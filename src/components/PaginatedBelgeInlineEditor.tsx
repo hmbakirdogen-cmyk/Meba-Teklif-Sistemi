@@ -27,12 +27,8 @@ import {
   DOCUMENT_PAGE,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
-  LOGO,
-  LOGO_FILE_W,
   LOGO_OPT_H,
   LOGO_OPT_W,
-  LOGO_OPT_TOP,
-  LOGO_OPT_LEFT,
   LINE_ITEM_CSS_VARS,
   OFFER_TABLE_COLUMN_COUNT,
   OFFER_TABLE_ROW_GAP_PX,
@@ -118,12 +114,8 @@ interface PaginatedBelgeInlineEditorProps {
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const S = 0.478;
-  const logoW = LOGO_FILE_W * S;
-  const logoH = LOGO.FILE_HEIGHT * S;
   const optW = LOGO_OPT_W * S;
   const optH = LOGO_OPT_H * S;
-  const optTop = LOGO_OPT_TOP * S;
-  const optLeft = LOGO_OPT_LEFT * S;
 
   return (
     <div style={{ marginBottom: 10 }}>
@@ -134,18 +126,22 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
         paddingBottom: '3.5mm',
         borderBottom: `1.5px solid ${C.panelStrong}`,
       }}>
-        <div style={{ position: 'relative', width: `${optW}px`, height: `${optH}px`, overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{
+          width: `${optW}px`,
+          height: `${optH}px`,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+        }}>
           <img
             src={firmaBilgi.logoPath}
             alt={firmaBilgi.kisaAd}
             style={{
-              position: 'absolute',
-              top: `${optTop}px`,
-              left: `${optLeft}px`,
-              width: `${logoW}px`,
-              height: `${logoH}px`,
-              maxWidth: 'none',
-              maxHeight: 'none',
+              width:  '100%',
+              height: '100%',
+              objectFit: 'contain',
+              objectPosition: 'left center',
               display: 'block',
               imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
               printColorAdjust: 'exact',
@@ -362,11 +358,17 @@ export default function PaginatedBelgeInlineEditor({
         ...noBreak,
       }}>
         <div style={{ flex: '0 0 37%', maxWidth: '37%', paddingRight: '8px', boxSizing: 'border-box', lineHeight: 0 }}>
-          <div style={{ position: 'relative', width: `${LOGO_OPT_W}px`, height: `${LOGO_OPT_H}px`, overflow: 'hidden' }}>
+          <div style={{
+            width: `${LOGO_OPT_W}px`,
+            height: `${LOGO_OPT_H}px`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
             <img src={firmaBilgi.logoPath} alt={firmaBilgi.kisaAd} style={{
-              position: 'absolute', top: `${LOGO_OPT_TOP}px`, left: `${LOGO_OPT_LEFT}px`,
-              width: `${LOGO_FILE_W}px`, height: `${LOGO.FILE_HEIGHT}px`,
-              maxWidth: 'none', maxHeight: 'none', display: 'block',
+              width: '100%', height: '100%',
+              objectFit: 'contain', objectPosition: 'left center',
+              display: 'block',
               imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
               printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
             }} />

@@ -16,12 +16,8 @@ import {
   FOOTER_BAR_STYLE,
   HIGH_QUALITY_IMAGE_RENDERING,
   LINE_ITEM_METRICS,
-  LOGO,
-  LOGO_FILE_W,
   LOGO_OPT_H,
   LOGO_OPT_W,
-  LOGO_OPT_TOP,
-  LOGO_OPT_LEFT,
   noBreak,
   NOTES_BOX_STYLE,
   OFFER_TABLE_ROW_GAP_PX,
@@ -94,12 +90,8 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
   // Metin bloğu: 3 satır (10.4px×1.25 + 9px×1.3 × 2) + 2×gap(2px) ≈ 40.4px
   // LOGO_OPT_H (FILE_HEIGHT=128) ≈ 84.58px → S = 40.4 / 84.58 ≈ 0.478
   const S = 0.478;
-  const logoW  = LOGO_FILE_W      * S;
-  const logoH  = LOGO.FILE_HEIGHT * S;
   const optW   = LOGO_OPT_W       * S;
   const optH   = LOGO_OPT_H       * S;
-  const optTop = LOGO_OPT_TOP     * S;
-  const optLeft= LOGO_OPT_LEFT    * S;
 
   return (
     <div style={{
@@ -118,25 +110,23 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
         paddingBottom: '3.5mm',
         borderBottom: `1.5px solid ${C.panelStrong}`,
       }}>
-        {/* Mini logo — optik bounding box ile kırpılmış */}
+        {/* Mini logo — herhangi bir aspect ratio'ya uyumlu (objectFit: contain) */}
         <div style={{
-          position: 'relative',
           width: `${optW}px`,
           height: `${optH}px`,
-          overflow: 'hidden',
           flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
         }}>
           <img
             src={firmaBilgi.logoPath}
             alt={firmaBilgi.kisaAd}
             style={{
-              position: 'absolute',
-              top:  `${optTop}px`,
-              left: `${optLeft}px`,
-              width:  `${logoW}px`,
-              height: `${logoH}px`,
-              maxWidth: 'none',
-              maxHeight: 'none',
+              width:  '100%',
+              height: '100%',
+              objectFit: 'contain',
+              objectPosition: 'left center',
               display: 'block',
               imageRendering:          HIGH_QUALITY_IMAGE_RENDERING,
               printColorAdjust:        'exact',
@@ -243,10 +233,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       }}>
 
         {/* ── Sütun 1: Logo ──────────────────────────────────────── */}
-        {/* Optik clipping wrapper: PNG beyaz boşlukları kesilir,    */}
-        {/* sadece MEBA harfleri + badge görünür.                     */}
-        {/* Col genişliği: 37% × ~718px = ~266px − 8px pad = 258px   */}
-        {/* LOGO_OPT_W (FILE_HEIGHT=128) ≈ 250px < 258px ✓           */}
+        {/* objectFit: contain — herhangi bir firma logosuna uyumlu. */}
+        {/* Logo kendi en/boy oranında, container içinde sola yaslı. */}
         <div style={{
           flex: '0 0 37%',
           maxWidth: '37%',
@@ -255,22 +243,20 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           lineHeight: 0,
         }}>
           <div style={{
-            position: 'relative',
             width: `${LOGO_OPT_W}px`,
             height: `${LOGO_OPT_H}px`,
-            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
           }}>
             <img
               src={firmaBilgi.logoPath}
               alt={firmaBilgi.kisaAd}
               style={{
-                position: 'absolute',
-                top: `${LOGO_OPT_TOP}px`,
-                left: `${LOGO_OPT_LEFT}px`,
-                width: `${LOGO_FILE_W}px`,
-                height: `${LOGO.FILE_HEIGHT}px`,
-                maxWidth: 'none',
-                maxHeight: 'none',
+                width:  '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'left center',
                 display: 'block',
                 imageRendering:         HIGH_QUALITY_IMAGE_RENDERING,
                 printColorAdjust:       'exact',

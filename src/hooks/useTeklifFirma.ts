@@ -28,6 +28,7 @@ export function useTeklifFirmaBilgileri(teklif: Teklif | null | undefined) {
   // Fallback (firma null ise) — eski MEBA değerleri
   const FALLBACK = {
     logoPath: '/logo-meba.png',
+    logoScale: 1,
     kisaAd: 'MEBA Mekanik',
     ad: 'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
     adres: 'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
@@ -42,6 +43,7 @@ export function useTeklifFirmaBilgileri(teklif: Teklif | null | undefined) {
   if (!firma) return FALLBACK;
   return {
     logoPath: firma.logoPath || FALLBACK.logoPath,
+    logoScale: firma.logoScale ?? 1,
     kisaAd: firma.kisaAd || FALLBACK.kisaAd,
     ad: firma.ad || FALLBACK.ad,
     adres: firma.adres || (firma.id === 'meba' ? FALLBACK.adres : ''),

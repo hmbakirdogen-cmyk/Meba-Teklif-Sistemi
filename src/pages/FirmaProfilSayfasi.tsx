@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, message, Tabs, Avatar, Tag } from 'antd';
+import { Card, Form, Input, Button, message, Tabs, Avatar, Tag } from 'antd';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
+import {
+  FIRMA_KART_LAYOUT,
+  FIRMA_KART_LOGO_BOX_STYLE,
+  firmaLogoImgStyle,
+} from '../components/FirmaSecimKartLayout';
 
 export default function FirmaProfilSayfasi() {
   const { aktifKullanici } = useKullanici();
@@ -84,9 +89,27 @@ function FirmaForm({ firma, onSave }: { firma: Firma; onSave: (patch: Partial<Fi
 
   return (
     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' as const }}>
-      <div style={{ width: 220, padding: 20, background: '#f8fafc', borderRadius: 12, textAlign: 'center', flexShrink: 0 }}>
-        <div style={{ marginBottom: 12, padding: 16, background: '#fff', borderRadius: 8, height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src={firma.logoPath} alt={firma.kisaAd} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+      <div style={{
+        width: FIRMA_KART_LAYOUT.cardWidth,
+        padding: FIRMA_KART_LAYOUT.cardPadding,
+        background: '#f8fafc',
+        borderRadius: FIRMA_KART_LAYOUT.cardBorderRadius,
+        textAlign: 'center',
+        flexShrink: 0,
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        gap: FIRMA_KART_LAYOUT.cardInnerGap,
+        boxSizing: 'border-box',
+      }}>
+        <div style={{
+          ...FIRMA_KART_LOGO_BOX_STYLE,
+          background: '#fff',
+          borderRadius: 8,
+        }}>
+          <img
+            src={firma.logoPath}
+            alt={firma.kisaAd}
+            style={firmaLogoImgStyle(firma, 'drop-shadow(0 2px 6px rgba(0,0,0,0.10))')}
+          />
         </div>
         <div style={{ fontSize: 13, fontWeight: 600 }}>{firma.ad}</div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{firma.slogan}</div>
@@ -132,32 +155,6 @@ function FirmaForm({ firma, onSave }: { firma: Firma; onSave: (patch: Partial<Fi
           </div>
           <Form.Item name="iban" label="IBAN">
             <Input placeholder="TR..." />
-          </Form.Item>
-          <Form.Item name="pdfKlasorAdi" label="PDF Çıktı Klasör Adı"
-            extra="Masaüstüne kaydedilen PDF'lerin ana klasör adı (örn: MEBA MEKANİK TEKLİFLER)">
-            <Input />
-          </Form.Item>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <Form.Item name="renkBirincil" label="Birincil Renk" style={{ flex: 1 }}>
-              <Input addonBefore="#" placeholder="1a3a8c" />
-            </Form.Item>
-            <Form.Item name="renkVurgu" label="Vurgu Rengi" style={{ flex: 1 }}>
-              <Input addonBefore="#" placeholder="b99434" />
-            </Form.Item>
-            <Form.Item name="logoPath" label="Logo Yolu" style={{ flex: 2 }}
-              extra="public/ klasöründen göreli — örn: /logo-meba.png">
-              <Select
-                options={[
-                  { value: '/logo-meba.png',  label: '/logo-meba.png' },
-                  { value: '/logo-elmos.png', label: '/logo-elmos.png' },
-                  { value: '/logo-mesa.png',  label: '/logo-mesa.png' },
-                ]}
-              />
-            </Form.Item>
-          </div>
-          <Form.Item name="logoScale" label="Logo Görsel Ölçeği"
-            extra="Firma seçim ekranında logo boyutu (varsayılan 1.0). Kareye yakın logolar için 1.2-1.6 arası dene.">
-            <Input type="number" step="0.05" min="0.5" max="2.5" placeholder="1.0" />
           </Form.Item>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="primary" htmlType="submit" loading={yukleniyor}>

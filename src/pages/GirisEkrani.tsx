@@ -5,6 +5,11 @@ import { useKullanici } from '../context/useKullanici';
 import { useIsMobile } from '../hooks/useIsMobile';
 import type { Firma } from '../types/firma';
 import type { Kullanici } from '../types/kullanici';
+import {
+  FIRMA_KART_LAYOUT,
+  FIRMA_KART_LOGO_BOX_STYLE,
+  firmaLogoImgStyle,
+} from '../components/FirmaSecimKartLayout';
 
 type Adim = 'firma' | 'kullanici' | 'sifre';
 
@@ -434,16 +439,16 @@ function FirmaKarti({ firma, onSecim, isMobile }: {
     : 'rgba(7,14,28,0.88)';
 
   const cardStyle: CSSProperties = {
-    width: isMobile ? '100%' : 232,
+    width: isMobile ? '100%' : FIRMA_KART_LAYOUT.cardWidth,
     maxWidth: 260,
-    padding: '26px 22px 22px',
-    borderRadius: 16,
+    padding: FIRMA_KART_LAYOUT.cardPadding,
+    borderRadius: FIRMA_KART_LAYOUT.cardBorderRadius,
     cursor: 'pointer',
     border: `1px solid ${hovered ? haloColor : gold(0.18)}`,
     background: cardBg,
     boxShadow: hovered
       ? `0 28px 70px rgba(0,0,0,0.62), 0 0 0 1px ${haloColor}33, 0 0 50px ${haloColor}22, inset 0 1px 0 rgba(255,255,255,0.04)`
-      : '0 8px 30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.025)',
+      : '0 22px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.025)',
     transform: hovered
       ? `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateZ(8px)`
       : 'perspective(900px) rotateX(0) rotateY(0) translateZ(0)',
@@ -452,11 +457,12 @@ function FirmaKarti({ firma, onSecim, isMobile }: {
     backdropFilter: 'blur(20px)',
     textAlign: 'center' as const,
     display: 'flex', flexDirection: 'column' as const,
-    alignItems: 'center', gap: 14,
+    alignItems: 'center', gap: FIRMA_KART_LAYOUT.cardInnerGap,
     userSelect: 'none' as const,
     position: 'relative' as const,
     overflow: 'hidden' as const,
     outline: 'none',
+    boxSizing: 'border-box',
   };
 
   return (
@@ -489,21 +495,18 @@ function FirmaKarti({ firma, onSecim, isMobile }: {
           animation: 'gc-shimmer 1.4s linear infinite',
         }} />
       )}
-      {/* Logo */}
-      <div style={{
-        width: '100%', height: 96, display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden',
-      }}>
-        <img src={firma.logoPath} alt={firma.kisaAd} style={{
-          maxWidth: '100%', maxHeight: '100%', objectFit: 'contain',
-          transform: `scale(${firma.logoScale ?? 1})`,
-          transformOrigin: 'center',
-          filter: hovered
-            ? `drop-shadow(0 4px 14px ${haloColor}44)`
-            : 'drop-shadow(0 2px 8px rgba(0,0,0,0.45))',
-          transition: 'filter 0.25s ease, transform 0.25s ease',
-        }} />
+      {/* Logo — splash ekranı ile birebir aynı kutu/boyut/konum */}
+      <div style={FIRMA_KART_LOGO_BOX_STYLE}>
+        <img
+          src={firma.logoPath}
+          alt={firma.kisaAd}
+          style={firmaLogoImgStyle(
+            firma,
+            hovered
+              ? `drop-shadow(0 4px 14px ${haloColor}44)`
+              : 'drop-shadow(0 2px 8px rgba(0,0,0,0.45))',
+          )}
+        />
       </div>
       {/* Slogan — MEBA için sonuna parlayan "Yazılım" eklenir, aynı stilde */}
       <div style={{
@@ -640,7 +643,7 @@ export default function GirisEkrani() {
           </div>
 
           <div style={{
-            display: 'flex', gap: 24,
+            display: 'flex', gap: FIRMA_KART_LAYOUT.cardsRowGap,
             flexWrap: 'wrap' as const, justifyContent: 'center',
             padding: '0 24px', maxWidth: 920,
             animation: 'gc-fade-up 0.6s 0.1s both',
@@ -669,12 +672,18 @@ export default function GirisEkrani() {
             borderBottom: `1px solid ${gold(0.12)}`,
           }}>
             <div style={{
-              height: 46, width: 140, display: 'flex',
+              height: 78, width: 178,
+              padding: '4px 8px',
+              display: 'flex',
               alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              boxSizing: 'border-box',
             }}>
               <img src={secilenFirma.logoPath} alt={secilenFirma.kisaAd} style={{
-                maxHeight: '100%', maxWidth: '100%', objectFit: 'contain',
-                transform: `scale(${secilenFirma.logoScale ?? 1})`,
+                width: '100%', height: '100%', objectFit: 'contain',
+                imageRendering: 'auto',
+                WebkitBackfaceVisibility: 'hidden',
+                backfaceVisibility: 'hidden',
+                transform: `scale(${secilenFirma.logoScale ?? 1}) translateZ(0)`,
                 transformOrigin: 'center',
                 filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))',
               }} />
