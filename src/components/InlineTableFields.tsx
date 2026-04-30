@@ -1,12 +1,20 @@
 import React from 'react';
 import { AutoComplete, Input, InputNumber, Select } from 'antd';
 
+// Edit moduna girince hücrenin yazı stilinin değişmemesi için TÜM tipografi
+// özelliklerini explicit olarak inherit ediyoruz. `font` shorthand'ı bazı
+// browser/AntD kombinasyonlarında font-size/font-weight'i override edebiliyor;
+// longhand kullanmak güvenli yol.
 const BASE_STYLE: React.CSSProperties = {
   width: '100%',
-  font: 'inherit',
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
+  fontWeight: 'inherit',
+  fontStyle: 'inherit',
   color: 'inherit',
   lineHeight: 'inherit',
   letterSpacing: 'inherit',
+  textTransform: 'inherit',
 };
 
 export const INLINE_TABLE_DROPDOWN_CLASS = 'belge-inline-table-dropdown';

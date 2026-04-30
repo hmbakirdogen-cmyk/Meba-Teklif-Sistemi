@@ -763,22 +763,14 @@ export const FIELD_CSS = `
 /* Wrapper'in KENDISI hedeflenmez — wrapper kendi inline style'indaki
    fontSize/fontWeight'i (orn. ROW_TEXT.code: 10.5px / 600) korur.
    Sadece IÇ elemanlar wrapper'dan inherit eder. Aksi halde Urun Kodu
-   editorune girince font 10.5px → 11px, weight 600 → 400 sıçrardı. */
-.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field,
-.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-input,
-.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-input-number,
-.belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field.ant-select,
-.belge-inline tr[data-satir-id] > td.is-active-cell input,
-.belge-inline tr[data-satir-id] > td.is-active-cell textarea,
-.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-content,
-.belge-inline tr[data-satir-id] > td.is-active-cell .ant-input-number-input {
-  color: ${FIELD.activeText} !important;
-}
-.belge-inline tr[data-satir-id] > td.is-active-cell .ant-select-placeholder,
+   editorune girince font 10.5px → 11px, weight 600 → 400 sıçrardı.
+   Renk override KALDIRILDI: edit moduna girince yazı rengi değişmemeli;
+   wrapper'ın inline style rengi (ROW_TEXT.X içindeki color) inherit ile
+   iç input/textarea/select'e iner. */
 .belge-inline tr[data-satir-id] > td.is-active-cell input::placeholder,
 .belge-inline tr[data-satir-id] > td.is-active-cell textarea::placeholder {
-  color: ${FIELD.activeTextSoft} !important;
-  opacity: 0.68 !important;
+  color: inherit !important;
+  opacity: 0.55 !important;
 }
 .belge-inline tr[data-satir-id] > td.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
   font-family: inherit !important;

@@ -18,10 +18,7 @@ import {
   InlineTableSelectField,
 } from './InlineTableFields';
 import { UNIT_OPTIONS, ROW_SHELL, ROW_TEXT } from './InlineTableRowShared';
-import {
-  DOCUMENT_COLORS,
-  LINE_ITEM_METRICS,
-} from '../templates/teklifDocumentShared';
+import { DOCUMENT_COLORS } from '../templates/teklifDocumentShared';
 import type { SatirCellField } from './inlineSatirEditorShared';
 
 const C = DOCUMENT_COLORS;
@@ -30,13 +27,15 @@ const ACIKLAMA_EDIT: React.CSSProperties = {
   display: 'block',
   width: '100%',
   minWidth: 0,
-  // minHeight kaldırıldı — TD'nin min-height (var --line-row-height = 20px)
-  // satır yüksekliğini yönetir; editor doğal text height'ında (~14px) kalır.
-  // 12px = DescText df-1 (varsayılan fit) ile birebir → font değişimi yok.
-  fontSize: '12px',
-  fontWeight: 400,
-  color: C.textMid,
-  lineHeight: LINE_ITEM_METRICS.lineHeight,
+  // Edit moduna girince yazı rengi/boyutu/satır yüksekliği değişmesin →
+  // tipografi tüm hücreden inherit edilir; sadece layout özellikleri
+  // (display/width/whiteSpace/resize/padding/margin) override edilir.
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
+  fontWeight: 'inherit',
+  color: 'inherit',
+  lineHeight: 'inherit',
+  letterSpacing: 'inherit',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   resize: 'none',
