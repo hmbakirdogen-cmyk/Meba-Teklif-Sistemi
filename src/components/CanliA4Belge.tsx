@@ -122,7 +122,7 @@ export default function CanliA4Belge({
     if (!linearRoot || !compactHeaderEl) return;
 
     const measure = () => {
-      setPagination(calculateTeklifPagination(linearRoot, compactHeaderEl));
+      setPagination(calculateTeklifPagination(linearRoot, compactHeaderEl, teklif.satirlar));
     };
 
     const obs = new ResizeObserver(measure);

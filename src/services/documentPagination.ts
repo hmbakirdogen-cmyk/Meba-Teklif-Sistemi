@@ -1,4 +1,20 @@
-import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
+import { DOCUMENT_PAGE, mmToPx, computeSetGroupPos } from '../templates/teklifDocumentShared';
+
+/**
+ * documentPagination — A4 önizleme + PDF için sayfa kırma motoru.
+ *
+ * Tasarım kuralları:
+ *  1. Satır yükseklikleri canlı DOM'dan ölçülür (sabit tahmin yok).
+ *  2. Set grubu (set ana + alt kalemleri) tek atomic blok olarak ele alınır;
+ *     mümkünse aynı sayfada kalır. Sığmazsa tüm grup bir sonraki sayfaya
+ *     atılır.
+ *  3. Widow kuralı: totals + notes + signature yeni sayfaya geçecekse, son
+ *     blok da o sayfaya çekilir → yeni sayfa "boş ürünsüz totals" görünmez.
+ *  4. İlk sayfa full header, sonraki sayfalar compact header — kapasite
+ *     buna göre ayrı hesaplanır.
+ *  5. Son sayfada totals/signature için TRAILING_BLOCK_SAFETY_PX buffer
+ *     bırakılır; ürün satırlarının üstüne binmez.
+ */
 
 const CONTINUATION_TOP_GAP_PX = 10;
 const TRAILING_BLOCK_SAFETY_PX = 20;
@@ -43,6 +59,14 @@ export interface TeklifPaginationResult {
   totalPages: number;
 }
 
+/** Set grubu hesaplaması için ihtiyaç duyulan minimum satır şekli. */
+interface SetGroupRow {
+  id: string;
+  setId?: string;
+  setAltKalem?: boolean;
+  setAnaSatirId?: string;
+}
+
 interface PaginationMeasurements {
   firstTableStartTop: number;
   firstTrailingTop: number;
@@ -59,6 +83,13 @@ interface PaginationMeasurements {
 interface MutablePagePlan extends TeklifPagePlan {
   rowHeightUsed: number;
   blockHeightUsed: number;
+}
+
+/** Set grubunu (atomic) veya tek satırı temsil eden blok. */
+interface RowBlock {
+  startIndex: number; // dahil
+  endIndex: number;   // hariç
+  height: number;
 }
 
 function measureDocument(
@@ -97,6 +128,41 @@ function measureDocument(
     footerHeight: outerHeight(footerEl),
     compactHeaderHeight: outerHeight(compactHeaderEl),
   };
+}
+
+/**
+ * Satırları atomic blok dizisine dönüştürür. Set ana kalemi ile alt kalemleri
+ * tek blok oluşturur (tüm grup aynı sayfada kalmalı). Tek başına ürün satırı
+ * (veya alt kalemi olmayan set ana kalemi) tek satırlık blok olur.
+ */
+function groupRowsIntoBlocks(
+  rows: ReadonlyArray<SetGroupRow>,
+  rowHeights: number[],
+): RowBlock[] {
+  const blocks: RowBlock[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const pos = computeSetGroupPos(rows, i);
+    if (pos === 'top') {
+      // Set grubunun başlangıcı — 'middle'/'bottom' satırlarını topla
+      let j = i + 1;
+      while (j < rows.length) {
+        const p = computeSetGroupPos(rows, j);
+        if (p === 'middle' || p === 'bottom') {
+          j++;
+        } else {
+          break;
+        }
+      }
+      const height = rowHeights.slice(i, j).reduce((sum, h) => sum + (h ?? 0), 0);
+      blocks.push({ startIndex: i, endIndex: j, height });
+      i = j;
+    } else {
+      blocks.push({ startIndex: i, endIndex: i + 1, height: rowHeights[i] ?? 0 });
+      i++;
+    }
+  }
+  return blocks;
 }
 
 function createPage(pageNumber: number, showFullHeader: boolean): MutablePagePlan {
@@ -142,52 +208,133 @@ function startNewPage(pages: MutablePagePlan[]): MutablePagePlan {
   return page;
 }
 
-export function calculateTeklifPagination(
-  linearRoot: HTMLElement,
-  compactHeaderEl: HTMLElement,
-): TeklifPaginationResult {
-  const measurements = measureDocument(linearRoot, compactHeaderEl);
-  const pages: MutablePagePlan[] = [createPage(1, true)];
+function placeBlockOnPages(
+  block: RowBlock,
+  pages: MutablePagePlan[],
+  measurements: PaginationMeasurements,
+): void {
+  let currentPage = pages[pages.length - 1];
+  currentPage.showTableHeader = true;
 
-  measurements.rowHeights.forEach((rowHeight, rowIndex) => {
-    let currentPage = pages[pages.length - 1];
+  const capacity = pageCapacity(currentPage, measurements);
+  const willOverflow = currentPage.rowHeightUsed > 0
+    && currentPage.rowHeightUsed + block.height > capacity;
+
+  if (willOverflow) {
+    currentPage = startNewPage(pages);
     currentPage.showTableHeader = true;
+  }
 
-    const capacity = pageCapacity(currentPage, measurements);
-    const willOverflow = currentPage.rowHeightUsed > 0 && currentPage.rowHeightUsed + rowHeight > capacity;
+  if (currentPage.rowHeightUsed === 0) {
+    currentPage.rowStartIndex = block.startIndex;
+  }
+  currentPage.rowEndIndex = block.endIndex;
+  currentPage.rowHeightUsed += block.height;
+}
 
-    if (willOverflow) {
-      currentPage = startNewPage(pages);
-      currentPage.showTableHeader = true;
-    }
-
-    if (currentPage.rowHeightUsed === 0) {
-      currentPage.rowStartIndex = rowIndex;
-    }
-
-    currentPage.rowEndIndex = rowIndex + 1;
-    currentPage.rowHeightUsed += rowHeight;
-  });
-
-  const trailingBlocks = [
+/**
+ * Trailing blokları (totals, notes, signature) son sayfaya yerleştirir.
+ *  Case A: Mevcut sayfada (TRAILING_BLOCK_SAFETY_PX buffer ile) sığar → yerleştir.
+ *  Case B: Sığmazsa, mevcut sayfanın son ürün bloğunu yeni sayfaya çekip
+ *          yeni sayfayı "son blok + trailing" ile doldur (widow kuralı).
+ *  Case C: Çekme uygulanamıyorsa (mevcut sayfa boşalır veya yine sığmaz) →
+ *          trailing-only yeni sayfa.
+ *
+ * Boş teklifte (hiç satır yok) trailing direkt mevcut sayfaya konur.
+ */
+function placeTrailingBlocksWithWidow(
+  pages: MutablePagePlan[],
+  blocks: RowBlock[],
+  measurements: PaginationMeasurements,
+): void {
+  const trailingDescriptors = [
     { key: 'includeTotals' as const, height: measurements.totalsHeight },
     { key: 'includeNotes' as const, height: measurements.notesHeight },
     { key: 'includeSignature' as const, height: measurements.signatureHeight },
-  ].filter((block) => block.height > 0);
+  ].filter((b) => b.height > 0);
 
-  trailingBlocks.forEach((block) => {
-    let currentPage = pages[pages.length - 1];
-    const usedHeight = currentPage.rowHeightUsed + currentPage.blockHeightUsed;
-    const capacity = pageCapacity(currentPage, measurements);
-    const willOverflow = usedHeight > 0 && usedHeight + block.height > capacity - TRAILING_BLOCK_SAFETY_PX;
+  if (trailingDescriptors.length === 0) return;
 
-    if (willOverflow) {
-      currentPage = startNewPage(pages);
+  const placeAll = (page: MutablePagePlan): void => {
+    trailingDescriptors.forEach((b) => {
+      page[b.key] = true;
+      page.blockHeightUsed += b.height;
+    });
+  };
+
+  const trailingTotal = trailingDescriptors.reduce((sum, b) => sum + b.height, 0);
+  const requiredCapacity = trailingTotal + TRAILING_BLOCK_SAFETY_PX;
+
+  let currentPage = pages[pages.length - 1];
+
+  // Boş sayfa (hiç ürün satırı yok) → trailing direkt buraya gider.
+  if (currentPage.rowHeightUsed === 0 && blocks.length === 0) {
+    placeAll(currentPage);
+    return;
+  }
+
+  const currentCapacity = pageCapacity(currentPage, measurements);
+
+  // Case A: trailing mevcut sayfaya sığar.
+  if (currentPage.rowHeightUsed + requiredCapacity <= currentCapacity) {
+    placeAll(currentPage);
+    return;
+  }
+
+  // Case B: widow — son bloğu yeni sayfaya çek, trailing'i orada yerleştir.
+  const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null;
+  const lastBlockOnCurrent = lastBlock != null
+    && currentPage.rowEndIndex === lastBlock.endIndex
+    && currentPage.rowStartIndex <= lastBlock.startIndex;
+  const wouldNotEmptyCurrent = lastBlock != null
+    && (currentPage.rowHeightUsed - lastBlock.height) > 0;
+
+  if (lastBlock && lastBlockOnCurrent && wouldNotEmptyCurrent) {
+    // Yeni sayfa kapasitesini compact-header senaryosunda simüle et
+    const dummyNewPage = createPage(pages.length + 1, false);
+    dummyNewPage.showTableHeader = true;
+    const newPageCapacity = pageCapacity(dummyNewPage, measurements);
+
+    if (lastBlock.height + requiredCapacity <= newPageCapacity) {
+      currentPage.rowEndIndex = lastBlock.startIndex;
+      currentPage.rowHeightUsed -= lastBlock.height;
+
+      const newPage = startNewPage(pages);
+      newPage.showTableHeader = true;
+      newPage.rowStartIndex = lastBlock.startIndex;
+      newPage.rowEndIndex = lastBlock.endIndex;
+      newPage.rowHeightUsed = lastBlock.height;
+
+      placeAll(newPage);
+      return;
     }
+  }
 
-    currentPage[block.key] = true;
-    currentPage.blockHeightUsed += block.height;
-  });
+  // Case C: çekme uygulanamadı → trailing-only yeni sayfa
+  const trailingPage = startNewPage(pages);
+  trailingPage.showTableHeader = false;
+  placeAll(trailingPage);
+}
+
+/**
+ * Authoritative pagination — DOM'dan ölçtüğü gerçek satır yüksekliklerine
+ * göre sayfaları üretir. Set grupları atomic, widow kuralı uygulanır.
+ */
+export function calculateTeklifPagination(
+  linearRoot: HTMLElement,
+  compactHeaderEl: HTMLElement,
+  rows: ReadonlyArray<SetGroupRow>,
+): TeklifPaginationResult {
+  const measurements = measureDocument(linearRoot, compactHeaderEl);
+  const blocks = groupRowsIntoBlocks(rows, measurements.rowHeights);
+
+  const pages: MutablePagePlan[] = [createPage(1, true)];
+
+  for (const block of blocks) {
+    placeBlockOnPages(block, pages, measurements);
+  }
+
+  placeTrailingBlocksWithWidow(pages, blocks, measurements);
 
   return {
     pages: pages.map((page) => ({
