@@ -322,9 +322,36 @@ export function FinansalOzetKartIci({
               marginTop: '4px',
               marginBottom: '4px',
             }} />
-            {/* Total — flow flex satırı, sağa yaslı */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              {totalRight}
+            {/* Total — label sol + amount sağ, hasDetail=false ile aynı tipografi */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-end',
+              gap: '10px',
+            }}>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#1A2B42',
+                  lineHeight: 1.1,
+                }}>
+                  Genel Toplam
+                </div>
+                <div style={{
+                  fontSize: '7.5px',
+                  color: '#717176',
+                  lineHeight: 1.2,
+                  marginTop: '1px',
+                }}>
+                  Grand Total
+                </div>
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                {totalRight}
+              </div>
             </div>
           </>
         ) : (
