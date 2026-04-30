@@ -553,9 +553,6 @@ export default function TeklifEditor() {
           onGrupModuDegistir={setGrupModuAktif}
           grupRenk={seciliGrupRenk}
           onGrupRenkDegistir={setSeciliGrupRenk}
-          kullanilanGrupRenkleri={
-            Array.from(new Set(state.satirlar.map((s) => s.grupRenk).filter((r): r is SatirGrupRenk => !!r)))
-          }
           notlarGosterilsin={state.notlarGosterilsin}
           onNotlarGosterilsinDegistir={state.setNotlarGosterilsin}
           sagPanelOpen={state.panelModu !== null}

@@ -76,10 +76,14 @@ const PAGE_GAP_PX = 24;
 const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
 
 const SATIR_GRUP_GORSEL: Record<NonNullable<TeklifSatiri['grupRenk']>, { bg: string; border: string }> = {
-  amber: { bg: '#fff8eb', border: '#f4bf75' },
-  mint: { bg: '#eefcf6', border: '#92ddbf' },
-  sky: { bg: '#eef5ff', border: '#9ec1f7' },
+  amber:    { bg: '#fff8eb', border: '#f4bf75' },
+  mint:     { bg: '#eefcf6', border: '#92ddbf' },
+  sky:      { bg: '#eef5ff', border: '#9ec1f7' },
   lavender: { bg: '#f5f0ff', border: '#c5aff6' },
+  blush:    { bg: '#ffeff2', border: '#f4a8b6' },
+  peach:    { bg: '#fff2e8', border: '#fbb276' },
+  sage:     { bg: '#f0f4ec', border: '#a9b88c' },
+  slate:    { bg: '#eef1f4', border: '#94a3b8' },
 };
 
 export type { EditingAlan } from './belgeInlineConstants';

@@ -59,26 +59,14 @@ const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
 
 const SATIR_GRUP_GORSEL: Record<NonNullable<Teklif['satirlar'][number]['grupRenk']>, { bg: string; border: string; pattern: string }> = {
-  amber: {
-    bg: '#fff8eb',
-    border: '#f4bf75',
-    pattern: 'none',
-  },
-  mint: {
-    bg: '#eefcf6',
-    border: '#92ddbf',
-    pattern: 'none',
-  },
-  sky: {
-    bg: '#eef5ff',
-    border: '#9ec1f7',
-    pattern: 'none',
-  },
-  lavender: {
-    bg: '#f5f0ff',
-    border: '#c5aff6',
-    pattern: 'none',
-  },
+  amber:    { bg: '#fff8eb', border: '#f4bf75', pattern: 'none' },
+  mint:     { bg: '#eefcf6', border: '#92ddbf', pattern: 'none' },
+  sky:      { bg: '#eef5ff', border: '#9ec1f7', pattern: 'none' },
+  lavender: { bg: '#f5f0ff', border: '#c5aff6', pattern: 'none' },
+  blush:    { bg: '#ffeff2', border: '#f4a8b6', pattern: 'none' },
+  peach:    { bg: '#fff2e8', border: '#fbb276', pattern: 'none' },
+  sage:     { bg: '#f0f4ec', border: '#a9b88c', pattern: 'none' },
+  slate:    { bg: '#eef1f4', border: '#94a3b8', pattern: 'none' },
 };
 
 interface TeklifPagedDocumentProps {

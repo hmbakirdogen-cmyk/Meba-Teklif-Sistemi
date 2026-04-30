@@ -1,4 +1,12 @@
-export type SatirGrupRenk = 'amber' | 'mint' | 'sky' | 'lavender';
+export type SatirGrupRenk =
+  | 'amber'    // soft warm yellow
+  | 'mint'     // soft green
+  | 'sky'      // soft blue
+  | 'lavender' // soft purple
+  | 'blush'    // soft pink-rose
+  | 'peach'    // soft orange
+  | 'sage'     // muted olive-green
+  | 'slate';   // cool gray-blue
 
 export interface TeklifSatiri {
   id: string;
