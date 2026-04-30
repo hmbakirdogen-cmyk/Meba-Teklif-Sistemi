@@ -23,7 +23,6 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
     let aktif = true;
     const token = getSessionToken();
     if (!token) {
-      setYukleniyor(false);
       return;
     }
     api.auth.me()

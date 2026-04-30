@@ -12,7 +12,7 @@ import type { Firma } from '../types/firma';
  */
 
 /** Logo arka beyaz zeminin ortak ölçüleri (sabit referans). */
-export const LOGO_CONTAINER_LAYOUT = {
+const LOGO_CONTAINER_LAYOUT = {
   width: 184,
   height: 120,
   padding: 12,
@@ -21,7 +21,7 @@ export const LOGO_CONTAINER_LAYOUT = {
 } as const;
 
 /** Logo arka zeminin ortak stili — inline kullanım için. */
-export const LOGO_CONTAINER_STYLE: CSSProperties = {
+const LOGO_CONTAINER_STYLE: CSSProperties = {
   width: LOGO_CONTAINER_LAYOUT.width,
   height: LOGO_CONTAINER_LAYOUT.height,
   padding: LOGO_CONTAINER_LAYOUT.padding,
@@ -36,7 +36,7 @@ export const LOGO_CONTAINER_STYLE: CSSProperties = {
 };
 
 /** Logo görseli için ortak stil — kutu içinde tam ortalı, taşmaz, sıkışmaz. */
-export function logoImageStyle(firma: Firma, extraFilter?: string): CSSProperties {
+function logoImageStyle(firma: Firma, extraFilter?: string): CSSProperties {
   return {
     width: '100%',
     height: '100%',

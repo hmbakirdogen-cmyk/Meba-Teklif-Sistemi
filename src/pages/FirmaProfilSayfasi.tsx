@@ -16,13 +16,9 @@ export default function FirmaProfilSayfasi() {
     return aktifKullanici?.firmaId || '';
   });
 
-  useEffect(() => {
-    if (firmalar.length && !firmalar.some((f) => f.id === activeFirmaId)) {
-      setActiveFirmaId(isSuperAdmin ? firmalar[0]?.id || '' : aktifKullanici?.firmaId || '');
-    }
-  }, [firmalar, activeFirmaId, isSuperAdmin, aktifKullanici]);
-
-  const firma = firmalar.find((f) => f.id === activeFirmaId) || null;
+  const fallbackFirmaId = isSuperAdmin ? firmalar[0]?.id || '' : aktifKullanici?.firmaId || '';
+  const safeActiveFirmaId = firmalar.some((f) => f.id === activeFirmaId) ? activeFirmaId : fallbackFirmaId;
+  const firma = firmalar.find((f) => f.id === safeActiveFirmaId) || null;
 
   const tabs = isSuperAdmin
     ? firmalar.map((f) => ({
@@ -56,7 +52,7 @@ export default function FirmaProfilSayfasi() {
         }
       >
         {isSuperAdmin
-          ? <Tabs activeKey={activeFirmaId} onChange={setActiveFirmaId} items={tabs} />
+          ? <Tabs activeKey={safeActiveFirmaId} onChange={setActiveFirmaId} items={tabs} />
           : firma
             ? <FirmaForm firma={firma} onSave={async (patch) => {
                 const r = await firmaGuncelle(firma.id, patch);

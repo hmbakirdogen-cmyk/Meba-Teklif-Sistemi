@@ -265,7 +265,7 @@ function placeTrailingBlocksWithWidow(
   const trailingTotal = trailingDescriptors.reduce((sum, b) => sum + b.height, 0);
   const requiredCapacity = trailingTotal + TRAILING_BLOCK_SAFETY_PX;
 
-  let currentPage = pages[pages.length - 1];
+  const currentPage = pages[pages.length - 1];
 
   // Boş sayfa (hiç ürün satırı yok) → trailing direkt buraya gider.
   if (currentPage.rowHeightUsed === 0 && blocks.length === 0) {

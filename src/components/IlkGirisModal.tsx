@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useKullanici } from '../context/useKullanici';
 
@@ -52,24 +52,12 @@ export default function IlkGirisModal() {
   const [yeniSifre, setYeniSifre] = useState('');
   const [yeniSifre2, setYeniSifre2] = useState('');
   const [sifreHata, setSifreHata] = useState<string | null>(null);
-  const [sifreYapildi, setSifreYapildi] = useState(false);
+  const [sifreYapildi, setSifreYapildi] = useState(() => Boolean(aktifKullanici && !aktifKullanici.mustChangePassword));
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
-  const [fotoYuklendi, setFotoYuklendi] = useState(false);
+  const [fotoYuklendi, setFotoYuklendi] = useState(() => Boolean(aktifKullanici?.profilFotoUrl));
   const [fotoHata, setFotoHata] = useState<string | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // mustChangePassword false ve profilFotoUrl varsa modal görünmeyecek
-  // (parent zaten kapatır). Burada sıralı durum gösterimi var:
-  // Step 1: şifre belirle, Step 2: foto yükle.
-  useEffect(() => {
-    if (aktifKullanici && !aktifKullanici.mustChangePassword) {
-      setSifreYapildi(true);
-    }
-    if (aktifKullanici?.profilFotoUrl) {
-      setFotoYuklendi(true);
-    }
-  }, [aktifKullanici]);
 
   async function sifreSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -336,13 +324,3 @@ export default function IlkGirisModal() {
   );
 }
 
-/**
- * İlk giriş gerekli mi? — şifre değiştirme veya foto yükleme yapılmamış mı?
- * Auth modal'i göstermek için kullanılan helper.
- */
-export function ilkGirisGerekli(kullanici: { mustChangePassword?: boolean; profilFotoUrl?: string } | null): boolean {
-  if (!kullanici) return false;
-  if (kullanici.mustChangePassword) return true;
-  if (!kullanici.profilFotoUrl) return true;
-  return false;
-}

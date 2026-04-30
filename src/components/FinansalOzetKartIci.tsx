@@ -56,7 +56,7 @@ export interface FinansalOzetKartIciProps {
   iskontoTutar?:  number;
   kdvOrani?:      number;
   kdvTutar?:      number;
-  toplamIndirim?: number;   // satır bazlı indirim — yalnızca screen'de gösterilir
+  toplamIndirim?: number;   // satır bazlı indirim
   genelToplam:    number;
   paraBirimi:     string;
   variant?:       'screen' | 'pdf';
@@ -81,7 +81,7 @@ export function FinansalOzetKartIci({
 }: FinansalOzetKartIciProps) {
   const screenColors = useColors();
   const isPdf   = variant === 'pdf';
-  const hasDetail = iskontoOrani > 0 || kdvOrani > 0 || (!isPdf && toplamIndirim > 0);
+  const hasDetail = iskontoOrani > 0 || kdvOrani > 0 || toplamIndirim > 0;
 
   const sym     = SEMBOL[paraBirimi]  ?? paraBirimi;
   const pbLabel = PB_SHORT[paraBirimi] ?? paraBirimi;
@@ -325,6 +325,7 @@ export function FinansalOzetKartIci({
             {/* Üst: detay satırları — flow */}
             <div style={{ marginTop: '10px' }}>
               {detailRow('Ara Toplam', araToplam, cl.label, '')}
+              {toplamIndirim > 0 && detailRow('(-) İndirim', toplamIndirim, PDF_RED, '–')}
               {iskontoOrani > 0 && detailRow(`İskonto %${iskontoOrani}`, iskontoTutar, PDF_RED, '–')}
               {kdvOrani    > 0 && detailRow(`KDV %${kdvOrani}`,          kdvTutar,     PDF_GREEN, '+')}
             </div>

@@ -110,7 +110,6 @@ function canAccessFirma(ctx, firmaId) {
 // ── Kullanici sanitize: sifreHash'i UI'a gondermeden cikar ───────────────────
 function sanitizeUser(u) {
   if (!u) return null;
-  // eslint-disable-next-line no-unused-vars
   const { sifreHash, ...rest } = u;
   return rest;
 }

@@ -4,7 +4,8 @@ import { Spin } from 'antd';
 import AppLayout from './AppLayout';
 import GirisEkrani from './pages/GirisEkrani';
 import { useKullanici } from './context/useKullanici';
-import IlkGirisModal, { ilkGirisGerekli } from './components/IlkGirisModal';
+import IlkGirisModal from './components/IlkGirisModal';
+import { ilkGirisGerekli } from './utils/ilkGiris';
 
 // Lazy-loaded pages — ağır sayfalar başlangıçta yüklenmez
 const TeklifListesi = lazy(() => import('./pages/TeklifListesi'));
