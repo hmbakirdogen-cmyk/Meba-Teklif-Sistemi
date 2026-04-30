@@ -47,6 +47,10 @@ import {
   noBreak,
   rcCell,
   computeSetGroupPos,
+  computeMainItemIndex,
+  computeSetSubitemIndex,
+  renderSetSubitemNumber,
+  SET_SUBITEM_NUMBER_STYLE,
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
 } from './teklifDocumentShared';
@@ -384,7 +388,13 @@ function TableSection({
                 }}
               >
                 <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx, undefined, setGroupPos) })}>
-                  {String(idx + 1).padStart(2, '0')}
+                  {satir.setAltKalem ? (
+                    <span style={SET_SUBITEM_NUMBER_STYLE}>
+                      {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
+                    </span>
+                  ) : (
+                    String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')
+                  )}
                 </td>
                 <td style={withGroupCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.marka || '-'}

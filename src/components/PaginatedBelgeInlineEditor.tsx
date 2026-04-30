@@ -56,6 +56,10 @@ import {
   buildSettingsItems,
   getTableHeadCellStyle,
   computeSetGroupPos,
+  computeMainItemIndex,
+  computeSetSubitemIndex,
+  renderSetSubitemNumber,
+  SET_SUBITEM_NUMBER_STYLE,
 } from '../templates/teklifDocumentShared';
 import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
 import {
@@ -716,7 +720,15 @@ export default function PaginatedBelgeInlineEditor({
                     }}
                   >
                     <RowCell idx={idx} pos="first" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} style={withGroupCellStyle({ ...ROW_TEXT.no, cursor: 'pointer' })}>
-                      <span data-group-paint-trigger="true">{String(idx + 1).padStart(2, '0')}</span>
+                      {satir.setAltKalem ? (
+                        <span data-group-paint-trigger="true" style={SET_SUBITEM_NUMBER_STYLE}>
+                          {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
+                        </span>
+                      ) : (
+                        <span data-group-paint-trigger="true">
+                          {String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')}
+                        </span>
+                      )}
                     </RowCell>
                     <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('marka')} className={activeClass('marka')} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
                       {isActiveCell('marka') ? (

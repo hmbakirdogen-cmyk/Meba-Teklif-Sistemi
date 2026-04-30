@@ -453,6 +453,24 @@ export const ROW_CARD = {
   shadow:    '0 1px 2px rgba(0, 0, 0, 0.03)',
 } as const;
 
+/**
+ * Set bloğu için premium çerçeve renkleri ve ölçüleri.
+ * Set ana kalemi + alt kalemleri tek bir görsel grup oluşturur:
+ *  - Hafifçe sıcak bir arka plan tonu (kâğıt hissi)
+ *  - Daha belirgin ama yumuşak dış border (kurumsal his)
+ *  - Sol tarafta ince warm-gold vurgu çizgisi
+ *  - Alt kenarda hafif drop-shadow (setin bittiği net hissedilsin)
+ */
+export const SET_FRAME = {
+  bg:           '#FBF8F2',
+  borderClr:    '#C9BFA6',
+  borderWidth:  '0.9px',
+  accentClr:    '#9C8050',
+  accentWidth:  '2.5px',
+  radius:       '8px',
+  shadow:       '0 3px 8px rgba(120, 95, 50, 0.10)',
+} as const;
+
 export type CellPos = 'first' | 'mid' | 'last';
 
 /**
@@ -512,14 +530,86 @@ export function computeSetGroupPos(
   return null;
 }
 
+/**
+ * Ana teklif satır numaralandırması. Set alt kalemleri ana sayım dışında
+ * tutulur (ana satırlar 01, 02, 03... → "set ana" da bir ana satırdır,
+ * alt kalemler ise ana sayımı atlar). 1-based indeks döner.
+ *
+ * Örnek:
+ *   idx=0  normal           → 1
+ *   idx=1  set ana           → 2
+ *   idx=2  set alt kalem     → (parent ile aynı 2 — gösterilmez, sub idx kullanılır)
+ *   idx=3  set alt kalem     → 2
+ *   idx=4  normal next       → 3
+ */
+export function computeMainItemIndex(
+  rows: ReadonlyArray<SetGroupRow>,
+  index: number,
+): number {
+  let count = 0;
+  for (let i = 0; i <= index; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    if (!r.setAltKalem) count++;
+  }
+  return count;
+}
+
+/**
+ * Set alt kaleminin kendi setinin içinde 1'den başlayan numarası. Alt kalem
+ * değilse null döner. Her set kendi içinde 1, 2, 3 ... şeklinde numaralandırılır,
+ * ana teklif numaralandırmasını etkilemez.
+ */
+export function computeSetSubitemIndex(
+  rows: ReadonlyArray<SetGroupRow>,
+  index: number,
+): number | null {
+  const row = rows[index];
+  if (!row || !row.setAltKalem || !row.setAnaSatirId) return null;
+  let count = 0;
+  for (let i = 0; i <= index; i++) {
+    const r = rows[i];
+    if (r && r.setAltKalem && r.setAnaSatirId === row.setAnaSatirId) count++;
+  }
+  return count;
+}
+
+/**
+ * Set alt kalem numarasının görsel stili — küçük ama dikkat çekici, italik,
+ * warm-gold renkte. Premium kurumsal his.
+ */
+export const SET_SUBITEM_NUMBER_STYLE: CSSProperties = {
+  fontSize: '9.5px',
+  fontStyle: 'italic',
+  fontWeight: 700,
+  color: SET_FRAME.accentClr,
+  fontFamily: '"Georgia", "Times New Roman", serif',
+  fontVariantNumeric: 'tabular-nums',
+  letterSpacing: '0.04em',
+  whiteSpace: 'nowrap',
+  display: 'inline-flex',
+  alignItems: 'baseline',
+  gap: '2px',
+};
+
+/** Set alt kalem numarasını üreten yardımcı — örn. "›2" gösterir. */
+export function renderSetSubitemNumber(n: number): string {
+  return `›${n}`;
+}
+
 export function rcCell(
   pos: CellPos,
   idx = 0,
   rowHeight?: number,
   setGroupPos: SetGroupPos = null,
 ): CSSProperties {
-  const border = `0.75px solid ${ROW_CARD.borderClr}`;
-  const radius = ROW_CARD.radius;
+  const isInSetGroup = setGroupPos !== null;
+
+  // Set grubu için premium kurumsal stil; normal satırlar standart düzeni korur.
+  const borderColor = isInSetGroup ? SET_FRAME.borderClr : ROW_CARD.borderClr;
+  const borderWidth = isInSetGroup ? SET_FRAME.borderWidth : '0.75px';
+  const radius      = isInSetGroup ? SET_FRAME.radius : ROW_CARD.radius;
+  const border      = `${borderWidth} solid ${borderColor}`;
 
   // Personelin elle çektiği rowHeight varsa td'nin "height"i olur.
   // CSS table cell semantiğinde td height ZEMIN gibi davranır → içerik
@@ -535,26 +625,47 @@ export function rcCell(
   const isFirst = pos === 'first';
   const isLast  = pos === 'last';
 
+  // Set grubunun ilk kolonu sol tarafta ince warm-gold vurgu çizgisi taşır
+  // (kalın left border setin başlangıç-bitiş arasında kesintisiz uzanır).
+  const leftBorder = isFirst
+    ? (isInSetGroup
+        ? `${SET_FRAME.accentWidth} solid ${SET_FRAME.accentClr}`
+        : border)
+    : 'none';
+
+  // Set grubu satırları hafif sıcak ton arka plan (kâğıt hissi).
+  // Normal satırlar zebra (alt) deseni korur.
+  const background = isInSetGroup
+    ? SET_FRAME.bg
+    : (idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt);
+
+  // Drop shadow:
+  //  - Set grubunun en alt satırının ilk hücresinde premium soft shadow
+  //  - Normal satırların ilk hücresinde mevcut hafif shadow
+  //  - Grup ortası/üstünde shadow yok (frame'i bölmez)
+  const showShadow = isFirst && !hideBottomEdge;
+  const boxShadow = showShadow
+    ? (isInSetGroup ? SET_FRAME.shadow : ROW_CARD.shadow)
+    : 'none';
+
   return {
     // Sabit yükseklik yok; kısa açıklamalar min-height'te kalır,
     // 2. satıra düşen açıklama varsa sadece o satır büyür.
     minHeight:              LINE_ITEM_ROW_HEIGHT,
     ...heightStyle,
     boxSizing:              'border-box',
-    background:             idx % 2 === 0 ? ROW_CARD.bg : DOCUMENT_COLORS.rowAlt,
+    background,
     printColorAdjust:       'exact',
     WebkitPrintColorAdjust: 'exact',
     borderTop:              hideTopEdge    ? 'none' : border,
     borderBottom:           hideBottomEdge ? 'none' : border,
-    borderLeft:             isFirst ? border : 'none',
+    borderLeft:             leftBorder,
     borderRight:            isLast  ? border : 'none',
     borderTopLeftRadius:    isFirst && !hideTopEdge    ? radius : 0,
     borderBottomLeftRadius: isFirst && !hideBottomEdge ? radius : 0,
     borderTopRightRadius:   isLast  && !hideTopEdge    ? radius : 0,
     borderBottomRightRadius: isLast && !hideBottomEdge ? radius : 0,
-    // Drop shadow yalnızca grubun en alt (veya tekil) satırının ilk hücresinde:
-    // grubun ortasında/üstünde shadow olursa frame'i bölen iç gölge oluşur.
-    boxShadow: isFirst && !hideBottomEdge ? ROW_CARD.shadow : 'none',
+    boxShadow,
   };
 }
 

@@ -29,6 +29,10 @@ import {
   PARTY_BODY_STYLE,
   rcCell,
   computeSetGroupPos,
+  computeMainItemIndex,
+  computeSetSubitemIndex,
+  renderSetSubitemNumber,
+  SET_SUBITEM_NUMBER_STYLE,
   SETTINGS_GRID_STYLE,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
@@ -517,7 +521,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   ...rcCell('first', idx, undefined, setGroupPos),
                 })}>
-                  {String(idx + 1).padStart(2, '0')}
+                  {satir.setAltKalem ? (
+                    <span style={SET_SUBITEM_NUMBER_STYLE}>
+                      {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
+                    </span>
+                  ) : (
+                    String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')
+                  )}
                 </td>
                 {/* Marka */}
                 <td style={withGroupCellStyle({
