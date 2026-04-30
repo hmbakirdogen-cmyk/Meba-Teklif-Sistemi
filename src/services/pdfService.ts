@@ -1,38 +1,54 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-const MAX_PDF_BYTES = 1024 * 1024;
+/**
+ * pdfService — A4 önizlemesini lossless PDF'e çevirir.
+ *
+ * Standart "PDF İndir" akışı:
+ *   - Her sayfa html2canvas ile dinamik scale (devicePixelRatio × 3, 3–9 arası)
+ *     yüksekliğinde raster edilir.
+ *   - Çıktı doğrudan PNG (lossless) olarak jsPDF'e gömülür → addImage('PNG', …,
+ *     'NONE'). PDF stream'i jsPDF'in lossless flate sıkıştırmasıyla küçülür.
+ *   - Hiçbir kalite kaybı yok; dosya boyutu serbest.
+ *
+ * E-posta akışı (buildEmailPdf):
+ *   - Önce PNG dener; ≤ 1 MB ise döner. Aksi halde JPEG quality + hafif
+ *     downscale zinciriyle (0.95 → 0.92 → 0.88 → 0.85) en iyi sığan halini
+ *     döndürür.
+ *
+ * Yazdırma (buildPrintImages):
+ *   - PNG döndürür; iframe ile @page A4 portrait basar.
+ */
 
-export const HTML2CANVAS_OPTIONS = {
-  scale: 4.5,
+/** E-posta PDF için maksimum dosya boyutu (SMTP eklerinde minimum sürtünme). */
+const EMAIL_MAX_BYTES = 1024 * 1024;
+
+/**
+ * Aktif ekran/cihaz pixel oranına göre html2canvas scale değeri.
+ * 1× ekran → 3, 2× retina → 6, 3× → 9 (üst sınır 9). Daha yüksek scale =
+ * daha keskin metin ve ince çizgi, ama bellek/CPU lineer artar.
+ */
+function getOptimalScale(): number {
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  return Math.min(9, Math.max(3, Math.ceil(dpr * 3)));
+}
+
+/**
+ * Tüm html2canvas çağrılarında ortak olan baz seçenekler. `scale` her render
+ * öncesi `getOptimalScale()` ile dinamik atanır.
+ */
+const HTML2CANVAS_BASE_OPTIONS = {
   useCORS: true,
-  logging: false,
-  backgroundColor: '#ffffff',
   allowTaint: false,
-  imageTimeout: 30000,
+  logging: false,
+  // backgroundColor null → transparent destekle. DOCUMENT_ROOT_STYLE zaten
+  // arka planı beyaz yapıyor, bu sadece transparent piksellerin doğru
+  // composite olmasını sağlar.
+  backgroundColor: null,
+  imageTimeout: 60000,
   foreignObjectRendering: false,
-  letterRendering: false,
-  rendererType: 'canvas' as const,
-};
-
-const PDF_HTML2CANVAS_OPTIONS = {
-  ...HTML2CANVAS_OPTIONS,
-  // Standart PDF indirme akisinda metin keskinligini artir.
-  scale: 7,
-};
-
-const PRINT_HTML2CANVAS_OPTIONS = {
-  ...HTML2CANVAS_OPTIONS,
-  scale: 6,
-};
-
-const EMAIL_HTML2CANVAS_OPTIONS = {
-  ...HTML2CANVAS_OPTIONS,
-  // Email PDF'inde de yüksek çözünürlük tercih edildi (eskiden 4.2 ile
-  // ~85 DPI çıkıyordu — font kenarları yumuşak, pixelated görünüm).
-  // 5.5 ile ~155 DPI; JPEG attempts cap'i (1 MB) aşılırsa downscale devreye girer.
-  scale: 5.5,
-};
+  letterRendering: true,
+} as const;
 
 type JpegAttempt = {
   quality: number;
@@ -40,56 +56,56 @@ type JpegAttempt = {
   compression: 'NONE' | 'FAST' | 'MEDIUM';
 };
 
-const STANDARD_JPEG_ATTEMPTS: JpegAttempt[] = [
-  { quality: 0.94, downscale: 1, compression: 'MEDIUM' },
-  { quality: 0.9, downscale: 0.96, compression: 'MEDIUM' },
-  { quality: 0.86, downscale: 0.92, compression: 'FAST' },
-  { quality: 0.82, downscale: 0.88, compression: 'FAST' },
-  { quality: 0.78, downscale: 0.84, compression: 'FAST' },
-  { quality: 0.74, downscale: 0.8, compression: 'FAST' },
-];
-
+/** E-posta için JPEG fallback zinciri — yüksek kaliteden başlayarak iner. */
 const EMAIL_JPEG_ATTEMPTS: JpegAttempt[] = [
-  { quality: 0.9, downscale: 0.94, compression: 'MEDIUM' },
-  { quality: 0.86, downscale: 0.9, compression: 'FAST' },
-  { quality: 0.82, downscale: 0.86, compression: 'FAST' },
-  { quality: 0.78, downscale: 0.82, compression: 'FAST' },
-  { quality: 0.74, downscale: 0.78, compression: 'FAST' },
+  { quality: 0.95, downscale: 1.0,  compression: 'MEDIUM' },
+  { quality: 0.92, downscale: 0.95, compression: 'MEDIUM' },
+  { quality: 0.88, downscale: 0.90, compression: 'FAST' },
+  { quality: 0.85, downscale: 0.86, compression: 'FAST' },
 ];
 
+/**
+ * html2canvas'ın oluşturduğu DOM kopyasında ekrandaki kalite ipuçlarını
+ * çoğaltır: print-color-adjust, font kerning/smoothing, geometric text
+ * rendering. Logo gibi <img>'lerde imageRendering 'auto' (lanczos) korunur.
+ */
 function applyCloneQualityFixes(clonedEl: HTMLElement): void {
-  // Print CSS'i zorla uygula
   if (clonedEl.style) {
     clonedEl.style.setProperty('-webkit-print-color-adjust', 'exact');
     clonedEl.style.printColorAdjust = 'exact';
     clonedEl.style.setProperty('color-adjust', 'exact');
   }
 
-  // Tüm elements için font-family preserve et
-  const allElements = clonedEl.querySelectorAll('*');
+  const allElements = clonedEl.querySelectorAll<HTMLElement>('*');
   allElements.forEach((el) => {
     const computed = window.getComputedStyle(el);
     const ff = computed.fontFamily;
     if (ff && ff !== 'serif') {
-      (el as HTMLElement).style.fontFamily = ff;
+      el.style.fontFamily = ff;
     }
-    (el as HTMLElement).style.textRendering = 'geometricPrecision';
+    el.style.textRendering = 'geometricPrecision';
+    el.style.setProperty('-webkit-font-smoothing', 'antialiased');
+    el.style.setProperty('-moz-osx-font-smoothing', 'grayscale');
+    el.style.fontKerning = 'normal';
+    el.style.setProperty('font-feature-settings', '"kern" 1');
   });
 
   clonedEl.style.overflow = 'visible';
 
-  // Görseller için doğal render
-  const images = clonedEl.querySelectorAll('img');
+  const images = clonedEl.querySelectorAll<HTMLElement>('img');
   images.forEach((img) => {
-    (img as HTMLElement).style.imageRendering = 'auto';
-    (img as HTMLElement).style.setProperty('-webkit-print-color-adjust', 'exact');
+    img.style.imageRendering = 'auto';
+    img.style.setProperty('-webkit-print-color-adjust', 'exact');
   });
 }
 
-async function renderPageCanvases(
-  pagedRootEl: HTMLElement,
-  renderOptions: typeof HTML2CANVAS_OPTIONS,
-): Promise<HTMLCanvasElement[]> {
+/**
+ * pagedRootEl içinde `data-pdf-page="true"` markerli her sayfayı ayrı bir
+ * canvas'a render eder. Sayfa kırma mantığı template tarafında önceden
+ * hesaplanmıştır; burada sadece her sayfa elementi kendi A4 ölçüsünde
+ * raster edilir.
+ */
+async function renderPageCanvases(pagedRootEl: HTMLElement): Promise<HTMLCanvasElement[]> {
   await document.fonts.ready;
 
   const pageEls = Array.from(
@@ -100,16 +116,19 @@ async function renderPageCanvases(
     throw new Error('PDF sayfalari bulunamadi.');
   }
 
+  const scale = getOptimalScale();
   const canvases: HTMLCanvasElement[] = [];
 
   for (let i = 0; i < pageEls.length; i += 1) {
     const el = pageEls[i];
     const rect = el.getBoundingClientRect();
-    const renderWidth = Math.max(1, Math.round(rect.width || el.scrollWidth || el.offsetWidth || Math.round(210 * (96 / 25.4))));
+    // CSS pixel → integer (subpixel boyut blur yapar)
+    const renderWidth  = Math.max(1, Math.round(rect.width  || el.scrollWidth  || el.offsetWidth  || Math.round(210 * (96 / 25.4))));
     const renderHeight = Math.max(1, Math.round(rect.height || el.scrollHeight || el.offsetHeight || Math.round(297 * (96 / 25.4))));
 
     const canvas = await html2canvas(el, {
-      ...renderOptions,
+      ...HTML2CANVAS_BASE_OPTIONS,
+      scale,
       width: renderWidth,
       height: renderHeight,
       windowWidth: renderWidth,
@@ -127,6 +146,12 @@ async function renderPageCanvases(
   return canvases;
 }
 
+/** Canvas → lossless PNG data URL. */
+function encodeCanvasToPng(canvas: HTMLCanvasElement): string {
+  return canvas.toDataURL('image/png');
+}
+
+/** Canvas → JPEG (e-posta fallback). Hafif downscale destekli. */
 function encodeCanvasToJpeg(
   sourceCanvas: HTMLCanvasElement,
   quality: number,
@@ -136,10 +161,10 @@ function encodeCanvasToJpeg(
     return sourceCanvas.toDataURL('image/jpeg', quality);
   }
 
-  const targetWidth = Math.max(1, Math.round(sourceCanvas.width * downscale));
+  const targetWidth  = Math.max(1, Math.round(sourceCanvas.width  * downscale));
   const targetHeight = Math.max(1, Math.round(sourceCanvas.height * downscale));
   const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = targetWidth;
+  tempCanvas.width  = targetWidth;
   tempCanvas.height = targetHeight;
   const context = tempCanvas.getContext('2d');
   if (!context) {
@@ -152,38 +177,74 @@ function encodeCanvasToJpeg(
   return tempCanvas.toDataURL('image/jpeg', quality);
 }
 
+/**
+ * Sayfa görüntüleri (PNG veya JPEG) ile A4 portrait jsPDF üretir.
+ * compress=true → PDF stream lossless flate sıkıştırması (kalite kaybı yok).
+ */
 function buildPdfFromImages(
   pageImages: string[],
-  compression: 'NONE' | 'FAST' | 'MEDIUM',
-  pdfCompress: boolean,
-  precision: number,
+  imageType: 'PNG' | 'JPEG',
+  imageCompression: 'NONE' | 'FAST' | 'MEDIUM',
 ): jsPDF {
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: pdfCompress, precision });
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    compress: true,
+    precision: 16,
+  });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = pdf.internal.pageSize.getHeight();
 
   for (let i = 0; i < pageImages.length; i += 1) {
     if (i > 0) pdf.addPage();
     const imgData = pageImages[i];
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH, undefined, compression);
+    pdf.addImage(imgData, imageType, 0, 0, pdfW, pdfH, undefined, imageCompression);
   }
 
   return pdf;
 }
 
-function buildCappedJpegPdf(
-  canvases: HTMLCanvasElement[],
-  attempts: JpegAttempt[],
-  pdfCompress: boolean,
-  precision: number,
-): { pdf: jsPDF; pageImages: string[] } {
+/**
+ * Standart "PDF İndir" akışı — lossless PNG, dosya boyutu sınırı yok.
+ * Ekrandaki A4 önizlemesi ile PDF arasında gözle fark edilebilir kalite
+ * kaybı bulunmaz.
+ */
+export async function buildPdf(
+  pagedRootEl: HTMLElement,
+): Promise<{ pdf: jsPDF; pageImages: string[] }> {
+  const canvases = await renderPageCanvases(pagedRootEl);
+  const pageImages = canvases.map(encodeCanvasToPng);
+  const pdf = buildPdfFromImages(pageImages, 'PNG', 'NONE');
+  return { pdf, pageImages };
+}
+
+/**
+ * E-posta PDF — 1 MB cap'e sığmaya çalışır. Önce PNG; aşıyorsa yüksek
+ * kaliteden başlayan JPEG zinciri. Zincir hâlâ aşıyorsa en küçük JPEG
+ * çıktısını döndürür.
+ */
+export async function buildEmailPdf(
+  pagedRootEl: HTMLElement,
+): Promise<{ pdf: jsPDF; pageImages: string[] }> {
+  const canvases = await renderPageCanvases(pagedRootEl);
+
+  // 1) PNG denemesi (lossless)
+  const pngImages = canvases.map(encodeCanvasToPng);
+  const pngPdf = buildPdfFromImages(pngImages, 'PNG', 'NONE');
+  const pngBytes = (pngPdf.output('arraybuffer') as ArrayBuffer).byteLength;
+  if (pngBytes <= EMAIL_MAX_BYTES) {
+    return { pdf: pngPdf, pageImages: pngImages };
+  }
+
+  // 2) JPEG zinciri — en yüksek kaliteden başla, cap'e sığan ilkini döndür
   let bestPdf: jsPDF | null = null;
   let bestImages: string[] = [];
   let bestBytes = Number.POSITIVE_INFINITY;
 
-  for (const attempt of attempts) {
-    const pageImages = canvases.map((canvas) => encodeCanvasToJpeg(canvas, attempt.quality, attempt.downscale));
-    const pdf = buildPdfFromImages(pageImages, attempt.compression, pdfCompress, precision);
+  for (const attempt of EMAIL_JPEG_ATTEMPTS) {
+    const pageImages = canvases.map((c) => encodeCanvasToJpeg(c, attempt.quality, attempt.downscale));
+    const pdf = buildPdfFromImages(pageImages, 'JPEG', attempt.compression);
     const bytes = (pdf.output('arraybuffer') as ArrayBuffer).byteLength;
 
     if (bytes < bestBytes) {
@@ -192,34 +253,23 @@ function buildCappedJpegPdf(
       bestImages = pageImages;
     }
 
-    if (bytes <= MAX_PDF_BYTES) {
+    if (bytes <= EMAIL_MAX_BYTES) {
       return { pdf, pageImages };
     }
   }
 
-  return {
-    pdf: bestPdf ?? buildPdfFromImages(canvases.map((canvas) => encodeCanvasToJpeg(canvas, 0.78, 0.82)), 'FAST', pdfCompress, precision),
-    pageImages: bestImages.length > 0 ? bestImages : canvases.map((canvas) => encodeCanvasToJpeg(canvas, 0.78, 0.82)),
-  };
+  // 3) Hâlâ büyükse en küçük çıktıyı döndür (zincir bittiği için en agresif sıkıştırılmış)
+  if (bestPdf && bestImages.length > 0) {
+    return { pdf: bestPdf, pageImages: bestImages };
+  }
+  // Teorik fallback — buraya düşmemeli
+  return { pdf: pngPdf, pageImages: pngImages };
 }
 
-export async function buildPdf(
-  pagedRootEl: HTMLElement,
-): Promise<{ pdf: jsPDF; pageImages: string[] }> {
-  const canvases = await renderPageCanvases(pagedRootEl, PDF_HTML2CANVAS_OPTIONS);
-  return buildCappedJpegPdf(canvases, STANDARD_JPEG_ATTEMPTS, true, 14);
-}
-
-export async function buildEmailPdf(
-  pagedRootEl: HTMLElement,
-): Promise<{ pdf: jsPDF; pageImages: string[] }> {
-  const canvases = await renderPageCanvases(pagedRootEl, EMAIL_HTML2CANVAS_OPTIONS);
-  return buildCappedJpegPdf(canvases, EMAIL_JPEG_ATTEMPTS, true, 12);
-}
-
+/** Yazdırma için her sayfanın PNG data URL'ini döndürür. */
 export async function buildPrintImages(
   pagedRootEl: HTMLElement,
 ): Promise<string[]> {
-  const canvases = await renderPageCanvases(pagedRootEl, PRINT_HTML2CANVAS_OPTIONS);
-  return canvases.map((canvas) => canvas.toDataURL('image/png'));
+  const canvases = await renderPageCanvases(pagedRootEl);
+  return canvases.map(encodeCanvasToPng);
 }
