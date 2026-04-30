@@ -1006,9 +1006,7 @@ export default function PaginatedBelgeInlineEditor({
       <table style={{
         width: '100%', borderCollapse: 'collapse',
         marginTop: '10px', marginBottom: '14px',
-        tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
-        borderTop: `1px solid ${C.border}`,
-        borderBottom: `1px solid ${C.border}`,
+        tableLayout: 'fixed', border: 'none',
         printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
       } as React.CSSProperties}>
         <colgroup><col style={{ width: '56%' }} /><col /></colgroup>
