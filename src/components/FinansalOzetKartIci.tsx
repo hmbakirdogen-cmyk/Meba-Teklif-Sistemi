@@ -24,7 +24,6 @@ const RED   = '#b45309';
 const GREEN = '#0f766e';
 
 // PDF renkleri — açık krem zemin üzerinde koyu varyantlar
-const PDF_GOLD  = '#92400e';
 const PDF_RED   = '#b45309';
 const PDF_GREEN = '#15803d';
 
@@ -325,17 +324,28 @@ export function FinansalOzetKartIci({
             }} />
           </>
         ) : (
-          <span style={{
-            position: 'absolute',
-            top: '8px',
-            left: '12px',
-            fontSize: '8px',
-            fontWeight: 600,
-            color: PDF_GOLD,
-            lineHeight: 1,
-          }}>
-            Genel Toplam
-          </span>
+          // satirBazliParaBirimi pasif iken (TotalsCard light variant) ile birebir
+          // aynı tipografi: 10px / 700 / uppercase / 0.08em / navy + 7.5px subtitle.
+          <div style={{ position: 'absolute', top: '8px', left: '12px' }}>
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#1A2B42',
+              lineHeight: 1.1,
+            }}>
+              Genel Toplam
+            </div>
+            <div style={{
+              fontSize: '7.5px',
+              color: '#717176',
+              lineHeight: 1.2,
+              marginTop: '1px',
+            }}>
+              Grand Total
+            </div>
+          </div>
         )}
 
         {/* Total — ABSOLUTE bottom-right, sembol + sayı kendi içinde flex */}
@@ -370,16 +380,28 @@ export function FinansalOzetKartIci({
           {kdvOrani    > 0 && detailRow(kdvLabel,      kdvTutar,     GREEN, '+')}
         </div>
       ) : (
-        <span style={{
-          display: 'block',
-          fontSize: '14px',
-          fontWeight: 600,
-          color: GOLD,
-          letterSpacing: '0',
-          lineHeight: 1,
-        }}>
-          Genel Toplam
-        </span>
+        // satirBazliParaBirimi pasif iken (TotalsCard light variant) ile birebir
+        // aynı tipografi: 10px / 700 / uppercase / 0.08em / navy + 7.5px subtitle.
+        <div>
+          <div style={{
+            fontSize: '10px',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: '#1A2B42',
+            lineHeight: 1.1,
+          }}>
+            Genel Toplam
+          </div>
+          <div style={{
+            fontSize: '7.5px',
+            color: '#717176',
+            lineHeight: 1.2,
+            marginTop: '1px',
+          }}>
+            Grand Total
+          </div>
+        </div>
       )}
 
       {/* Ayırıcı — sadece detay varken, sabit Y */}
