@@ -699,7 +699,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <table style={{
         width: '100%',
         borderCollapse: 'collapse',
-        marginTop: '10px',
+        marginTop: '32px',
         marginBottom: '14px',
         tableLayout: 'fixed',
         border: 'none',
