@@ -5,11 +5,8 @@ import { useKullanici } from '../context/useKullanici';
 import { useIsMobile } from '../hooks/useIsMobile';
 import type { Firma } from '../types/firma';
 import type { Kullanici } from '../types/kullanici';
-import {
-  FIRMA_KART_LAYOUT,
-  FIRMA_KART_LOGO_BOX_STYLE,
-  firmaLogoImgStyle,
-} from '../components/FirmaSecimKartLayout';
+import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
+import { LogoContainer } from '../components/LogoContainer';
 
 type Adim = 'firma' | 'kullanici' | 'sifre';
 
@@ -496,18 +493,14 @@ function FirmaKarti({ firma, onSecim, isMobile }: {
         }} />
       )}
       {/* Logo — splash ekranı ile birebir aynı kutu/boyut/konum */}
-      <div style={FIRMA_KART_LOGO_BOX_STYLE}>
-        <img
-          src={firma.logoPath}
-          alt={firma.kisaAd}
-          style={firmaLogoImgStyle(
-            firma,
-            hovered
-              ? `drop-shadow(0 4px 14px ${haloColor}44)`
-              : 'drop-shadow(0 2px 8px rgba(0,0,0,0.45))',
-          )}
-        />
-      </div>
+      <LogoContainer
+        firma={firma}
+        imgFilter={
+          hovered
+            ? `drop-shadow(0 4px 14px ${haloColor}44)`
+            : 'drop-shadow(0 1px 2px rgba(0,0,0,0.10))'
+        }
+      />
       {/* Slogan — MEBA için sonuna parlayan "Yazılım" eklenir, aynı stilde */}
       <div style={{
         fontSize: 10, letterSpacing: 1.6,
@@ -667,27 +660,11 @@ export default function GirisEkrani() {
       {adim === 'sifre' && secilenFirma && (
         <div style={ortaPanelStyle}>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 14,
+            display: 'flex', alignItems: 'center', gap: 18,
             marginBottom: 22, paddingBottom: 18,
             borderBottom: `1px solid ${gold(0.12)}`,
           }}>
-            <div style={{
-              height: 78, width: 178,
-              padding: '4px 8px',
-              display: 'flex',
-              alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-              boxSizing: 'border-box',
-            }}>
-              <img src={secilenFirma.logoPath} alt={secilenFirma.kisaAd} style={{
-                width: '100%', height: '100%', objectFit: 'contain',
-                imageRendering: 'auto',
-                WebkitBackfaceVisibility: 'hidden',
-                backfaceVisibility: 'hidden',
-                transform: `scale(${secilenFirma.logoScale ?? 1}) translateZ(0)`,
-                transformOrigin: 'center',
-                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))',
-              }} />
-            </div>
+            <LogoContainer firma={secilenFirma} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(225,235,250,0.92)' }}>
                 {secilenFirma.ad}

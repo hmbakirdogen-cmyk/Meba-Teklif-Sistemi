@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
-import {
-  FIRMA_KART_LAYOUT,
-  FIRMA_KART_LOGO_BOX_STYLE,
-  firmaLogoImgStyle,
-} from './FirmaSecimKartLayout';
+import { FIRMA_KART_LAYOUT } from './FirmaSecimKartLayout';
+import { LogoContainer } from './LogoContainer';
 
 /**
  * SplashScreen — uygulama her açılışında oynayan görkemli intro animasyonu.
@@ -203,9 +200,8 @@ function SplashContent({ firmalar, onDone, onSkip }: {
                 boxShadow: '0 22px 50px rgba(0,0,0,0.55)',
                 boxSizing: 'border-box',
               }}>
-                <div style={FIRMA_KART_LOGO_BOX_STYLE}>
-                  <img src={f.logoPath} alt={f.kisaAd} style={firmaLogoImgStyle(f)} />
-                </div>
+                <LogoContainer firma={f} />
+
                 <div style={{
                   fontSize: FIRMA_KART_LAYOUT.sloganFontSize,
                   letterSpacing: FIRMA_KART_LAYOUT.sloganLetterSpacing,

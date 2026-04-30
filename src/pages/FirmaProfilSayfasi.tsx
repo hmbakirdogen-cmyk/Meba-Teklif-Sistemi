@@ -3,11 +3,8 @@ import { Card, Form, Input, Button, message, Tabs, Avatar, Tag } from 'antd';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
-import {
-  FIRMA_KART_LAYOUT,
-  FIRMA_KART_LOGO_BOX_STYLE,
-  firmaLogoImgStyle,
-} from '../components/FirmaSecimKartLayout';
+import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
+import { LogoContainer } from '../components/LogoContainer';
 
 export default function FirmaProfilSayfasi() {
   const { aktifKullanici } = useKullanici();
@@ -100,17 +97,7 @@ function FirmaForm({ firma, onSave }: { firma: Firma; onSave: (patch: Partial<Fi
         gap: FIRMA_KART_LAYOUT.cardInnerGap,
         boxSizing: 'border-box',
       }}>
-        <div style={{
-          ...FIRMA_KART_LOGO_BOX_STYLE,
-          background: '#fff',
-          borderRadius: 8,
-        }}>
-          <img
-            src={firma.logoPath}
-            alt={firma.kisaAd}
-            style={firmaLogoImgStyle(firma, 'drop-shadow(0 2px 6px rgba(0,0,0,0.10))')}
-          />
-        </div>
+        <LogoContainer firma={firma} />
         <div style={{ fontSize: 13, fontWeight: 600 }}>{firma.ad}</div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{firma.slogan}</div>
         <div style={{ marginTop: 10 }}>
