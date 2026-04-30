@@ -551,6 +551,9 @@ export default function TeklifEditor() {
           onGrupModuDegistir={setGrupModuAktif}
           grupRenk={seciliGrupRenk}
           onGrupRenkDegistir={setSeciliGrupRenk}
+          kullanilanGrupRenkleri={
+            Array.from(new Set(state.satirlar.map((s) => s.grupRenk).filter((r): r is SatirGrupRenk => !!r)))
+          }
           sagPanelOpen={state.panelModu !== null}
           onResimEkle={handleResimEkle}
           visibility={state.visibility}

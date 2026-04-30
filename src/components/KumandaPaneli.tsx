@@ -12,18 +12,15 @@ import type { SatirGrupRenk } from '../types';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
+// Grup renkleri için sabit döngü sırası — yeni grup için ilk kullanılmamış
+// rengi soldan sağa doğru tarayarak otomatik atar. Sırada yumuşak/kurumsal,
+// görsel olarak rahat ayrılan tonlar var (sıcak → soğuk dağılım).
 const SATIR_GRUP_RENK_DONGUSU: SatirGrupRenk[] = ['amber', 'mint', 'sky', 'lavender'];
 const SATIR_GRUP_RENK_ETIKETI: Record<SatirGrupRenk, string> = {
   amber: 'Kehribar',
   mint: 'Mint',
   sky: 'Mavi',
   lavender: 'Mor',
-};
-const SATIR_GRUP_RENK_SWATCH: Record<SatirGrupRenk, { bg: string; border: string }> = {
-  amber: { bg: '#d97706', border: '#f59e0b' },
-  mint: { bg: '#059669', border: '#10b981' },
-  sky: { bg: '#2563eb', border: '#60a5fa' },
-  lavender: { bg: '#7c3aed', border: '#a78bfa' },
 };
 
 const K = {
@@ -57,6 +54,9 @@ interface KumandaPaneliProps {
   onGrupModuDegistir: (v: boolean) => void;
   grupRenk: SatirGrupRenk;
   onGrupRenkDegistir: (v: SatirGrupRenk) => void;
+  /** Bu teklifte halihazırda kullanılmış grup renkleri — yeni grup için
+   *  en farklı (kullanılmayan) renk otomatik seçimi için. */
+  kullanilanGrupRenkleri: SatirGrupRenk[];
   sagPanelOpen: boolean;
   onResimEkle: (dataUrl: string) => void;
   /** Görünürlük yetkisi: 'team' = ekibe açık (toggle ON), 'private' = gizli (OFF). */
@@ -72,13 +72,13 @@ export default function KumandaPaneli({
   satirBazliIskonto, onSatirBazliIskontoDegistir,
   grupModuAktif, onGrupModuDegistir,
   grupRenk, onGrupRenkDegistir,
+  kullanilanGrupRenkleri,
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
 }: KumandaPaneliProps) {
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
-  const [grupRenkPenceresiAcik, setGrupRenkPenceresiAcik] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
   // Genel Finans, Paylaşım) varsayılan KAPALI. Genişletme butonuyla açılır.
@@ -126,21 +126,25 @@ export default function KumandaPaneli({
     onIskontoOraniDegistir(lastIsk);
   };
 
+  // Grup modu butonu — toggle:
+  //  - Pasif iken: bu teklifte kullanılmamış ilk renk otomatik atanır,
+  //    grup modu aktif olur. Renk seçici/palet açılmaz.
+  //  - Aktif iken: grup modu pasif olur.
+  // Kullanılan tüm renkler doluysa, mevcut grupRenk'in bir sonrası seçilir
+  // (cycle) — kullanıcı yine en az çakışan rengi alır.
   const handleGrupModuButonu = () => {
-    if (!grupModuAktif) {
-      onGrupModuDegistir(true);
+    if (grupModuAktif) {
+      onGrupModuDegistir(false);
+      return;
     }
-    setGrupRenkPenceresiAcik(true);
-  };
-
-  const handleGrupRenkSec = (renk: SatirGrupRenk) => {
-    onGrupRenkDegistir(renk);
-    setGrupRenkPenceresiAcik(false);
-  };
-
-  const handleGrupModunuKapat = () => {
-    onGrupModuDegistir(false);
-    setGrupRenkPenceresiAcik(false);
+    const used = new Set<SatirGrupRenk>(kullanilanGrupRenkleri);
+    const otomatikRenk =
+      SATIR_GRUP_RENK_DONGUSU.find((r) => !used.has(r))
+      ?? SATIR_GRUP_RENK_DONGUSU[
+           (SATIR_GRUP_RENK_DONGUSU.indexOf(grupRenk) + 1) % SATIR_GRUP_RENK_DONGUSU.length
+         ];
+    if (otomatikRenk !== grupRenk) onGrupRenkDegistir(otomatikRenk);
+    onGrupModuDegistir(true);
   };
 
   const onResimSec = () => fileInputRef.current?.click();
@@ -1354,63 +1358,6 @@ export default function KumandaPaneli({
         )}
       </div>
 
-      {grupRenkPenceresiAcik && !readOnly && (
-        <div
-          className="group-color-dialog-overlay"
-          role="presentation"
-          onClick={() => setGrupRenkPenceresiAcik(false)}
-        >
-          <div
-            className="group-color-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Grup rengi sec"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h4 className="group-color-dialog__title">Grup rengi seçin</h4>
-            <p className="group-color-dialog__hint">Renk seçince grup modu açık kalır ve satırlara direkt uygulanır.</p>
-
-            <div className="group-color-dialog__grid">
-              {SATIR_GRUP_RENK_DONGUSU.map((renk) => {
-                const swatch = SATIR_GRUP_RENK_SWATCH[renk];
-                return (
-                  <button
-                    key={renk}
-                    type="button"
-                    className={`group-color-option${grupRenk === renk ? ' is-selected' : ''}`}
-                    onClick={() => handleGrupRenkSec(renk)}
-                    aria-label={`Grup rengi ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
-                    title={`Renk: ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
-                  >
-                    <span
-                      className="group-color-option__swatch"
-                      style={{ background: swatch.bg, borderColor: swatch.border }}
-                    />
-                    <span className="group-color-option__name">{SATIR_GRUP_RENK_ETIKETI[renk]}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="group-color-dialog__actions">
-              <button
-                type="button"
-                className="group-color-dialog__action close"
-                onClick={() => setGrupRenkPenceresiAcik(false)}
-              >
-                Kapat
-              </button>
-              <button
-                type="button"
-                className="group-color-dialog__action disable"
-                onClick={handleGrupModunuKapat}
-              >
-                Grup Modunu Kapat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
