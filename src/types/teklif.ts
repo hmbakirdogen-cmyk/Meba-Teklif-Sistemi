@@ -43,6 +43,11 @@ export interface Teklif {
   teslimSuresi?: string;
   gecerlilikSuresi?: string;
   notlar: string;
+  /** Not alanının A4 görünümünde ve PDF'te görünür olup olmadığı. Varsayılan
+   *  davranış: kayıtta tanımlı değilse, mevcut bir not metni varsa true,
+   *  yoksa false. (Geriye uyumluluk: eski teklifler not içeriyorsa görünür
+   *  kalır.) */
+  notlarGosterilsin?: boolean;
   olusturmaTarihi: string;
   guncellemeTarihi: string;
   pdfYolu?: string;

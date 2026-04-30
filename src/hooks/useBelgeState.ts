@@ -111,6 +111,7 @@ export interface BelgeState {
   satirBazliIskonto: boolean;
   durum: TeklifDurum;
   notlar: string;
+  notlarGosterilsin: boolean;
   kdvOrani: number;
   iskontoOrani: number;
   odemeVadesi: string;
@@ -167,6 +168,7 @@ interface BelgeActions {
   setDurum: (durum: TeklifDurum) => void;
   setTarih: (tarih: string) => void;
   setNotlar: (notlar: string) => void;
+  setNotlarGosterilsin: (v: boolean) => void;
 
   // Panel
   setPanelModu: (mod: PanelModu) => void;
@@ -221,6 +223,10 @@ export function useBelgeState(
   const [satirBazliIskonto, setSatirBazliIskontoState] = useState(mevcut?.satirBazliIskonto ?? false);
   const [durum, setDurumState] = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
   const [notlar, setNotlarState] = useState(mevcut?.notlar ?? '');
+  // Geriye uyumluluk: alan tanımlı değilse, mevcut not metni varsa görünür kalır
+  const [notlarGosterilsin, setNotlarGosterilsinState] = useState<boolean>(
+    mevcut?.notlarGosterilsin ?? !!(mevcut?.notlar && mevcut.notlar.trim().length > 0)
+  );
   const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? 0);
   const [iskontoOrani, setIskontoOraniState] = useState(mevcut?.iskontoOrani ?? 0);
   const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? '45 Gün');
@@ -325,6 +331,7 @@ export function useBelgeState(
       iskontoOrani,
       odemeVadesi,
       notlar: sanitizeMultilineText(notlar),
+      notlarGosterilsin,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
       hazirlayanKullaniciId: kullanici?.id,
@@ -352,6 +359,7 @@ export function useBelgeState(
     iskontoOrani,
     odemeVadesi,
     notlar,
+    notlarGosterilsin,
     olusturmaTarihi,
     kullanici,
     contactName,
@@ -558,6 +566,7 @@ export function useBelgeState(
       iskontoOrani,
       odemeVadesi,
       notlar: sanitizeMultilineText(notlar),
+      notlarGosterilsin,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
       hazirlayanKullaniciId: kullanici?.id,
@@ -571,7 +580,7 @@ export function useBelgeState(
       status,
       visibility,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller, status, visibility]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, gorseller, status, visibility]);
 
   /**
    * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
@@ -640,7 +649,8 @@ export function useBelgeState(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cari, satirlar, paraBirimi, satirBazliParaBirimi, satirBazliIskonto,
-    kdvOrani, iskontoOrani, odemeVadesi, notlar, contactName, contactTitle,
+    kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin,
+    contactName, contactTitle,
     tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility,
   ]);
 
@@ -657,6 +667,7 @@ export function useBelgeState(
     satirBazliIskonto,
     durum,
     notlar,
+    notlarGosterilsin,
     kdvOrani,
     iskontoOrani,
     odemeVadesi,
@@ -701,6 +712,7 @@ export function useBelgeState(
     setDurum: setDurumState,
     setTarih,
     setNotlar: setNotlarState,
+    setNotlarGosterilsin: setNotlarGosterilsinState,
     setPanelModu,
     setSeciliSatirId,
     setHoverSatirId,

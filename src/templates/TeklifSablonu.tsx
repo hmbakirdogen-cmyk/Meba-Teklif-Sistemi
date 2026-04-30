@@ -797,23 +797,25 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       )}
       </div>
 
-      {/* ══ NOT ALANI ════════════════════════════════════════════ */}
-      <div
-        id="pdf-notes-block"
-        data-alan="notlar"
-        style={{
-          ...NOTES_BOX_STYLE,
-          minHeight: teklif.notlar ? undefined : 44,
-          ...noBreak,
-        }}
-      >
-        {teklif.notlar ? (
-          <>
-            <strong style={{ color: C.navy }}>Notlar / Notes:&nbsp;</strong>
-            <span style={{ color: C.textMid }}>{teklif.notlar}</span>
-          </>
-        ) : null}
-      </div>
+      {/* ══ NOT ALANI — kontrol panelinden toggle ile yönetilir ══ */}
+      {teklif.notlarGosterilsin && (
+        <div
+          id="pdf-notes-block"
+          data-alan="notlar"
+          style={{
+            ...NOTES_BOX_STYLE,
+            minHeight: teklif.notlar ? undefined : 44,
+            ...noBreak,
+          }}
+        >
+          {teklif.notlar ? (
+            <>
+              <strong style={{ color: C.navy }}>Notlar / Notes:&nbsp;</strong>
+              <span style={{ color: C.textMid }}>{teklif.notlar}</span>
+            </>
+          ) : null}
+        </div>
+      )}
 
       {/* ══ KAŞE / İMZA + FOOTER ═════════════════════════════════ */}
       {/* pdf-bottom-block: PDF pipeline bu bloğun DOM pozisyonunu      */}

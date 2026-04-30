@@ -57,6 +57,9 @@ interface KumandaPaneliProps {
   /** Bu teklifte halihazırda kullanılmış grup renkleri — yeni grup için
    *  en farklı (kullanılmayan) renk otomatik seçimi için. */
   kullanilanGrupRenkleri: SatirGrupRenk[];
+  /** Not alanının A4 görünümünde + PDF'te gösterilip gösterilmeyeceği. */
+  notlarGosterilsin: boolean;
+  onNotlarGosterilsinDegistir: (v: boolean) => void;
   sagPanelOpen: boolean;
   onResimEkle: (dataUrl: string) => void;
   /** Görünürlük yetkisi: 'team' = ekibe açık (toggle ON), 'private' = gizli (OFF). */
@@ -73,6 +76,7 @@ export default function KumandaPaneli({
   grupModuAktif, onGrupModuDegistir,
   grupRenk, onGrupRenkDegistir,
   kullanilanGrupRenkleri,
+  notlarGosterilsin, onNotlarGosterilsinDegistir,
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
 }: KumandaPaneliProps) {
@@ -1277,6 +1281,15 @@ export default function KumandaPaneli({
               onClick={handleGrupModuButonu}
               disabled={readOnly}
             />
+            <SquareToggle
+              labelLines={[]}
+              ariaLabel={notlarGosterilsin ? 'Not alanı gösteriliyor' : 'Not alanı gizli'}
+              extraClass="button-row-notes"
+              icon={<NotesToggleIcon />}
+              on={notlarGosterilsin}
+              onClick={() => onNotlarGosterilsinDegistir(!notlarGosterilsin)}
+              disabled={readOnly}
+            />
           </div>
         </section>
 
@@ -1368,6 +1381,16 @@ function GroupModeIcon() {
       <rect className="pi-body" x="9" y="10" width="46" height="44" rx="10" />
       <path className="pi-glyph" d="M20 24h24M20 33h16M20 42h20" />
       <circle className="pi-detail" cx="46" cy="33" r="4" />
+    </svg>
+  );
+}
+
+function NotesToggleIcon() {
+  return (
+    <svg className="premium-panel-icon" viewBox="0 0 64 64" aria-hidden="true">
+      <rect className="pi-body" x="12" y="9" width="40" height="46" rx="6" />
+      <path className="pi-glyph" d="M21 22h22M21 30h22M21 38h16" />
+      <path className="pi-detail" d="M40 44l4 4 8-8" />
     </svg>
   );
 }

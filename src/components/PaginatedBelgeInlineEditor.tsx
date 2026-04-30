@@ -1032,31 +1032,37 @@ export default function PaginatedBelgeInlineEditor({
       </table>
     );
 
-  const renderNotes = () => (
-    <div
-      data-alan="notlar"
-      onClick={(e) => handleAlanClick('notlar', e)}
-      style={{ ...NOTES_BOX_STYLE, minHeight: isNotlarEditing ? 60 : (teklif.notlar ? undefined : 44), ...noBreak, ...editFrameStyle(isNotlarEditing) } as React.CSSProperties}
-    >
-      {isNotlarEditing ? (
-        <div className="field-group">
-          <div style={{ fontSize: '8.5px', fontWeight: 700, color: C.navy, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.7 }}>
-            Notlar <span style={{ fontWeight: 400, opacity: 0.6 }}>/ Notes</span>
+  const renderNotes = () => {
+    // Toggle kapalıysa hiç render etme — A4 layout'unda hiç yer kaplamaz,
+    // pagination motoru #pdf-notes-block'u TeklifSablonu üzerinden ölçtüğü
+    // için sayfa kırılması da etkilenmez.
+    if (!teklif.notlarGosterilsin) return null;
+    return (
+      <div
+        data-alan="notlar"
+        onClick={(e) => handleAlanClick('notlar', e)}
+        style={{ ...NOTES_BOX_STYLE, minHeight: isNotlarEditing ? 60 : (teklif.notlar ? undefined : 44), ...noBreak, ...editFrameStyle(isNotlarEditing) } as React.CSSProperties}
+      >
+        {isNotlarEditing ? (
+          <div className="field-group">
+            <div style={{ fontSize: '8.5px', fontWeight: 700, color: C.navy, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.7 }}>
+              Notlar <span style={{ fontWeight: 400, opacity: 0.6 }}>/ Notes</span>
+            </div>
+            <Input.TextArea autoFocus variant="borderless" value={teklif.notlar} onChange={(e) => onNotlarDegistir(e.target.value)} autoSize={{ minRows: 2, maxRows: 8 }} style={{ fontSize: '12.5px', lineHeight: '1.65', color: C.textMid, padding: 0 }} placeholder="Not ekleyin..." />
           </div>
-          <Input.TextArea autoFocus variant="borderless" value={teklif.notlar} onChange={(e) => onNotlarDegistir(e.target.value)} autoSize={{ minRows: 2, maxRows: 8 }} style={{ fontSize: '12.5px', lineHeight: '1.65', color: C.textMid, padding: 0 }} placeholder="Not ekleyin..." />
-        </div>
-      ) : teklif.notlar ? (
-        <>
-          <strong style={{ color: C.navy, fontSize: '11px', letterSpacing: '0.02em' }}>Notlar / Notes:&nbsp;</strong>
-          <span style={{ color: C.textMid }}>{teklif.notlar}</span>
-        </>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 24 }}>
-          <span style={{ color: C.textMuted, fontStyle: 'italic', fontSize: '11px', opacity: 0.65 }}>Not eklemek için tıklayın...</span>
-        </div>
-      )}
-    </div>
-  );
+        ) : teklif.notlar ? (
+          <>
+            <strong style={{ color: C.navy, fontSize: '11px', letterSpacing: '0.02em' }}>Notlar / Notes:&nbsp;</strong>
+            <span style={{ color: C.textMid }}>{teklif.notlar}</span>
+          </>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 24 }}>
+            <span style={{ color: C.textMuted, fontStyle: 'italic', fontSize: '11px', opacity: 0.65 }}>Not eklemek için tıklayın...</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div

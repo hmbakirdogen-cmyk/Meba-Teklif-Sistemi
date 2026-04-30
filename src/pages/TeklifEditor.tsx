@@ -554,6 +554,8 @@ export default function TeklifEditor() {
           kullanilanGrupRenkleri={
             Array.from(new Set(state.satirlar.map((s) => s.grupRenk).filter((r): r is SatirGrupRenk => !!r)))
           }
+          notlarGosterilsin={state.notlarGosterilsin}
+          onNotlarGosterilsinDegistir={state.setNotlarGosterilsin}
           sagPanelOpen={state.panelModu !== null}
           onResimEkle={handleResimEkle}
           visibility={state.visibility}

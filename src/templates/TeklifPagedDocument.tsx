@@ -573,7 +573,9 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
 }
 
 function NotesBlock({ teklif }: { teklif: Teklif }) {
-  if (!teklif.notlar) return null;
+  // Toggle kapalı veya not metni boşsa hiç render etme — boş bir kutu PDF'e
+  // basılmaz, sayfa kırma motoru da bu durumda notesHeight=0 ölçer.
+  if (!teklif.notlarGosterilsin || !teklif.notlar) return null;
 
   return (
     <div style={{ ...NOTES_BOX_STYLE, ...noBreak }}>
