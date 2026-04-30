@@ -55,17 +55,6 @@ import {
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
 
-const SATIR_GRUP_GORSEL: Record<NonNullable<Teklif['satirlar'][number]['grupRenk']>, { bg: string; border: string; pattern: string }> = {
-  amber:    { bg: '#fff8eb', border: '#f4bf75', pattern: 'none' },
-  mint:     { bg: '#eefcf6', border: '#92ddbf', pattern: 'none' },
-  sky:      { bg: '#eef5ff', border: '#9ec1f7', pattern: 'none' },
-  lavender: { bg: '#f5f0ff', border: '#c5aff6', pattern: 'none' },
-  blush:    { bg: '#ffeff2', border: '#f4a8b6', pattern: 'none' },
-  peach:    { bg: '#fff2e8', border: '#fbb276', pattern: 'none' },
-  sage:     { bg: '#f0f4ec', border: '#a9b88c', pattern: 'none' },
-  slate:    { bg: '#eef1f4', border: '#94a3b8', pattern: 'none' },
-};
-
 interface TeklifSablonuProps {
   teklif: Teklif;
   totals: TeklifToplam;
@@ -468,24 +457,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           </tr>
           {teklif.satirlar.map((satir, idx) => {
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
-            const grupGorsel = satir.grupRenk ? SATIR_GRUP_GORSEL[satir.grupRenk] : null;
             const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
             // Spacer: bir sonraki satır farklı bir gruba/satıra ait ise 2px hava;
             // grup içinde değilse de aynen 2px (eski border-spacing davranışı).
             const isLast = idx === teklif.satirlar.length - 1;
             const renderSpacer = !isLast && setGroupPos !== 'top' && setGroupPos !== 'middle';
-            const withGroupCellStyle = (style: React.CSSProperties): React.CSSProperties => {
-              if (!grupGorsel) return style;
-              return {
-                ...style,
-                backgroundColor: grupGorsel.bg,
-                backgroundImage: grupGorsel.pattern,
-                borderTopColor: grupGorsel.border,
-                borderBottomColor: grupGorsel.border,
-                borderLeftColor: grupGorsel.border,
-                borderRightColor: grupGorsel.border,
-              };
-            };
+            const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
             return (
               <React.Fragment key={satir.id}>
               <tr
@@ -500,7 +477,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 }}
               >
                 {/* No */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -518,7 +495,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   )}
                 </td>
                 {/* Marka */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -530,7 +507,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   {satir.marka || '—'}
                 </td>
                 {/* Ürün Kodu — tek satır, içerik kadar geniş, kesilmez */}
-                <td className="product-code-cell" style={withGroupCellStyle({
+                <td className="product-code-cell" style={applyCellStyle({
                   padding: CELL_PAD,
                   fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`,
                   fontWeight: 600,
@@ -543,7 +520,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   {satir.urunKod || '—'}
                 </td>
                 {/* Açıklama — kalan tüm alan; kesilmez, önce tek satır, sığmazsa 2 satır */}
-                <td className="description-cell" style={withGroupCellStyle({
+                <td className="description-cell" style={applyCellStyle({
                   padding: CELL_PAD,
                   fontWeight: 400,
                   color: C.textMid,
@@ -554,7 +531,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
                 {/* Miktar */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11px',
@@ -575,7 +552,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   ) : '—'}
                 </td>
                 {/* Para Birimi (boş hücre değilse satirBazli'da etiket) */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -589,7 +566,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
                 {/* Birim Fiyat — alt kalem için boş, aksi halde değer */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -605,7 +582,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   })()}
                 </td>
                 {/* Toplam — alt kalem için boş */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -619,7 +596,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   {satir.setAltKalem ? '' : (satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '—')}
                 </td>
                 {/* Teslimat — son hücre, çerçevenin sağ kenarı */}
-                <td style={withGroupCellStyle({
+                <td style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',

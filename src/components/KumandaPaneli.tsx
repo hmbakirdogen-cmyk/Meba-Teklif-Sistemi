@@ -8,39 +8,8 @@ import {
   PremiumDiscountIcon,
   PremiumVisibilityIcon,
 } from './premium-icons';
-import type { SatirGrupRenk } from '../types';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
-
-// Grup renkleri — kurumsal yumuşak palet, birbirinden net ayrılan tonlar.
-// Sıcak: amber/peach/blush · Soğuk: sky/lavender/slate · Doğal: mint/sage
-const SATIR_GRUP_RENK_DONGUSU: SatirGrupRenk[] = [
-  'amber', 'mint', 'sky',
-  'lavender', 'blush', 'peach',
-  'sage', 'slate',
-];
-// Erişilebilirlik için aria-label'lerde kullanılır (görsel olarak yazı yok).
-const SATIR_GRUP_RENK_ETIKETI: Record<SatirGrupRenk, string> = {
-  amber:    'Kehribar',
-  mint:     'Mint',
-  sky:      'Mavi',
-  lavender: 'Mor',
-  blush:    'Pembe',
-  peach:    'Şeftali',
-  sage:     'Adaçayı',
-  slate:    'Çelik',
-};
-// Popover swatch görseli — SATIR_GRUP_GORSEL ile birebir aynı tonlar.
-const SATIR_GRUP_RENK_SWATCH: Record<SatirGrupRenk, { bg: string; border: string }> = {
-  amber:    { bg: '#fff8eb', border: '#f4bf75' },
-  mint:     { bg: '#eefcf6', border: '#92ddbf' },
-  sky:      { bg: '#eef5ff', border: '#9ec1f7' },
-  lavender: { bg: '#f5f0ff', border: '#c5aff6' },
-  blush:    { bg: '#ffeff2', border: '#f4a8b6' },
-  peach:    { bg: '#fff2e8', border: '#fbb276' },
-  sage:     { bg: '#f0f4ec', border: '#a9b88c' },
-  slate:    { bg: '#eef1f4', border: '#94a3b8' },
-};
 
 const K = {
   WIDTH: 154,
@@ -69,10 +38,6 @@ interface KumandaPaneliProps {
   onSatirBazliParaBirimiDegistir: (v: boolean) => void;
   satirBazliIskonto: boolean;
   onSatirBazliIskontoDegistir: (v: boolean) => void;
-  grupModuAktif: boolean;
-  onGrupModuDegistir: (v: boolean) => void;
-  grupRenk: SatirGrupRenk;
-  onGrupRenkDegistir: (v: SatirGrupRenk) => void;
   /** Not alanının A4 görünümünde + PDF'te gösterilip gösterilmeyeceği. */
   notlarGosterilsin: boolean;
   onNotlarGosterilsinDegistir: (v: boolean) => void;
@@ -89,8 +54,6 @@ export default function KumandaPaneli({
   iskontoOrani, onIskontoOraniDegistir,
   satirBazliParaBirimi, onSatirBazliParaBirimiDegistir,
   satirBazliIskonto, onSatirBazliIskontoDegistir,
-  grupModuAktif, onGrupModuDegistir,
-  grupRenk, onGrupRenkDegistir,
   notlarGosterilsin, onNotlarGosterilsinDegistir,
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
@@ -98,8 +61,6 @@ export default function KumandaPaneli({
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
-  const [grupRenkPenceresiAcik, setGrupRenkPenceresiAcik] = useState(false);
-  const grupWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
   // Genel Finans, Paylaşım) varsayılan KAPALI. Genişletme butonuyla açılır.
@@ -146,44 +107,6 @@ export default function KumandaPaneli({
     }
     onIskontoOraniDegistir(lastIsk);
   };
-
-  // Grup modu butonu — renk paletini açar. Pasif iken renk seçilince mod
-  // aktifleşir. Aktif iken paletten yeni renk seçmek mevcut grupRenk'i
-  // değiştirir; "Geri Al" seçeneği grup modunu pasif yapar.
-  const handleGrupModuButonu = () => {
-    setGrupRenkPenceresiAcik(true);
-  };
-
-  const handleGrupRenkSec = (renk: SatirGrupRenk) => {
-    onGrupRenkDegistir(renk);
-    if (!grupModuAktif) onGrupModuDegistir(true);
-    setGrupRenkPenceresiAcik(false);
-  };
-
-  const handleGrupModunuKapat = () => {
-    onGrupModuDegistir(false);
-    setGrupRenkPenceresiAcik(false);
-  };
-
-  // Outside click + Escape ile popover kapanır. grupWrapperRef hem butonu
-  // hem popover'ı içerdiği için tek contains() kontrolü yeterli.
-  useEffect(() => {
-    if (!grupRenkPenceresiAcik) return;
-    const onMouseDown = (e: MouseEvent) => {
-      const t = e.target as Node | null;
-      if (grupWrapperRef.current?.contains(t)) return;
-      setGrupRenkPenceresiAcik(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setGrupRenkPenceresiAcik(false);
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [grupRenkPenceresiAcik]);
 
   const onResimSec = () => fileInputRef.current?.click();
   const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -424,119 +347,10 @@ export default function KumandaPaneli({
         .control-panel button.button-row-discount { --button-accent: #d94f64; --button-glow: rgba(217,  79, 100, 0.32); }
         /* Purple → kurumsal teal/petrol mavisi */
         .control-panel button.button-row-currency { --button-accent: #3fb7a3; --button-glow: rgba( 63, 183, 163, 0.30); }
-        .control-panel button.button-row-group    { --button-accent: #7b8cf0; --button-glow: rgba(123, 140, 240, 0.30); }
         .control-panel button.button-tax          { --button-accent: #d8a24f; --button-glow: rgba(216, 162,  79, 0.30); }
         .control-panel button.button-discount     { --button-accent: #c46f48; --button-glow: rgba(196, 111,  72, 0.28); }
         /* Görünürlük (Paylaşım) — kurumsal slate-mavi (göz ikonu) */
         .control-panel button.button-visibility   { --button-accent: #6b8ba6; --button-glow: rgba(107, 139, 166, 0.28); }
-
-        .group-color-dialog-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(8, 5, 10, 0.48);
-          backdrop-filter: blur(5px);
-          -webkit-backdrop-filter: blur(5px);
-          z-index: 150;
-          display: grid;
-          place-items: center;
-          padding: 18px;
-        }
-
-        .group-color-dialog {
-          width: min(420px, calc(100vw - 30px));
-          border-radius: 18px;
-          border: 1px solid rgba(167, 139, 250, 0.45);
-          background:
-            radial-gradient(circle at 24% 0%, rgba(124, 58, 237, 0.22), transparent 45%),
-            linear-gradient(180deg, rgba(40, 14, 58, 0.95), rgba(20, 7, 30, 0.98));
-          box-shadow:
-            0 24px 70px rgba(0, 0, 0, 0.55),
-            0 0 34px rgba(167, 139, 250, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
-          padding: 18px;
-          color: var(--text-main);
-        }
-
-        .group-color-dialog__title {
-          margin: 0 0 6px;
-          font-size: 14px;
-          font-weight: 800;
-          letter-spacing: 0.02em;
-        }
-
-        .group-color-dialog__hint {
-          margin: 0 0 14px;
-          color: rgba(255, 220, 215, 0.82);
-          font-size: 12px;
-        }
-
-        .group-color-dialog__grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-
-        .group-color-option {
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          padding: 12px 10px;
-          background: rgba(255, 255, 255, 0.06);
-          color: var(--text-main);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .group-color-option.is-selected {
-          border-color: rgba(255, 255, 255, 0.55);
-          box-shadow:
-            0 0 0 1px rgba(255, 255, 255, 0.18),
-            0 0 20px rgba(167, 139, 250, 0.24);
-        }
-
-        .group-color-option__swatch {
-          width: 22px;
-          height: 22px;
-          border-radius: 999px;
-          flex-shrink: 0;
-          border: 1px solid transparent;
-        }
-
-        .group-color-option__name {
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.03em;
-          text-transform: uppercase;
-        }
-
-        .group-color-dialog__actions {
-          margin-top: 14px;
-          display: flex;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .group-color-dialog__action {
-          flex: 1;
-          border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          background: rgba(255, 255, 255, 0.08);
-          color: var(--text-main);
-          height: 38px;
-          font-size: 12px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-        }
-
-        .group-color-dialog__action.close {
-          border-color: rgba(148, 163, 184, 0.5);
-        }
-
-        .group-color-dialog__action.disable {
-          border-color: rgba(248, 113, 113, 0.55);
-          background: rgba(239, 68, 68, 0.16);
-        }
 
         /* Lock state vars — yeşil (editing) / kırmızı (locked) güçlü neon */
         .control-panel button.lock-button.is-editing {
@@ -1306,99 +1120,6 @@ export default function KumandaPaneli({
               onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
               disabled={readOnly}
             />
-            <div ref={grupWrapperRef} style={{ position: 'relative', display: 'contents' }}>
-              <SquareToggle
-                labelLines={[]}
-                ariaLabel={grupModuAktif ? `Grup modu açık — renk ${SATIR_GRUP_RENK_ETIKETI[grupRenk]}` : 'Grup modu kapalı'}
-                extraClass="button-row-group"
-                icon={<GroupModeIcon />}
-                on={grupModuAktif}
-                onClick={handleGrupModuButonu}
-                disabled={readOnly}
-              />
-              {grupRenkPenceresiAcik && !readOnly && (
-                <div
-                  role="dialog"
-                  aria-label="Grup rengi seç"
-                  style={{
-                    // Kumanda paneli sağda fixed; popover panel'in solunda
-                    // viewport'a göre sabit pozisyonda.
-                    position: 'fixed',
-                    top: '50%',
-                    right: K.WIDTH + 32,
-                    transform: 'translateY(-50%)',
-                    zIndex: 10000,
-                    padding: 6,
-                    background: '#FFFFFF',
-                    border: '0.75px solid rgba(26, 43, 66, 0.12)',
-                    borderRadius: 10,
-                    boxShadow: '0 8px 24px rgba(15, 25, 40, 0.14), 0 1px 3px rgba(15, 25, 40, 0.06)',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 26px)',
-                    gridAutoRows: '26px',
-                    gap: 4,
-                  }}
-                >
-                  {SATIR_GRUP_RENK_DONGUSU.map((renk) => {
-                    const swatch = SATIR_GRUP_RENK_SWATCH[renk];
-                    const isSelected = grupModuAktif && grupRenk === renk;
-                    return (
-                      <button
-                        key={renk}
-                        type="button"
-                        onClick={() => handleGrupRenkSec(renk)}
-                        aria-label={`Grup rengi ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
-                        title={SATIR_GRUP_RENK_ETIKETI[renk]}
-                        style={{
-                          width: 26, height: 26,
-                          background: swatch.bg,
-                          border: `1.5px solid ${isSelected ? '#1A2B42' : swatch.border}`,
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          padding: 0,
-                          transition: 'transform 0.12s ease, border-color 0.12s ease',
-                          boxShadow: isSelected ? '0 0 0 2px rgba(26,43,66,0.10)' : 'none',
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-                      />
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={handleGrupModunuKapat}
-                    aria-label="Grup modunu kapat / geri al"
-                    title="Geri al"
-                    style={{
-                      width: 26, height: 26,
-                      background: '#FFFFFF',
-                      border: '1.5px solid rgba(185, 28, 28, 0.32)',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                      padding: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#b91c1c',
-                      transition: 'transform 0.12s ease, border-color 0.12s ease, background 0.12s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.08)';
-                      e.currentTarget.style.background = 'rgba(185, 28, 28, 0.06)';
-                      e.currentTarget.style.borderColor = 'rgba(185, 28, 28, 0.55)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.background = '#FFFFFF';
-                      e.currentTarget.style.borderColor = 'rgba(185, 28, 28, 0.32)';
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M3 7v6h6" />
-                      <path d="M3 13a9 9 0 1 0 3-7l-3 4" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
             <SquareToggle
               labelLines={[]}
               ariaLabel={notlarGosterilsin ? 'Not alanı gösteriliyor' : 'Not alanı gizli'}
@@ -1490,16 +1211,6 @@ export default function KumandaPaneli({
       </div>
 
     </div>
-  );
-}
-
-function GroupModeIcon() {
-  return (
-    <svg className="premium-panel-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <rect className="pi-body" x="9" y="10" width="46" height="44" rx="10" />
-      <path className="pi-glyph" d="M20 24h24M20 33h16M20 42h20" />
-      <circle className="pi-detail" cx="46" cy="33" r="4" />
-    </svg>
   );
 }
 

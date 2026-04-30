@@ -30,7 +30,7 @@ import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
 import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
-import type { Teklif, SatirGrupRenk } from '../types';
+import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 
 function waitForNextPaint(): Promise<void> {
@@ -53,8 +53,6 @@ export default function TeklifEditor() {
 
   // Inline düzenleme state — popover yerine
   const [editingAlan, setEditingAlan] = useState<EditingAlan>(null);
-  const [grupModuAktif, setGrupModuAktif] = useState(false);
-  const [seciliGrupRenk, setSeciliGrupRenk] = useState<SatirGrupRenk>('amber');
 
   // Kilitli / Düzenleme modu — global tek state, URL'ye göre başlangıç:
   //   • Yeni teklif (id yok)   → editMode = true  (kilitli=false) → direkt yazmaya başla
@@ -78,7 +76,6 @@ export default function TeklifEditor() {
   const handleModeKilitliDegistir = useCallback((v: boolean) => {
     setModeKilitli(v);
     if (v) {
-      setGrupModuAktif(false);
       setEditingAlan(null);
       void persistStatusByMode(true);
     }
@@ -476,8 +473,6 @@ export default function TeklifEditor() {
               onParaBirimiDegistir={state.setParaBirimi}
               satirBazliParaBirimi={state.satirBazliParaBirimi}
               satirBazliIskonto={state.satirBazliIskonto}
-              grupModuAktif={grupModuAktif}
-              seciliGrupRenk={seciliGrupRenk}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onSatirGuncelle={state.satirGuncelle}
@@ -549,10 +544,6 @@ export default function TeklifEditor() {
           onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
           satirBazliIskonto={state.satirBazliIskonto}
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
-          grupModuAktif={grupModuAktif}
-          onGrupModuDegistir={setGrupModuAktif}
-          grupRenk={seciliGrupRenk}
-          onGrupRenkDegistir={setSeciliGrupRenk}
           notlarGosterilsin={state.notlarGosterilsin}
           onNotlarGosterilsinDegistir={state.setNotlarGosterilsin}
           sagPanelOpen={state.panelModu !== null}

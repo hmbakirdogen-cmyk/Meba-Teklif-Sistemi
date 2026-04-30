@@ -6,7 +6,7 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { calculateTeklifPagination, type TeklifPaginationResult } from '../services/documentPagination';
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import { ImageOverlayLayer } from './ImageOverlayLayer';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi, ImageItem, SatirGrupRenk } from '../types';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi, ImageItem } from '../types';
 
 const A4_W_PX = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
 const A4_H_PX = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
@@ -25,8 +25,6 @@ interface CanliA4BelgeProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
-  grupModuAktif: boolean;
-  seciliGrupRenk: SatirGrupRenk;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
@@ -72,8 +70,6 @@ export default function CanliA4Belge({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   satirBazliIskonto,
-  grupModuAktif,
-  seciliGrupRenk,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
@@ -253,8 +249,6 @@ export default function CanliA4Belge({
             onParaBirimiDegistir={onParaBirimiDegistir}
             satirBazliParaBirimi={satirBazliParaBirimi}
             satirBazliIskonto={satirBazliIskonto}
-            grupModuAktif={grupModuAktif}
-            seciliGrupRenk={seciliGrupRenk}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
             onSatirGuncelle={onSatirGuncelle}

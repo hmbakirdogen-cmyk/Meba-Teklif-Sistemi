@@ -23,78 +23,12 @@ import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, Te
 import dayjs from 'dayjs';
 
 const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
-const SET_GRUP_RENK_DONGUSU: Array<NonNullable<TeklifSatiri['grupRenk']>> = ['amber', 'mint', 'sky', 'lavender'];
 
 function cariEpostaVarsayilanla(cari: Cari): Cari {
   const email = (cari.ePosta ?? '').trim();
   return { ...cari, ePosta: email || DEFAULT_TEKLIF_EMAIL };
 }
 
-function normalizeSatirGrupRenk(value: unknown): TeklifSatiri['grupRenk'] {
-  if (value === 'amber' || value === 'mint' || value === 'sky' || value === 'lavender') {
-    return value;
-  }
-  return undefined;
-}
-
-function pickSetGrupRenk(satirlar: TeklifSatiri[], currentParentId: string): NonNullable<TeklifSatiri['grupRenk']> {
-  const parentSetRows = satirlar.filter((s) => s.id !== currentParentId && !s.setAltKalem && Boolean(s.setId));
-  const used = new Set<NonNullable<TeklifSatiri['grupRenk']>>();
-
-  parentSetRows.forEach((row) => {
-    const renk = normalizeSatirGrupRenk(row.grupRenk);
-    if (renk) used.add(renk);
-  });
-
-  const firstUnused = SET_GRUP_RENK_DONGUSU.find((renk) => !used.has(renk));
-  if (firstUnused) return firstUnused;
-
-  const countByRenk: Record<NonNullable<TeklifSatiri['grupRenk']>, number> = {
-    amber: 0,
-    mint: 0,
-    sky: 0,
-    lavender: 0,
-  };
-
-  parentSetRows.forEach((row) => {
-    const renk = normalizeSatirGrupRenk(row.grupRenk);
-    if (renk) countByRenk[renk] += 1;
-  });
-
-  let selected = SET_GRUP_RENK_DONGUSU[0];
-  let minCount = countByRenk[selected];
-  for (const renk of SET_GRUP_RENK_DONGUSU) {
-    if (countByRenk[renk] < minCount) {
-      selected = renk;
-      minCount = countByRenk[renk];
-    }
-  }
-
-  return selected;
-}
-
-function applySetRenkDagilimi(satirlar: TeklifSatiri[]): TeklifSatiri[] {
-  const parentRows = satirlar.filter((s) => !s.setAltKalem && Boolean(s.setId));
-  if (parentRows.length <= 1) return satirlar;
-
-  const parentToRenk = new Map<string, NonNullable<TeklifSatiri['grupRenk']>>();
-  parentRows.forEach((parent, index) => {
-    const renk = SET_GRUP_RENK_DONGUSU[index % SET_GRUP_RENK_DONGUSU.length];
-    parentToRenk.set(parent.id, renk);
-  });
-
-  return satirlar.map((row) => {
-    if (!row.setId) return row;
-
-    const parentId = row.setAltKalem ? row.setAnaSatirId : row.id;
-    if (!parentId) return row;
-
-    const renk = parentToRenk.get(parentId);
-    if (!renk) return row;
-    if (row.grupRenk === renk) return row;
-    return { ...row, grupRenk: renk };
-  });
-}
 
 export type PanelModu = 'musteri' | 'satir' | 'notlar' | null;
 
@@ -217,7 +151,7 @@ export function useBelgeState(
   );
   const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
   const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ? cariEpostaVarsayilanla(mevcut.cari) : null);
-  const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(() => applySetRenkDagilimi(mevcut?.satirlar ?? []));
+  const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
   const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
   const [satirBazliIskonto, setSatirBazliIskontoState] = useState(mevcut?.satirBazliIskonto ?? false);
@@ -439,8 +373,7 @@ export function useBelgeState(
         if (s.setAltKalem && (alan === 'birimFiyat' || alan === 'indirimOrani' || alan === 'teslimTarihi')) {
           return s;
         }
-        const safeDeger = alan === 'grupRenk' ? normalizeSatirGrupRenk(deger) : deger;
-        const g = { ...s, [alan]: safeDeger };
+        const g = { ...s, [alan]: deger };
         if (g.setAltKalem) {
           return { ...g, birimFiyat: 0, indirimOrani: 0, satirToplami: 0 };
         }
@@ -463,8 +396,6 @@ export function useBelgeState(
       const nextParentIndex = cleanList.findIndex((s) => s.id === satirId);
       if (nextParentIndex < 0) return prev;
 
-      const setGrupRengi = pickSetGrupRenk(cleanList, satirId);
-
       const parent = cleanList[nextParentIndex];
       const updatedParent: TeklifSatiri = {
         ...parent,
@@ -472,7 +403,6 @@ export function useBelgeState(
         aciklama: set.aciklama,
         setId: set.id,
         setAltKalem: false,
-        grupRenk: setGrupRengi,
       };
 
       const altKalemler: TeklifSatiri[] = set.kalemler.map((kalem) => ({
@@ -491,7 +421,6 @@ export function useBelgeState(
         setId: set.id,
         setAnaSatirId: satirId,
         setAltKalem: true,
-        grupRenk: setGrupRengi,
       }));
 
       const next = [...cleanList];

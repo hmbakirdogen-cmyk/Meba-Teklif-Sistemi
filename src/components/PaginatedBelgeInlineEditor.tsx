@@ -3,7 +3,7 @@ import { Select, Input, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi, SatirGrupRenk } from '../types';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
@@ -21,7 +21,6 @@ import {
   DescText,
 } from './InlineTableRowShared';
 import {
-  HEADER_SURFACE,
   DOCUMENT_BRAND,
   DOCUMENT_COLORS,
   DOCUMENT_PAGE,
@@ -75,17 +74,6 @@ const BRAND = DOCUMENT_BRAND;
 const PAGE_GAP_PX = 24;
 const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
 
-const SATIR_GRUP_GORSEL: Record<NonNullable<TeklifSatiri['grupRenk']>, { bg: string; border: string }> = {
-  amber:    { bg: '#fff8eb', border: '#f4bf75' },
-  mint:     { bg: '#eefcf6', border: '#92ddbf' },
-  sky:      { bg: '#eef5ff', border: '#9ec1f7' },
-  lavender: { bg: '#f5f0ff', border: '#c5aff6' },
-  blush:    { bg: '#ffeff2', border: '#f4a8b6' },
-  peach:    { bg: '#fff2e8', border: '#fbb276' },
-  sage:     { bg: '#f0f4ec', border: '#a9b88c' },
-  slate:    { bg: '#eef1f4', border: '#94a3b8' },
-};
-
 export type { EditingAlan } from './belgeInlineConstants';
 
 interface PaginatedBelgeInlineEditorProps {
@@ -104,8 +92,6 @@ interface PaginatedBelgeInlineEditorProps {
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
-  grupModuAktif: boolean;
-  seciliGrupRenk: SatirGrupRenk;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
@@ -253,8 +239,6 @@ export default function PaginatedBelgeInlineEditor({
   onParaBirimiDegistir,
   satirBazliParaBirimi,
   satirBazliIskonto,
-  grupModuAktif,
-  seciliGrupRenk,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onSatirGuncelle,
@@ -310,30 +294,15 @@ export default function PaginatedBelgeInlineEditor({
   // gözüksün diye (active panel ile aynı pozisyonda).
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
-  const grupModuMetinTiklamasi = (target: EventTarget | null): boolean => {
-    if (!(target instanceof Node)) return false;
-    const el = target instanceof HTMLElement ? target : target.parentElement;
-    return Boolean(el?.closest('[data-group-paint-trigger="true"]'));
-  };
-
   const handleSatirCellClick = useCallback(
     (satir: TeklifSatiri, cell: SatirCellField) => (e: React.MouseEvent) => {
       if (readOnly) return;
       e.stopPropagation();
 
-      if (grupModuAktif) {
-        if (!grupModuMetinTiklamasi(e.target)) return;
-        const nextRenk = satir.grupRenk === seciliGrupRenk ? undefined : seciliGrupRenk;
-        onSatirGuncelle(satir.id, 'grupRenk', nextRenk);
-        setHoverRowId(null);
-        onEditingAlanDegistir(null);
-        return;
-      }
-
       setSatirFocusCell(cell);
       onEditingAlanDegistir(`satir-${satir.id}`);
     },
-    [grupModuAktif, onEditingAlanDegistir, onSatirGuncelle, readOnly, seciliGrupRenk],
+    [onEditingAlanDegistir, readOnly],
   );
 
   const handleEnterNext = useCallback(() => {
@@ -358,12 +327,6 @@ export default function PaginatedBelgeInlineEditor({
     }
     if (editingAlan !== alan) onEditingAlanDegistir(alan);
   };
-
-  const editFrameStyle = (isEditing: boolean): React.CSSProperties => ({
-    transition: 'background 0.18s ease',
-    cursor: readOnly ? 'default' : (isEditing ? 'default' : 'pointer'),
-    ...(isEditing && !readOnly ? { background: 'rgba(237, 242, 251, 0.35)' } : {}),
-  });
 
   const renderFirstPageHeader = () => (
     <>
@@ -647,22 +610,11 @@ export default function PaginatedBelgeInlineEditor({
               const idx = page.rowStartIndex + localIndex;
               const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
               const isRowActive = editingSatirId === satir.id;
-              const grupGorsel = satir.grupRenk ? SATIR_GRUP_GORSEL[satir.grupRenk] : null;
               const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
               const isInsideSetGroup = setGroupPos === 'top' || setGroupPos === 'middle';
               const colCount = OFFER_TABLE_COLUMN_COUNT;
 
-              const withGroupCellStyle = (style: React.CSSProperties): React.CSSProperties => {
-                if (!grupGorsel) return style;
-                return {
-                  ...style,
-                  background: grupGorsel.bg,
-                  borderTopColor: grupGorsel.border,
-                  borderBottomColor: grupGorsel.border,
-                  borderLeftColor: grupGorsel.border,
-                  borderRightColor: grupGorsel.border,
-                };
-              };
+              const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
 
               const isLastRow = idx === teklif.satirlar.length - 1;
               const isFirstRow = idx === 0;
@@ -733,18 +685,18 @@ export default function PaginatedBelgeInlineEditor({
                         : null),
                     }}
                   >
-                    <RowCell idx={idx} pos="first" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} style={withGroupCellStyle({ ...ROW_TEXT.no, cursor: 'pointer' })}>
+                    <RowCell idx={idx} pos="first" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} style={applyCellStyle({ ...ROW_TEXT.no, cursor: 'pointer' })}>
                       {satir.setAltKalem ? (
-                        <span data-group-paint-trigger="true" style={SET_SUBITEM_NUMBER_STYLE}>
+                        <span style={SET_SUBITEM_NUMBER_STYLE}>
                           {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
                         </span>
                       ) : (
-                        <span data-group-paint-trigger="true">
+                        <span>
                           {String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')}
                         </span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('marka')} className={activeClass('marka')} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('marka')} className={activeClass('marka')} style={applyCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
                       {isActiveCell('marka') ? (
                         <SatirCellEditor
                           field="marka"
@@ -755,10 +707,10 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('marka')}
                         />
                       ) : (
-                        <span data-group-paint-trigger="true" style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
+                        <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
                       {isActiveCell('urunKod') ? (
                         <SatirCellEditor
                           field="urunKod"
@@ -770,10 +722,10 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('urunKod')}
                         />
                       ) : (
-                        <span data-group-paint-trigger="true" style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
+                        <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={withGroupCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
                       {isActiveCell('aciklama') ? (
                         <SatirCellEditor
                           field="aciklama"
@@ -784,7 +736,7 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('aciklama')}
                         />
                       ) : (
-                        <span data-group-paint-trigger="true">
+                        <span>
                           <DescText text={satir.aciklama || '-'} />
                         </span>
                       )}
@@ -795,7 +747,7 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       onClick={cellClick('miktar')}
                       className={activeClass('miktar')}
-                      style={withGroupCellStyle({
+                      style={applyCellStyle({
                         cursor: 'pointer',
                         textAlign: 'left',
                       })}
@@ -811,11 +763,11 @@ export default function PaginatedBelgeInlineEditor({
                         />
                       ) : (
                         satir.miktar !== 0 ? (
-                          <div data-group-paint-trigger="true" style={ROW_SHELL.quantityWrap}>
+                          <div style={ROW_SHELL.quantityWrap}>
                             <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
                             <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
                           </div>
-                        ) : <span data-group-paint-trigger="true">-</span>
+                        ) : <span>-</span>
                       )}
                     </RowCell>
                     {/* Para Birimi — set alt kaleminde de aynı hücre; satirBazli'da
@@ -826,7 +778,7 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
                       className={activeClass('paraBirimi')}
-                      style={withGroupCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' })}
+                      style={applyCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' })}
                     >
                       {satirBazliParaBirimi ? (
                         isActiveCell('paraBirimi') ? (
@@ -839,7 +791,7 @@ export default function PaginatedBelgeInlineEditor({
                             onEnterNext={enterNext('paraBirimi')}
                           />
                         ) : (
-                          <span data-group-paint-trigger="true" style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
+                          <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
                         )
                       ) : null}
                     </RowCell>
@@ -850,7 +802,7 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
                       className={!satir.setAltKalem ? activeClass('birimFiyat') : undefined}
-                      style={withGroupCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
+                      style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
                     >
                       {!satir.setAltKalem && isActiveCell('birimFiyat') ? (
                         <SatirCellEditor
@@ -862,7 +814,7 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('birimFiyat')}
                         />
                       ) : satir.setAltKalem ? null : (
-                        <span data-group-paint-trigger="true" style={ROW_TEXT.price}>{(() => {
+                        <span style={ROW_TEXT.price}>{(() => {
                           const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                           return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
                         })()}</span>
@@ -874,10 +826,10 @@ export default function PaginatedBelgeInlineEditor({
                       pos="mid"
                       setGroupPos={setGroupPos}
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
-                      style={withGroupCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
+                      style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
                     >
                       {satir.setAltKalem ? null : (
-                        <span data-group-paint-trigger="true" style={ROW_TEXT.total}>
+                        <span style={ROW_TEXT.total}>
                           {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
                         </span>
                       )}
@@ -889,7 +841,7 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
                       className={!satir.setAltKalem ? activeClass('teslimat') : undefined}
-                      style={withGroupCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center' })}
+                      style={applyCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center' })}
                     >
                       {!satir.setAltKalem && isActiveCell('teslimat') ? (
                         <SatirCellEditor
@@ -901,7 +853,7 @@ export default function PaginatedBelgeInlineEditor({
                           onEnterNext={enterNext('teslimat')}
                         />
                       ) : satir.setAltKalem ? null : (
-                        <span data-group-paint-trigger="true" style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
+                        <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
                       )}
                       {(satir.indirimOrani || 0) > 0 && !isRowActive && hoverRowId !== satir.id && (
                         <SatirIskontoRozeti rowId={satir.id} oran={satir.indirimOrani || 0} />
@@ -1253,13 +1205,23 @@ function AnimatedNotesContainer({ open, children }: { open: boolean; children: R
 
   useEffect(() => {
     if (open) {
-      setRender(true);
-      const id = window.requestAnimationFrame(() => setExpanded(true));
-      return () => window.cancelAnimationFrame(id);
+      let expandId: number | null = null;
+      const showId = window.requestAnimationFrame(() => {
+        setRender(true);
+        expandId = window.requestAnimationFrame(() => setExpanded(true));
+      });
+      return () => {
+        window.cancelAnimationFrame(showId);
+        if (expandId != null) window.cancelAnimationFrame(expandId);
+      };
     }
-    setExpanded(false);
-    const t = window.setTimeout(() => setRender(false), 320);
-    return () => window.clearTimeout(t);
+
+    const collapseId = window.requestAnimationFrame(() => setExpanded(false));
+    const hideTimer = window.setTimeout(() => setRender(false), 320);
+    return () => {
+      window.cancelAnimationFrame(collapseId);
+      window.clearTimeout(hideTimer);
+    };
   }, [open]);
 
   if (!render) return null;
