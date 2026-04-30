@@ -291,19 +291,28 @@ export function FinansalOzetKartIci({
   if (isPdf) {
     return (
       <div style={{ padding: '5px 10px 6px', position: 'relative', boxSizing: 'border-box' }}>
-        {/* Para birimi rozeti — ABSOLUTE top-right, layout'tan bağımsız */}
+        {/* Para birimi rozeti — premium badge, sağ üst köşe.
+            Navy renk + hafif navy tint + ince border ile öne çıkar; "Genel Toplam"
+            etiketinin navy'siyle uyumlu, A4 belge disiplini hissini bozmaz. */}
         <span style={{
           position: 'absolute',
-          top: '4px',
-          right: '10px',
-          fontSize: '7px',
-          fontWeight: 700,
-          letterSpacing: '0.12em',
+          top: '5px',
+          right: '8px',
+          fontSize: '9.5px',
+          fontWeight: 800,
+          letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: cl.muted,
+          color: '#1A2B42',
+          background: 'rgba(26, 43, 66, 0.06)',
+          border: '0.75px solid rgba(26, 43, 66, 0.18)',
+          borderRadius: '4px',
+          padding: '2px 6px 1.5px',
           lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums',
           pointerEvents: 'none',
-          zIndex: 0,
+          zIndex: 2,
+          printColorAdjust: 'exact',
+          WebkitPrintColorAdjust: 'exact',
         }}>
           {pbLabel}
         </span>
