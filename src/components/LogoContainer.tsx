@@ -20,7 +20,9 @@ export const LOGO_CONTAINER_LAYOUT = {
   background: '#ffffff',
 } as const;
 
-/** Logo arka zeminin ortak stili — inline kullanım için. */
+/** Logo arka zeminin ortak stili — inline kullanım için.
+ *  isolation: 'isolate' → child <img> üzerindeki mix-blend-mode bu container'ın
+ *  beyaz zeminiyle blend olur, dış kart/sayfa arka planına sızmaz. */
 export const LOGO_CONTAINER_STYLE: CSSProperties = {
   width: LOGO_CONTAINER_LAYOUT.width,
   height: LOGO_CONTAINER_LAYOUT.height,
@@ -33,9 +35,15 @@ export const LOGO_CONTAINER_STYLE: CSSProperties = {
   overflow: 'hidden',
   boxSizing: 'border-box',
   flexShrink: 0,
+  isolation: 'isolate',
 };
 
-/** Logo görseli için ortak stil — kutu içinde tam ortalı, taşmaz, sıkışmaz. */
+/** Logo görseli için ortak stil — kutu içinde tam ortalı, taşmaz, sıkışmaz.
+ *  mixBlendMode: 'multiply' → PNG içindeki beyaz arka plan container'ın beyaz
+ *  zeminiyle harmanlanır; "logo PNG'sinin görünür beyaz dikdörtgeni × container
+ *  beyazı" çift zemin görüntüsü ortadan kalkar. ELMOS/MESA'da görsel etki yok
+ *  (zaten temiz beyaz arka planları var); MEBA'daki chrome harf gölgelerinin
+ *  yarattığı iç çerçeve hissi kaybolur. */
 export function logoImageStyle(firma: Firma, extraFilter?: string): CSSProperties {
   return {
     width: '100%',
@@ -43,6 +51,7 @@ export function logoImageStyle(firma: Firma, extraFilter?: string): CSSPropertie
     objectFit: 'contain',
     objectPosition: 'center',
     imageRendering: 'auto',
+    mixBlendMode: 'multiply',
     WebkitBackfaceVisibility: 'hidden',
     backfaceVisibility: 'hidden',
     transform: `scale(${firma.logoScale ?? 1}) translateZ(0)`,
