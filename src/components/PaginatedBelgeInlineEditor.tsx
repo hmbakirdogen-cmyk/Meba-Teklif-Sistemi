@@ -1040,26 +1040,48 @@ export default function PaginatedBelgeInlineEditor({
     return (
       <div
         data-alan="notlar"
-        onClick={(e) => handleAlanClick('notlar', e)}
-        style={{ ...NOTES_BOX_STYLE, minHeight: isNotlarEditing ? 60 : (teklif.notlar ? undefined : 44), ...noBreak, ...editFrameStyle(isNotlarEditing) } as React.CSSProperties}
+        style={{
+          ...NOTES_BOX_STYLE,
+          ...noBreak,
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: '4px',
+        } as React.CSSProperties}
       >
-        {isNotlarEditing ? (
-          <div className="field-group">
-            <div style={{ fontSize: '8.5px', fontWeight: 700, color: C.navy, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.7 }}>
-              Notlar <span style={{ fontWeight: 400, opacity: 0.6 }}>/ Notes</span>
-            </div>
-            <Input.TextArea autoFocus variant="borderless" value={teklif.notlar} onChange={(e) => onNotlarDegistir(e.target.value)} autoSize={{ minRows: 2, maxRows: 8 }} style={{ fontSize: '12.5px', lineHeight: '1.65', color: C.textMid, padding: 0 }} placeholder="Not ekleyin..." />
-          </div>
-        ) : teklif.notlar ? (
-          <>
-            <strong style={{ color: C.navy, fontSize: '11px', letterSpacing: '0.02em' }}>Notlar / Notes:&nbsp;</strong>
-            <span style={{ color: C.textMid }}>{teklif.notlar}</span>
-          </>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 24 }}>
-            <span style={{ color: C.textMuted, fontStyle: 'italic', fontSize: '11px', opacity: 0.65 }}>Not eklemek için tıklayın...</span>
-          </div>
-        )}
+        <strong
+          style={{
+            color: C.navy,
+            fontSize: '12.1px',
+            letterSpacing: 'inherit',
+            lineHeight: 1.68,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Notlar / Notes:
+        </strong>
+        <Input.TextArea
+          variant="borderless"
+          value={teklif.notlar}
+          onChange={(e) => onNotlarDegistir(e.target.value)}
+          autoSize={{ minRows: 1 }}
+          readOnly={readOnly}
+          placeholder="burada not ekleyin..."
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: 0,
+            fontSize: '12.1px',
+            lineHeight: 1.68,
+            color: C.textMid,
+            fontFamily: 'inherit',
+            letterSpacing: 'inherit',
+            background: 'transparent',
+            resize: 'none',
+            border: 'none',
+            boxShadow: 'none',
+          }}
+        />
       </div>
     );
   };

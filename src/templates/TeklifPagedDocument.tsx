@@ -573,14 +573,26 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
 }
 
 function NotesBlock({ teklif }: { teklif: Teklif }) {
-  // Toggle kapalı veya not metni boşsa hiç render etme — boş bir kutu PDF'e
-  // basılmaz, sayfa kırma motoru da bu durumda notesHeight=0 ölçer.
-  if (!teklif.notlarGosterilsin || !teklif.notlar) return null;
+  // Toggle kapalıysa hiç render etme. Toggle açıkken (boş içerik dahil)
+  // editörle birebir aynı flex layout PDF'e gider.
+  if (!teklif.notlarGosterilsin) return null;
 
   return (
-    <div style={{ ...NOTES_BOX_STYLE, ...noBreak }}>
-      <strong style={{ color: C.navy }}>Notlar / Notes:&nbsp;</strong>
-      <span style={{ color: C.textMid }}>{teklif.notlar}</span>
+    <div
+      style={{
+        ...NOTES_BOX_STYLE,
+        ...noBreak,
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: '4px',
+      }}
+    >
+      <strong style={{ color: C.navy, flexShrink: 0, whiteSpace: 'nowrap' }}>
+        Notlar / Notes:
+      </strong>
+      <span style={{ color: C.textMid, flex: 1, minWidth: 0 }}>
+        {teklif.notlar}
+      </span>
     </div>
   );
 }

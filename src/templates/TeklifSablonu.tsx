@@ -798,22 +798,26 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </div>
 
       {/* ══ NOT ALANI — kontrol panelinden toggle ile yönetilir ══ */}
+      {/* Editör ile birebir aynı flex layout: pagination yüksekliği bu     */}
+      {/* DOM'dan ölçülür ve PDF'te de aynı görünür.                        */}
       {teklif.notlarGosterilsin && (
         <div
           id="pdf-notes-block"
           data-alan="notlar"
           style={{
             ...NOTES_BOX_STYLE,
-            minHeight: teklif.notlar ? undefined : 44,
             ...noBreak,
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '4px',
           }}
         >
-          {teklif.notlar ? (
-            <>
-              <strong style={{ color: C.navy }}>Notlar / Notes:&nbsp;</strong>
-              <span style={{ color: C.textMid }}>{teklif.notlar}</span>
-            </>
-          ) : null}
+          <strong style={{ color: C.navy, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            Notlar / Notes:
+          </strong>
+          <span style={{ color: C.textMid, flex: 1, minWidth: 0 }}>
+            {teklif.notlar}
+          </span>
         </div>
       )}
 
