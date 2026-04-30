@@ -275,12 +275,22 @@ export default function PaginatedBelgeInlineEditor({
 
   const isMusteriEditing = !readOnly && editingAlan === 'musteri';
   const isAnyAyarEditing = !readOnly && (editingAlan?.startsWith('ayar-') ?? false);
-  const isNotlarEditing  = !readOnly && editingAlan === 'notlar';
   const editingSatirId   = !readOnly && editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
 
   const muhatapRef = useRef<InputRef>(null);
+  const notesTextareaRef = useRef<{ focus: (opts?: { cursor?: 'start' | 'end' | 'all' }) => void } | null>(null);
   const prevMusteriEditing = useRef(false);
   const [cariSearchText, setCariSearchText] = useState(() => formatCariAdi(teklif.cari.firmaAdi));
+
+  // Toggle açıldığında imleci doğrudan TextArea'ya getir. Animasyon mount
+  // sonrası 1 frame bekleyerek transition'la çakışmayı önler.
+  useEffect(() => {
+    if (!teklif.notlarGosterilsin || readOnly) return;
+    const id = window.setTimeout(() => {
+      notesTextareaRef.current?.focus({ cursor: 'end' });
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, [teklif.notlarGosterilsin, readOnly]);
 
   useEffect(() => {
     const justOpened = isMusteriEditing && !prevMusteriEditing.current;
@@ -1032,12 +1042,12 @@ export default function PaginatedBelgeInlineEditor({
       </table>
     );
 
-  const renderNotes = () => {
-    // Toggle kapalıysa hiç render etme — A4 layout'unda hiç yer kaplamaz,
-    // pagination motoru #pdf-notes-block'u TeklifSablonu üzerinden ölçtüğü
-    // için sayfa kırılması da etkilenmez.
-    if (!teklif.notlarGosterilsin) return null;
-    return (
+  // AnimatedNotesContainer kapanış animasyonu sırasında (~320ms) DOM'da
+  // tutar; toggle ON/OFF arasında smooth bir geçiş sağlar. Toggle hiç
+  // kullanılmadığında bile mount edilir ama 0 height + opacity 0 olduğu
+  // için layout etkilemez.
+  const renderNotes = () => (
+    <AnimatedNotesContainer open={!!teklif.notlarGosterilsin}>
       <div
         data-alan="notlar"
         style={{
@@ -1061,6 +1071,7 @@ export default function PaginatedBelgeInlineEditor({
           Notlar / Notes:
         </strong>
         <Input.TextArea
+          ref={notesTextareaRef as never}
           variant="borderless"
           value={teklif.notlar}
           onChange={(e) => onNotlarDegistir(e.target.value)}
@@ -1083,8 +1094,8 @@ export default function PaginatedBelgeInlineEditor({
           }}
         />
       </div>
-    );
-  };
+    </AnimatedNotesContainer>
+  );
 
   return (
     <div
@@ -1145,7 +1156,9 @@ export default function PaginatedBelgeInlineEditor({
             {page.showCompactHeader && <CompactHeaderBlock teklif={teklif} />}
             {renderTable(page)}
             {page.includeTotals && renderTotals()}
-            {page.includeNotes && renderNotes()}
+            {/* Notes wrapper son sayfada her zaman mount; AnimatedNotesContainer */}
+            {/* açık/kapalı animasyonunu yönetir (kapanışta ~320ms mounted kalır). */}
+            {page.pageNumber === pages.length && renderNotes()}
             </div>
             {page.includeSignature && (
               <div style={{ marginTop: 'auto' }}>
@@ -1231,6 +1244,48 @@ export default function PaginatedBelgeInlineEditor({
           {renderPageOverlay?.(pageIdx)}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * AnimatedNotesContainer — toggle değişimine smooth max-height + opacity +
+ * translateY geçişi uygular. Kapanırken DOM'da ~320ms tutar, ardından
+ * unmount eder; açılırken bir sonraki frame'de "expanded" state'e geçer
+ * (initial state'ten direkt expanded olursa transition tetiklenmez).
+ *
+ * Sadece editör tarafı içindir. Offline ölçüm (TeklifSablonu) ve PDF
+ * (TeklifPagedDocument) toggle'a göre koşullu mount/unmount yapar —
+ * animasyon yok. Pagination motoru bu wrapper'ı ölçmez (TeklifSablonu'nun
+ * #pdf-notes-block'unu ölçer).
+ */
+function AnimatedNotesContainer({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const [render, setRender] = useState<boolean>(open);
+  const [expanded, setExpanded] = useState<boolean>(open);
+
+  useEffect(() => {
+    if (open) {
+      setRender(true);
+      const id = window.requestAnimationFrame(() => setExpanded(true));
+      return () => window.cancelAnimationFrame(id);
+    }
+    setExpanded(false);
+    const t = window.setTimeout(() => setRender(false), 320);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
+  if (!render) return null;
+  return (
+    <div
+      style={{
+        overflow: 'hidden',
+        maxHeight: expanded ? 600 : 0,
+        opacity: expanded ? 1 : 0,
+        transform: expanded ? 'translateY(0)' : 'translateY(-4px)',
+        transition: 'max-height 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 260ms ease, transform 260ms ease',
+      }}
+    >
+      {children}
     </div>
   );
 }
