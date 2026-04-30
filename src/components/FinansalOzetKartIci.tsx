@@ -322,40 +322,57 @@ export function FinansalOzetKartIci({
               bottom: `${SEP_B}px`, left: '10px', right: '10px',
               borderTop: `0.75px solid ${cl.sep}`,
             }} />
+            {/* Total — ABSOLUTE bottom-right (mevcut konum korunur) */}
+            <div style={{
+              position: 'absolute', bottom: '9px', right: '10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+              zIndex: 1,
+            }}>
+              {totalRight}
+            </div>
           </>
         ) : (
-          // satirBazliParaBirimi pasif iken (TotalsCard light variant) ile birebir
-          // aynı tipografi: 10px / 700 / uppercase / 0.08em / navy + 7.5px subtitle.
-          <div style={{ position: 'absolute', top: '8px', left: '12px' }}>
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: '#1A2B42',
-              lineHeight: 1.1,
-            }}>
-              Genel Toplam
+          // Etiket + fiyat aynı yatay eksende: space-between, alt-hizalı.
+          // Etiket içeriği kadar yer kaplar (flexShrink:0); fiyat sağda kalır.
+          // pbLabel zaten top-right'da bağımsız → mevcut yerinde kalır.
+          // Total'ın bottom Y'si hasDetail=true ile aynı (9px) → kartlar arası
+          // dikey hiza birebir aynı.
+          <div style={{
+            position: 'absolute',
+            bottom: '9px',
+            left: '12px',
+            right: '10px',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: '12px',
+            zIndex: 1,
+          }}>
+            <div style={{ flexShrink: 0 }}>
+              <div style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: '#1A2B42',
+                lineHeight: 1.1,
+              }}>
+                Genel Toplam
+              </div>
+              <div style={{
+                fontSize: '7.5px',
+                color: '#717176',
+                lineHeight: 1.2,
+                marginTop: '1px',
+              }}>
+                Grand Total
+              </div>
             </div>
-            <div style={{
-              fontSize: '7.5px',
-              color: '#717176',
-              lineHeight: 1.2,
-              marginTop: '1px',
-            }}>
-              Grand Total
+            <div style={{ flexShrink: 0 }}>
+              {totalRight}
             </div>
           </div>
         )}
-
-        {/* Total — ABSOLUTE bottom-right, sembol + sayı kendi içinde flex */}
-        <div style={{
-          position: 'absolute', bottom: '9px', right: '10px',
-          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          zIndex: 1,
-        }}>
-          {totalRight}
-        </div>
       </div>
     );
   }
