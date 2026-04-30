@@ -291,14 +291,16 @@ export function FinansalOzetKartIci({
   if (isPdf) {
     return (
       <div style={{ padding: '5px 10px 6px', position: 'relative', boxSizing: 'border-box' }}>
-        {/* Para birimi rozeti — premium badge, üst-orta hizalı.
-            Navy renk + hafif navy tint + ince border ile öne çıkar; "Genel Toplam"
-            etiketinin navy'siyle uyumlu, A4 belge disiplini hissini bozmaz. */}
+        {/* Para birimi rozeti — premium badge.
+            KDV+iskonto ikisi de pasif iken sağa yaslı (label sol + amount sağ
+            tek satır olduğu için orta serbest); biri aktif olunca detay
+            satırlarıyla çakışmaması için üst-orta hizalı. */}
         <span style={{
           position: 'absolute',
           top: '5px',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          ...(hasDetail
+            ? { left: '50%', transform: 'translateX(-50%)' }
+            : { right: '8px' }),
           fontSize: '9.5px',
           fontWeight: 800,
           letterSpacing: '0.08em',
