@@ -291,13 +291,14 @@ export function FinansalOzetKartIci({
   if (isPdf) {
     return (
       <div style={{ padding: '5px 10px 6px', position: 'relative', boxSizing: 'border-box' }}>
-        {/* Para birimi rozeti — premium badge, sağ üst köşe.
+        {/* Para birimi rozeti — premium badge, üst-orta hizalı.
             Navy renk + hafif navy tint + ince border ile öne çıkar; "Genel Toplam"
             etiketinin navy'siyle uyumlu, A4 belge disiplini hissini bozmaz. */}
         <span style={{
           position: 'absolute',
           top: '5px',
-          right: '8px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           fontSize: '9.5px',
           fontWeight: 800,
           letterSpacing: '0.08em',
