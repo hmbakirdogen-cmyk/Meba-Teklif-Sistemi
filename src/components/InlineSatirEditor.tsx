@@ -613,12 +613,18 @@ export function SatirAksiyonlariPanel({
       if (!tr) return;
       const rect = tr.getBoundingClientRect();
       const panelW = panelRef.current?.offsetWidth ?? 80;
+      const panelH = panelRef.current?.offsetHeight ?? 22;
       const KUMANDA_GAP = 200; // viewport sağındaki kumanda paneli için pay
       const maxLeft = window.innerWidth - panelW - KUMANDA_GAP;
       // Satır sonu çizgisine YAPIŞIK — sıfır boşluk (gap=0).
       let left = rect.right;
       if (left > maxLeft) left = Math.max(8, maxLeft);
-      const top = rect.top + rect.height / 2;
+      // Y konumu: satırın yüksekliğini AŞMAYACAK şekilde clamp.
+      // CSS scale altında satır görsel olarak küçük olduğunda center
+      // hizalama paneli satırın yukarısına taşırıyordu → satır içinde
+      // tutmak için yukarı taşmayı engelle.
+      const desiredTop = rect.top + rect.height / 2 - panelH / 2;
+      const top = Math.max(rect.top, Math.min(desiredTop, rect.bottom - panelH));
       setPos({ top, left });
     };
     update();
@@ -666,7 +672,6 @@ export function SatirAksiyonlariPanel({
             ...portalPanelStyle,
             top: pos.top,
             left: pos.left,
-            transform: 'translateY(-50%)',
           }}
         >
           {satirBazliIskonto && (
@@ -734,11 +739,14 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
 
       const rect = tr.getBoundingClientRect();
       const badgeW = badgeRef.current?.offsetWidth ?? 42;
+      const badgeH = badgeRef.current?.offsetHeight ?? 12;
       const KUMANDA_GAP = 200;
       const maxLeft = window.innerWidth - badgeW - KUMANDA_GAP;
       let left = rect.right + 2;
       if (left > maxLeft) left = Math.max(8, maxLeft);
-      const top = rect.top + rect.height / 2;
+      // Y konumu: satırı taşırmamak için center fakat row.top altında.
+      const desiredTop = rect.top + rect.height / 2 - badgeH / 2;
+      const top = Math.max(rect.top, Math.min(desiredTop, rect.bottom - badgeH));
       setPos({ top, left });
     };
 
@@ -775,7 +783,6 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
             position: 'fixed',
             top: pos.top,
             left: pos.left,
-            transform: 'translateY(-50%)',
             fontSize: '7.5px',
             fontWeight: 700,
             color: C.accent,
