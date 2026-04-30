@@ -12,15 +12,20 @@ import type { SatirGrupRenk } from '../types';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
-// Grup renkleri için sabit döngü sırası — yeni grup için ilk kullanılmamış
-// rengi soldan sağa doğru tarayarak otomatik atar. Sırada yumuşak/kurumsal,
-// görsel olarak rahat ayrılan tonlar var (sıcak → soğuk dağılım).
+// Grup renkleri — kurumsal yumuşak, sıcak → soğuk dağılım.
 const SATIR_GRUP_RENK_DONGUSU: SatirGrupRenk[] = ['amber', 'mint', 'sky', 'lavender'];
 const SATIR_GRUP_RENK_ETIKETI: Record<SatirGrupRenk, string> = {
   amber: 'Kehribar',
   mint: 'Mint',
   sky: 'Mavi',
   lavender: 'Mor',
+};
+// Dialog'taki swatch görseli için zemin + border (yumuşak premium ton).
+const SATIR_GRUP_RENK_SWATCH: Record<SatirGrupRenk, { bg: string; border: string }> = {
+  amber:    { bg: '#fff8eb', border: '#f4bf75' },
+  mint:     { bg: '#eefcf6', border: '#92ddbf' },
+  sky:      { bg: '#eef5ff', border: '#9ec1f7' },
+  lavender: { bg: '#f5f0ff', border: '#c5aff6' },
 };
 
 const K = {
@@ -83,6 +88,7 @@ export default function KumandaPaneli({
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
+  const [grupRenkPenceresiAcik, setGrupRenkPenceresiAcik] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
   // Genel Finans, Paylaşım) varsayılan KAPALI. Genişletme butonuyla açılır.
@@ -130,25 +136,22 @@ export default function KumandaPaneli({
     onIskontoOraniDegistir(lastIsk);
   };
 
-  // Grup modu butonu — toggle:
-  //  - Pasif iken: bu teklifte kullanılmamış ilk renk otomatik atanır,
-  //    grup modu aktif olur. Renk seçici/palet açılmaz.
-  //  - Aktif iken: grup modu pasif olur.
-  // Kullanılan tüm renkler doluysa, mevcut grupRenk'in bir sonrası seçilir
-  // (cycle) — kullanıcı yine en az çakışan rengi alır.
+  // Grup modu butonu — renk paletini açar. Pasif iken renk seçilince mod
+  // aktifleşir. Aktif iken paletten yeni renk seçmek mevcut grupRenk'i
+  // değiştirir; "Geri Al" seçeneği grup modunu pasif yapar.
   const handleGrupModuButonu = () => {
-    if (grupModuAktif) {
-      onGrupModuDegistir(false);
-      return;
-    }
-    const used = new Set<SatirGrupRenk>(kullanilanGrupRenkleri);
-    const otomatikRenk =
-      SATIR_GRUP_RENK_DONGUSU.find((r) => !used.has(r))
-      ?? SATIR_GRUP_RENK_DONGUSU[
-           (SATIR_GRUP_RENK_DONGUSU.indexOf(grupRenk) + 1) % SATIR_GRUP_RENK_DONGUSU.length
-         ];
-    if (otomatikRenk !== grupRenk) onGrupRenkDegistir(otomatikRenk);
-    onGrupModuDegistir(true);
+    setGrupRenkPenceresiAcik(true);
+  };
+
+  const handleGrupRenkSec = (renk: SatirGrupRenk) => {
+    onGrupRenkDegistir(renk);
+    if (!grupModuAktif) onGrupModuDegistir(true);
+    setGrupRenkPenceresiAcik(false);
+  };
+
+  const handleGrupModunuKapat = () => {
+    onGrupModuDegistir(false);
+    setGrupRenkPenceresiAcik(false);
   };
 
   const onResimSec = () => fileInputRef.current?.click();
@@ -1370,6 +1373,137 @@ export default function KumandaPaneli({
         </>
         )}
       </div>
+
+      {grupRenkPenceresiAcik && !readOnly && (
+        <div
+          role="presentation"
+          onClick={() => setGrupRenkPenceresiAcik(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            background: 'rgba(8, 14, 28, 0.32)',
+            backdropFilter: 'blur(2px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Grup rengi seç"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              minWidth: 280, padding: '18px 18px 14px',
+              background: '#FFFFFF',
+              border: '1px solid rgba(26, 43, 66, 0.10)',
+              borderRadius: 12,
+              boxShadow: '0 12px 40px rgba(15, 25, 40, 0.22), 0 2px 8px rgba(15,25,40,0.08)',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#1A2B42', marginBottom: 4,
+            }}>
+              Grup Rengi
+            </div>
+            <div style={{ fontSize: 11, color: '#717176', marginBottom: 14, lineHeight: 1.4 }}>
+              Bir renk seçin; aktif satırlar bu renge boyanır.
+            </div>
+
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 8, marginBottom: 12,
+            }}>
+              {SATIR_GRUP_RENK_DONGUSU.map((renk) => {
+                const swatch = SATIR_GRUP_RENK_SWATCH[renk];
+                const isSelected = grupModuAktif && grupRenk === renk;
+                const isUsed = kullanilanGrupRenkleri.includes(renk);
+                return (
+                  <button
+                    key={renk}
+                    type="button"
+                    onClick={() => handleGrupRenkSec(renk)}
+                    aria-label={`Grup rengi ${SATIR_GRUP_RENK_ETIKETI[renk]}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px',
+                      background: isSelected ? swatch.bg : '#FFFFFF',
+                      border: `1.5px solid ${isSelected ? swatch.border : 'rgba(26,43,66,0.12)'}`,
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      fontFamily: 'inherit',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = swatch.bg;
+                        e.currentTarget.style.borderColor = swatch.border;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = '#FFFFFF';
+                        e.currentTarget.style.borderColor = 'rgba(26,43,66,0.12)';
+                      }
+                    }}
+                  >
+                    <span style={{
+                      width: 22, height: 22, flexShrink: 0,
+                      background: swatch.bg, border: `1.5px solid ${swatch.border}`,
+                      borderRadius: 5,
+                    }} />
+                    <span style={{
+                      flex: 1, minWidth: 0,
+                      fontSize: 12, fontWeight: 600, color: '#1A2B42',
+                    }}>
+                      {SATIR_GRUP_RENK_ETIKETI[renk]}
+                    </span>
+                    {isUsed && (
+                      <span style={{
+                        fontSize: 8.5, fontWeight: 700, letterSpacing: '0.06em',
+                        textTransform: 'uppercase', color: '#717176',
+                        background: 'rgba(26,43,66,0.05)',
+                        border: '0.75px solid rgba(26,43,66,0.10)',
+                        borderRadius: 3, padding: '2px 5px',
+                      }}>
+                        Kullanımda
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGrupModunuKapat}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                background: '#FFFFFF',
+                border: '1px solid rgba(185, 28, 28, 0.32)',
+                borderRadius: 8,
+                color: '#b91c1c',
+                fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                fontFamily: 'inherit',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(185,28,28,0.06)';
+                e.currentTarget.style.borderColor = 'rgba(185,28,28,0.55)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#FFFFFF';
+                e.currentTarget.style.borderColor = 'rgba(185,28,28,0.32)';
+              }}
+            >
+              ↺ Geri Al — Grup Modunu Kapat
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
