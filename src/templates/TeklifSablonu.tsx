@@ -718,75 +718,47 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           {(() => {
             const kartlar  = kullanilanParaKartlari;
             const KART_W   = 220;
-            const KART_H   = 86;
-            const KART_GAP = 8;
+            const KART_GAP = 10;
 
             return (
               <tr>
-                <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
-                  {/* Dış çerçeve — sabit yapı, kart sayısına göre değişmez */}
+                <td colSpan={2} style={{ padding: '6px 10px 8px', borderBottom: 'none' }}>
+                  {/* Outer wrapper kaldırıldı — kartlar direkt sayfa zemininde,
+                      "Genel Toplamlar / Grand Total" başlığı silindi.            */}
                   <div style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    minHeight: `${KART_H + 26}px`,
-                    border: '0.75px solid #1A2B42',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
-                    padding: '7px 8px 8px',
-                    boxShadow: '0 2px 8px rgba(15,25,40,0.10)',
-                    printColorAdjust: 'exact',
-                    WebkitPrintColorAdjust: 'exact',
-                  } as React.CSSProperties}>
-                    {/* Başlık */}
-                    <div style={{
-                      fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em',
-                      textTransform: 'uppercase', color: BRAND.textLabel,
-                      lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px',
-                    }}>
-                      Genel Toplamlar / Grand Total
-                    </div>
-
-                    {/* Kart alanı
-                        • overflow yok — son kartın kesilmesini önler
-                        • 3 kart → flex-start | 1-2 kart → flex-end (sağa yaslı) */}
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'nowrap',
-                      justifyContent: kartlar.length >= 3 ? 'flex-start' : 'flex-end',
-                      alignItems: 'flex-start',
-                      gap: `${KART_GAP}px`,
-                    }}>
-                      {kartlar.map((item) => (
-                        <div key={item.pb} style={{
-                          width:    `${KART_W}px`,
-                          minWidth: `${KART_W}px`,
-                          maxWidth: `${KART_W}px`,
-                          height:    `${KART_H}px`,
-                          minHeight: `${KART_H}px`,
-                          maxHeight: `${KART_H}px`,
-                          flexShrink: 0,
-                          position: 'relative',
-                          boxSizing: 'border-box',
-                          borderRadius: '12px',
-                          border: '0.75px solid #E8E6E3',
-                          background: '#FFFFFF',
-                          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                          printColorAdjust: 'exact',
-                          WebkitPrintColorAdjust: 'exact',
-                        } as React.CSSProperties}>
-                          <FinansalOzetKartIci
-                            araToplam={item.araToplam}
-                            iskontoOrani={iskontoOrani}
-                            iskontoTutar={item.iskontoTutar}
-                            kdvOrani={kdvOrani}
-                            kdvTutar={item.kdvTutar}
-                            genelToplam={item.total}
-                            paraBirimi={item.pb}
-                            variant="pdf"
-                          />
-                        </div>
-                      ))}
-                    </div>
+                    display: 'flex',
+                    flexWrap: 'nowrap',
+                    justifyContent: kartlar.length >= 3 ? 'flex-start' : 'flex-end',
+                    alignItems: 'flex-start',
+                    gap: `${KART_GAP}px`,
+                  }}>
+                    {kartlar.map((item) => (
+                      <div key={item.pb} style={{
+                        width:    `${KART_W}px`,
+                        minWidth: `${KART_W}px`,
+                        maxWidth: `${KART_W}px`,
+                        flexShrink: 0,
+                        position: 'relative',
+                        boxSizing: 'border-box',
+                        borderRadius: '12px',
+                        border: '0.75px solid #E8E6E3',
+                        background: '#FFFFFF',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                        printColorAdjust: 'exact',
+                        WebkitPrintColorAdjust: 'exact',
+                      } as React.CSSProperties}>
+                        <FinansalOzetKartIci
+                          araToplam={item.araToplam}
+                          iskontoOrani={iskontoOrani}
+                          iskontoTutar={item.iskontoTutar}
+                          kdvOrani={kdvOrani}
+                          kdvTutar={item.kdvTutar}
+                          genelToplam={item.total}
+                          paraBirimi={item.pb}
+                          variant="pdf"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </td>
               </tr>

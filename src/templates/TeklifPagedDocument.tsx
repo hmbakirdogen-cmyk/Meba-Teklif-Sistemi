@@ -531,38 +531,22 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
         </colgroup>
         <tbody>
           <tr>
-            <td colSpan={2} style={{ padding: '8px 10px 10px', borderBottom: 'none' }}>
-              <div style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                minHeight: '112px',
-                border: `0.75px solid ${HEADER_SURFACE.border}`,
-                borderRadius: '8px',
-                background: HEADER_SURFACE.bg,
-                boxShadow: HEADER_SURFACE.shadow,
-                padding: '7px 8px 8px',
-                printColorAdjust: 'exact',
-                WebkitPrintColorAdjust: 'exact',
-              }}>
-                <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: HEADER_SURFACE.textLabel, lineHeight: 1, paddingBottom: '6px', paddingLeft: '2px' }}>
-                  Genel Toplamlar / Grand Total
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '8px' }}>
-                  {kullanilanParaKartlari.map((item) => (
-                    <div key={item.pb} style={{ width: '220px', minWidth: '220px', height: '86px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
-                      <FinansalOzetKartIci
-                        araToplam={item.araToplam}
-                        iskontoOrani={iskontoOrani}
-                        iskontoTutar={item.iskontoTutar}
-                        kdvOrani={kdvOrani}
-                        kdvTutar={item.kdvTutar}
-                        genelToplam={item.total}
-                        paraBirimi={item.pb}
-                        variant="pdf"
-                      />
-                    </div>
-                  ))}
-                </div>
+            <td colSpan={2} style={{ padding: '6px 10px 8px', borderBottom: 'none' }}>
+              <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '10px' }}>
+                {kullanilanParaKartlari.map((item) => (
+                  <div key={item.pb} style={{ width: '220px', minWidth: '220px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
+                    <FinansalOzetKartIci
+                      araToplam={item.araToplam}
+                      iskontoOrani={iskontoOrani}
+                      iskontoTutar={item.iskontoTutar}
+                      kdvOrani={kdvOrani}
+                      kdvTutar={item.kdvTutar}
+                      genelToplam={item.total}
+                      paraBirimi={item.pb}
+                      variant="pdf"
+                    />
+                  </div>
+                ))}
               </div>
             </td>
           </tr>

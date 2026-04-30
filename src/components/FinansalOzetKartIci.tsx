@@ -262,9 +262,6 @@ export function FinansalOzetKartIci({
     ? (isPdf ? '14px' : '24px')
     : (isPdf ? '17px' : '30px');
 
-  // PDF separator konumu — bigger total needs more clearance
-  // bottom:9(pad) + ~18(total) + 5(gap) = 32px
-  const SEP_B = 32;
 
   // ── Toplam sağ bölümü (sembol + büyük rakam) — hasDetail kartlarında alt bölüm ──
   const totalRight = (
@@ -285,16 +282,19 @@ export function FinansalOzetKartIci({
     </div>
   );
 
-  // ── PDF render — bütün durumlar (hasDetail true/false fark etmez) ───────────
-  // Layout sabitlenir: pbLabel absolute top-right rozet, total absolute bottom-right.
-  // KDV/iskonto açıldığında detay satırları üst alana akar; total'ın yeri değişmez.
+  // ── PDF render — flow layout, auto-height ──────────────────────────────────
+  // Sadece pbLabel absolute (small rozet, layout'a katkı vermez). İçerik flow
+  // ile akar → kart yüksekliği content-based.
+  // hasDetail=false: tek flex satırı (label sol + amount sağ), kompakt.
+  // hasDetail=true:  detay satırları + separator + total satırı, içerik kadar
+  //                  genişler.
   if (isPdf) {
     return (
-      <div style={{ padding: '6px 10px 9px', position: 'relative', height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ padding: '5px 10px 6px', position: 'relative', boxSizing: 'border-box' }}>
         {/* Para birimi rozeti — ABSOLUTE top-right, layout'tan bağımsız */}
         <span style={{
           position: 'absolute',
-          top: '6px',
+          top: '4px',
           right: '10px',
           fontSize: '7px',
           fontWeight: 700,
@@ -310,43 +310,32 @@ export function FinansalOzetKartIci({
 
         {hasDetail ? (
           <>
-            {/* Üst: detay satırları (akış içinde) */}
-            <div>
+            {/* Üst: detay satırları — flow */}
+            <div style={{ marginTop: '10px' }}>
               {detailRow('Ara Toplam', araToplam, cl.label, '')}
               {iskontoOrani > 0 && detailRow(`İskonto %${iskontoOrani}`, iskontoTutar, PDF_RED, '–')}
               {kdvOrani    > 0 && detailRow(`KDV %${kdvOrani}`,          kdvTutar,     PDF_GREEN, '+')}
             </div>
-            {/* Ayırıcı — sabit Y */}
+            {/* Ayırıcı — flow margin */}
             <div style={{
-              position: 'absolute',
-              bottom: `${SEP_B}px`, left: '10px', right: '10px',
               borderTop: `0.75px solid ${cl.sep}`,
+              marginTop: '4px',
+              marginBottom: '4px',
             }} />
-            {/* Total — ABSOLUTE bottom-right (mevcut konum korunur) */}
-            <div style={{
-              position: 'absolute', bottom: '9px', right: '10px',
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-              zIndex: 1,
-            }}>
+            {/* Total — flow flex satırı, sağa yaslı */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               {totalRight}
             </div>
           </>
         ) : (
-          // Etiket + fiyat aynı yatay eksende: space-between, alt-hizalı.
-          // Etiket içeriği kadar yer kaplar (flexShrink:0); fiyat sağda kalır.
-          // pbLabel zaten top-right'da bağımsız → mevcut yerinde kalır.
-          // Total'ın bottom Y'si hasDetail=true ile aynı (9px) → kartlar arası
-          // dikey hiza birebir aynı.
+          // hasDetail=false: tek satır, label sol + amount sağ, kompakt.
+          // marginTop pbLabel'in altında yer açar.
           <div style={{
-            position: 'absolute',
-            bottom: '9px',
-            left: '12px',
-            right: '10px',
             display: 'flex',
-            alignItems: 'flex-end',
             justifyContent: 'space-between',
-            gap: '12px',
-            zIndex: 1,
+            alignItems: 'flex-end',
+            gap: '10px',
+            marginTop: '14px',
           }}>
             <div style={{ flexShrink: 0 }}>
               <div style={{
