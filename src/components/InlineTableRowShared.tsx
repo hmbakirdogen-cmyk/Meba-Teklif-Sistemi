@@ -2,9 +2,9 @@ import React from 'react';
 import {
   ACIKLAMA_OVERFLOW,
   CELL_PAD,
-  DOCUMENT_COLORS,
   LINE_ITEM_METRICS,
   PARA_BIRIMI_ETIKETI,
+  TABLE_TEXT,
   URUN_KOD_OVERFLOW,
   rcCell,
   type CellPos,
@@ -12,8 +12,6 @@ import {
 } from '../templates/teklifDocumentShared';
 
 export { DescText, MagnetIcon } from '../templates/teklifDocumentShared';
-
-const C = DOCUMENT_COLORS;
 
 // Artık width/flex/min-width/max-width burada asla verilmez, sadece colgroup belirler
 export function RowCell({
@@ -65,7 +63,9 @@ export const ROW_SHELL = {
     minWidth: 0,
     textAlign: 'left',
   } satisfies React.CSSProperties,
-  /** Edit-mode: AntD InputNumber ile uyumlu — display/width override yok */
+  /** Edit-mode: AntD InputNumber ile uyumlu — display/width override yok.
+   * Renk static görünümle birebir aynı (numeric tonu) tutulur ki edit
+   * sırasında metin rengi değişmesin. */
   quantityInputStyle: {
     display: 'block',
     width: '100%',
@@ -74,7 +74,7 @@ export const ROW_SHELL = {
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
     fontWeight: 500,
     fontVariantNumeric: 'tabular-nums',
-    color: C.textMid,
+    color: TABLE_TEXT.numeric,
     lineHeight: LINE_ITEM_METRICS.lineHeight,
     whiteSpace: 'nowrap',
   } satisfies React.CSSProperties,
@@ -92,7 +92,7 @@ export const ROW_TEXT = {
   no: {
     textAlign: 'center',
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
-    color: C.textMuted,
+    color: TABLE_TEXT.passive,
     whiteSpace: 'nowrap',
   } satisfies React.CSSProperties,
   brand: {
@@ -101,7 +101,7 @@ export const ROW_TEXT = {
     minWidth: 0,
     textAlign: 'center',
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
-    color: C.textMid,
+    color: TABLE_TEXT.helper,
     whiteSpace: 'nowrap',
   } satisfies React.CSSProperties,
   code: {
@@ -110,7 +110,7 @@ export const ROW_TEXT = {
     minWidth: 0,
     fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`,
     fontWeight: 600,
-    color: C.accent,
+    color: TABLE_TEXT.code,
     letterSpacing: '-0.1px',
     ...URUN_KOD_OVERFLOW,
   } satisfies React.CSSProperties,
@@ -120,7 +120,7 @@ export const ROW_TEXT = {
     minWidth: 0,
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
     fontWeight: 400,
-    color: C.textMid,
+    color: TABLE_TEXT.description,
     lineHeight: LINE_ITEM_METRICS.lineHeight,
     ...ACIKLAMA_OVERFLOW,
   } satisfies React.CSSProperties,
@@ -130,17 +130,17 @@ export const ROW_TEXT = {
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
     fontWeight: 500,
     fontVariantNumeric: 'tabular-nums',
-    color: C.textMid,
+    color: TABLE_TEXT.numeric,
     lineHeight: LINE_ITEM_METRICS.lineHeight,
     whiteSpace: 'nowrap',
     textAlign: 'left',
   } satisfies React.CSSProperties,
+  // Birim kısaltması (Ad./kg/m): yardımcı ton — opacity yerine doğrudan #555555.
   quantityUnit: {
     display: 'block',
     width: 'auto',
-    opacity: 0.6,
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`,
-    color: C.textMid,
+    color: TABLE_TEXT.helper,
     lineHeight: LINE_ITEM_METRICS.lineHeight,
     whiteSpace: 'nowrap',
     textAlign: 'right',
@@ -151,7 +151,7 @@ export const ROW_TEXT = {
     textAlign: 'center',
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
     fontWeight: 700,
-    color: C.textMid,
+    color: TABLE_TEXT.helper,
     whiteSpace: 'nowrap',
     letterSpacing: '0.03em',
   } satisfies React.CSSProperties,
@@ -160,7 +160,7 @@ export const ROW_TEXT = {
     width: '100%',
     textAlign: 'right',
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
-    color: C.textMid,
+    color: TABLE_TEXT.numeric,
     whiteSpace: 'nowrap',
     fontVariantNumeric: 'tabular-nums',
   } satisfies React.CSSProperties,
@@ -170,7 +170,7 @@ export const ROW_TEXT = {
     textAlign: 'right',
     fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
     fontWeight: 700,
-    color: C.navy,
+    color: TABLE_TEXT.numeric,
     whiteSpace: 'nowrap',
     fontVariantNumeric: 'tabular-nums',
   } satisfies React.CSSProperties,
@@ -180,7 +180,7 @@ export const ROW_TEXT = {
     textAlign: 'center',
     fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`,
     letterSpacing: '-0.01em',
-    color: C.textSoft,
+    color: TABLE_TEXT.passive,
     whiteSpace: 'nowrap',
     lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
   } satisfies React.CSSProperties,

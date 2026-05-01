@@ -50,6 +50,7 @@ import {
   getTableHeadCellStyle,
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
+  TABLE_TEXT,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -79,7 +80,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
       width: '210mm',
       boxSizing: 'border-box',
       padding: '12mm 10mm 0',
-      fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
       backgroundColor: '#FAFAF8',
       WebkitPrintColorAdjust: 'exact',
       printColorAdjust: 'exact',
@@ -482,7 +483,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
-                  color: C.textMuted,
+                  color: TABLE_TEXT.passive,
                   whiteSpace: 'nowrap',
                   ...rcCell('first', idx, undefined, setGroupPos),
                 })}>
@@ -500,7 +501,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
-                  color: C.textMid,
+                  color: TABLE_TEXT.helper,
                   whiteSpace: 'nowrap',
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
@@ -511,7 +512,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   padding: CELL_PAD,
                   fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`,
                   fontWeight: 600,
-                  color: C.accent,
+                  color: TABLE_TEXT.code,
                   verticalAlign: 'middle',
                   letterSpacing: '-0.1px',
                   ...URUN_KOD_OVERFLOW,
@@ -523,7 +524,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 <td className="description-cell" style={applyCellStyle({
                   padding: CELL_PAD,
                   fontWeight: 400,
-                  color: C.textMid,
+                  color: TABLE_TEXT.description,
                   verticalAlign: 'middle',
                   ...ACIKLAMA_OVERFLOW,
                   ...rcCell('mid', idx, undefined, setGroupPos),
@@ -535,17 +536,17 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   padding: CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11px',
-                  color: C.textMid,
+                  color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
-                      <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: TABLE_TEXT.numeric }}>
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
-                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', opacity: 0.6, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', color: TABLE_TEXT.helper, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
                         {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
                       </span>
                     </div>
@@ -557,7 +558,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
-                  color: C.textMid,
+                  color: TABLE_TEXT.helper,
                   whiteSpace: 'nowrap',
                   fontWeight: 700,
                   letterSpacing: '0.03em',
@@ -571,7 +572,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   textAlign: 'right',
                   verticalAlign: 'middle',
                   fontSize: '11px',
-                  color: C.textMid,
+                  color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx, undefined, setGroupPos),
@@ -588,7 +589,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   verticalAlign: 'middle',
                   fontSize: '11px',
                   fontWeight: 700,
-                  color: C.navy,
+                  color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx, undefined, setGroupPos),
@@ -601,7 +602,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`,
-                  color: C.textSoft,
+                  color: TABLE_TEXT.passive,
                   whiteSpace: 'nowrap',
                   lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
                   ...rcCell('last', idx, undefined, setGroupPos),

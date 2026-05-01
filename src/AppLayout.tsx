@@ -91,8 +91,11 @@ export default function AppLayout() {
           borderBottom: `1px solid ${C.bgHeaderBorder}`,
           fontSize: isMobile ? 18 : 16,
           minWidth: 0,
-          width: '100vw',
+          width: '100%',
           boxSizing: 'border-box',
+          position: 'sticky',
+          top: 0,
+          zIndex: 200,
         }}
       >
         {/* ── LOGO ── */}
@@ -221,7 +224,7 @@ export default function AppLayout() {
                   fontSize: 11, fontWeight: 700,
                   color: isYonetici ? '#fbbf24' : '#93c5fd',
                   flexShrink: 0,
-                  fontFamily: '"Arial", sans-serif',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
                   letterSpacing: 0.5,
                 }}
               >
@@ -277,7 +280,7 @@ export default function AppLayout() {
         placement="right"
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
-        width={240}
+        size={240}
         styles={{ body: { padding: 0 } }}
       >
         <Menu

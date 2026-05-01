@@ -293,6 +293,23 @@ export default function PaginatedBelgeInlineEditor({
   // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
   // gözüksün diye (active panel ile aynı pozisyonda).
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
+  // Satır başındaki numaraya tıklanınca o satırın id'si bu set'e eklenir;
+  // tekrar tıklanırsa çıkarılır. Görsel inceleme/işaretleme amaçlı, kalıcı
+  // değil — teklif state'ine yazılmaz.
+  const [markedRowIds, setMarkedRowIds] = useState<Set<string>>(() => new Set());
+
+  const toggleRowMark = useCallback(
+    (satirId: string) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setMarkedRowIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(satirId)) next.delete(satirId);
+        else next.add(satirId);
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleSatirCellClick = useCallback(
     (satir: TeklifSatiri, cell: SatirCellField) => (e: React.MouseEvent) => {
@@ -613,8 +630,12 @@ export default function PaginatedBelgeInlineEditor({
               const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
               const isInsideSetGroup = setGroupPos === 'top' || setGroupPos === 'middle';
               const colCount = OFFER_TABLE_COLUMN_COUNT;
+              const isMarked = markedRowIds.has(satir.id);
 
-              const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
+              const applyCellStyle = (style: React.CSSProperties): React.CSSProperties =>
+                isMarked
+                  ? { ...style, background: 'rgba(0, 0, 0, 0.06)' }
+                  : style;
 
               const isLastRow = idx === teklif.satirlar.length - 1;
               const isFirstRow = idx === 0;
@@ -685,13 +706,26 @@ export default function PaginatedBelgeInlineEditor({
                         : null),
                     }}
                   >
-                    <RowCell idx={idx} pos="first" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} style={applyCellStyle({ ...ROW_TEXT.no, cursor: 'pointer' })}>
+                    <RowCell
+                      idx={idx}
+                      pos="first"
+                      setGroupPos={setGroupPos}
+                      style={applyCellStyle({ ...ROW_TEXT.no })}
+                    >
                       {satir.setAltKalem ? (
-                        <span style={SET_SUBITEM_NUMBER_STYLE}>
+                        <span
+                          onClick={toggleRowMark(satir.id)}
+                          title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
+                          style={{ ...SET_SUBITEM_NUMBER_STYLE, cursor: 'pointer' }}
+                        >
                           {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
                         </span>
                       ) : (
-                        <span>
+                        <span
+                          onClick={toggleRowMark(satir.id)}
+                          title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
+                          style={{ cursor: 'pointer' }}
+                        >
                           {String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')}
                         </span>
                       )}
@@ -878,7 +912,7 @@ export default function PaginatedBelgeInlineEditor({
                   colSpan={OFFER_TABLE_COLUMN_COUNT}
                   onClick={readOnly ? undefined : (e) => { e.stopPropagation(); onSatirEkle(); }}
                   style={{
-                    padding: '14px 7px', textAlign: 'center', fontSize: '11px', color: C.textMuted,
+                    padding: '14px 7px', textAlign: 'center', fontSize: '11px', color: '#777777',
                     cursor: readOnly ? 'default' : 'pointer', border: `1px dashed ${C.borderSoft}`, borderRadius: ROW_CARD.radius,
                     background: 'rgba(37, 99, 235, 0.02)',
                   }}
@@ -1001,9 +1035,9 @@ export default function PaginatedBelgeInlineEditor({
         <strong
           style={{
             color: C.navy,
-            fontSize: '12.1px',
+            fontSize: '10.5px',
             letterSpacing: 'inherit',
-            lineHeight: 1.68,
+            lineHeight: 1.45,
             flexShrink: 0,
             whiteSpace: 'nowrap',
           }}
@@ -1022,8 +1056,8 @@ export default function PaginatedBelgeInlineEditor({
             flex: 1,
             minWidth: 0,
             padding: 0,
-            fontSize: '12.1px',
-            lineHeight: 1.68,
+            fontSize: '10.5px',
+            lineHeight: 1.45,
             color: C.textMid,
             fontFamily: 'inherit',
             letterSpacing: 'inherit',

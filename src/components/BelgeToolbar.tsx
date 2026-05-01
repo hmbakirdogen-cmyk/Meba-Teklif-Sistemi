@@ -12,7 +12,6 @@ import {
   FilePdfOutlined,
   MailOutlined,
   PlusOutlined,
-  FileTextOutlined,
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
 import { buttonClassNames } from '../styles/buttonStyles';
@@ -124,7 +123,25 @@ export default function BelgeToolbar({
         <Tooltip title="Notlar">
           <Button
             type="text"
-            icon={<FileTextOutlined />}
+            icon={
+              <svg viewBox="0 0 20 20" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                {/* spiral soluk */}
+                <circle cx="5" cy="4" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
+                <circle cx="5" cy="7" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
+                <circle cx="5" cy="10" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
+                {/* kağıt gövde */}
+                <rect x="6.5" y="2" width="9" height="13" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.80" />
+                {/* yazı satırları */}
+                <line x1="8.5" y1="5.2" x2="13.5" y2="5.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+                <line x1="8.5" y1="7.6" x2="13.5" y2="7.6" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+                <line x1="8.5" y1="10" x2="11.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+                {/* kalem */}
+                <g transform="rotate(-40 13 14)">
+                  <rect x="12" y="11" width="2" height="5.5" rx="0.4" fill="currentColor" opacity="0.85" />
+                  <polygon points="12,16.5 14,16.5 13,18.5" fill="currentColor" opacity="0.70" />
+                </g>
+              </svg>
+            }
             onClick={() => onPanelAc('notlar')}
           />
         </Tooltip>

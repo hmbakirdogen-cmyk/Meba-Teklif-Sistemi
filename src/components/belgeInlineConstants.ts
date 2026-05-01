@@ -97,8 +97,8 @@ export const FIELD_CSS = `
 .belge-inline .ant-select-placeholder {
   font: inherit !important;
   font-style: normal !important;
-  color: #94a3b8 !important;
-  opacity: 0.50 !important;
+  color: #777777 !important;
+  opacity: 1 !important;
   inset-inline-start: 0 !important;
   pointer-events: none !important;
 }
@@ -108,8 +108,8 @@ export const FIELD_CSS = `
 .belge-inline textarea.ant-input::placeholder {
   font: inherit !important;
   font-style: normal !important;
-  color: #94a3b8 !important;
-  opacity: 0.50 !important;
+  color: #777777 !important;
+  opacity: 1 !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -545,14 +545,16 @@ export const FIELD_CSS = `
    ══════════════════════════════════════════════════════════════════════ */
 /* Hover/active: hat görünür + HAFİF drop-shadow halesi (sadece görünür
    2px hat etrafında, tüm hit area'da değil — drop-shadow alpha-aware). */
-.row-resize-handle:hover {
+/* Hover/active sinyali OUTER hit-area div'ine değil, INNER görünür çizgiye
+   uygulanır. Hit area (# + Marka boyunca) hâlâ transparan; sadece marka
+   altındaki ince hat parlar. */
+.row-resize-handle:hover .row-resize-handle-line,
+.row-resize-handle[data-active="true"] .row-resize-handle-line {
   opacity: 1 !important;
-  filter: drop-shadow(0 0 2px rgba(74, 144, 226, 0.35)) !important;
+  filter: drop-shadow(0 0 3px rgba(74, 144, 226, 0.55)) drop-shadow(0 0 1px rgba(122, 176, 244, 0.7)) !important;
 }
-
-.row-resize-handle[data-active="true"] {
-  opacity: 1 !important;
-  filter: drop-shadow(0 0 3px rgba(74, 144, 226, 0.48)) !important;
+.row-resize-handle[data-active="true"] .row-resize-handle-line {
+  filter: drop-shadow(0 0 4px rgba(74, 144, 226, 0.7)) drop-shadow(0 0 1.5px rgba(122, 176, 244, 0.85)) !important;
 }
 
 @media print {
@@ -593,7 +595,7 @@ export const FIELD_CSS = `
   font-size: 11px;
   font-weight: 400;
   line-height: 1.15;
-  color: #4A4A4E;
+  color: #2A2A2A;
   white-space: nowrap;
   overflow: visible;
   text-overflow: clip;
@@ -851,7 +853,7 @@ export const FIELD_CSS = `
 .belge-inline tr[data-satir-id] > td.product-code-cell.is-active-cell .inline-table-field *:not(.ant-select-dropdown):not(.ant-select-dropdown *) {
   font-size: 10.5px !important;
   font-weight: 600 !important;
-  color: #1E3A5F !important;
+  color: #111111 !important;
   letter-spacing: -0.1px !important;
 }
 

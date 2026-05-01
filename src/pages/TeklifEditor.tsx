@@ -422,7 +422,6 @@ export default function TeklifEditor() {
       flexDirection: 'column',
       minHeight: '100vh',
       background: C.bgBody,
-      overflowX: 'hidden',
     }}>
       {/* Toolbar */}
       <BelgeToolbar

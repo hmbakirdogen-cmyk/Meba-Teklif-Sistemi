@@ -214,7 +214,7 @@ export default function PersonelSayfasi() {
   ];
 
   return (
-    <div style={{ padding: 24, maxWidth: 1280, margin: '0 auto' }}>
+    <div style={{ padding: '14px 24px 24px', maxWidth: 1280, margin: '0 auto' }}>
       <Card
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

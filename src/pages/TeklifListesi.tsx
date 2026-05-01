@@ -243,7 +243,7 @@ export default function TeklifListesi() {
     : null;
 
   const wrapperStyle: CSSProperties = {
-    padding: isMobile ? '18px 12px 48px' : '28px 32px 64px',
+    padding: isMobile ? '10px 12px 48px' : '14px 32px 64px',
     maxWidth: 1160,
     margin: '0 auto',
     width: '100%',
@@ -818,7 +818,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala }: T
               background: benim ? 'rgba(15,31,69,0.10)' : renk.avatarBg,
               border: `1.5px solid ${benim ? 'rgba(15,31,69,0.28)' : renk.avatarBorder}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9.5, fontWeight: 700, fontFamily: '"Arial", sans-serif',
+              fontSize: 9.5, fontWeight: 700, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
               color: benim ? C.textPrimary : renk.avatarText,
             }}>
               {inits}

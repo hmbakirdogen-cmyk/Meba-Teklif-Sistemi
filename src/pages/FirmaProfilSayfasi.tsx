@@ -38,7 +38,7 @@ export default function FirmaProfilSayfasi() {
     : [];
 
   return (
-    <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
+    <div style={{ padding: '14px 24px 24px', maxWidth: 980, margin: '0 auto' }}>
       <Card
         title={
           <div>

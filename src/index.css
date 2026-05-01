@@ -23,9 +23,9 @@
   --chip-info-bg: #EFF2F6;
   --chip-info-border: #C8D0DC;
   --chip-info-text: #1A2B42;
-  --chip-warn-bg: #f8f1e5;
-  --chip-warn-border: #d8bb8e;
-  --chip-warn-text: #744314;
+  --chip-warn-bg: #f0f0f0;
+  --chip-warn-border: #b8b8b8;
+  --chip-warn-text: #1A1A1A;
   color-scheme: light;
 
   /* ── Tipografi sistemi CSS değişkenleri ────────────────────────── */
@@ -71,9 +71,9 @@
   --chip-info-bg: #182334;
   --chip-info-border: #2c4664;
   --chip-info-text: #a9c5e5;
-  --chip-warn-bg: #231a13;
-  --chip-warn-border: #5b4222;
-  --chip-warn-text: #e4c18c;
+  --chip-warn-bg: #1a1a1a;
+  --chip-warn-border: #4a4a4a;
+  --chip-warn-text: #d8d8d8;
   color-scheme: dark;
 }
 
@@ -86,10 +86,11 @@ body {
   padding: 0;
   min-height: 100vh;
   font-size: 16px;
-  font-family: 'Inter', 'Arial', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Inter', 'Arial', sans-serif;
   background: var(--bg-body);
   background-attachment: fixed;
   color: var(--text-primary);
+  overflow-x: hidden;
   transition: color 0.2s ease, background 0.2s ease;
 }
 
@@ -489,7 +490,7 @@ button.app-chip-button.is-active:hover {
   border-color: #1A2B42;
 }
 
-/* İskonto varyantı — soft turuncu/amber tonu */
+/* İskonto varyantı — nötr siyah-gri tonu */
 button.app-chip-button--iskonto {
   border-color: var(--chip-warn-border);
   background: var(--chip-warn-bg);
@@ -499,18 +500,18 @@ button.app-chip-button--iskonto {
 button.app-chip-button--iskonto:hover,
 button.app-chip-button--iskonto:focus-visible {
   background: color-mix(in srgb, var(--chip-warn-bg) 84%, white 16%);
-  border-color: color-mix(in srgb, var(--chip-warn-border) 88%, #bb8d4f 12%);
+  border-color: color-mix(in srgb, var(--chip-warn-border) 88%, #888888 12%);
 }
 
 button.app-chip-button--iskonto.is-active {
-  background: #b45309;
-  border-color: #92400e;
+  background: #2a2a2a;
+  border-color: #1a1a1a;
   color: #ffffff;
 }
 
 button.app-chip-button--iskonto.is-active:hover {
-  background: #9a4507;
-  border-color: #7c3510;
+  background: #1a1a1a;
+  border-color: #0a0a0a;
 }
 
 button.app-chip-button:active,
@@ -1006,7 +1007,21 @@ button.app-btn:active,
   color: #60a5fa !important;
 }
 
-/* ── Tooltip ─────────────────────────────────────────────────────────────────── */
+/* ── Tooltip typography ─────────────────────────────────────────────────────── */
+.ant-tooltip .ant-tooltip-inner {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Inter', 'Arial', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 350 !important;
+  line-height: 1.5 !important;
+  letter-spacing: -0.01em !important;
+  font-feature-settings: 'cv01', 'cv03', 'cv04', 'ss01' !important;
+  font-optical-sizing: auto !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  min-height: unset !important;
+  padding: 3px 6px !important;
+}
+
 [data-theme="dark"] .ant-tooltip .ant-tooltip-inner {
   background: #243050 !important;
   color: #dde4f0 !important;

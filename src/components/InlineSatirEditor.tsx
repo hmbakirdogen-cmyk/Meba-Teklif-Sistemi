@@ -615,14 +615,11 @@ export function SatirAksiyonlariPanel({
       const panelW = panelRef.current?.offsetWidth ?? 80;
       const panelH = panelRef.current?.offsetHeight ?? 22;
       const KUMANDA_GAP = 200; // viewport sağındaki kumanda paneli için pay
+      const minLeft = rect.right;          // satırın içine ASLA girme
       const maxLeft = window.innerWidth - panelW - KUMANDA_GAP;
-      // Satır sonu çizgisine YAPIŞIK — sıfır boşluk (gap=0).
-      let left = rect.right;
-      if (left > maxLeft) left = Math.max(8, maxLeft);
+      // maxLeft < minLeft olursa (küçük ekran) yine de satır dışında tut.
+      const left = maxLeft >= minLeft ? minLeft : minLeft;
       // Y konumu: satırın yüksekliğini AŞMAYACAK şekilde clamp.
-      // CSS scale altında satır görsel olarak küçük olduğunda center
-      // hizalama paneli satırın yukarısına taşırıyordu → satır içinde
-      // tutmak için yukarı taşmayı engelle.
       const desiredTop = rect.top + rect.height / 2 - panelH / 2;
       const top = Math.max(rect.top, Math.min(desiredTop, rect.bottom - panelH));
       setPos({ top, left });
@@ -647,12 +644,8 @@ export function SatirAksiyonlariPanel({
   // Panel ölçüldüğünde re-position (ilk render'da panelW=80 fallback)
   useEffect(() => {
     if (!panelRef.current || !pos) return;
-    const real = panelRef.current.offsetWidth;
-    const KUMANDA_GAP = 200;
-    const maxLeft = window.innerWidth - real - KUMANDA_GAP;
-    if (pos.left > maxLeft && maxLeft > 8) {
-      setPos((p) => (p ? { ...p, left: Math.max(8, maxLeft) } : p));
-    }
+    // Sadece boyut değişince tetiklenir — left zaten rect.right'a sabitli,
+    // ekstra clamp gerekmez.
   }, [pos, satirBazliIskonto]);
 
   if (!pos) {
@@ -727,7 +720,7 @@ interface IskontoRozetiProps {
 export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; height: number } | null>(null);
 
   useLayoutEffect(() => {
     const update = () => {
@@ -738,16 +731,10 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
       if (!tr) return;
 
       const rect = tr.getBoundingClientRect();
-      const badgeW = badgeRef.current?.offsetWidth ?? 42;
-      const badgeH = badgeRef.current?.offsetHeight ?? 12;
-      const KUMANDA_GAP = 200;
-      const maxLeft = window.innerWidth - badgeW - KUMANDA_GAP;
-      let left = rect.right + 2;
-      if (left > maxLeft) left = Math.max(8, maxLeft);
-      // Y konumu: satırı taşırmamak için center fakat row.top altında.
-      const desiredTop = rect.top + rect.height / 2 - badgeH / 2;
-      const top = Math.max(rect.top, Math.min(desiredTop, rect.bottom - badgeH));
-      setPos({ top, left });
+      const minLeft = rect.right + 2;  // satırın içine ASLA girme
+      const left = minLeft;
+      const top = rect.top;
+      setPos({ top, left, height: rect.height });
     };
 
     update();
@@ -783,17 +770,20 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
             position: 'fixed',
             top: pos.top,
             left: pos.left,
-            fontSize: '7.5px',
+            height: pos.height,
+            fontSize: '9px',
             fontWeight: 700,
             color: C.accent,
-            background: 'rgba(37,99,235,0.08)',
-            borderRadius: '3px',
-            padding: '1px 3px',
-            lineHeight: 1,
+            background: 'rgba(37,99,235,0.10)',
+            borderRadius: '4px',
+            padding: '0 5px',
+            lineHeight: `${pos.height}px`,
             letterSpacing: '0.02em',
             pointerEvents: 'none',
             zIndex: 9998,
             whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
           }}
           aria-hidden="true"
         >

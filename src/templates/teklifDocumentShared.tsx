@@ -163,6 +163,27 @@ export const HEADER_SURFACE = {
   posGreen:   '#065F46',                      // KDV (koyu yeşil)
 } as const;
 
+// ── Teklif tablosu yazı renkleri — kurumsal premium siyah-gri hiyerarşi ─────
+// Sadece bu palet kullanılır; mavi/kırmızı/yeşil/mor/altın yazı tonu kalmaz.
+// A4 önizleme + PDF birebir aynı tonu paylaşır (rcCell hücreleri ROW_TEXT
+// üzerinden, başlık/sublabel/title doğrudan TABLE_TEXT.* üzerinden boyanır).
+export const TABLE_TEXT = {
+  /** Tablo bölümünün üst başlığı ("Teklif Kalemleri / Line Items"). */
+  title:       '#0A0A0A',
+  /** Sütun başlıkları (#, Marka, Ürün Kodu, ...). */
+  header:      '#1A1A1A',
+  /** Ürün kodu sütunu metni. */
+  code:        '#111111',
+  /** Ürün açıklaması sütunu metni (DescText sınıfı dahil). */
+  description: '#2A2A2A',
+  /** Sayısal değerler — Miktar, Birim Fiyat, Tutar. */
+  numeric:     '#000000',
+  /** Yardımcı küçük metinler — Marka, Para birimi, Birim, sublabel. */
+  helper:      '#555555',
+  /** Pasif/ikincil bilgiler — satır no, teslim tarihi, set alt-kalem ›n. */
+  passive:     '#777777',
+} as const;
+
 // ── Döküman renk paleti — sıcak nötr, tablo renk diliyle eşleşik ─────────────
 export const DOCUMENT_COLORS = {
   navy:        '#1A2B42',   // derin lacivert — başlık, vurgu metin
@@ -171,7 +192,7 @@ export const DOCUMENT_COLORS = {
   accent:      '#1E3A5F',   // etkileşim vurgu tonu
   border:      '#E2E0DC',   // standart sıcak kenarlık
   borderSoft:  '#EDEBE8',   // hafif sıcak kenarlık
-  rowAlt:      '#F7F6F4',   // zebra satır arka planı
+  rowAlt:      '#F7F7F7',   // zebra satır arka planı — nötr soft gri
   text:        '#2C2C2E',   // birincil metin — sıcak antrasit
   textMid:     '#4A4A4E',   // ikincil metin
   textSoft:    '#717176',   // yardımcı metin
@@ -180,10 +201,10 @@ export const DOCUMENT_COLORS = {
   panel:       '#F8F7F5',   // panel arka planı
   panelStrong: '#F0EFEC',   // güçlü panel yüzeyi
   notesBg:     '#F7F6F4',   // notlar kutusu arka planı
-  // ── İmza bölümü kahve paleti ──────────────────────────────────────────────
-  sigPrimary:   '#4E3B2B',   // koyu kahve — imza bölümü Türkçe metinler
-  sigSecondary: '#8A7462',   // orta kahve — imza bölümü İngilizce metinler
-  sigBorder:    '#C8B8A6',   // açık kahve — imza çizgileri
+  // ── İmza bölümü siyah-gri paleti ─────────────────────────────────────────
+  sigPrimary:   '#1A1A1A',   // koyu nötr — imza bölümü Türkçe metinler
+  sigSecondary: '#555555',   // orta nötr gri — imza bölümü İngilizce metinler
+  sigBorder:    '#9E9E9E',   // açık nötr gri — imza çizgileri
 } as const;
 
 
@@ -462,13 +483,13 @@ export const ROW_CARD = {
  *  - Alt kenarda hafif drop-shadow (setin bittiği net hissedilsin)
  */
 export const SET_FRAME = {
-  bg:           '#FBF8F2',
-  borderClr:    '#C9BFA6',
+  bg:           '#F2F2F2',                       // nötr açık gri — set grubu zemini
+  borderClr:    '#BFBFBF',                       // nötr orta gri — çerçeve
   borderWidth:  '0.9px',
-  accentClr:    '#9C8050',
+  accentClr:    '#555555',                       // koyu nötr gri — sol vurgu çizgisi
   accentWidth:  '2.5px',
   radius:       '8px',
-  shadow:       '0 3px 8px rgba(120, 95, 50, 0.10)',
+  shadow:       '0 3px 8px rgba(0, 0, 0, 0.08)', // shadow da nötr siyah
 } as const;
 
 export type CellPos = 'first' | 'mid' | 'last';
@@ -575,14 +596,14 @@ export function computeSetSubitemIndex(
 }
 
 /**
- * Set alt kalem numarasının görsel stili — küçük ama dikkat çekici, italik,
- * warm-gold renkte. Premium kurumsal his.
+ * Set alt kalem numarasının görsel stili — küçük italik, ikincil bilgi tonu.
+ * Renk paletindeki passive tonu (#777777) kullanılır; renkli vurgu kalmaz.
  */
 export const SET_SUBITEM_NUMBER_STYLE: CSSProperties = {
   fontSize: '9.5px',
   fontStyle: 'italic',
   fontWeight: 700,
-  color: SET_FRAME.accentClr,
+  color: TABLE_TEXT.passive,
   fontFamily: '"Georgia", "Times New Roman", serif',
   fontVariantNumeric: 'tabular-nums',
   letterSpacing: '0.04em',
@@ -694,7 +715,7 @@ export const DOCUMENT_ROOT_STYLE: CSSProperties = {
   margin: '0 auto',
   backgroundColor: '#FFFFFF',
   colorScheme: 'light',
-  fontFamily: '"Inter", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
   fontSize: '11.7px',
   lineHeight: 1.52,
   letterSpacing: '0.01em',
@@ -844,7 +865,7 @@ export const SETTINGS_VALUE_STYLE: CSSProperties = {
 export const TABLE_TITLE_STYLE: CSSProperties = {
   fontSize: '9px',
   fontWeight: 600,
-  color: DOCUMENT_COLORS.textSoft,
+  color: TABLE_TEXT.title,
   letterSpacing: '0.10em',
   textTransform: 'uppercase',
   marginBottom: '6px',
@@ -875,8 +896,8 @@ export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSPro
     fontSize: '9.7px',
     fontWeight: 700,
     letterSpacing: '0.06em',
-    color: DOCUMENT_COLORS.navy,
-    background: '#FAFAF8',
+    color: TABLE_TEXT.header,
+    background: '#F5F5F5',
     borderTop: 'none',
     borderLeft: 'none',
     borderRight: 'none',
@@ -891,19 +912,19 @@ export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
   display: 'block',
   fontWeight: 400,
   fontSize: '7.5px',
-  color: DOCUMENT_COLORS.textMuted,
+  color: TABLE_TEXT.helper,
   marginTop: '1px',
   letterSpacing: '0.02em',
   lineHeight: 1.2,
 };
 
 export const NOTES_BOX_STYLE: CSSProperties = {
-  fontSize: '12.1px',
-  marginBottom: '16px',
-  padding: '11px 14px',
+  fontSize: '10.5px',
+  marginBottom: '6px',
+  padding: '5px 10px',
   border: `0.75px solid ${DOCUMENT_COLORS.border}`,
-  borderRadius: '6px',
-  lineHeight: 1.68,
+  borderRadius: '4px',
+  lineHeight: 1.45,
   backgroundColor: DOCUMENT_COLORS.notesBg,
   wordBreak: 'break-word',
   overflowWrap: 'break-word',

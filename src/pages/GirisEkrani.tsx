@@ -11,7 +11,9 @@ import { LogoContainer } from '../components/LogoContainer';
 type Adim = 'firma' | 'kullanici' | 'sifre';
 
 /* ── Renk yardımcıları ─────────────────────────────────── */
-const gold   = (a: number) => `rgba(185,148,52,${a})`;
+// Önceki "gold" tonu (185,148,52) saf nötr griye çevrildi — giriş ekranında
+// hiçbir kahve/altın hue kalmaz. Aynı değişken adı korundu.
+const gold   = (a: number) => `rgba(180,180,180,${a})`;
 const silver = (a: number) => `rgba(172,186,205,${a})`;
 
 /* ─────────── ANIMATIONS (CSS @keyframes) ─────────────── */
@@ -47,19 +49,19 @@ const ANIMATIONS_CSS = `
     0%, 100% { text-shadow: 0 0 6px rgba(255,225,120,0.85), 0 0 14px rgba(255,200,60,0.55); }
     50%      { text-shadow: 0 0 10px rgba(255,245,180,1), 0 0 22px rgba(255,220,90,0.85), 0 0 36px rgba(255,200,40,0.55); }
   }
-  /* Neon pulse — sönükken silver, yandığında MEBA çerçevesi altın #b99434 neon */
+  /* Neon pulse — sönükken silver, yandığında MEBA çerçevesi nötr gri neon */
   @keyframes gc-neon-pulse {
     0%, 100% {
       color: rgba(172,186,205,0.55);
       text-shadow: none;
     }
     50% {
-      color: #fde08a;
+      color: #f0f0f0;
       text-shadow:
-        0 0 4px #ffeab0,
-        0 0 12px rgba(253,224,138,0.95),
-        0 0 26px rgba(212,172,82,0.78),
-        0 0 50px rgba(185,148,52,0.55);
+        0 0 4px #ffffff,
+        0 0 12px rgba(230,230,230,0.95),
+        0 0 26px rgba(200,200,200,0.78),
+        0 0 50px rgba(180,180,180,0.55);
     }
   }
 `;
@@ -597,7 +599,7 @@ export default function GirisEkrani() {
       background: 'linear-gradient(158deg, #060b18 0%, #0b1624 40%, #080f1c 100%)',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      fontFamily: '"Segoe UI","Inter","Arial",sans-serif',
+      fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
       position: 'relative', overflow: 'hidden',
       color: 'rgba(220,232,250,0.92)',
     }}>
@@ -620,7 +622,7 @@ export default function GirisEkrani() {
             <div style={{
               fontSize: isMobile ? 18 : 24, fontWeight: 700,
               letterSpacing: 1.5,
-              background: 'linear-gradient(135deg, #f5d878 0%, #d4ac52 50%, #b99434 100%)',
+              background: 'linear-gradient(135deg, #ffffff 0%, #c8c8c8 50%, #909090 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -804,15 +806,15 @@ const KullaniciSifreFormu = forwardRef<HTMLInputElement, SifreFormProps>(
           style={{
             width: '100%', padding: '12px 16px',
             background: yukleniyor
-              ? 'linear-gradient(135deg, rgba(120,100,40,0.45), rgba(80,68,28,0.45))'
-              : 'linear-gradient(135deg, #d4ac52, #b99434)',
-            color: '#1a1208',
+              ? 'linear-gradient(135deg, rgba(110,110,110,0.45), rgba(75,75,75,0.45))'
+              : 'linear-gradient(135deg, #c8c8c8, #909090)',
+            color: '#0a0a0a',
             border: 'none', borderRadius: 10,
             fontSize: 13, fontWeight: 700, letterSpacing: 1.2,
             textTransform: 'uppercase' as const,
             cursor: yukleniyor || !kullaniciAdi.trim() || !sifre ? 'not-allowed' : 'pointer',
             opacity: !kullaniciAdi.trim() || !sifre ? 0.5 : 1,
-            boxShadow: '0 6px 20px rgba(185,148,52,0.32)',
+            boxShadow: '0 6px 20px rgba(180,180,180,0.32)',
             transition: 'all 0.15s ease',
           }}
         >

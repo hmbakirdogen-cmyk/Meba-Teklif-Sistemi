@@ -52,6 +52,7 @@ import {
   SET_SUBITEM_NUMBER_STYLE,
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
+  TABLE_TEXT,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -351,7 +352,7 @@ function TableSection({
                     : null),
                 }}
               >
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMuted, whiteSpace: 'nowrap', ...rcCell('first', idx, undefined, setGroupPos) })}>
+                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.passive, whiteSpace: 'nowrap', ...rcCell('first', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? (
                     <span style={SET_SUBITEM_NUMBER_STYLE}>
                       {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
@@ -360,48 +361,48 @@ function TableSection({
                     String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')
                   )}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.marka || '-'}
                 </td>
-                <td className="product-code-cell" style={applyCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: C.accent, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className="product-code-cell" style={applyCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: TABLE_TEXT.code, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.urunKod || '-'}
                 </td>
-                <td className="description-cell" style={applyCellStyle({ padding: CELL_PAD, fontWeight: 400, color: C.textMid, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className="description-cell" style={applyCellStyle({ padding: CELL_PAD, fontWeight: 400, color: TABLE_TEXT.description, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
                 <td style={applyCellStyle({
                   padding: CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11px',
-                  color: C.textMid,
+                  color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
-                      <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '0 0 58%', minWidth: 0, textAlign: 'left', fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: TABLE_TEXT.numeric }}>
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
-                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', opacity: 0.6, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', color: TABLE_TEXT.helper, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
                         {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
                       </span>
                     </div>
                   ) : '-'}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: C.textMid, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: C.navy, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: C.textSoft, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx, undefined, setGroupPos) })}>
+                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '-')}
                 </td>
               </tr>
@@ -546,7 +547,7 @@ function SignatureBlock() {
   return (
     <div style={{
       ...SIGNATURE_SECTION_STYLE,
-      fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
     } as React.CSSProperties}>
       <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
 
@@ -566,7 +567,7 @@ function SignatureBlock() {
             textAlign: 'left',
             userSelect: 'none',
             whiteSpace: 'nowrap',
-            fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+            fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
           }}>
             <div style={{
               fontSize: '10.8px',
@@ -594,7 +595,7 @@ function SignatureBlock() {
         {/* Sağ: İçerik — isim, tarih, imza */}
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
+            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45', fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif' }}>
               <div style={{ position: 'relative', top: '16px' }}>
                 <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 <div style={{ marginBottom: '6px', marginTop: '2px' }}>
@@ -610,7 +611,7 @@ function SignatureBlock() {
                 <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
               </div>
             </div>
-            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px', fontFamily: '"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
+            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px', fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif' }}>
               <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
               <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
                 <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>

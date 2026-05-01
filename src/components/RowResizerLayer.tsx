@@ -32,14 +32,25 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LINE_ITEM_METRICS } from '../templates/teklifDocumentShared';
 
+// HMR sırasında React Fast Refresh useLayoutEffect'i yeniden çalıştırmadığı
+// için rows state'i eski şemayla takılı kalıyor → çizgi yanlış pozisyonda
+// veya görünmez oluyor. Bu dosya değiştiğinde tam sayfa yenileme tetikle.
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    window.location.reload();
+  });
+}
+
 interface RowGeom {
   id: string;
   top: number;     // layer'ın iç koordinatında (px)
   height: number;
   left: number;
   width: number;        // satırın tam genişliği (drag geometrisi için)
-  handleLeft: number;   // tutamak başlangıcı (sola yaslı = r.left)
-  handleWidth: number;  // No (#) + Marka kolon genişlikleri toplamı
+  handleLeft: number;   // hit area başlangıcı (sola yaslı = r.left)
+  handleWidth: number;  // hit area genişliği (No + Marka — yakalama için geniş)
+  lineLeft: number;     // görünen çizginin SOL ofseti (handle div'ine göre)
+  lineWidth: number;    // görünen çizginin genişliği (sadece marka)
 }
 
 interface RowResizerLayerProps {
@@ -54,7 +65,12 @@ const sameRows = (a: RowGeom[], b: RowGeom[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const x = a[i], y = b[i];
-    if (x.id !== y.id || x.top !== y.top || x.height !== y.height || x.left !== y.left || x.width !== y.width || x.handleLeft !== y.handleLeft || x.handleWidth !== y.handleWidth) return false;
+    if (
+      x.id !== y.id || x.top !== y.top || x.height !== y.height ||
+      x.left !== y.left || x.width !== y.width ||
+      x.handleLeft !== y.handleLeft || x.handleWidth !== y.handleWidth ||
+      x.lineLeft !== y.lineLeft || x.lineWidth !== y.lineWidth
+    ) return false;
   }
   return true;
 };
@@ -130,21 +146,35 @@ export function RowResizerLayer({
         const id = tr.getAttribute('data-satir-id');
         if (!id || !idSet.has(id)) return;
         const r = tr.getBoundingClientRect();
-        // Handle genişliği: sadece # + Marka kolonlarının toplam genişliği.
-        // tr.cells[0] = #, tr.cells[1] = Marka. Açıklama (cells[3]) dahil DEĞİL.
+        // Hit area: # + Marka kolonları — yakalanabilir geniş alan.
+        // Görünen çizgi: SADECE Marka hücresinin altında (8px inset).
         const noCell = tr.cells[0] as HTMLElement | undefined;
         const markaCell = tr.cells[1] as HTMLElement | undefined;
-        const noW = noCell ? noCell.getBoundingClientRect().width : 0;
-        const markaW = markaCell ? markaCell.getBoundingClientRect().width : 0;
-        const handleW = (noW + markaW) / scale;
+        const noRect = noCell?.getBoundingClientRect();
+        const markaRect = markaCell?.getBoundingClientRect();
+        const INSET_PX = 8;
+        const noW = noRect ? noRect.width / scale : 0;
+        const markaW = markaRect ? markaRect.width / scale : 60;
+        const handleW = noW + markaW;
+        const handleL = noRect
+          ? (noRect.left - layerRect.left) / scale
+          : (r.left - layerRect.left) / scale;
+        // Görünen çizgi uzunluğu = (Marka inner width) × 1.5; Marka
+        // hücresinin merkezinde kalır, sağ-sol komşu kolonlara taşar.
+        const baseW = Math.max(markaW - INSET_PX * 2, 24);
+        const lineW = baseW * 1.5;
+        const overflow = (lineW - markaW) / 2;
+        const lineL = noW - overflow;
         next.push({
           id,
           top: (r.top - layerRect.top) / scale,
           height: r.height / scale,
           left: (r.left - layerRect.left) / scale,
           width: r.width / scale,
-          handleLeft: (r.left - layerRect.left) / scale,
-          handleWidth: handleW > 0 ? handleW : 60, // fallback 60px
+          handleLeft: handleL,
+          handleWidth: handleW > 0 ? handleW : 60,
+          lineLeft: lineL,
+          lineWidth: lineW,
         });
       });
       setRows((prev) => (sameRows(prev, next) ? prev : next));
@@ -274,28 +304,37 @@ export function RowResizerLayer({
           onPointerUp={(e) => finish(e, true)}
           onPointerCancel={(e) => finish(e, false)}
           style={{
+            // Hit area — # + Marka kolonları boyunca, kullanıcının kolayca
+            // yakalayabilmesi için geniş; transparan (kendisi görünmez).
             position: 'absolute',
             left: `${r.handleLeft}px`,
             width: `${r.handleWidth}px`,
-            // Container satırın TAM ALTINDA (= row.bottom çizgisi). Visual
-            // 1px hat container'ın üst kenarına (top) yapışır → cell border
-            // hizası birebir.
             top: `${r.top + r.height - HANDLE_HIT_HEIGHT}px`,
             height: `${HANDLE_HIT_HEIGHT}px`,
             cursor: 'ns-resize',
             pointerEvents: 'auto',
             touchAction: 'none',
-            // İnce ve zarif mavi hat — hit area aynı kalır, sadece görünen çizgi
-            // daha hafif ve elegan tutulur.
-            background:
-              'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(74,144,226,0.82) 28%, rgba(122,176,244,0.92) 50%, rgba(74,144,226,0.82) 72%, rgba(15,23,42,0) 100%)',
-            backgroundSize: 'calc(100% - 18px) 1px',
-            backgroundPosition: 'center bottom',
-            backgroundRepeat: 'no-repeat',
-            opacity: 0,
-            transition: 'opacity 160ms ease, filter 160ms ease',
           }}
-        />
+        >
+          {/* Görünen mavi hat — Marka hücresinin altında. 3px yükseklikli
+              dikdörtgen + border-radius: 50% → matematiksel elipse:
+              uçlar geometrik olarak 0px'e iner, orta tam yükseklikte. */}
+          <div
+            className="row-resize-handle-line"
+            style={{
+              position: 'absolute',
+              left: `${r.lineLeft}px`,
+              width: `${r.lineWidth}px`,
+              bottom: 0,
+              height: '3px',
+              background: 'rgba(74,144,226,0.95)',
+              borderRadius: '50%',
+              opacity: 0,             // Auto-hide: hover'da CSS opacity 1 reveal
+              transition: 'opacity 160ms ease',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
       ))}
     </div>
   );

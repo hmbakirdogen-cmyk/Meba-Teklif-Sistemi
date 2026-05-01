@@ -736,7 +736,7 @@ export default function VeriYonetimiSayfasi() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: isMobile ? '16px 12px' : '24px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '10px 12px' : '14px 24px 24px', maxWidth: 1200, margin: '0 auto' }}>
       <Title level={4} style={{ marginBottom: 4 }}>Veri Yönetimi</Title>
       <Paragraph type="secondary" style={{ marginBottom: 20 }}>
         Cari ve ürün verilerini yönetin. Veriler tarayıcıda kalıcı olarak saklanır.

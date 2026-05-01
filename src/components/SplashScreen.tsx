@@ -11,7 +11,10 @@ import { LogoContainer } from './LogoContainer';
  * Kullanım: App.tsx üst seviyede mount, animasyon bitince/atlanınca onDone tetiklenir.
  */
 
-const gold   = (a: number) => `rgba(185,148,52,${a})`;
+// Önceki "gold" tonu (185,148,52) saf nötr gri ile değiştirildi — splash
+// ekranında hiçbir kahve/altın hue kalmaz. Aynı değişken adı korunuyor ki
+// gradient/border/box-shadow site-wide tutarlı kalsın.
+const gold   = (a: number) => `rgba(180,180,180,${a})`;
 const silver = (a: number) => `rgba(172,186,205,${a})`;
 
 export const SPLASH_ANIMATIONS_CSS = `
@@ -116,9 +119,9 @@ function SplashContent({ firmalar, onDone, onSkip }: {
           padding: '7px 16px', borderRadius: 999,
           background: 'rgba(8,16,34,0.55)',
           border: `1px solid ${gold(0.32)}`,
-          color: 'rgba(225,210,160,0.85)',
+          color: 'rgba(220,220,220,0.85)',
           fontSize: 11, letterSpacing: 1.5,
-          fontFamily: '"Segoe UI","Inter","Arial",sans-serif',
+          fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
           fontWeight: 500, cursor: 'pointer',
           backdropFilter: 'blur(12px)',
           textTransform: 'uppercase' as const,
@@ -135,7 +138,7 @@ function SplashContent({ firmalar, onDone, onSkip }: {
         <div style={{
           position: 'absolute', top: '38%', left: '50%',
           width: 560, height: 560, marginLeft: -280, marginTop: -280,
-          background: 'radial-gradient(circle, rgba(255,225,160,0.85) 0%, rgba(185,148,52,0.5) 18%, transparent 60%)',
+          background: 'radial-gradient(circle, rgba(230,230,230,0.85) 0%, rgba(180,180,180,0.5) 18%, transparent 60%)',
           animation: 'gc-burst 1.4s cubic-bezier(0.2,0.7,0.3,1) forwards',
           pointerEvents: 'none',
         }} />
@@ -150,25 +153,25 @@ function SplashContent({ firmalar, onDone, onSkip }: {
             fontSize: 13, letterSpacing: 5, marginBottom: 10,
             color: silver(0.5),
             fontWeight: 300, textTransform: 'uppercase' as const,
-            fontFamily: '"Arial",sans-serif',
+            fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
           }}>
             Group Companies · Grup Şirketleri
           </div>
           <div style={{
             fontSize: 38, fontWeight: 800, letterSpacing: 4.5,
-            background: 'linear-gradient(135deg, #f5d878 0%, #d4ac52 35%, #b99434 60%, #f5d878 100%)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #d8d8d8 35%, #a0a0a0 60%, #ffffff 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            textShadow: '0 2px 12px rgba(185,148,52,0.4)',
-            fontFamily: '"Inter","Segoe UI",sans-serif',
+            textShadow: '0 2px 12px rgba(180,180,180,0.4)',
+            fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
           }}>
             TEKLİF SİSTEMİ
           </div>
           <div style={{
             marginTop: 6, fontSize: 10.5, letterSpacing: 6,
             color: gold(0.55), fontWeight: 300,
-            fontFamily: '"Arial",sans-serif',
+            fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
           }}>
             MEBA &nbsp;·&nbsp; ELMOS &nbsp;·&nbsp; MESA
           </div>

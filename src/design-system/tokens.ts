@@ -49,8 +49,10 @@ export const LETTER_SPACING = {
 } as const;
 
 // ── Tipografi: Font ailesi ────────────────────────────────────────────────────
+// Apple sistem fontu lider; macOS/iOS'ta SF Pro, Windows'ta SF Pro varsa onu,
+// yoksa Inter (Apple stilini en iyi taklit eden web fontu) → Arial fallback.
 export const FONT_FAMILY = {
-  sans: '"Inter", "Arial", sans-serif',
+  sans: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
   mono: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
 } as const;
 

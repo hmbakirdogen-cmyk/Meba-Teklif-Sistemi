@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useKullanici } from '../context/useKullanici';
 
-const gold = (a: number) => `rgba(185,148,52,${a})`;
+// Önceki "gold" tonu nötr griye çevrildi — modal'da hiçbir kahve/altın hue yok.
+const gold = (a: number) => `rgba(180,180,180,${a})`;
 const silver = (a: number) => `rgba(172,186,205,${a})`;
 
 const MAX_PHOTO_DIM = 256;     // 256x256 hedef
@@ -139,7 +140,7 @@ export default function IlkGirisModal() {
         padding: '32px 30px',
         boxShadow: '0 36px 90px rgba(0,0,0,0.65)',
         color: 'rgba(225,235,250,0.94)',
-        fontFamily: '"Segoe UI","Inter","Arial",sans-serif',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
       }}>
         <div style={{
           fontSize: 11, letterSpacing: 3, color: gold(0.6),
@@ -219,9 +220,9 @@ export default function IlkGirisModal() {
               style={{
                 width: '100%', padding: '12px 16px',
                 background: yukleniyor
-                  ? 'linear-gradient(135deg, rgba(120,100,40,0.45), rgba(80,68,28,0.45))'
-                  : 'linear-gradient(135deg, #d4ac52, #b99434)',
-                color: '#1a1208',
+                  ? 'linear-gradient(135deg, rgba(110,110,110,0.45), rgba(75,75,75,0.45))'
+                  : 'linear-gradient(135deg, #c8c8c8, #909090)',
+                color: '#0a0a0a',
                 border: 'none', borderRadius: 10,
                 fontSize: 13, fontWeight: 700, letterSpacing: 1.2,
                 textTransform: 'uppercase' as const,
@@ -306,8 +307,8 @@ export default function IlkGirisModal() {
               disabled={yukleniyor || !fotoPreview}
               style={{
                 width: '100%', padding: '12px 16px',
-                background: 'linear-gradient(135deg, #d4ac52, #b99434)',
-                color: '#1a1208',
+                background: 'linear-gradient(135deg, #c8c8c8, #909090)',
+                color: '#0a0a0a',
                 border: 'none', borderRadius: 10,
                 fontSize: 13, fontWeight: 700, letterSpacing: 1.2,
                 textTransform: 'uppercase' as const,

@@ -76,7 +76,7 @@ function SoftwareSignature() {
         zIndex: 1,
         fontSize: 8.8,
         letterSpacing: 0.32,
-        fontFamily: '"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
         fontWeight: 600,
         color: '#1E3A5F',
         opacity: 0.95,

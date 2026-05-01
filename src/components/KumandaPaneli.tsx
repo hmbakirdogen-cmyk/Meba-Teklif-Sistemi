@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { Tooltip } from 'antd';
 import {
   PremiumEditIcon,
   PremiumImageIcon,
@@ -15,8 +16,8 @@ const K = {
   WIDTH: 154,
   TOP: 97,
   // BOTTOM_GAP: panel'in viewport alt kenarına olan minimum mesafesi.
-  // Dev imzası kartı için (~14px bottom + ~22px height + buffer) → 44px
-  // ayrılır; böylece panel bottomReach ≤ viewportH-44 < signature.top.
+  // Dev imzası kartı için (~14px bottom + ~22px height + buffer) â†’ 44px
+  // ayrılır; böylece panel bottomReach â‰¤ viewportH-44 < signature.top.
   BOTTOM_GAP: 44,
   EDGE_MIN: 24,
   RIGHT_CLOSED_OFFSET: 583, // 397 (A4 half) + 154 (panel) + 32 (gap)
@@ -123,10 +124,10 @@ export default function KumandaPaneli({
     reader.readAsDataURL(file);
   };
 
-  // A4'ün konumu ölçülür → panel A4'ün üst-sağ köşesine yerleşir;
+  // A4'ün konumu ölçülür â†’ panel A4'ün üst-sağ köşesine yerleşir;
   // viewport daralırsa SCALE DOWN olur (min 0.55 — okunabilirlik sınırı).
   //
-  // top = rect.top + scrollY → A4'ün DOCUMENT-MUTLAK Y'si. Sayfa scroll
+  // top = rect.top + scrollY â†’ A4'ün DOCUMENT-MUTLAK Y'si. Sayfa scroll
   // edildiğinde rect.top azalır, scrollY aynı oranda artar; toplam sabit
   // kalır. position:fixed bu değere bağlı olduğu için panel scroll'dan
   // bağımsız olarak A4'ün ilk hizasında durmaya devam eder.
@@ -190,7 +191,26 @@ export default function KumandaPaneli({
         overflow: 'visible',
       }}
     >
-      <style>{`
+      <svg
+        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="pi-body-grad" x1="0.05" y1="0" x2="0.95" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%"   stopColor="white"        stopOpacity={0.75} />
+            <stop offset="18%"  stopColor="white"        stopOpacity={0.30} />
+            <stop offset="48%"  stopColor="currentColor" stopOpacity={0.28} />
+            <stop offset="100%" stopColor="black"        stopOpacity={0.40} />
+          </linearGradient>
+          <linearGradient id="pi-detail-grad" x1="0.05" y1="0" x2="0.95" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%"   stopColor="white"        stopOpacity={0.90} />
+            <stop offset="25%"  stopColor="currentColor" stopOpacity={0.95} />
+            <stop offset="100%" stopColor="black"        stopOpacity={0.25} />
+          </linearGradient>
+        </defs>
+      </svg>
+
+            <style>{`
         :root {
           --panel-scale: 0.62;
           --panel-bg-1: #1a0308;
@@ -289,24 +309,21 @@ export default function KumandaPaneli({
           cursor: pointer;
           font-family: inherit;
           position: relative;
-          overflow: hidden;
+          /* overflow:hidden KALDIRILDI — will-change:transform ile birlikte
+             Chrome'da child SVG filter (drop-shadow) GPU katmanında yanlış
+             clip ediliyordu → ikon basınca kayboluyor. Sweep/overlay'ler
+             için clip-path kullanıyoruz. */
           isolation: isolate;
-          backdrop-filter: blur(0px);
-          -webkit-backdrop-filter: blur(0px);
           transition:
             transform 180ms ease,
             box-shadow 220ms ease,
-            filter 180ms ease,
             border-color 180ms ease,
             color 180ms ease,
             text-shadow 180ms ease,
-            background 220ms ease,
-            backdrop-filter 220ms ease,
-            -webkit-backdrop-filter 220ms ease;
-          will-change: transform, box-shadow, backdrop-filter;
+            background 220ms ease;
         }
 
-        /* ── Kilit kapalıyken (readOnly): tüm tuşlar pasif ──
+        /* â”€â”€ Kilit kapalıyken (readOnly): tüm tuşlar pasif â”€â”€
            Lock butonu HARİÇ — onun disabled prop'u verilmediği için her zaman
            tıklanabilir. Native :disabled tıklamayı tamamen engeller; CSS ile
            soluk + cursor not-allowed feedback. */
@@ -336,17 +353,19 @@ export default function KumandaPaneli({
           --button-glow:   rgba(255, 105, 135, 0.28);
         }
 
-        /* ── Per-buton karakter renk paleti ──────────────────────────── */
-        /* .control-panel button. prefix ile specificity (0,2,1) →
+        /* â”€â”€ Per-buton karakter renk paleti â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+        /* .control-panel button. prefix ile specificity (0,2,1) â†’
            .control-panel button (0,1,1) override edilir. */
         /* Kurumsal muted palette — oyuncak neon yerine ciddi tonlar.
            Lock butonu özel: is-editing/is-locked class'larıyla güçlü
            ışık alır (yeşil/kırmızı), diğer butonlardan ayrışır. */
         .control-panel button.button-image        { --button-accent: #6f8fbf; --button-glow: rgba(111, 143, 191, 0.30); }
-        /* Pembe → kurumsal şarap kırmızısı */
+        /* Pembe â†’ kurumsal şarap kırmızısı */
         .control-panel button.button-row-discount { --button-accent: #d94f64; --button-glow: rgba(217,  79, 100, 0.32); }
-        /* Purple → kurumsal teal/petrol mavisi */
+        /* Purple â†’ kurumsal teal/petrol mavisi */
         .control-panel button.button-row-currency { --button-accent: #3fb7a3; --button-glow: rgba( 63, 183, 163, 0.30); }
+        /* Notlar — kurumsal lavanta/mor (iskonto kırmızısından net ayrışır) */
+        .control-panel button.button-row-notes    { --button-accent: #8b7fc5; --button-glow: rgba(139, 127, 197, 0.30); }
         .control-panel button.button-tax          { --button-accent: #d8a24f; --button-glow: rgba(216, 162,  79, 0.30); }
         .control-panel button.button-discount     { --button-accent: #c46f48; --button-glow: rgba(196, 111,  72, 0.28); }
         /* Görünürlük (Paylaşım) — kurumsal slate-mavi (göz ikonu) */
@@ -362,7 +381,7 @@ export default function KumandaPaneli({
           --button-glow:   rgba(255,  63,  95, 0.62);
         }
 
-        /* ── Aktif / basılı: saydam cam + neon karakter ──────────────────
+        /* â”€â”€ Aktif / basılı: saydam cam + neon karakter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
            backdrop-filter ile ardalan bulanıklaşır; gradient bg color-mix
            ile karakter rengine hafif boyanır; içte beyaz highlight + altta
            derinlik gölgesi. Buton tek renge boyanmaz; ışık içten yayılır. */
@@ -385,7 +404,7 @@ export default function KumandaPaneli({
             inset 0 1px 0 rgba(255, 255, 255, 0.12);
         }
 
-        /* ── Panel genişlet/kapat (chevron toggle) — lock'un altında, sade ── */
+        /* â”€â”€ Panel genişlet/kapat (chevron toggle) — lock'un altında, sade â”€â”€ */
         .panel-expand-toggle {
           display: flex;
           align-items: center;
@@ -407,7 +426,7 @@ export default function KumandaPaneli({
           opacity: 1;
         }
 
-        /* ── Lock butonu özel: yeşil (editing) / kırmızı (locked) güçlü neon
+        /* â”€â”€ Lock butonu özel: yeşil (editing) / kırmızı (locked) güçlü neon
            Diğer butonlardan ÇOK daha parlak ve net. Specificity (0,3,1) +
            class kombinasyonu — generic .is-active'i (0,2,1) override eder. */
         .control-panel button.lock-button.is-editing {
@@ -453,44 +472,68 @@ export default function KumandaPaneli({
             drop-shadow(0 0 20px var(--button-glow));
         }
 
-        /* ── Premium filled-symbol ikon ailesi ──
+        /* â”€â”€ Premium filled-symbol ikon ailesi â”€â”€
            Yarı dolgulu ana form (.pi-body) + ince stroke 1.7 + iç sembol
            (.pi-glyph stroke 2 / .pi-detail filled accent). Çizgi ikon, neon
            tüp, emoji yok. Apple/Tesla tarzı kurumsal anlam-yoğun pictogram.
-           Boyutlar --panel-scale ile orantılı → panel küçüldükçe ikon da
+           Boyutlar --panel-scale ile orantılı â†’ panel küçüldükçe ikon da
            küçülür, butonun içinde her zaman uygun nefes payıyla durur. */
         .premium-panel-icon {
           width: calc(68px * var(--panel-scale));
           height: calc(68px * var(--panel-scale));
           color: var(--button-accent);
           flex-shrink: 0;
+          /*
+           * Gerçekçi kabartma (raised relief) tekniği:
+           * 1) Sol-üst beyaz kenar  â†’ üstten gelen ışık vurgusu (bevel highlight)
+           * 2) Sağ-alt koyu kenar  â†’ gölge kenarı (bevel shadow) — yüksek durma hissi
+           * 3) Sert temas gölgesi  â†’ ikon zeminden ~3px yüksekte
+           * 4) Orta yumuşak gölge  â†’ hacim/kalınlık
+           * 5) Geniş ortam gölgesi â†’ sahne derinliği
+           * 1+2 birlikte klasik fiziksel buton bevel'ini verir;
+           * 3+4+5 ikonu zeminden kaldırır.
+           */
+          /* Ortam gölgesi (küçük offset â†’ button overflow:hidden kesmez) */
           filter:
-            drop-shadow(0 1px 1px rgba(255, 255, 255, 0.10))
-            drop-shadow(0 5px 10px rgba(0, 0, 0, 0.32));
+            drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.55))
+            drop-shadow(0px 4px 7px rgba(0, 0, 0, 0.32));
           transition: filter 220ms ease;
         }
 
-        /* Ana yarı dolgulu form — saydam karakter rengi + ince stroke kenar */
+        /*
+         * Ana form — lineerGradient ile 3D speküler aydınlatma.
+         * url(#pi-body-grad): sol-üst beyaz vurgu â†’ sağ-alt saydam gölge.
+         * currentColor (gradient içinde) â†’ her butonun kendi accent rengi.
+         * Fallback (ikinci değer): accent rengi, gradient yüklenmezse devreye girer.
+         */
         .premium-panel-icon .pi-body {
-          fill: color-mix(in srgb, var(--button-accent) 18%, rgba(255, 255, 255, 0.04));
-          stroke: color-mix(in srgb, var(--button-accent) 82%, rgba(255, 255, 255, 0.08));
+          fill: url(#pi-body-grad) color-mix(in srgb, var(--button-accent) 20%, transparent);
+          stroke: color-mix(in srgb, var(--button-accent) 70%, rgba(255, 255, 255, 0.22));
           stroke-width: 1.7;
           stroke-linejoin: round;
+          paint-order: stroke fill;
         }
 
-        /* İç dolu accent — küçük saturate parça (anahtar deliği, dağ, vb.) */
+        /* İç dolu accent — üst reflex + dolu accent gradient */
         .premium-panel-icon .pi-detail {
-          fill: color-mix(in srgb, var(--button-accent) 75%, white 8%);
+          fill: url(#pi-detail-grad) color-mix(in srgb, var(--button-accent) 76%, white 8%);
           stroke: none;
         }
 
-        /* İç sembol/glyph — iskeletsel net çizgi (% diagonal, plus, ₺) */
+        /* İç sembol/glyph — değişmedi */
         .premium-panel-icon .pi-glyph {
           fill: none;
           stroke: color-mix(in srgb, var(--button-accent) 88%, white 8%);
           stroke-width: 2;
           stroke-linecap: round;
           stroke-linejoin: round;
+        }
+
+        /* Fiyat etiketi delik efekti — açık overlay (delik hissi) */
+        .premium-panel-icon .pi-hole {
+          fill: rgba(255, 255, 255, 0.55);
+          stroke: rgba(255, 255, 255, 0.30);
+          stroke-width: 1.2;
         }
 
         /* KDV wordmark text — fill solid accent, stroke yok */
@@ -512,45 +555,53 @@ export default function KumandaPaneli({
            ile arada boşluk yönetir. */
         .square-btn .premium-panel-icon { width: calc(70px * var(--panel-scale)); height: calc(70px * var(--panel-scale)); }
 
-        /* Aktif/basılı — daha parlak + daha canlı + per-buton renkte hafif
-           glow halesi. Neon değil; kurumsal yoğunlaşma. */
+        /* Aktif/basılı — sade gölge zinciri.
+           Eski 5-katmanlı drop-shadow + color-mix() Chrome'da SVG fill: url(#...)
+           gradient referansını GPU compositing'de kaybediyordu → ikon parçalanır
+           / siyahlaşır. 2 katman drop-shadow + sabit rgba ile aynı premium
+           hissi, ikon bozulmadan. */
         .control-panel button.is-active .premium-panel-icon,
         .control-panel button:active .premium-panel-icon {
           filter:
-            drop-shadow(0 2px 2px rgba(255, 255, 255, 0.12))
-            drop-shadow(0 8px 16px rgba(0, 0, 0, 0.38))
-            drop-shadow(0 0 16px color-mix(in srgb, var(--button-glow) 45%, transparent));
+            drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.55))
+            drop-shadow(0px 0px 14px rgba(255, 255, 255, 0.18));
         }
 
         /* press-glow (premiumPressGlow keyframe) için per-buton renk */
         .control-panel button { --press-glow: var(--button-glow); }
 
-        /* Hover — hafif cam hissi + per-buton renkte saydam glow */
+        /* Hover — buton yükseliyor: gölge büyür, üst highlight belirginleşir */
+        /* NOT: filter:brightness() yok — overflow:hidden + child drop-shadow ile
+           compositing context sorunu yaratıyor (ikon kesilir). Parlaklık artışı
+           box-shadow highlight + ::before overlay ile sağlanıyor. */
         .control-panel button:hover {
           transform: translateY(-2px);
-          filter: brightness(1.08) saturate(1.08);
-          backdrop-filter: blur(6px);
-          -webkit-backdrop-filter: blur(6px);
           background:
             linear-gradient(
               160deg,
-              rgba(255,255,255,0.04),
-              rgba(255,255,255,0.01)
+              rgba(255,255,255,0.07),
+              rgba(255,255,255,0.02)
             );
           box-shadow:
-            0 14px 32px rgba(0, 0, 0, 0.42),
-            0 0 20px color-mix(in srgb, var(--button-glow) 28%, transparent),
-            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+            inset 0  1px  0   rgba(255, 255, 255, 0.28),
+            inset 0 -2px  0   rgba(0, 0, 0, 0.50),
+                  0  6px 16px rgba(0, 0, 0, 0.55),
+                  0 12px 28px rgba(0, 0, 0, 0.35),
+                  0  0   22px color-mix(in srgb, var(--button-glow) 38%, transparent);
         }
 
-        /* Pressed — fiziksel buton hissi: hafif içeri bas + scale */
+        /* Pressed — transform yok (compositing katmanı oluşturur, drop-shadow ikonlarla çakışır)
+           Press feedback sadece box-shadow + ::before overlay ile. */
         .control-panel button:active {
-          transform: translateY(2px) scale(0.975);
-          filter: brightness(0.96);
+          box-shadow:
+            inset 0  1px  0   rgba(255, 255, 255, 0.08),
+            inset 0 -1px  0   rgba(0, 0, 0, 0.60),
+            inset 0  4px 12px rgba(0, 0, 0, 0.45),
+                  0  1px  3px rgba(0, 0, 0, 0.60);
         }
 
         /* Cam üst highlight overlay — pasifte görünmez, aktif/basılı durumda
-           üstte yumuşak cam parlaması olarak belirir (opacity 0 → 0.55). */
+           üstte yumuşak cam parlaması olarak belirir (opacity 0 â†’ 0.55). */
         .control-panel button::before {
           content: "";
           position: absolute;
@@ -567,11 +618,16 @@ export default function KumandaPaneli({
             );
           z-index: 1;
           transition: opacity 220ms ease;
+          overflow: hidden;
         }
 
-        .control-panel button.is-active::before,
+        /* is-active (toggle açık): hafif overlay — ikon görünür kalır */
+        .control-panel button.is-active::before {
+          opacity: 0.18;
+        }
+        /* :active (anlık basılı): daha belirgin overlay — press feedback */
         .control-panel button:active::before {
-          opacity: 0.55;
+          opacity: 0.40;
         }
 
         .control-panel button > * {
@@ -597,17 +653,18 @@ export default function KumandaPaneli({
           opacity: 0;
           pointer-events: none;
           z-index: 1;
+          overflow: hidden;
         }
 
         .control-panel button::after {
           content: "";
           position: absolute;
-          inset: -18px;
+          inset: 0;
           border-radius: inherit;
           pointer-events: none;
           opacity: 0;
           z-index: 0;
-          background: radial-gradient(circle, var(--press-glow, rgba(255, 90, 120, 0.35)) 0%, transparent 62%);
+          background: radial-gradient(circle, var(--press-glow, rgba(255, 90, 120, 0.45)) 0%, transparent 70%);
           transform: scale(0.72);
         }
 
@@ -620,21 +677,9 @@ export default function KumandaPaneli({
         }
 
         @keyframes premiumPressGlow {
-          0% {
-            opacity: 0;
-            transform: scale(0.65);
-            filter: blur(2px);
-          }
-          35% {
-            opacity: 1;
-            transform: scale(1.05);
-            filter: blur(6px);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(1.38);
-            filter: blur(14px);
-          }
+          0%   { opacity: 0;   transform: scale(0.65); }
+          35%  { opacity: 0.9; transform: scale(1.05); }
+          100% { opacity: 0;   transform: scale(1.38); }
         }
 
         .control-panel button:focus-visible,
@@ -657,7 +702,7 @@ export default function KumandaPaneli({
            generic .control-panel button:hover artık tek noktadan hover glow'u
            yönetiyor (yeni rafine spec — daha hafif + per-buton color-mix). */
 
-        /* ── Düzenleme / Kilitli buton ── */
+        /* â”€â”€ Düzenleme / Kilitli buton â”€â”€ */
         .lock-button {
           --press-glow: rgba(255, 80, 120, 0.42);
           width: 100%;
@@ -703,7 +748,7 @@ export default function KumandaPaneli({
           );
         }
 
-        /* ── Resim Ekle (aksiyon, saydam cam mavi) ── */
+        /* â”€â”€ Resim Ekle (aksiyon, saydam cam mavi) â”€â”€ */
         .image-add {
           --press-glow: rgba(80, 150, 255, 0.45);
           width: 100%;
@@ -727,7 +772,7 @@ export default function KumandaPaneli({
           gap: calc(10px * var(--panel-scale));
         }
 
-        /* ── Resim Ekle hover/active — mavi aksiyon glow ── */
+        /* â”€â”€ Resim Ekle hover/active — mavi aksiyon glow â”€â”€ */
         .image-add:hover {
           border-color: rgba(122, 171, 255, 0.92);
         }
@@ -751,7 +796,7 @@ export default function KumandaPaneli({
         }
 
 
-        /* ── Grid (Satır Ayarları + Genel Finans) ── */
+        /* â”€â”€ Grid (Satır Ayarları + Genel Finans) â”€â”€ */
         .grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -784,7 +829,7 @@ export default function KumandaPaneli({
           line-height: 1;
         }
 
-        /* ── Kare buton ── */
+        /* â”€â”€ Kare buton â”€â”€ */
         .square-btn {
           --press-glow: rgba(255, 95, 125, 0.36);
           aspect-ratio: 1;
@@ -825,16 +870,32 @@ export default function KumandaPaneli({
           border-color: rgba(255, 255, 255, 0.18);
         }
 
-        /* ── Pasif kare buton: panel arkasına gömülü kurumsal görünüm ── */
+        /* â”€â”€ Pasif kare buton: panel arkasına gömülü kurumsal görünüm â”€â”€ */
         .square-btn:not(.is-active) {
           --button-accent: rgba(230, 220, 220, 0.62);
           --button-glow: transparent;
           background:
-            linear-gradient(180deg, rgba(45, 10, 18, 0.42), rgba(12, 2, 6, 0.72));
-          border-color: rgba(255, 255, 255, 0.07);
+            linear-gradient(160deg,
+              rgba(55, 14, 22, 0.55) 0%,
+              rgba(28,  6, 12, 0.68) 45%,
+              rgba(10,  2,  5, 0.88) 100%
+            );
+          border-color: rgba(255, 255, 255, 0.09);
+          /*
+           * Fiziksel kabartılmış (embossed) buton kutusu:
+           * inset üst â†’ üstten gelen ışık yansıması (kenar highlight)
+           * inset alt â†’ gölge tarafı (altta koyu kenar)
+           * dış alt    â†’ zeminde derin düşme gölgesi (yüksek durma hissi)
+           * dış üst    â†’ küçük negatif Y ambient reflex
+           */
           box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.04),
-            inset 0 -12px 22px rgba(0, 0, 0, 0.35);
+            inset 0  1px  0   rgba(255, 255, 255, 0.18),
+            inset 0  2px  4px rgba(255, 255, 255, 0.06),
+            inset 0 -2px  0   rgba(0,   0,   0,   0.55),
+            inset 0 -4px  8px rgba(0,   0,   0,   0.40),
+                  0  4px  8px rgba(0,   0,   0,   0.55),
+                  0  8px 18px rgba(0,   0,   0,   0.35),
+                  0 -1px  2px rgba(255, 255, 255, 0.04);
         }
 
         .square-btn:not(.is-active) .premium-panel-icon {
@@ -842,7 +903,7 @@ export default function KumandaPaneli({
           filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.42));
         }
 
-        /* ── Aktif kare buton: tüm yüzey karakter renginde saydam cam ──
+        /* â”€â”€ Aktif kare buton: tüm yüzey karakter renginde saydam cam â”€â”€
            Specificity (0,3,1) — generic .control-panel button.is-active'i
            (0,2,1) override eder. Renkler --button-accent üzerinden gelir. */
         .control-panel button.square-btn.is-active {
@@ -850,21 +911,24 @@ export default function KumandaPaneli({
           border-color: color-mix(in srgb, var(--button-accent) 78%, transparent);
           background:
             radial-gradient(
-              circle at 50% 20%,
-              color-mix(in srgb, var(--button-accent) 34%, transparent) 0%,
-              color-mix(in srgb, var(--button-accent) 18%, transparent) 42%,
-              rgba(255, 255, 255, 0.025) 74%
-            ),
-            linear-gradient(
-              180deg,
-              color-mix(in srgb, var(--button-accent) 22%, rgba(255, 255, 255, 0.04)),
-              rgba(10, 2, 6, 0.82)
+              ellipse at 50% 15%,
+              color-mix(in srgb, var(--button-accent) 40%, rgba(255,255,255,0.10)) 0%,
+              color-mix(in srgb, var(--button-accent) 20%, transparent) 48%,
+              rgba(8, 2, 4, 0.85) 100%
             );
+          /*
+           * Aktifken: üst kenar parlıyor (ışık içeriden vuruyor gibi),
+           * alt+dış gölge azalıyor — buton zemine "bastı" hissi değil,
+           * ışık kaynağına dönüştü hissi.
+           */
           box-shadow:
-            0 0 22px color-mix(in srgb, var(--button-accent) 38%, transparent),
-            inset 0 0 24px color-mix(in srgb, var(--button-accent) 22%, transparent),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 -14px 26px rgba(0, 0, 0, 0.38);
+            inset 0  1px  0   rgba(255, 255, 255, 0.28),
+            inset 0  3px 10px color-mix(in srgb, var(--button-accent) 28%, transparent),
+            inset 0 -2px  0   rgba(0, 0, 0, 0.42),
+            inset 0 -6px 14px rgba(0, 0, 0, 0.32),
+                  0  2px  6px rgba(0, 0, 0, 0.38),
+                  0  0   24px color-mix(in srgb, var(--button-accent) 42%, transparent),
+                  0  0   48px color-mix(in srgb, var(--button-accent) 18%, transparent);
         }
 
         .square-btn.finance,
@@ -947,7 +1011,7 @@ export default function KumandaPaneli({
            kuralları kaldırıldı: kare butonlarda artık hiçbir text node
            render edilmiyor (yalnızca premium SVG ikon). */
 
-        /* ── İskonto Oranı input ── */
+        /* â”€â”€ İskonto Oranı input â”€â”€ */
         .panel-rate {
           display: flex;
           align-items: center;
@@ -1014,7 +1078,7 @@ export default function KumandaPaneli({
           outline: none;
         }
 
-        /* ── Erişilebilirlik: hareket azaltma ── */
+        /* â”€â”€ Erişilebilirlik: hareket azaltma â”€â”€ */
         @media (prefers-reduced-motion: reduce) {
           .control-panel button,
           .square-btn.is-active,
@@ -1040,55 +1104,75 @@ export default function KumandaPaneli({
         <section className="panel-section">
           <SecLabel text="Düzenleme" />
 
-          <button
-            type="button"
-            className={`lock-button button-edit ${readOnly ? 'is-locked' : 'is-editing'}`}
-            data-readonly={readOnly}
-            onClick={() => onReadOnlyDegistir(!readOnly)}
+          <Tooltip
             title={readOnly ? 'Kilitli — düzenlemeyi aç' : 'Düzenleme açık — kilitle'}
-            aria-label={readOnly ? 'Kilitli' : 'Düzenleme'}
-            aria-pressed={!readOnly}
+            placement="left"
+            mouseEnterDelay={1}
+            color={TOOLTIP_COLOR}
+            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
           >
-            <span className="button-sweep" aria-hidden="true" />
-            <PremiumEditIcon readOnly={readOnly} />
-          </button>
+            <button
+              type="button"
+              className={`lock-button button-edit ${readOnly ? 'is-locked' : 'is-editing'}`}
+              data-readonly={readOnly}
+              onClick={() => onReadOnlyDegistir(!readOnly)}
+              aria-label={readOnly ? 'Kilitli' : 'Düzenleme'}
+              aria-pressed={!readOnly}
+            >
+              <span className="button-sweep" aria-hidden="true" />
+              <PremiumEditIcon readOnly={readOnly} />
+            </button>
+          </Tooltip>
 
-          {/* Genişlet/Kapat — kilit'in altındaki tüm section'ları toggle eder */}
-          <button
-            type="button"
-            className="panel-expand-toggle"
-            onClick={() => setPanelGenis((g) => !g)}
+          <Tooltip
             title={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
-            aria-label={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
-            aria-expanded={panelGenis}
+            placement="left"
+            mouseEnterDelay={1}
+            color={TOOLTIP_COLOR}
+            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
           >
-            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-              <polyline
-                points={panelGenis ? '6 15 12 9 18 15' : '6 9 12 15 18 9'}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+            <button
+              type="button"
+              className="panel-expand-toggle"
+              onClick={() => setPanelGenis((g) => !g)}
+              aria-label={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
+              aria-expanded={panelGenis}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <polyline
+                  points={panelGenis ? '6 15 12 9 18 15' : '6 9 12 15 18 9'}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </Tooltip>
         </section>
 
         {panelGenis && (
         <>
         <section className="panel-section">
-          <button
-            type="button"
-            className="image-add button-image"
-            onClick={onResimSec}
-            disabled={readOnly}
+          <Tooltip
             title="Resim Ekle"
-            aria-label="Resim Ekle"
+            placement="left"
+            mouseEnterDelay={1}
+            color={TOOLTIP_COLOR}
+            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
           >
-            <span className="button-sweep" aria-hidden="true" />
-            <PremiumImageIcon />
-          </button>
+            <button
+              type="button"
+              className="image-add button-image"
+              onClick={onResimSec}
+              disabled={readOnly}
+              aria-label="Resim Ekle"
+            >
+              <span className="button-sweep" aria-hidden="true" />
+              <PremiumImageIcon />
+            </button>
+          </Tooltip>
 
           <input
             ref={fileInputRef}
@@ -1104,7 +1188,7 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={[]}
-              ariaLabel="Satır Bazlı İskonto"
+              ariaLabel={satirBazliIskonto ? 'Satır İskontosu: Açık' : 'Satır İskontosu: Kapalı'}
               extraClass="button-row-discount"
               icon={<PremiumRowDiscountIcon />}
               on={satirBazliIskonto}
@@ -1113,7 +1197,8 @@ export default function KumandaPaneli({
             />
             <SquareToggle
               labelLines={[]}
-              ariaLabel="Satır Bazlı Para Birimi"
+              ariaLabel={satirBazliParaBirimi ? 'Satır Para Birimi: Açık' : 'Satır Para Birimi: Kapalı'}
+              tooltipPlacement="right"
               extraClass="button-row-currency"
               icon={<PremiumRowCurrencyIcon />}
               on={satirBazliParaBirimi}
@@ -1122,7 +1207,7 @@ export default function KumandaPaneli({
             />
             <SquareToggle
               labelLines={[]}
-              ariaLabel={notlarGosterilsin ? 'Not alanı gösteriliyor' : 'Not alanı gizli'}
+              ariaLabel={notlarGosterilsin ? 'Notlar: Gösteriliyor' : 'Notlar: Gizli'}
               extraClass="button-row-notes"
               icon={<NotesToggleIcon />}
               on={notlarGosterilsin}
@@ -1137,7 +1222,7 @@ export default function KumandaPaneli({
           <div className="grid">
             <SquareToggle
               labelLines={[]}
-              ariaLabel={kdvOn ? `KDV açık — %${kdvOrani}` : 'KDV kapalı'}
+              ariaLabel={kdvOn ? `KDV: Açık (%${kdvOrani})` : 'KDV: Kapalı'}
               extraClass="finance kdv button-tax"
               icon={<PremiumKdvIcon />}
               on={kdvOn}
@@ -1146,7 +1231,8 @@ export default function KumandaPaneli({
             />
             <SquareToggle
               labelLines={[]}
-              ariaLabel={iskOn ? `İskonto açık — %${iskontoOrani}` : 'İskonto kapalı'}
+              ariaLabel={iskOn ? `Genel İskonto: Açık (%${iskontoOrani})` : 'Genel İskonto: Kapalı'}
+              tooltipPlacement="right"
               extraClass="finance discount button-discount"
               icon={<PremiumDiscountIcon />}
               on={iskOn}
@@ -1191,11 +1277,7 @@ export default function KumandaPaneli({
           <div className="grid grid-single">
             <SquareToggle
               labelLines={visibility === 'private' ? ['GİZLİ'] : []}
-              ariaLabel={
-                visibility === 'private'
-                  ? 'Gizli — sadece hazırlayan ve yönetici görür'
-                  : 'Personel görebilir — toggle kapalı'
-              }
+              ariaLabel={visibility === 'private' ? 'Görünürlük: Gizli' : 'Görünürlük: Herkese Açık'}
               extraClass="button-visibility visibility-compact"
               icon={<PremiumVisibilityIcon visible={visibility === 'team'} />}
               on={visibility === 'private'}
@@ -1217,12 +1299,63 @@ export default function KumandaPaneli({
 function NotesToggleIcon() {
   return (
     <svg className="premium-panel-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <rect className="pi-body" x="12" y="9" width="40" height="46" rx="6" />
-      <path className="pi-glyph" d="M21 22h22M21 30h22M21 38h16" />
-      <path className="pi-detail" d="M40 44l4 4 8-8" />
+      {/* bloknot gövde gölgesi */}
+      <rect x="13" y="12" width="34" height="42" rx="5" fill="rgba(0,0,0,0.14)" />
+
+      {/* bloknot gövde */}
+      <rect className="pi-body" x="11" y="10" width="34" height="42" rx="5" />
+      {/* üst kenar highlight */}
+      <rect x="12" y="11" width="32" height="2" rx="1" fill="rgba(255,255,255,0.26)" />
+      {/* dış bevel — aydınlık */}
+      <rect x="11.8" y="10.8" width="32.4" height="40.4" rx="4.3" fill="none" stroke="rgba(255,255,255,0.20)" strokeWidth="1" />
+      {/* dış bevel — koyu */}
+      <rect x="12.4" y="11.4" width="31.2" height="39.2" rx="3.8" fill="none" stroke="rgba(0,0,0,0.16)" strokeWidth="0.9" />
+
+      {/* spiral halkalar — sol kenar */}
+      <circle cx="11" cy="20" r="3" fill="none" className="pi-glyph" strokeWidth="2" />
+      <circle cx="11" cy="31" r="3" fill="none" className="pi-glyph" strokeWidth="2" />
+      <circle cx="11" cy="42" r="3" fill="none" className="pi-glyph" strokeWidth="2" />
+      {/* spiral bağlantı çizgisi */}
+      <line x1="11" y1="17" x2="11" y2="28" stroke="currentColor" strokeWidth="1.2" opacity="0.35" />
+      <line x1="11" y1="34" x2="11" y2="39" stroke="currentColor" strokeWidth="1.2" opacity="0.35" />
+
+      {/* yazı satırları */}
+      <path className="pi-glyph" d="M19 22h18M19 30h18M19 38h12" strokeWidth="2.2" />
+
+      {/* kalem — sağ alt köşe çapraz */}
+      {/* gövde gölgesi */}
+      <path d="M 39 46 L 48 37 L 52 41 L 43 50 Z" fill="rgba(0,0,0,0.16)" />
+      {/* ahşap uç */}
+      <path d="M 38 45 L 40 47 L 36 51 Z" fill="rgba(210,175,110,0.55)" stroke="rgba(120,85,30,0.25)" strokeWidth="0.7" strokeLinejoin="round" />
+      <path d="M 40 47 L 42 49 L 36 51 Z" fill="rgba(155,120,65,0.48)" stroke="rgba(120,85,30,0.25)" strokeWidth="0.7" strokeLinejoin="round" />
+      {/* kalem gövde — koyu yüz */}
+      <path d="M 38 45 L 47 36 L 51 40 L 42 49 Z" fill="rgba(180,140,20,0.28)" />
+      {/* kalem gövde — aydınlık yüz */}
+      <path d="M 38 45 L 47 36 L 49 38 L 40 47 Z" fill="rgba(240,210,80,0.22)" />
+      {/* kontur */}
+      <path d="M 38 45 L 47 36 L 51 40 L 42 49 Z" fill="none" stroke="rgba(130,95,10,0.38)" strokeWidth="0.9" strokeLinejoin="miter" />
+      {/* ferrule */}
+      <path d="M 47 36 L 51 40 L 53 38 L 49 34 Z" fill="rgba(185,185,190,0.50)" stroke="rgba(120,120,125,0.25)" strokeWidth="0.5" strokeLinejoin="miter" />
+      {/* silgi */}
+      <path d="M 49 34 L 53 38 L 55 36 L 51 32 Z" fill="rgba(205,140,135,0.50)" stroke="rgba(160,85,80,0.22)" strokeWidth="0.5" strokeLinejoin="miter" />
+      {/* kurşun uç */}
+      <circle cx="36" cy="51" r="1.0" fill="rgba(50,50,60,0.60)" />
     </svg>
   );
 }
+
+const TOOLTIP_STYLE: React.CSSProperties = {
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Inter', 'Arial', sans-serif",
+  color: 'rgba(255,232,238,0.92)',
+  fontSize: 10,
+  fontWeight: 350,
+  lineHeight: 1.5,
+  letterSpacing: '-0.01em',
+  padding: '3px 6px',
+  minHeight: 0,
+};
+
+const TOOLTIP_COLOR = 'rgba(18,14,22,0.62)';
 
 const SquareToggle = React.forwardRef<HTMLButtonElement, {
   labelLines: readonly string[];
@@ -1232,6 +1365,7 @@ const SquareToggle = React.forwardRef<HTMLButtonElement, {
   onClick: () => void;
   extraClass?: string;
   disabled?: boolean;
+  tooltipPlacement?: 'left' | 'right';
 }>(function SquareToggle({
   labelLines,
   ariaLabel,
@@ -1240,28 +1374,36 @@ const SquareToggle = React.forwardRef<HTMLButtonElement, {
   onClick,
   extraClass,
   disabled,
+  tooltipPlacement = 'left',
 }, ref) {
   const cls = `square-btn${on ? ' is-active' : ''}${extraClass ? ' ' + extraClass : ''}`;
   return (
-    <button
-      ref={ref}
-      type="button"
-      className={cls}
-      onClick={onClick}
-      disabled={disabled}
+    <Tooltip
       title={ariaLabel}
-      aria-label={ariaLabel}
-      aria-pressed={on}
+      placement={tooltipPlacement}
+      mouseEnterDelay={1}
+      styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
+      color={TOOLTIP_COLOR}
     >
-      <span className="button-sweep" aria-hidden="true" />
-      {icon}
-      {labelLines.length > 0 && (
-        <span className="square-btn__label">
-          {labelLines.map((line) => (
-            <span key={line}>{line}</span>
-          ))}
-        </span>
-      )}
-    </button>
+      <button
+        ref={ref}
+        type="button"
+        className={cls}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        aria-pressed={on}
+      >
+        <span className="button-sweep" aria-hidden="true" />
+        {icon}
+        {labelLines.length > 0 && (
+          <span className="square-btn__label">
+            {labelLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </span>
+        )}
+      </button>
+    </Tooltip>
   );
 });
