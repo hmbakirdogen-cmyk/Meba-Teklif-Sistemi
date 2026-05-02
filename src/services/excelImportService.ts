@@ -278,3 +278,53 @@ export function urunExcelIndir(urunler: Urun[]): void {
   XLSX.utils.book_append_sheet(wb, ws, 'Ürünler');
   XLSX.writeFile(wb, 'urunler.xlsx');
 }
+
+// ── Bos Sablon Indirme (yeni kayit icin) ──────────────────────────────────────
+//
+// Yoneticiler bu sablonlari indirip kendi PC'lerinde Excel'de doldurup
+// "Excel'den Aktar" ile yukler. Sablon: 1 ornek satir + bos satirlar.
+
+/** Cari boş şablon — başlıklar + 1 örnek satır */
+export function cariSablonIndir(): void {
+  const data = [
+    {
+      'Cari Kod':       'C-001',
+      'Cari Başlık':    'ÖRNEK MAKİNA SAN. TİC. LTD. ŞTİ.',
+      'Yetkili Kişi':   'Ahmet Yılmaz',
+      'Tel':            '0312 555 11 22',
+      'E-Posta':        'info@ornek.com',
+      'Adres':          'OSB 1. Cadde No:5 Sincan / ANKARA',
+      'Vergi Dairesi':  'Sincan',
+      'Vergi No':       '1234567890',
+    },
+  ];
+  const ws = XLSX.utils.json_to_sheet(data);
+  // Kolon genişlikleri
+  ws['!cols'] = [
+    { wch: 10 }, { wch: 40 }, { wch: 18 }, { wch: 15 },
+    { wch: 22 }, { wch: 40 }, { wch: 14 }, { wch: 13 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cariler');
+  XLSX.writeFile(wb, 'cari-sablon.xlsx');
+}
+
+/** Ürün boş şablon — başlıklar + 1 örnek satır */
+export function urunSablonIndir(): void {
+  const data = [
+    {
+      'Üretici Kodu':  'CP96SDB80-200',
+      'Açıklama':      'Pnömatik Silindir 80x200 mm',
+      'Kategori':      'Silindir',
+      'Birim':         'Adet',
+      'Fiyat':         1250.50,
+    },
+  ];
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    { wch: 18 }, { wch: 40 }, { wch: 14 }, { wch: 8 }, { wch: 12 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ürünler');
+  XLSX.writeFile(wb, 'urun-sablon.xlsx');
+}

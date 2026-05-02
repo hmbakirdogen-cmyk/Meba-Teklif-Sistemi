@@ -47,13 +47,40 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
     return () => { aktif = false; };
   }, []);
 
-  const loginYap = useCallback(async (kullaniciAdi: string, sifre: string) => {
+  const loginYap = useCallback(async (
+    kullaniciAdi: string,
+    sifre: string,
+    secilenFirmaId?: string | null,
+  ) => {
     try {
-      const r = await api.auth.login(kullaniciAdi, sifre);
+      // Backend: secilenFirmaId ile login. Personel kendi firmasi disinda
+      // bir firma sectiyse server 403 doner — defense in depth.
+      const r = await api.auth.login(kullaniciAdi, sifre, secilenFirmaId ?? null);
+      // Frontend'de ek savunma katmani (eski client'larda backend cevabi
+      // gelse bile yanlis firma'ya gecisi engelle):
+      const tumFirmalaraErisir =
+        r.kullanici.rol === 'super_admin' || r.kullanici.rol === 'admin';
+      if (!tumFirmalaraErisir && secilenFirmaId && secilenFirmaId !== r.kullanici.firmaId) {
+        try { await api.auth.logout(); } catch { /* network onemsiz */ }
+        return {
+          ok: false as const,
+          error: 'Bu firmaya kayitli degilsiniz. Lutfen kendi firmanizi seciniz.',
+        };
+      }
+
       setSessionToken(r.token);
       setStoredKullanici(r.kullanici);
-      if (r.firma) setActiveFirmaId(r.firma.id);
-      else if (r.kullanici.firmaId) setActiveFirmaId(r.kullanici.firmaId);
+      // Firma oncelik sirasi (yetki dogrulamasi yukarida tamamlandi):
+      //   1) tum-firmalara erisen rollerde elle secilen firma
+      //   2) Backend'in dondurdugu firma (kullanici.firmaId varsa)
+      //   3) kullanici.firmaId fallback
+      //   4) null (super_admin firma secmediyse)
+      const firmaIdToActivate =
+        (tumFirmalaraErisir ? secilenFirmaId : null) ??
+        (r.firma ? r.firma.id : null) ??
+        r.kullanici.firmaId ??
+        null;
+      setActiveFirmaId(firmaIdToActivate);
       setAktifKullanici(r.kullanici);
       return { ok: true as const, kullanici: r.kullanici };
     } catch (err) {

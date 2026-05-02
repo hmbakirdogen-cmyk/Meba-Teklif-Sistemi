@@ -63,3 +63,9 @@ server/email_dispatch.log
 
 # bin/node.exe — USB hazırlığında manuel kopyalanır (87 MB, Git LFS'siz).
 bin/
+
+# Canlı veritabanı — her firma kendi db'sine sahip; kaynak kontrolüne girmez.
+server/db.json
+
+# Production build çıktısı (build:production komutu üretir)
+build-deployment/

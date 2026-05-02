@@ -1,48 +1,12 @@
 import { useState, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useKullanici } from '../context/useKullanici';
+import { dosyaToVesikalikBase64 } from '../utils/profilFoto';
+import { formatAdSoyad } from '../utils/formatters';
 
 // Önceki "gold" tonu nötr griye çevrildi — modal'da hiçbir kahve/altın hue yok.
 const gold = (a: number) => `rgba(180,180,180,${a})`;
 const silver = (a: number) => `rgba(172,186,205,${a})`;
-
-const MAX_PHOTO_DIM = 256;     // 256x256 hedef
-const MAX_PHOTO_BYTES = 600 * 1024;  // 600 KB
-
-/** Resmi canvas ile resize edip JPEG base64 olarak dondurur. */
-async function dosyaToBase64Resized(file: File): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result || ''));
-    fr.onerror = () => reject(new Error('Dosya okunamadi'));
-    fr.readAsDataURL(file);
-  });
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const im = new Image();
-    im.onload = () => resolve(im);
-    im.onerror = () => reject(new Error('Gorsel yuklenemedi'));
-    im.src = dataUrl;
-  });
-  // Kare crop + resize
-  const minSide = Math.min(img.naturalWidth, img.naturalHeight);
-  const sx = (img.naturalWidth - minSide) / 2;
-  const sy = (img.naturalHeight - minSide) / 2;
-  const canvas = document.createElement('canvas');
-  canvas.width = MAX_PHOTO_DIM;
-  canvas.height = MAX_PHOTO_DIM;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas context alinamadi');
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, MAX_PHOTO_DIM, MAX_PHOTO_DIM);
-  // JPEG q=0.85 — ~30-60 KB civari
-  let quality = 0.85;
-  let out = canvas.toDataURL('image/jpeg', quality);
-  while (out.length * 0.75 > MAX_PHOTO_BYTES && quality > 0.4) {
-    quality -= 0.1;
-    out = canvas.toDataURL('image/jpeg', quality);
-  }
-  return out;
-}
 
 /**
  * Modal: kullanici ilk girişte hem yeni şifre belirler hem de profil fotosu yükler.
@@ -91,7 +55,7 @@ export default function IlkGirisModal() {
       return;
     }
     try {
-      const base64 = await dosyaToBase64Resized(file);
+      const base64 = await dosyaToVesikalikBase64(file);
       setFotoPreview(base64);
     } catch (err) {
       setFotoHata(err instanceof Error ? err.message : 'Foto okunamadı.');
@@ -146,7 +110,7 @@ export default function IlkGirisModal() {
           fontSize: 11, letterSpacing: 3, color: gold(0.6),
           textTransform: 'uppercase' as const, marginBottom: 4,
         }}>
-          Hoş geldiniz {aktifKullanici?.adSoyad}
+          Hoş geldiniz {aktifKullanici ? formatAdSoyad(aktifKullanici.adSoyad) : ''}
         </div>
         <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 6 }}>
           {adim === 'sifre' ? 'Yeni şifre belirleyin' : 'Profil fotoğrafınız'}
@@ -246,15 +210,15 @@ export default function IlkGirisModal() {
                     src={fotoPreview}
                     alt="Profil önizleme"
                     style={{
-                      width: 140, height: 140, borderRadius: '50%',
-                      objectFit: 'cover',
+                      width: 135, height: 180, borderRadius: 10,
+                      objectFit: 'cover', objectPosition: 'center top',
                       border: `2px solid ${gold(0.55)}`,
                       boxShadow: `0 8px 28px ${gold(0.32)}, 0 0 0 4px rgba(0,0,0,0.4)`,
                     }}
                   />
                 : (
                   <div style={{
-                    width: 140, height: 140, borderRadius: '50%',
+                    width: 135, height: 180, borderRadius: 10,
                     border: `2px dashed ${gold(0.32)}`,
                     background: 'rgba(15,25,52,0.6)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',

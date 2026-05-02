@@ -3,18 +3,12 @@ import type { Teklif } from '../types';
 
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
-const PDF_ROOT_FOLDER_NAME = 'MEBA MEKANIK TEKLIFLER';
+// Tüm firmalar için ortak fallback adı — sadece firma kök klasör adı dışarıdan
+// verilmediğinde kullanılır (offline/edge senaryosu).
+const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP SIRKETLERI TEKLIFLER';
 
-type ShowDirectoryPickerOptionsLike = {
-  mode?: 'read' | 'readwrite';
-  startIn?: 'downloads';
-};
-
-type WindowWithDirectoryPicker = Window & typeof globalThis & {
-  showDirectoryPicker?: (options?: ShowDirectoryPickerOptionsLike) => Promise<FileSystemDirectoryHandle>;
-};
-
-let cachedDownloadsDirectoryHandle: FileSystemDirectoryHandle | null = null;
+// showDirectoryPicker prompt'lu yol kaldırıldı — fully otomatik akış için
+// kullanıcı gesture istemeyen browserDownload kullanılıyor.
 
 export type TeklifDisaAktarimHedefi = 'pdf' | 'email';
 export type TeklifDisaAktarimYontemi = 'otomatik' | 'tarayici';
@@ -76,10 +70,6 @@ function buildFallbackFileName(teklif: Teklif): string {
   return teklifNo ? `${cariStem} - ${teklifNo}.pdf` : `${cariStem}.pdf`;
 }
 
-function buildCariFolderName(teklif: Teklif): string {
-  return extractCariStem(teklif.cari?.firmaAdi ?? '');
-}
-
 function buildMailSubject(teklif: Teklif): string {
   return teklif.teklifNo ? `Teklif Belgesi - ${teklif.teklifNo}` : 'Teklif Belgesi';
 }
@@ -129,74 +119,30 @@ function browserDownload(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function createUniqueFileHandle(
-  directoryHandle: FileSystemDirectoryHandle,
-  fileName: string,
-): Promise<{ fileHandle: FileSystemFileHandle; finalFileName: string }> {
-  const dotIndex = fileName.lastIndexOf('.');
-  const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
-  const extension = dotIndex > 0 ? fileName.slice(dotIndex) : '';
-  let counter = 1;
-  let candidate = fileName;
-
-  while (true) {
-    try {
-      await directoryHandle.getFileHandle(candidate);
-      counter += 1;
-      candidate = `${baseName} (${counter})${extension}`;
-    } catch {
-      const fileHandle = await directoryHandle.getFileHandle(candidate, { create: true });
-      return { fileHandle, finalFileName: candidate };
-    }
-  }
+// Otomatik dosya adı: <FIRMA-KLASOR>_<CARI>_<TEKLIFNO>.pdf
+// → Kullanıcının Downloads klasöründe tek seviye, organize edilmiş dosya adı.
+function buildAutoDownloadFileName(teklif: Teklif, firmaPdfKlasorAdi?: string): string {
+  const firma = sanitizeWindowsSegment(
+    (firmaPdfKlasorAdi || PDF_ROOT_FOLDER_NAME_FALLBACK).replace(/\s+TEKL[İI]FLER$/i, '').trim(),
+    'GRUP',
+  );
+  const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
+  const teklifNo = sanitizeWindowsSegment(teklif.teklifNo ?? '', '').trim();
+  const parts = [firma, cariStem, teklifNo].filter(Boolean);
+  return `${parts.join('_')}.pdf`;
 }
 
-async function getDownloadsDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
-  if (!window.isSecureContext) return null;
-
-  const pickerWindow = window as WindowWithDirectoryPicker;
-
-  if (!pickerWindow.showDirectoryPicker) {
-    return null;
-  }
-
-  if (cachedDownloadsDirectoryHandle) {
-    return cachedDownloadsDirectoryHandle;
-  }
-
-  cachedDownloadsDirectoryHandle = await pickerWindow.showDirectoryPicker({
-    mode: 'readwrite',
-    startIn: 'downloads',
-  });
-
-  return cachedDownloadsDirectoryHandle;
-}
-
-async function saveBlobIntoDownloadsTree(
+// Browser auto-download: kullanıcı gesture'ı gerekmez, prompt yok, doğrudan
+// Downloads klasörüne kaydedilir.
+async function autoSaveToDownloads(
   blob: Blob,
   teklif: Teklif,
+  firmaPdfKlasorAdi?: string,
 ): Promise<{ saved: boolean; relativePath?: string }> {
   try {
-    const downloadsDirectoryHandle = await getDownloadsDirectoryHandle();
-
-    if (!downloadsDirectoryHandle) {
-      return { saved: false }; 
-    }
-
-    const rootDirectoryHandle = await downloadsDirectoryHandle.getDirectoryHandle(PDF_ROOT_FOLDER_NAME, { create: true });
-    const cariFolderName = buildCariFolderName(teklif);
-    const cariDirectoryHandle = await rootDirectoryHandle.getDirectoryHandle(cariFolderName, { create: true });
-    const requestedFileName = buildFallbackFileName(teklif);
-    const { fileHandle, finalFileName } = await createUniqueFileHandle(cariDirectoryHandle, requestedFileName);
-    const writable = await fileHandle.createWritable();
-
-    await writable.write(blob);
-    await writable.close();
-
-    return {
-      saved: true,
-      relativePath: `${PDF_ROOT_FOLDER_NAME}/${cariFolderName}/${finalFileName}`,
-    };
+    const fileName = buildAutoDownloadFileName(teklif, firmaPdfKlasorAdi);
+    browserDownload(blob, fileName);
+    return { saved: true, relativePath: `Downloads/${fileName}` };
   } catch {
     return { saved: false };
   }
@@ -287,6 +233,7 @@ export async function teklifDisaAktar(
   blob: Blob,
   teklif: Teklif,
   hedef: TeklifDisaAktarimHedefi,
+  firmaPdfKlasorAdi?: string,
 ): Promise<TeklifDisaAktarimSonucu> {
   const pdfBase64 = await blobToBase64(blob);
 
@@ -332,7 +279,7 @@ export async function teklifDisaAktar(
       throw error;
     }
 
-    const localSave = await saveBlobIntoDownloadsTree(blob, teklif);
+    const localSave = await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
     return buildFallbackResult(blob, teklif, hedef, localSave);
   }
 }
@@ -341,19 +288,16 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
   blob: Blob,
   teklif: Teklif,
   hedef: TeklifDisaAktarimHedefi,
+  firmaPdfKlasorAdi?: string,
 ): Promise<TeklifDisaAktarimSonucu> {
-  const sonuc = await teklifDisaAktar(blob, teklif, hedef);
+  const sonuc = await teklifDisaAktar(blob, teklif, hedef, firmaPdfKlasorAdi);
 
   if (hedef !== 'email' || !sonuc.istemciTarafindaMailtoGerekli) {
     return sonuc;
   }
 
-  const localSave = await saveBlobIntoDownloadsTree(blob, teklif);
-
-  if (!localSave.saved) {
-    const dosyaAdi = sonuc.pdfDosyaAdi || buildFallbackFileName(teklif);
-    browserDownload(blob, dosyaAdi);
-  }
+  // Otomatik browser-download (prompt yok). Downloads klasörüne kaydedilir.
+  const localSave = await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
 
   const konu = sonuc.mailKonu || buildMailSubject(teklif);
   const govde = sonuc.mailGovdesi || buildMailBody(teklif);

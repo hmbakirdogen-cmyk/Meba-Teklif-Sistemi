@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
-import SplashScreen from './components/SplashScreen'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
 import { initNetworkConfig } from './services/networkConfig'
@@ -150,8 +149,6 @@ function ThemedApp() {
   const { aktifKullanici } = useKullanici();
   const [hazirSessionKey, setHazirSessionKey] = useState<string | null>(null);
   const [hataMsg, setHataMsg] = useState<string | null>(null);
-  // Her sayfa yuklenmesinde splash bir kez oynar — login durumu fark etmez.
-  const [splashAcik, setSplashAcik] = useState(true);
   const antdTheme = useMemo(() => getAntdTokens(isDark), [isDark]);
 
   // Kullanıcı id/rol/firmaId değişince store'u re-init et — visibility +
@@ -188,18 +185,37 @@ function ThemedApp() {
     };
   }, [userId, userRol, oturumAnahtari]);
 
-  // Otomatik senkronizasyon — kullanıcı login olduktan sonra her 5 dk'da bir
-  // pull + push tetiklenir. Tab kapalıyken çalışmaz (setInterval).
+  // Otomatik senkronizasyon — db.json her zaman güncel kalsın diye agresif sync:
+  //   - Periyodik 60 sn (eskiden 5 dk) → offline kuyruktaki değişiklikler hızla akar
+  //   - Online dönüş ('online' event) → bekleyen queue anında push
+  //   - Tab visible olunca → arka planda biriken iş hemen sync olur
   useEffect(() => {
     if (!hazir || !userId || !userRol) return;
     const kullanici = { id: userId, rol: userRol };
     const tick = () => { void syncEngine.syncNow(kullanici); };
+
     // İlk tetik 5 sn sonra (initial pull initDataStore zaten yaptı)
     const initialDelay = window.setTimeout(tick, 5_000);
-    const id = window.setInterval(tick, 5 * 60 * 1000);
+    const id = window.setInterval(tick, 60 * 1000);
+
+    // Network online'a dönerse hemen sync — offline iken yapılan tüm kayıtları
+    // anında db.json'a aktarır.
+    const onOnline = () => { void syncEngine.syncNow(kullanici); };
+    window.addEventListener('online', onOnline);
+
+    // Tab tekrar görünür olduğunda sync — kullanıcı başka sekmede çalışmış olabilir.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void syncEngine.syncNow(kullanici);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       window.clearTimeout(initialDelay);
       window.clearInterval(id);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [hazir, userId, userRol]);
 
@@ -216,10 +232,6 @@ function ThemedApp() {
             <SoftwareSignature />
           </ErrorBoundary>
         )}
-        {/* Splash en üstte — her açılışta oynar, atlanırsa veya biterse kapanır.
-         *  zIndex 9000 → diğer her şeyin üzerinde. Position fixed → AppRouter
-         *  zaten render olurken splash görünür, kullanıcı ilk önce splash'i görür. */}
-        {splashAcik && <SplashScreen onDone={() => setSplashAcik(false)} />}
       </AntdApp>
     </ConfigProvider>
   );

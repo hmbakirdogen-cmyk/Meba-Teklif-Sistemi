@@ -5,7 +5,8 @@
  *
  * - Server boot'ta bir kez calistirilir + her 24 saatte bir tekrar.
  * - Yedekler: server/backups/db-YYYY-MM-DD.json (gunluk)
- * - 30 gunden eski yedekler otomatik silinir.
+ * - 14 gunden eski yedekler otomatik silinir.
+ * - db-pre-multitenant-* gibi milestone yedekleri silinmez (regex eslesmiyor).
  * - Yedek mevcut gun icin zaten varsa atlar (idempotent).
  */
 
@@ -14,7 +15,7 @@ const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const BACKUP_DIR = path.join(__dirname, 'backups');
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = 14;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function bugunYMD() {
@@ -83,7 +84,7 @@ function startBackupScheduler() {
   setTimeout(backupTick, 5_000);
   // Her 6 saatte bir kontrol et — yeni gune girilince otomatik yedek alir
   setInterval(backupTick, 6 * 60 * 60 * 1000);
-  console.log('[backup] scheduler aktif (gunluk yedek + 30 gun retention)');
+  console.log(`[backup] scheduler aktif (gunluk yedek + ${RETENTION_DAYS} gun retention)`);
 }
 
 module.exports = { startBackupScheduler, gunlukYedekAl, eskiYedekleriTemizle };

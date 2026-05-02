@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Spin } from 'antd';
 import AppLayout from './AppLayout';
 import GirisEkrani from './pages/GirisEkrani';
@@ -29,6 +29,15 @@ function TeklifEditorWrapper() {
   return <TeklifEditor key={id} />;
 }
 
+/** Yönetici olmayan kullanıcılar /teklifler'e yönlendirilir. */
+function YoneticiOnly({ children }: { children: ReactNode }) {
+  const { aktifKullanici } = useKullanici();
+  const rol = aktifKullanici?.rol;
+  const isYonetici = rol === 'super_admin' || rol === 'admin' || rol === 'firma_admin';
+  if (!isYonetici) return <Navigate to="/teklifler" replace />;
+  return <>{children}</>;
+}
+
 function RouterIcerigi() {
   const { aktifKullanici, yukleniyor } = useKullanici();
 
@@ -55,9 +64,21 @@ function RouterIcerigi() {
           <Route path="/teklifler" element={<Suspense fallback={<PageFallback />}><TeklifListesi /></Suspense>} />
           <Route path="/teklif/yeni" element={<Suspense fallback={<PageFallback />}><TeklifEditor /></Suspense>} />
           <Route path="/teklif/:id" element={<Suspense fallback={<PageFallback />}><TeklifEditorWrapper /></Suspense>} />
-          <Route path="/veri" element={<Suspense fallback={<PageFallback />}><VeriYonetimiSayfasi /></Suspense>} />
-          <Route path="/personel" element={<Suspense fallback={<PageFallback />}><PersonelSayfasi /></Suspense>} />
-          <Route path="/firma-profili" element={<Suspense fallback={<PageFallback />}><FirmaProfilSayfasi /></Suspense>} />
+          <Route path="/veri" element={
+            <YoneticiOnly>
+              <Suspense fallback={<PageFallback />}><VeriYonetimiSayfasi /></Suspense>
+            </YoneticiOnly>
+          } />
+          <Route path="/personel" element={
+            <YoneticiOnly>
+              <Suspense fallback={<PageFallback />}><PersonelSayfasi /></Suspense>
+            </YoneticiOnly>
+          } />
+          <Route path="/firma-profili" element={
+            <YoneticiOnly>
+              <Suspense fallback={<PageFallback />}><FirmaProfilSayfasi /></Suspense>
+            </YoneticiOnly>
+          } />
         </Route>
         <Route path="*" element={<Navigate to="/teklifler" replace />} />
       </Routes>

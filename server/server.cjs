@@ -798,6 +798,9 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET'   && /^\/api\/firma\/[^/]+$/.test(url))   return await authRoutes.getFirma(req, res, url);
     if (method === 'PATCH' && /^\/api\/firma\/[^/]+$/.test(url))   return await authRoutes.updateFirma(req, res, url);
 
+    // PUBLIC: login ekraninda firma kartlarinda gostermek icin minimal personel listesi
+    if (method === 'GET'    && /^\/api\/firma\/[^/]+\/personel$/.test(url))       return await authRoutes.listFirmaPersonel(req, res, url);
+
     // Kullanicilar
     if (method === 'GET'    && url === '/api/kullanicilar')                       return await authRoutes.listKullanicilar(req, res);
     if (method === 'POST'   && url === '/api/kullanicilar')                       return await authRoutes.createKullanici(req, res);
@@ -948,9 +951,18 @@ const server = http.createServer(async (req, res) => {
 
       try {
         const masaustuYolu = masaustuYolunuBul();
-        // Firma profilinden klasor adi cek (teklif.firmaId'ye gore); yoksa fallback.
+        // Firma profilinden klasor adi cek. Onceligi sirayla:
+        //   1) teklif.firmaId (kayittaki firma)
+        //   2) request ctx'den firmaId (giris yapmis kullanicinin firmasi — header/query)
+        //   3) fallback ("GRUP SIRKETLERI TEKLIFLER")
+        // Eger teklifte firmaId yok ama ctx'ten geldiyse, teklif kaydina kalici
+        // sekilde yazilir → sonraki PDF'lerde dogru klasor secilir.
         const dbForFirma = readDB();
-        const teklifFirmaId = teklif?.firmaId || null;
+        const ctxFirmaIdForExport = parseRequestCtx(req).firmaId;
+        const teklifFirmaId = teklif?.firmaId || ctxFirmaIdForExport || null;
+        if (!teklif.firmaId && ctxFirmaIdForExport) {
+          teklif.firmaId = ctxFirmaIdForExport;
+        }
         const teklifFirmaProfili = teklifFirmaId
           ? (dbForFirma.firmalar || []).find((f) => f.id === teklifFirmaId)
           : null;

@@ -12,6 +12,7 @@ import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
 import { useKullanici } from '../context/useKullanici';
+import { useFirma } from '../context/useFirma';
 import { useColors } from '../hooks/useColors';
 import { useBelgeState, type PanelModu } from '../hooks/useBelgeState';
 import { buildPdf, buildEmailPdf, buildPrintImages } from '../services/pdfService';
@@ -44,6 +45,7 @@ export default function TeklifEditor() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const { aktifKullanici } = useKullanici();
+  const { firmalar } = useFirma();
   const C = useColors();
 
   const sablonRef = useRef<HTMLDivElement>(null);
@@ -276,9 +278,20 @@ export default function TeklifEditor() {
       state.setPdfHazir(true);
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
+      // Eski tekliflerde firmaId bos kalmis olabilir — fallback "GRUP SIRKETLERI"
+      // klasorune dusulmemesi icin aktif kullanicinin firmasi ile doldurulur.
+      // Super-admin (firmaId: null) icin backend ctx fallback'i devreye girer.
+      const teklifIcinExport = kayitliTeklif.firmaId
+        ? kayitliTeklif
+        : { ...kayitliTeklif, firmaId: aktifKullanici?.firmaId ?? kayitliTeklif.firmaId };
+      // Offline/yedek yol için firmanın PDF klasör adı (server-side ile birebir aynı).
+      // Teklifin firmaId'si üzerinden firmalar listesinden alınır → her kullanıcının
+      // firmasına özel klasör (MEBA / ELMOS / MESA) açılır, hardcoded değil.
+      const teklifFirmasi = firmalar.find((f) => f.id === teklifIcinExport.firmaId);
+      const firmaPdfKlasorAdi = teklifFirmasi?.pdfKlasorAdi || undefined;
       const sonuc = hedef === 'email'
-        ? await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, kayitliTeklif, hedef)
-        : await teklifDisaAktar(blob, kayitliTeklif, hedef);
+        ? await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi)
+        : await teklifDisaAktar(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi);
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
 
@@ -300,7 +313,7 @@ export default function TeklifEditor() {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message, showExportMessage]);
+  }, [teklifObj, state, message, showExportMessage, aktifKullanici?.firmaId, firmalar]);
 
   const handlePdfIndir = useCallback(async () => {
     await handleDisaAktar('pdf');

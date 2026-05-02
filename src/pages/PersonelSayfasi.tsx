@@ -8,6 +8,7 @@ import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Kullanici, KullaniciRol } from '../types/kullanici';
+import { formatAdSoyad, formatUnvan } from '../utils/formatters';
 
 interface FormValues {
   kullaniciAdi: string;
@@ -27,6 +28,10 @@ export default function PersonelSayfasi() {
   const [form] = Form.useForm<FormValues>();
 
   const isSuperAdmin = aktifKullanici?.rol === 'super_admin';
+  // 'admin' rolü de personel yönetimi yapabilir (yöneticiler hariç).
+  const isAdmin = isSuperAdmin || aktifKullanici?.rol === 'admin';
+  // 'admin' rolü tüm firmalara erişir → firma seçici göstermesi gerek.
+  const tumFirmalaraErisir = isSuperAdmin || aktifKullanici?.rol === 'admin';
 
   const fetchListe = useCallback(async () => {
     setYukleniyor(true);
@@ -47,7 +52,7 @@ export default function PersonelSayfasi() {
     form.resetFields();
     form.setFieldsValue({
       rol: 'engineer',
-      firmaId: isSuperAdmin ? undefined : aktifKullanici?.firmaId || undefined,
+      firmaId: tumFirmalaraErisir ? undefined : aktifKullanici?.firmaId || undefined,
     });
     setModalOpen(true);
   }
@@ -66,20 +71,23 @@ export default function PersonelSayfasi() {
 
   async function kaydet(values: FormValues) {
     try {
+      // Save sirasinda canonical formatta normalize (trailing space yok)
+      const normalizedAdSoyad = formatAdSoyad(values.adSoyad ?? '', false);
+      const normalizedUnvan = formatUnvan(values.unvan ?? '', false);
       if (duzenlenen) {
         await api.kullanicilar.update(duzenlenen.id, {
-          adSoyad: values.adSoyad,
-          unvan: values.unvan,
+          adSoyad: normalizedAdSoyad,
+          unvan: normalizedUnvan,
           rol: values.rol,
         });
         message.success('Personel güncellendi');
       } else {
         const r = await api.kullanicilar.create({
           kullaniciAdi: values.kullaniciAdi.toLowerCase().trim(),
-          adSoyad: values.adSoyad,
-          unvan: values.unvan,
+          adSoyad: normalizedAdSoyad,
+          unvan: normalizedUnvan,
           rol: values.rol,
-          firmaId: isSuperAdmin ? values.firmaId : aktifKullanici?.firmaId || undefined,
+          firmaId: tumFirmalaraErisir ? values.firmaId : aktifKullanici?.firmaId || undefined,
         });
         message.success(`Personel eklendi. Varsayılan şifre: ${r.varsayilanSifre}`);
       }
@@ -97,7 +105,7 @@ export default function PersonelSayfasi() {
         title: 'Şifre sıfırlandı',
         content: (
           <div>
-            <p><strong>{k.adSoyad}</strong> kullanıcısının şifresi:</p>
+            <p><strong>{formatAdSoyad(k.adSoyad)}</strong> kullanıcısının şifresi:</p>
             <p style={{ fontSize: 22, fontWeight: 700, fontFamily: 'monospace', textAlign: 'center', padding: 14, background: '#f1f5f9', borderRadius: 8 }}>
               {r.varsayilanSifre}
             </p>
@@ -147,7 +155,7 @@ export default function PersonelSayfasi() {
             : <Avatar size={36} icon={<UserOutlined />}>{k.initials}</Avatar>
           }
           <div>
-            <div style={{ fontWeight: 600 }}>{k.adSoyad}</div>
+            <div style={{ fontWeight: 600 }}>{formatAdSoyad(k.adSoyad)}</div>
             <div style={{ fontSize: 11, color: '#94a3b8' }}>@{k.kullaniciAdi}</div>
           </div>
         </Space>
@@ -157,7 +165,7 @@ export default function PersonelSayfasi() {
       title: 'Ünvan',
       dataIndex: 'unvan',
       key: 'unvan',
-      render: (v: string) => v || <span style={{ color: '#cbd5e1' }}>—</span>,
+      render: (v: string) => v ? formatUnvan(v) : <span style={{ color: '#cbd5e1' }}>—</span>,
     },
     {
       title: 'Rol',
@@ -168,7 +176,7 @@ export default function PersonelSayfasi() {
         return <Tag color={r.color}>{r.label}</Tag>;
       },
     },
-    ...(isSuperAdmin ? [{
+    ...(tumFirmalaraErisir ? [{
       title: 'Firma',
       dataIndex: 'firmaId',
       key: 'firmaId',
@@ -186,30 +194,35 @@ export default function PersonelSayfasi() {
       title: 'İşlemler',
       key: 'actions',
       align: 'right' as const,
-      render: (_: unknown, k: Kullanici) => (
-        <Space size="small">
-          <Button size="small" icon={<EditOutlined />} onClick={() => duzenle(k)}>Düzenle</Button>
-          <Button size="small" icon={<KeyOutlined />} onClick={() => void sifreSifirla(k)}>Şifre</Button>
-          <Popconfirm
-            title="Personeli pasif et?"
-            description="Tekrar aktifleştirmek için yöneticiye başvurmak gerekir."
-            okText="Pasif et"
-            cancelText="Vazgeç"
-            okButtonProps={{ danger: true }}
-            disabled={k.id === aktifKullanici?.id}
-            onConfirm={() => void sil(k)}
-          >
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              disabled={k.id === aktifKullanici?.id}
+      render: (_: unknown, k: Kullanici) => {
+        // admin (super değil) yöneticileri düzenleyemez/silemez/sıfırlayamaz
+        const targetIsYonetici = ['admin', 'firma_admin', 'super_admin'].includes(k.rol);
+        const yoneticiKilidi = !isSuperAdmin && targetIsYonetici;
+        return (
+          <Space size="small">
+            <Button size="small" icon={<EditOutlined />} disabled={yoneticiKilidi} onClick={() => duzenle(k)}>Düzenle</Button>
+            <Button size="small" icon={<KeyOutlined />} disabled={yoneticiKilidi} onClick={() => void sifreSifirla(k)}>Şifre</Button>
+            <Popconfirm
+              title="Personeli pasif et?"
+              description="Tekrar aktifleştirmek için yöneticiye başvurmak gerekir."
+              okText="Pasif et"
+              cancelText="Vazgeç"
+              okButtonProps={{ danger: true }}
+              disabled={k.id === aktifKullanici?.id || yoneticiKilidi}
+              onConfirm={() => void sil(k)}
             >
-              Sil
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={k.id === aktifKullanici?.id || yoneticiKilidi}
+              >
+                Sil
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -222,7 +235,9 @@ export default function PersonelSayfasi() {
               <div style={{ fontSize: 18, fontWeight: 700 }}>Personel Yönetimi</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 400 }}>
                 {isSuperAdmin
-                  ? 'Tüm firmalardaki personeli yönetin'
+                  ? 'Tüm firmalardaki personeli ve yöneticileri yönetin'
+                  : isAdmin
+                  ? 'Tüm firmalardaki personeli (mühendis/satış) yönetin'
                   : 'Firmanıza ait personeli ekleyip düzenleyin'}
               </div>
             </div>
@@ -243,7 +258,7 @@ export default function PersonelSayfasi() {
       </Card>
 
       <Modal
-        title={duzenlenen ? `${duzenlenen.adSoyad} – Düzenle` : 'Yeni Personel Ekle'}
+        title={duzenlenen ? `${formatAdSoyad(duzenlenen.adSoyad)} – Düzenle` : 'Yeni Personel Ekle'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
@@ -275,30 +290,45 @@ export default function PersonelSayfasi() {
             name="adSoyad"
             label="Ad Soyad"
             rules={[{ required: true, message: 'Zorunlu' }]}
+            normalize={(val: string) => formatAdSoyad(val ?? '', true)}
           >
-            <Input placeholder="örn. Ahmet Yılmaz" />
+            <Input placeholder="örn. Ahmet YILMAZ" autoComplete="off" />
           </Form.Item>
           <Form.Item
             name="unvan"
             label="Ünvan"
             extra="Örn: Makine Mühendisi, Satış Sorumlusu, Pazarlama Uzmanı"
+            normalize={(val: string) => formatUnvan(val ?? '', true)}
           >
-            <Input placeholder="Ünvan" />
+            <Input placeholder="Ünvan" autoComplete="off" />
           </Form.Item>
           <Form.Item name="rol" label="Rol" rules={[{ required: true }]}>
             <Select>
               <Select.Option value="engineer">Mühendis</Select.Option>
               <Select.Option value="sales">Satış Sorumlusu</Select.Option>
-              {isSuperAdmin && <Select.Option value="firma_admin">Firma Yöneticisi</Select.Option>}
+              {isSuperAdmin && <Select.Option value="admin">Yönetici (tüm firmalar)</Select.Option>}
+              {isSuperAdmin && <Select.Option value="firma_admin">Firma Yöneticisi (tek firma)</Select.Option>}
             </Select>
           </Form.Item>
-          {isSuperAdmin && !duzenlenen && (
-            <Form.Item name="firmaId" label="Firma" rules={[{ required: true, message: 'Firma seçiniz' }]}>
-              <Select placeholder="Firma seçin">
-                {firmalar.map((f) => (
-                  <Select.Option key={f.id} value={f.id}>{f.ad}</Select.Option>
-                ))}
-              </Select>
+          {tumFirmalaraErisir && !duzenlenen && (
+            <Form.Item
+              noStyle
+              shouldUpdate={(prev, curr) => prev.rol !== curr.rol}
+            >
+              {({ getFieldValue }) => {
+                const secilenRol = getFieldValue('rol');
+                // 'admin' rolu tum firmalara erisir → firmaId gerekmez
+                if (secilenRol === 'admin') return null;
+                return (
+                  <Form.Item name="firmaId" label="Firma" rules={[{ required: true, message: 'Firma seçiniz' }]}>
+                    <Select placeholder="Firma seçin">
+                      {firmalar.map((f) => (
+                        <Select.Option key={f.id} value={f.id}>{f.ad}</Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                );
+              }}
             </Form.Item>
           )}
         </Form>

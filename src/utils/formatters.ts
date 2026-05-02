@@ -17,6 +17,94 @@ export function formatPercentage(val: number): string {
   return `%${val.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
+/**
+ * formatAdSoyad — kullanici ad-soyad gorsel format standardi.
+ *
+ * Kural: ilk kelime "Title Case" (ilk harf buyuk, kalan kucuk),
+ *        kalan kelimeler "TUM BUYUK".
+ *
+ * Ornekler:
+ *   "ahmet yılmaz"        -> "Ahmet YILMAZ"
+ *   "MEHMET BAKIRDÖĞEN"   -> "Mehmet BAKIRDÖĞEN"
+ *   "fatih lazoğlu osman" -> "Fatih LAZOĞLU OSMAN"
+ *   "ahmet"               -> "Ahmet"
+ *
+ * Live mode (true): kullanici yaziyor durumda — sondaki bosluk korunur ki
+ * yeni kelime baslarken ekstradan space silinmesin. Save/display modunda
+ * (default false) trim yapar.
+ */
+export function formatAdSoyad(input: string, live = false): string {
+  if (!input) return '';
+  const sondaBosluk = live && input.endsWith(' ') ? ' ' : '';
+  const cleaned = input.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return sondaBosluk;
+  const kelimeler = cleaned.split(' ');
+  const formatted = kelimeler.map((w, i) => {
+    if (!w) return w;
+    if (i === 0) {
+      // Ilk kelime: title-case (tr locale: i -> İ)
+      const firstLower = w.slice(1).toLocaleLowerCase('tr-TR');
+      const firstChar = w.charAt(0).toLocaleUpperCase('tr-TR');
+      return firstChar + firstLower;
+    }
+    // Sonraki kelimeler: tum buyuk (tr locale: i -> İ, ı -> I)
+    return w.toLocaleUpperCase('tr-TR');
+  }).join(' ');
+  return formatted + sondaBosluk;
+}
+
+/**
+ * formatUnvan — kullanici unvan/title case standardi.
+ *
+ * Kural: her kelimenin ilk harfi BUYUK, kalani kucuk (tr-TR locale).
+ * Parantez/noktalama kelime sinirini bozmaz; "(master" -> "(Master".
+ *
+ * Ornekler:
+ *   "MAKİNE YÜKSEK MÜHENDİSİ" -> "Makine Yüksek Mühendisi"
+ *   "satış sorumlusu"         -> "Satış Sorumlusu"
+ *   "(master of science)"     -> "(Master Of Science)"
+ *
+ * Live mode (true): kullanici yaziyor — sondaki bosluk korunur.
+ */
+export function formatUnvan(input: string, live = false): string {
+  if (!input) return '';
+  const sondaBosluk = live && input.endsWith(' ') ? ' ' : '';
+  const cleaned = input.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return sondaBosluk;
+  const isAlpha = (ch: string) => /[a-zA-ZçğıöşüÇĞİÖŞÜâîûÂÎÛ]/.test(ch);
+  // Her kelimeyi (boşlukla ayrılan) ayri ele al
+  const formatted = cleaned.split(' ').map((word) => {
+    let out = '';
+    let firstAlphaSeen = false;
+    for (const ch of word) {
+      if (!firstAlphaSeen && isAlpha(ch)) {
+        out += ch.toLocaleUpperCase('tr-TR');
+        firstAlphaSeen = true;
+      } else {
+        out += ch.toLocaleLowerCase('tr-TR');
+      }
+    }
+    return out;
+  }).join(' ');
+  return formatted + sondaBosluk;
+}
+
+/**
+ * splitUnvanWithParen — Render'da ünvanı iki parçaya ayırır:
+ *   ana metin + parantez içeriği
+ * Parantez varsa (Master of Science gibi) ayri parcaya bolunur ki UI'da
+ * <br/> ile yeni satira alinabilsin. Parantez yoksa ikinci parca null.
+ */
+export function splitUnvanWithParen(text: string): { ana: string; paren: string | null } {
+  if (!text) return { ana: '', paren: null };
+  const idx = text.indexOf(' (');
+  if (idx === -1) return { ana: text, paren: null };
+  return {
+    ana: text.slice(0, idx).trim(),
+    paren: text.slice(idx + 1).trim(),
+  };
+}
+
 export function formatCariAdi(adi: string): string {
   const trimmed = adi.trim().replace(/\s+/g, ' ');
   if (!trimmed) return trimmed;

@@ -1,0 +1,141 @@
+================================================================
+ MEBA TEKLIF SISTEMI - SUNUCU KURULUM TALIMATLARI
+================================================================
+ Versiyon: 1.0
+ Hedef:    Ana Server PC (3 firmaya da hizmet verecek)
+ Yetkili:  Yalniz Mehmet Bakirdogen (super_admin) kurar
+================================================================
+
+
+1. KLASORU YERLESTIR
+--------------------
+   build-deployment/ klasorunu sunucu PC'sine kopyalayin:
+
+      Hedef:  C:\MEBA-TEKLIF\
+
+   USB ile veya guvenli ag uzerinden kopyalayin. Kopyaladiktan
+   sonra USB'yi cikarin.
+
+
+2. KLASOR ERISIM HAKLARINI KILITLE (ACL)
+-----------------------------------------
+   Bu komutlari Yonetici (Administrator) yetkisi ile cmd'de
+   sirayla calistirin:
+
+      icacls "C:\MEBA-TEKLIF" /inheritance:r
+      icacls "C:\MEBA-TEKLIF" /grant:r "Administrators:(OI)(CI)F"
+      icacls "C:\MEBA-TEKLIF" /grant:r "SYSTEM:(OI)(CI)F"
+      icacls "C:\MEBA-TEKLIF" /deny "Users:(OI)(CI)R"
+
+   SONUC:
+     - Sadece Administrator hesabi (Mehmet) klasoru gorebilir/
+       kopyalayabilir
+     - Standart kullanicilar "Erisim reddedildi" goruntuleyecek
+     - Calisan servis SYSTEM kimligi ile baglanir, sorun yok
+
+
+3. CONFIG DOSYASI
+-----------------
+   config/server-config.template.json dosyasini ayni klasorde
+   server-config.json olarak kopyalayin ve gerekirse port'u
+   degistirin. Default ayarlar:
+
+      listenPort:    3001    (backend API)
+      frontendPort:  5173    (statik web)
+      autoOpenBrowser: false (sunucuda tarayici acmasin)
+
+
+4. ILK BASLAT
+-------------
+   start.bat'i CIFT TIKLAYIN. Konsol acilir:
+
+      [launcher] Backend hazir port=3001
+      [static] dist/ sunuluyor: http://localhost:5173
+
+   Hata yoksa konsolu KAPATMAYIN. Test icin:
+
+      Tarayicidan: http://localhost:5173
+      Login:       Mehmet Bakirdogen / 1234
+      Test edin:   Yeni teklif olustur, kaydet, PDF al
+
+
+5. OTOMATIK BAS LATMA (BOOT)
+----------------------------
+   Sunucu acilinca otomatik baslamasi icin Gorev Zamanlayici
+   (Task Scheduler) kullanin:
+
+   a) Win+R -> taskschd.msc
+   b) Sag panel -> Yeni Gorev Olustur (Create Basic Task)
+   c) Ad:        MEBA Teklif Sistemi
+      Tetikleyici: Bilgisayar baslatildiginda (At startup)
+      Eylem:    Programi baslat
+                   Program:    C:\MEBA-TEKLIF\bin\node.exe
+                   Argumanlar: launcher.cjs
+                   Baslangic:  C:\MEBA-TEKLIF
+   d) Genel sekmesinde:
+      [X] En yuksek ayricaliklarla calistir
+      [X] Kullanici oturum acmasa bile calistir
+      Kullanici hesabi: SYSTEM (degistir butonu -> SYSTEM)
+
+
+6. WINDOWS GUVENLIK DUVARI
+---------------------------
+   Diger admin PC'leri bu sunucuya baglanabilsin diye:
+
+      netsh advfirewall firewall add rule ^
+        name="MEBA Teklif" dir=in action=allow ^
+        protocol=TCP localport=5173,3001
+
+   Bu komut sadece LAN'dan gelen baglantilara izin verir.
+
+
+7. DIGER ADMIN PC'LERI (AHMET, FATIH, MEHMET MARAS)
+----------------------------------------------------
+   Bu PC'lere HICBIR sey kurmaya gerek yok. Sadece masaustune
+   bir tarayici kisayolu eklemeniz yeterli:
+
+   Hedef:  http://[SUNUCU-IP]:5173
+           Ornegin: http://192.168.1.10:5173
+   Adi:    MEBA Teklif Sistemi
+   Ikon:   App icon dosyasi (varsa)
+
+   Edge/Chrome'da "Sayfayi uygulama olarak yukle" secenegi ile
+   uygulama goruntusu kazandirabilirsiniz.
+
+
+8. YEDEKLEME
+------------
+   server/backups/ klasoru otomatik gunluk yedek tutar (14 gun
+   retention). Haftalik bir kez bu klasoru harici diske/USB'ye
+   kopyalayin (off-site backup).
+
+
+9. GUNCELLEME (Mehmet PC'sinden yeni surum)
+--------------------------------------------
+   Mehmet PC'sinde:
+
+      npm run build:production
+
+   Olusan build-deployment/ klasorunu USB ile sunucuya tasi:
+   - Sunucuda once  stop.bat   ile durdur
+   - Eski C:\MEBA-TEKLIF\ klasorunun ICINI sil
+     (server/db.json HARIC! O canli veridir)
+   - Yeni build-deployment icindekileri kopyala
+   - server/db.json'i ESKI kopyadan geri yukle (yedek aldigindan
+     emin ol)
+   - start.bat ile yeniden baslat
+
+
+10. SORUN GIDERME
+------------------
+   - "PID lock var" hatasi: stop.bat calistir, sonra start.bat
+   - Port kullanimda: netstat -ano | findstr :5173 ile bul,
+     o PID'i kapat
+   - .jsc bytecode hatasi: Mehmet PC'sinde Node.js suruum
+     server PC'siyle ESLESMEZSE bytecode yuklenmez. Cozum:
+     bin/node.exe dosyasini Mehmet PC'sinden tekrar kopyala.
+   - Frontend bos sayfa: dist/ eksik. build:production tekrar.
+
+================================================================
+ BU DOKUMAN GIZLIDIR. Server PC'sinde sakla, baska yere kopyalama.
+================================================================

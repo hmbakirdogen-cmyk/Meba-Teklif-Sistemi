@@ -32,10 +32,49 @@ export function getActiveFirmaId(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(ACTIVE_FIRMA_KEY);
 }
+/** FirmaContext senkronizasyonu icin custom event adi (ayni tab icinde polling yerine). */
+export const ACTIVE_FIRMA_CHANGE_EVENT = 'gc-active-firma-change';
+
 export function setActiveFirmaId(firmaId: string | null): void {
   if (typeof window === 'undefined') return;
   if (firmaId) localStorage.setItem(ACTIVE_FIRMA_KEY, firmaId);
   else localStorage.removeItem(ACTIVE_FIRMA_KEY);
+  // Ayni tab icinde FirmaContext'i hemen senkronize et (storage event diger
+  // tab'lere gider, ayni tab'a gelmez). Polling 1 sn'lik gecikmeyi siler.
+  window.dispatchEvent(new CustomEvent(ACTIVE_FIRMA_CHANGE_EVENT, {
+    detail: { firmaId },
+  }));
+}
+
+// ── Sifre hatirlama (kullanici bazinda) ─────────────────────────────────────
+// localStorage'da kullanici-id basina obfuscate edilmis sifre. Bu GERCEK
+// SIFRELEME DEGIL — XSS'e karsi koruma yok; sadece casual goz incelemesini
+// engeller. Internal LAN ortaminda "remember me" UX'i icin yeterli; gercek
+// guvenlik backend session token + Windows hesap izolasyonu ile saglanir.
+const REMEMBERED_SIFRE_PREFIX = 'gc_pw_';
+
+function _obf(s: string): string {
+  if (typeof btoa === 'undefined') return s;
+  try { return btoa(unescape(encodeURIComponent(s))); } catch { return s; }
+}
+function _deobf(s: string): string {
+  if (typeof atob === 'undefined') return s;
+  try { return decodeURIComponent(escape(atob(s))); } catch { return ''; }
+}
+
+export function getRememberedSifre(userId: string): string | null {
+  if (typeof window === 'undefined' || !userId) return null;
+  const raw = localStorage.getItem(REMEMBERED_SIFRE_PREFIX + userId);
+  return raw ? _deobf(raw) : null;
+}
+export function setRememberedSifre(userId: string, sifre: string): void {
+  if (typeof window === 'undefined' || !userId) return;
+  if (sifre) localStorage.setItem(REMEMBERED_SIFRE_PREFIX + userId, _obf(sifre));
+  else localStorage.removeItem(REMEMBERED_SIFRE_PREFIX + userId);
+}
+export function clearRememberedSifre(userId: string): void {
+  if (typeof window === 'undefined' || !userId) return;
+  localStorage.removeItem(REMEMBERED_SIFRE_PREFIX + userId);
 }
 
 export function getStoredKullanici(): Kullanici | null {
@@ -260,8 +299,11 @@ export const api = {
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   auth: {
-    login: (kullaniciAdi: string, sifre: string) =>
-      post<{ token: string; expiresAt: string; kullanici: Kullanici; firma: Firma | null }>('/auth/login', { kullaniciAdi, sifre }),
+    login: (kullaniciAdi: string, sifre: string, secilenFirmaId?: string | null) =>
+      post<{ token: string; expiresAt: string; kullanici: Kullanici; firma: Firma | null }>(
+        '/auth/login',
+        { kullaniciAdi, sifre, secilenFirmaId: secilenFirmaId ?? null },
+      ),
     logout: ()                                   => post<{ ok: boolean }>('/auth/logout', {}),
     me:     ()                                   => get<{ kullanici: Kullanici; firma: Firma | null }>('/auth/me'),
     changePassword: (mevcutSifre: string, yeniSifre: string) =>
@@ -276,6 +318,22 @@ export const api = {
     list:   ()                          => get<Firma[]>('/firmalar'),
     detay:  (id: string)                => get<Firma>(`/firma/${id}`),
     update: (id: string, patchBody: Partial<Firma>) => patch<Firma>(`/firma/${id}`, patchBody),
+    /**
+     * Public — login ekraninda firma secildikten sonra o firmanin
+     * personelini kart olarak gostermek icin. Sadece minimal alanlar:
+     * { id, kullaniciAdi, adSoyad, unvan, rol, firmaId, profilFotoUrl, initials }
+     */
+    personel: (firmaId: string) =>
+      get<Array<{
+        id: string;
+        kullaniciAdi: string;
+        adSoyad: string;
+        unvan: string;
+        rol: string;
+        firmaId: string | null;
+        profilFotoUrl: string | null;
+        initials: string;
+      }>>(`/firma/${firmaId}/personel`),
   },
 
   // ── Kullanicilar ────────────────────────────────────────────────────────────

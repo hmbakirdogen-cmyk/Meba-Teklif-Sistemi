@@ -2,7 +2,9 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Firma } from '../types/firma';
 import { FirmaContext } from './firmaContextStore';
-import { api, getActiveFirmaId, setActiveFirmaId } from '../services/apiClient';
+import {
+  api, getActiveFirmaId, setActiveFirmaId, ACTIVE_FIRMA_CHANGE_EVENT,
+} from '../services/apiClient';
 
 export function FirmaProvider({ children }: { children: ReactNode }) {
   const [firmalar, setFirmalar] = useState<Firma[]>([]);
@@ -22,14 +24,23 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // localStorage degisiminde state senkronize et (cikis sonrasi)
+  // localStorage degisiminde state senkronize et:
+  //   - Custom event: ayni tab icinde, login/cikis sonrasi anlik
+  //   - storage event: diger tab'lerden gelen degisikliklere reaktif
+  //   - Polling: backup (event mekanizmasi atlanan kenar durumlar icin)
   useEffect(() => {
-    function poll() {
+    function syncFromStorage() {
       const stored = getActiveFirmaId();
       setAktifFirmaIdState((prev) => (prev !== stored ? stored : prev));
     }
-    const id = window.setInterval(poll, 1000);
-    return () => window.clearInterval(id);
+    window.addEventListener(ACTIVE_FIRMA_CHANGE_EVENT, syncFromStorage);
+    window.addEventListener('storage', syncFromStorage);
+    const id = window.setInterval(syncFromStorage, 5000);
+    return () => {
+      window.removeEventListener(ACTIVE_FIRMA_CHANGE_EVENT, syncFromStorage);
+      window.removeEventListener('storage', syncFromStorage);
+      window.clearInterval(id);
+    };
   }, []);
 
   const setAktifFirma = useCallback((firmaId: string | null) => {

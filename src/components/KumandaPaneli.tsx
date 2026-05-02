@@ -9,6 +9,7 @@ import {
   PremiumDiscountIcon,
   PremiumVisibilityIcon,
 } from './premium-icons';
+import { useKullanici } from '../context/useKullanici';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
@@ -59,6 +60,9 @@ export default function KumandaPaneli({
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
 }: KumandaPaneliProps) {
+  const { aktifKullanici } = useKullanici();
+  const isYonetici = aktifKullanici?.rol === 'super_admin' || aktifKullanici?.rol === 'admin';
+
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
@@ -1272,22 +1276,24 @@ export default function KumandaPaneli({
           )}
         </section>
 
-        <section className="panel-section">
-          <SecLabel text="Paylaşım" />
-          <div className="grid grid-single">
-            <SquareToggle
-              labelLines={visibility === 'private' ? ['GİZLİ'] : []}
-              ariaLabel={visibility === 'private' ? 'Görünürlük: Gizli' : 'Görünürlük: Herkese Açık'}
-              extraClass="button-visibility visibility-compact"
-              icon={<PremiumVisibilityIcon visible={visibility === 'team'} />}
-              on={visibility === 'private'}
-              onClick={() =>
-                onVisibilityDegistir(visibility === 'private' ? 'team' : 'private')
-              }
-              disabled={readOnly}
-            />
-          </div>
-        </section>
+        {isYonetici && (
+          <section className="panel-section">
+            <SecLabel text="Paylaşım" />
+            <div className="grid grid-single">
+              <SquareToggle
+                labelLines={visibility === 'private' ? ['GİZLİ'] : []}
+                ariaLabel={visibility === 'private' ? 'Görünürlük: Gizli' : 'Görünürlük: Herkese Açık'}
+                extraClass="button-visibility visibility-compact"
+                icon={<PremiumVisibilityIcon visible={visibility === 'team'} />}
+                on={visibility === 'private'}
+                onClick={() =>
+                  onVisibilityDegistir(visibility === 'private' ? 'team' : 'private')
+                }
+                disabled={readOnly}
+              />
+            </div>
+          </section>
+        )}
         </>
         )}
       </div>

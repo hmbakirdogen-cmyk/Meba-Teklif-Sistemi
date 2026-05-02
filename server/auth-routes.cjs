@@ -94,16 +94,23 @@ function requireAuth(db, req) {
 
 function requireAdmin(ctx) {
   const r = ctx?.kullanici?.rol;
-  if (r === 'super_admin' || r === 'firma_admin') return { ok: true };
+  if (r === 'super_admin' || r === 'admin' || r === 'firma_admin') return { ok: true };
   return { ok: false, status: 403, error: 'Bu islem icin yetkili degilsiniz.' };
 }
 
+// Sadece super_admin yapabilen ozel islemler (kullanici yonetimi, firma profili)
+function requireSuperAdmin(ctx) {
+  const r = ctx?.kullanici?.rol;
+  if (r === 'super_admin') return { ok: true };
+  return { ok: false, status: 403, error: 'Bu islem icin Süper Yönetici yetkisi gereklidir.' };
+}
+
+// super_admin ve admin tum firmalari gorebilir
 // firma_admin/sales/engineer sadece kendi firmasini gorebilir
-// super_admin tum firmalari gorebilir
 function canAccessFirma(ctx, firmaId) {
   const k = ctx?.kullanici;
   if (!k) return false;
-  if (k.rol === 'super_admin') return true;
+  if (k.rol === 'super_admin' || k.rol === 'admin') return true;
   return k.firmaId === firmaId;
 }
 
@@ -165,13 +172,23 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const body = await parseBody(req);
     const kullaniciAdi = String(body.kullaniciAdi || '').trim().toLocaleLowerCase('tr-TR');
     const sifre        = String(body.sifre || '');
+    const secilenFirmaId = body.secilenFirmaId ? String(body.secilenFirmaId) : null;
     if (!kullaniciAdi || !sifre) {
       return send(res, 400, { error: 'Kullanici adi ve sifre zorunlu.' });
     }
     const db = readDB();
-    const k  = (db.kullanicilar || []).find(
-      (u) => String(u.kullaniciAdi || '').toLocaleLowerCase('tr-TR') === kullaniciAdi
-    );
+    // Geriye dönük uyumluluk: hem tam ad ("mehmet bakırdöğen") hem de sadece
+    // ilk kelime ("mehmet") ile login kabul edilir. Tek-kelime input verildiğinde
+    // DB'deki tam adın ilk kelimesi ile karşılaştırılır.
+    const k = (db.kullanicilar || []).find((u) => {
+      const full = String(u.kullaniciAdi || '').toLocaleLowerCase('tr-TR');
+      if (full === kullaniciAdi) return true;
+      if (!kullaniciAdi.includes(' ')) {
+        const firstWord = full.split(/\s+/)[0];
+        if (firstWord === kullaniciAdi) return true;
+      }
+      return false;
+    });
     if (!k || !k.aktifMi) {
       return send(res, 401, { error: 'Kullanici adi veya sifre hatali.' });
     }
@@ -179,6 +196,22 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
       auditLog(db, 'login_failed', { kullanici: k }, { reason: 'wrong_password' });
       writeDB(db);
       return send(res, 401, { error: 'Kullanici adi veya sifre hatali.' });
+    }
+    // Firma yetki dogrulamasi: super_admin / admin tum firmalara erisebilir.
+    // Diger roller (firma_admin, engineer, sales) sadece kendi firmalarinin
+    // login ekraninda secilebilir. Secilen firma kendi firmaId'sinden farkli
+    // ise oturum olusturmadan REDDET ve audit log'a kaydet.
+    const tumFirmalaraErisir = k.rol === 'super_admin' || k.rol === 'admin';
+    if (!tumFirmalaraErisir && secilenFirmaId && secilenFirmaId !== k.firmaId) {
+      auditLog(db, 'login_blocked', { kullanici: k }, {
+        reason: 'wrong_firma',
+        secilenFirmaId,
+        kullaniciFirmaId: k.firmaId,
+      });
+      writeDB(db);
+      return send(res, 403, {
+        error: 'Bu firmaya kayitli degilsiniz. Lutfen kendi firmanizi seciniz.',
+      });
     }
     // Sifre dogru → oturum olustur
     ensureOturumlar(db);
@@ -303,6 +336,9 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     if (!canAccessFirma(auth.ctx, id)) return send(res, 403, { error: 'Bu firmayi duzenleyemezsiniz.' });
     const f = (db.firmalar || []).find((x) => x.id === id);
     if (!f) return send(res, 404, { error: 'Firma bulunamadi.' });
+    // Firma profili düzenleme: sadece super_admin
+    const superCheck = requireSuperAdmin(auth.ctx);
+    if (!superCheck.ok) return send(res, superCheck.status, { error: superCheck.error });
     const body = await parseBody(req);
     const izinli = ['ad', 'kisaAd', 'slogan', 'logoPath', 'renkBirincil', 'renkVurgu',
                     'adres', 'vergiDairesi', 'vergiNo', 'telefon', 'eposta', 'iban',
@@ -315,6 +351,56 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     return send(res, 200, sanitizeFirma(f));
   }
 
+  // GET /api/firma/:firmaId/personel — PUBLIC (login ekraninda kart olusturmak icin)
+  // Donulen alanlar: id, kullaniciAdi, adSoyad, unvan, rol, firmaId, profilFotoUrl, initials.
+  // Hassas alan (sifreHash, mustChangePassword, olusturanKullaniciId vs.) HIC gonderilmez.
+  //
+  // Goruntuleme stratejisi:
+  //   1) firma_admin / engineer / sales — sadece kendi firmalarinin listesinde.
+  //   2) super_admin / admin (firmaId===null, tum firmalara yetki) — eger
+  //      `gosterilenFirmalar` (array) tanimliysa SADECE o firmalarda gozukur;
+  //      tanimli degilse legacy davranis: hepsinde gozukur.
+  //   3) Sirala: once yoneticiler (rol oncelikli), sonra digerleri (ad-soyad).
+  async function listFirmaPersonel(req, res, url) {
+    const m = /^\/api\/firma\/([^/]+)\/personel$/.exec(url);
+    const firmaId = m && m[1] ? decodeURIComponent(m[1]) : null;
+    if (!firmaId) return send(res, 400, { error: 'Firma id gerekli.' });
+    const db = readDB();
+    const ROL_AGIRLIK = { super_admin: 0, admin: 1, firma_admin: 2, engineer: 3, sales: 4 };
+    const liste = (db.kullanicilar || [])
+      .filter((u) => u.aktifMi !== false)
+      .filter((u) => {
+        if (u.rol === 'super_admin' || u.rol === 'admin') {
+          // Yonetici icin opsiyonel "gosterilenFirmalar" mapping'i:
+          //   - Tanimli ve dolu ise: SADECE o firmalarda goster
+          //   - Tanimli degil/bos ise: legacy "her firmada goster"
+          if (Array.isArray(u.gosterilenFirmalar) && u.gosterilenFirmalar.length > 0) {
+            return u.gosterilenFirmalar.includes(firmaId);
+          }
+          return true;
+        }
+        // Diger roller sadece kendi firmasinda
+        return u.firmaId === firmaId;
+      })
+      .map((u) => ({
+        id: u.id,
+        kullaniciAdi: u.kullaniciAdi || '',
+        adSoyad: u.adSoyad || '',
+        unvan: u.unvan || '',
+        rol: u.rol,
+        firmaId: u.firmaId || null,
+        profilFotoUrl: u.profilFotoUrl || null,
+        initials: u.initials || uretInitials(u.adSoyad),
+      }))
+      .sort((a, b) => {
+        const wa = ROL_AGIRLIK[a.rol] ?? 9;
+        const wb = ROL_AGIRLIK[b.rol] ?? 9;
+        if (wa !== wb) return wa - wb;
+        return a.adSoyad.localeCompare(b.adSoyad, 'tr');
+      });
+    return send(res, 200, liste);
+  }
+
   // GET /api/kullanicilar
   async function listKullanicilar(req, res) {
     const db = readDB();
@@ -322,13 +408,16 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     if (!auth.ok) return send(res, auth.status, { error: auth.error });
     const k = auth.ctx.kullanici;
     let liste = db.kullanicilar || [];
-    if (k.rol !== 'super_admin') {
+    // super_admin ve admin tum kullanicilari gorur; digerleri sadece kendi firmasini
+    if (k.rol !== 'super_admin' && k.rol !== 'admin') {
       liste = liste.filter((u) => u.firmaId === k.firmaId);
     }
     return send(res, 200, liste.map(sanitizeUser));
   }
 
-  // POST /api/kullanicilar
+  // POST /api/kullanicilar — admin ve super_admin personel ekleyebilir;
+  //   admin/firma_admin/super_admin gibi yönetici rolündeki yeni kullanıcıyı
+  //   sadece super_admin ekleyebilir.
   async function createKullanici(req, res) {
     const db = readDB();
     const auth = requireAuth(db, req);
@@ -339,14 +428,21 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const adSoyad      = String(body.adSoyad || '').trim();
     const kullaniciAdi = String(body.kullaniciAdi || '').trim().toLocaleLowerCase('tr-TR');
     const unvan        = String(body.unvan || '').trim();
-    const rol          = ['firma_admin', 'engineer', 'sales'].includes(body.rol) ? body.rol : 'engineer';
+    const rol          = ['admin', 'firma_admin', 'engineer', 'sales'].includes(body.rol) ? body.rol : 'engineer';
+    // Yönetici rolünde kullanıcı oluşturma sadece super_admin'e açık
+    const yoneticiRolleri = ['admin', 'firma_admin', 'super_admin'];
+    if (yoneticiRolleri.includes(rol) && auth.ctx.kullanici.rol !== 'super_admin') {
+      return send(res, 403, { error: 'Yönetici rolünde kullanıcı oluşturmak için Süper Yönetici yetkisi gereklidir.' });
+    }
     if (!adSoyad || !kullaniciAdi) {
       return send(res, 400, { error: 'Ad Soyad ve kullanici adi zorunlu.' });
     }
-    // firmaId belirleme: super_admin body'den, firma_admin kendi firmasi
-    let firmaId = auth.ctx.kullanici.rol === 'super_admin' ? body.firmaId : auth.ctx.kullanici.firmaId;
-    if (!firmaId) return send(res, 400, { error: 'firmaId zorunlu.' });
-    if (!(db.firmalar || []).some((f) => f.id === firmaId)) {
+    // firmaId super_admin'den geldiği için body'den okur. 'admin' rolü kullanıcı
+    // oluşturma yetkisinden zaten çıkarıldığı için burası sadece super_admin akışı.
+    // Eğer rol === 'admin' ise firmaId null olabilir (firma kapsamı dışı yönetici).
+    let firmaId = body.rol === 'admin' ? null : (body.firmaId || null);
+    if (firmaId !== null && !firmaId) return send(res, 400, { error: 'firmaId zorunlu.' });
+    if (firmaId !== null && !(db.firmalar || []).some((f) => f.id === firmaId)) {
       return send(res, 400, { error: 'Gecersiz firmaId.' });
     }
     // Cakisma kontrolu
@@ -383,9 +479,17 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const target = (db.kullanicilar || []).find((u) => u.id === id);
     if (!target) return send(res, 404, { error: 'Kullanici bulunamadi.' });
     const isSelf = target.id === auth.ctx.kullanici.id;
-    const isAdmin = auth.ctx.kullanici.rol === 'super_admin'
-      || (auth.ctx.kullanici.rol === 'firma_admin' && target.firmaId === auth.ctx.kullanici.firmaId);
-    if (!isSelf && !isAdmin) return send(res, 403, { error: 'Bu kullaniciyi guncelleyemezsiniz.' });
+    const meRol = auth.ctx.kullanici.rol;
+    // super_admin tüm kullanıcıları düzenler.
+    // admin: personel (engineer/sales) düzenleyebilir; başka yönetici (admin/super/firma_admin)
+    // ya da kendi dışındaki bir admin'i düzenleyemez.
+    const targetIsYonetici = ['admin', 'firma_admin', 'super_admin'].includes(target.rol);
+    let canEdit = false;
+    if (isSelf) canEdit = true;
+    else if (meRol === 'super_admin') canEdit = true;
+    else if (meRol === 'admin' && !targetIsYonetici) canEdit = true;
+    if (!canEdit) return send(res, 403, { error: 'Bu kullaniciyi guncelleyemezsiniz.' });
+    const isAdmin = !isSelf && canEdit;
     const body = await parseBody(req);
     // Self update: sadece adSoyad/unvan/initials
     // Admin update: yukaridakilere ek olarak rol/aktifMi (kendi firma kapsam icinde)
@@ -404,6 +508,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
   }
 
   // POST /api/kullanicilar/:id/sifre-sifirla
+  //   super_admin: tüm kullanıcılar
+  //   admin: sadece personel (engineer/sales)
   async function resetKullaniciSifre(req, res, url) {
     const id = url.split('/')[3];
     const db = readDB();
@@ -413,8 +519,10 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     if (!adminCheck.ok) return send(res, adminCheck.status, { error: adminCheck.error });
     const target = (db.kullanicilar || []).find((u) => u.id === id);
     if (!target) return send(res, 404, { error: 'Kullanici bulunamadi.' });
-    if (auth.ctx.kullanici.rol !== 'super_admin' && target.firmaId !== auth.ctx.kullanici.firmaId) {
-      return send(res, 403, { error: 'Bu kullaniciyi sifirlayamazsiniz.' });
+    const meRol = auth.ctx.kullanici.rol;
+    const targetIsYonetici = ['admin', 'firma_admin', 'super_admin'].includes(target.rol);
+    if (meRol !== 'super_admin' && targetIsYonetici) {
+      return send(res, 403, { error: 'Yöneticilerin şifresini sıfırlamak için Süper Yönetici yetkisi gereklidir.' });
     }
     target.sifreHash = hashPassword(VARSAYILAN_SIFRE);
     target.mustChangePassword = true;
@@ -429,6 +537,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
   }
 
   // DELETE /api/kullanicilar/:id (soft delete)
+  //   super_admin: tüm kullanıcılar
+  //   admin: sadece personel (engineer/sales) — başka yöneticiyi silemez
   async function deleteKullanici(req, res, url) {
     const id = url.split('/')[3];
     const db = readDB();
@@ -438,6 +548,11 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     if (!adminCheck.ok) return send(res, adminCheck.status, { error: adminCheck.error });
     const target = (db.kullanicilar || []).find((u) => u.id === id);
     if (!target) return send(res, 404, { error: 'Kullanici bulunamadi.' });
+    const meRol = auth.ctx.kullanici.rol;
+    const targetIsYonetici = ['admin', 'firma_admin', 'super_admin'].includes(target.rol);
+    if (meRol !== 'super_admin' && targetIsYonetici) {
+      return send(res, 403, { error: 'Yöneticileri silmek için Süper Yönetici yetkisi gereklidir.' });
+    }
     if (target.id === auth.ctx.kullanici.id) {
       return send(res, 400, { error: 'Kendi hesabinizi silemezsiniz.' });
     }
@@ -485,6 +600,7 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     listFirmalar,
     getFirma,
     updateFirma,
+    listFirmaPersonel,
     listKullanicilar,
     createKullanici,
     updateKullanici,

@@ -9,13 +9,14 @@ import {
 import {
   UploadOutlined, TeamOutlined, AppstoreOutlined,
   DeleteOutlined, ReloadOutlined, PlusOutlined, TagsOutlined,
-  EditOutlined, DownloadOutlined,
+  EditOutlined, DownloadOutlined, FileExcelOutlined,
 } from '@ant-design/icons';
 import { referansVeriService } from '../services/referansVeriService';
 import type { UploadFile } from 'antd';
 import {
   cariExcelOku, urunExcelOku,
   cariExcelIndir, urunExcelIndir,
+  cariSablonIndir, urunSablonIndir,
 } from '../services/excelImportService';
 import type { CariImportSonucu, UrunImportSonucu } from '../services/excelImportService';
 import { cariService } from '../services/musteriService';
@@ -573,9 +574,12 @@ export default function VeriYonetimiSayfasi() {
           beforeUpload={(f: UploadFile) => cariDosyaOku(f as unknown as File)}>
           <Button icon={<UploadOutlined />} loading={cariYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
         </Upload>
+        <Button icon={<FileExcelOutlined />} onClick={cariSablonIndir} className={buttonClassNames.secondary}>
+          Boş Şablon İndir
+        </Button>
         <Button icon={<DownloadOutlined />} onClick={() => cariExcelIndir(cariler)} className={buttonClassNames.secondary}
           disabled={cariler.length === 0}>
-          Excel İndir
+          Mevcut Listeyi İndir
         </Button>
       </div>
 
@@ -618,9 +622,12 @@ export default function VeriYonetimiSayfasi() {
           beforeUpload={(f: UploadFile) => urunDosyaOku(f as unknown as File)}>
           <Button icon={<UploadOutlined />} loading={urunYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
         </Upload>
+        <Button icon={<FileExcelOutlined />} onClick={urunSablonIndir} className={buttonClassNames.secondary}>
+          Boş Şablon İndir
+        </Button>
         <Button icon={<DownloadOutlined />} onClick={() => urunExcelIndir(urunler)} className={buttonClassNames.secondary}
           disabled={urunler.length === 0}>
-          Excel İndir
+          Mevcut Listeyi İndir
         </Button>
         <Divider type="vertical" style={{ margin: '4px 0' }} />
         <Popconfirm
