@@ -2,27 +2,33 @@
  * BelgeToolbar.tsx
  * ─────────────────────────────────────────────────────────────────
  * Belge editörü üst araç çubuğu.
- * Kaydet, PDF İndir, Yazdır, Listeye Dön aksiyonları.
+ * Geri | Teklif başlığı + Durum pill (clickable) | Aksiyonlar (Yazdır / PDF / Gönder).
+ *
+ * Durum pill: 5 durum (taslak/hazır/gönderildi/onaylandı/iptal). Otomatik geçişler
+ * (PDF üretildi → hazır, e-posta gönderildi → gönderildi) editörde yapılır;
+ * pill click → manuel override menüsü.
  */
 
-import { Button, Space, Tag, Tooltip, Spin } from 'antd';
+import { Button, Dropdown, Space, Tooltip, Spin } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   ArrowLeftOutlined,
   PrinterOutlined,
   FilePdfOutlined,
   MailOutlined,
   PlusOutlined,
+  CaretDownOutlined,
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
 import { buttonClassNames } from '../styles/buttonStyles';
-import type { TeklifStatus } from '../types';
+import type { TeklifDurum } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
 
 interface BelgeToolbarProps {
   teklifNo: string;
   teklifNoDurumu: 'hazir' | 'yukleniyor' | 'hata';
   cariAdi?: string;
-  status: TeklifStatus;
+  durum: TeklifDurum;
   uretiliyor: boolean;
   onGeriDon: () => void;
   onPdfIndir: () => void;
@@ -30,26 +36,41 @@ interface BelgeToolbarProps {
   onYazdir: () => void;
   onSatirEkle: () => void;
   onPanelAc: (mod: PanelModu) => void;
+  onDurumDegistir: (d: TeklifDurum) => void;
 }
 
-// 3-state otomatik kayıt status modeli
-const STATUS_RENK: Record<TeklifStatus, string> = {
-  taslak:     'default',
-  kaydedildi: 'blue',
-  gonderildi: 'green',
+const DURUM_RENK: Record<TeklifDurum, { color: string; bg: string; border: string }> = {
+  taslak:     { color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
+  hazir:      { color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
+  gonderildi: { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  onaylandi:  { color: '#15803d', bg: '#ecfdf5', border: '#a7f3d0' },
+  reddedildi:  { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+  iptal:      { color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 
-const STATUS_ETIKET: Record<TeklifStatus, string> = {
+const DURUM_ETIKET: Record<TeklifDurum, string> = {
   taslak:     'Taslak',
-  kaydedildi: 'Kaydedildi',
+  hazir:      'Hazır',
   gonderildi: 'Gönderildi',
+  onaylandi:  'Onaylandı',
+  reddedildi:  'Reddedildi',
+  iptal:      'İptal',
+};
+
+const DURUM_ACIKLAMA: Record<TeklifDurum, string> = {
+  taslak:     'Üzerinde çalışılıyor',
+  hazir:      'PDF üretildi, gönderim için hazır',
+  gonderildi: 'Müşteriye gönderildi, yanıt bekleniyor',
+  onaylandi:  'Müşteri onayladı / sipariş alındı',
+  reddedildi:  'Müşteri reddetti (rakip/fiyat/zaman)',
+  iptal:      'Süreç sonlandırıldı',
 };
 
 export default function BelgeToolbar({
   teklifNo,
   teklifNoDurumu,
   cariAdi,
-  status,
+  durum,
   uretiliyor,
   onGeriDon,
   onPdfIndir,
@@ -57,8 +78,30 @@ export default function BelgeToolbar({
   onYazdir,
   onSatirEkle,
   onPanelAc,
+  onDurumDegistir,
 }: BelgeToolbarProps) {
   const C = useColors();
+  const durumRenk = DURUM_RENK[durum];
+
+  const durumMenuItems: MenuProps['items'] = (Object.keys(DURUM_ETIKET) as TeklifDurum[]).map((d) => ({
+    key: d,
+    label: (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 0', minWidth: 200 }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: DURUM_RENK[d].color, flexShrink: 0,
+        }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 12, fontWeight: durum === d ? 700 : 600, color: 'inherit' }}>
+            {DURUM_ETIKET[d]}{durum === d ? '  ✓' : ''}
+          </span>
+          <span style={{ fontSize: 10.5, color: '#64748b', lineHeight: 1.3 }}>
+            {DURUM_ACIKLAMA[d]}
+          </span>
+        </div>
+      </div>
+    ),
+  }));
 
   return (
     <div style={{
@@ -104,16 +147,51 @@ export default function BelgeToolbar({
             — {cariAdi}
           </span>
         )}
-        <Tag color={STATUS_RENK[status]} style={{ margin: 0, borderRadius: 999, fontWeight: 600 }}>
-          {STATUS_ETIKET[status]}
-        </Tag>
+        <Dropdown
+          menu={{
+            items: durumMenuItems,
+            onClick: ({ key }) => onDurumDegistir(key as TeklifDurum),
+            selectable: true,
+            selectedKeys: [durum],
+          }}
+          trigger={['click']}
+          placement="bottomLeft"
+        >
+          <button
+            type="button"
+            title="Tıkla → durum değiştir"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 9px 3px 11px',
+              borderRadius: 999,
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: '0.01em',
+              color: durumRenk.color,
+              background: durumRenk.bg,
+              border: `1px solid ${durumRenk.border}`,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              lineHeight: 1.4,
+              transition: 'background 0.12s, border-color 0.12s',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = durumRenk.color; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = durumRenk.border; }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: durumRenk.color, flexShrink: 0 }} />
+            {DURUM_ETIKET[durum]}
+            <CaretDownOutlined style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }} />
+          </button>
+        </Dropdown>
       </div>
 
       <div style={{ flex: 1 }} />
 
       {/* Sağ: Aksiyonlar */}
       <Space size={6} wrap>
-        <Tooltip title="Satır Ekle">
+        <Tooltip title="Satır ekle">
           <Button
             type="text"
             icon={<PlusOutlined />}
@@ -125,17 +203,13 @@ export default function BelgeToolbar({
             type="text"
             icon={
               <svg viewBox="0 0 20 20" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                {/* spiral soluk */}
                 <circle cx="5" cy="4" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
                 <circle cx="5" cy="7" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
                 <circle cx="5" cy="10" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
-                {/* kağıt gövde */}
                 <rect x="6.5" y="2" width="9" height="13" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.80" />
-                {/* yazı satırları */}
                 <line x1="8.5" y1="5.2" x2="13.5" y2="5.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
                 <line x1="8.5" y1="7.6" x2="13.5" y2="7.6" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
                 <line x1="8.5" y1="10" x2="11.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
-                {/* kalem */}
                 <g transform="rotate(-40 13 14)">
                   <rect x="12" y="11" width="2" height="5.5" rx="0.4" fill="currentColor" opacity="0.85" />
                   <polygon points="12,16.5 14,16.5 13,18.5" fill="currentColor" opacity="0.70" />
@@ -148,30 +222,36 @@ export default function BelgeToolbar({
 
         <div style={{ width: 1, height: 20, background: C.border, margin: '0 4px' }} />
 
-        <Button
-          icon={<PrinterOutlined />}
-          onClick={onYazdir}
-          loading={uretiliyor}
-          className={buttonClassNames.secondary}
-        >
-          Yazdır
-        </Button>
-        <Button
-          type="primary"
-          icon={<FilePdfOutlined />}
-          onClick={onPdfIndir}
-          loading={uretiliyor}
-        >
-          PDF
-        </Button>
-        <Button
-          icon={<MailOutlined />}
-          onClick={onEMailGonder}
-          loading={uretiliyor}
-          className={buttonClassNames.secondary}
-        >
-          E-Mail Gönder
-        </Button>
+        <Tooltip title="Sayfayı yazıcıya gönder (durumu değiştirmez)" placement="bottom">
+          <Button
+            type="text"
+            icon={<PrinterOutlined />}
+            onClick={onYazdir}
+            loading={uretiliyor}
+          >
+            Yazdır
+          </Button>
+        </Tooltip>
+        <Tooltip title="PDF dosyası oluştur ve klasöre kaydet — durumu 'Hazır'a çeker" placement="bottom">
+          <Button
+            icon={<FilePdfOutlined />}
+            onClick={onPdfIndir}
+            loading={uretiliyor}
+            className={buttonClassNames.secondary}
+          >
+            PDF
+          </Button>
+        </Tooltip>
+        <Tooltip title="PDF üret + müşteriye e-posta taslağı aç — durumu 'Gönderildi'ye çeker" placement="bottom">
+          <Button
+            type="primary"
+            icon={<MailOutlined />}
+            onClick={onEMailGonder}
+            loading={uretiliyor}
+          >
+            Gönder
+          </Button>
+        </Tooltip>
       </Space>
     </div>
   );

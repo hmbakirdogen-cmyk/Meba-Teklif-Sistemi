@@ -5,7 +5,7 @@ import ProfilFotoModal from './components/ProfilFotoModal';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
-  CheckOutlined,
+  CheckOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
@@ -45,7 +45,8 @@ export default function AppLayout() {
   const [profilFotoModalOpen, setProfilFotoModalOpen] = useState(false);
 
   const seciliMenu =
-    location.pathname.startsWith('/veri') ? 'veri'
+    location.pathname.startsWith('/analiz') ? 'analiz'
+    : location.pathname.startsWith('/veri') ? 'veri'
     : location.pathname.startsWith('/personel') ? 'personel'
     : location.pathname.startsWith('/firma-profili') ? 'firma-profili'
     : 'teklifler';
@@ -78,6 +79,12 @@ export default function AppLayout() {
       onClick: () => navigate_('/teklifler'),
     },
     ...(isAdminLike ? [
+      {
+        key: 'analiz',
+        icon: <BarChartOutlined />,
+        label: 'Analiz',
+        onClick: () => navigate_('/analiz'),
+      },
       {
         key: 'veri',
         icon: <DatabaseOutlined />,

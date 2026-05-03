@@ -174,6 +174,13 @@ export const dataStore = {
     const liste = await api.teklifler.list(kullanici);
     store.teklifler = liste;
   },
+
+  /** Re-fetch cariler — full snapshot via /api/init (visibility-filter-free).
+   *  TeklifListesi açılışında kart logosu/snapshot tazeliği için kullanılır. */
+  async refreshCariler(kullanici?: { id: string; rol: string }): Promise<void> {
+    const data = await api.init(kullanici);
+    store.cariler = data.cariler;
+  },
   cacheUpsertTeklif(t: Teklif): void {
     const idx = store.teklifler.findIndex((x) => x.id === t.id);
     if (idx >= 0) { store.teklifler[idx] = t; }

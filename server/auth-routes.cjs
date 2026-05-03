@@ -29,6 +29,7 @@ const path = require('path');
 const { hashPassword, verifyPassword, generateSessionToken } = require('./auth-helper.cjs');
 
 const PROFIL_FOTO_DIR = path.join(__dirname, '..', 'public', 'profil-fotograflari');
+const CARI_LOGO_DIR   = path.join(__dirname, '..', 'public', 'cari-logolari');
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 saat
 const VARSAYILAN_SIFRE = '123456';
 const MAX_PHOTO_BYTES = 600 * 1024; // 600 KB — frontend resize sonrasi makul
@@ -37,6 +38,7 @@ function ensureDirSync(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 ensureDirSync(PROFIL_FOTO_DIR);
+ensureDirSync(CARI_LOGO_DIR);
 
 // ── Audit log helper ────────────────────────────────────────────────────────
 function auditLog(db, eylem, ctx, detay) {
@@ -163,6 +165,37 @@ function profilFotoKaydet(userId, fotoBase64) {
   fs.writeFileSync(tamYol, buf);
   // Cache busting icin ?v=timestamp
   return `/profil-fotograflari/${dosyaAdi}?v=${Date.now()}`;
+}
+
+// ── Cari logosu: base64 -> diske jpeg/png/webp ─────────────────────────────
+function cariLogoKaydet(cariId, fotoBase64) {
+  if (typeof fotoBase64 !== 'string' || !fotoBase64) {
+    throw new Error('fotoBase64 bos.');
+  }
+  const match = fotoBase64.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i);
+  let mime = 'image/jpeg';
+  let raw  = fotoBase64;
+  if (match) {
+    mime = match[1].toLowerCase();
+    raw  = match[2];
+  }
+  const buf = Buffer.from(raw, 'base64');
+  if (buf.length === 0) throw new Error('Foto verisi gecersiz.');
+  if (buf.length > MAX_PHOTO_BYTES) {
+    throw new Error(`Logo cok buyuk (${Math.round(buf.length / 1024)} KB). Maks ${Math.round(MAX_PHOTO_BYTES / 1024)} KB.`);
+  }
+  const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+  // Eski versiyonlari sil (kullanici farkli formatla yuklemis olabilir)
+  for (const e of ['png', 'jpg', 'jpeg', 'webp']) {
+    const eski = path.join(CARI_LOGO_DIR, `${cariId}.${e}`);
+    try { if (fs.existsSync(eski)) fs.unlinkSync(eski); } catch { /* ignore */ }
+  }
+  // cariId icindeki / \ gibi karakterleri temizle (ID guvenligi)
+  const safeId = String(cariId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const dosyaAdi = `${safeId}.${ext}`;
+  const tamYol   = path.join(CARI_LOGO_DIR, dosyaAdi);
+  fs.writeFileSync(tamYol, buf);
+  return `/cari-logolari/${dosyaAdi}?v=${Date.now()}`;
 }
 
 // ── Route handler factory ────────────────────────────────────────────────────
@@ -569,6 +602,63 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     return send(res, 200, { ok: true });
   }
 
+  // POST /api/cariler/:id/logo — body: { fotoBase64 }
+  // Yetki: requireAuth (oturum aciksa yeter — cari upsert zaten herkese acik).
+  // firmaId kapsami: super_admin/admin tum firmalar; digerleri kendi firmasi.
+  async function uploadCariLogo(req, res, url) {
+    const m = /^\/api\/cariler\/([^/]+)\/logo$/.exec(url);
+    const id = m && m[1] ? decodeURIComponent(m[1]) : null;
+    if (!id) return send(res, 400, { error: 'Cari id gerekli.' });
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const cari = (db.cariler || []).find((c) => c.id === id);
+    if (!cari) return send(res, 404, { error: 'Cari bulunamadi.' });
+    if (!canAccessFirma(auth.ctx, cari.firmaId)) {
+      return send(res, 403, { error: 'Bu cariye logo yukleme yetkiniz yok.' });
+    }
+    const body = await parseBody(req);
+    try {
+      const logoUrl = cariLogoKaydet(id, body.fotoBase64);
+      cari.logoUrl = logoUrl;
+      cari.guncellemeTarihi = new Date().toISOString();
+      cari.updatedBy = auth.ctx.kullanici.id;
+      cari.lastSyncedAt = new Date().toISOString();
+      auditLog(db, 'cari_logo_yuklendi', auth.ctx, { cariId: id });
+      writeDB(db);
+      return send(res, 200, { logoUrl, cari });
+    } catch (err) {
+      return send(res, 400, { error: err.message || 'Logo kaydedilemedi.' });
+    }
+  }
+
+  // DELETE /api/cariler/:id/logo — logoUrl alanini ve dosyayi temizler
+  async function deleteCariLogo(req, res, url) {
+    const m = /^\/api\/cariler\/([^/]+)\/logo$/.exec(url);
+    const id = m && m[1] ? decodeURIComponent(m[1]) : null;
+    if (!id) return send(res, 400, { error: 'Cari id gerekli.' });
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const cari = (db.cariler || []).find((c) => c.id === id);
+    if (!cari) return send(res, 404, { error: 'Cari bulunamadi.' });
+    if (!canAccessFirma(auth.ctx, cari.firmaId)) {
+      return send(res, 403, { error: 'Bu cariye yetkiniz yok.' });
+    }
+    const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    for (const ext of ['png', 'jpg', 'jpeg', 'webp']) {
+      const yol = path.join(CARI_LOGO_DIR, `${safeId}.${ext}`);
+      try { if (fs.existsSync(yol)) fs.unlinkSync(yol); } catch { /* ignore */ }
+    }
+    delete cari.logoUrl;
+    cari.guncellemeTarihi = new Date().toISOString();
+    cari.updatedBy = auth.ctx.kullanici.id;
+    cari.lastSyncedAt = new Date().toISOString();
+    auditLog(db, 'cari_logo_silindi', auth.ctx, { cariId: id });
+    writeDB(db);
+    return send(res, 200, { ok: true, cari });
+  }
+
   // POST /api/sayac/:firmaId/increment
   async function incrementSayac(req, res, url) {
     const firmaId = url.split('/')[3];
@@ -606,6 +696,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     updateKullanici,
     resetKullaniciSifre,
     deleteKullanici,
+    uploadCariLogo,
+    deleteCariLogo,
     incrementSayac,
     // expose helpers for server.cjs to use in middleware
     getAuthContext,

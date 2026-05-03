@@ -47,11 +47,17 @@ function teklifGetir(
 
 /** Re-fetch from server with visibility filter (TeklifListesi açıldığında
  *  taze veri için). Async — store'u günceller, kullanım sonrası
- *  tumTeklifleriGetir() filtered list döner. */
+ *  tumTeklifleriGetir() filtered list döner.
+ *
+ *  Cariler de paralel tazelenir — kart logoları/cari snapshot'ları için
+ *  güncel master kayıtlara ihtiyaç var. */
 async function tekliferiYenile(
   kullanici?: { id: string; rol: string },
 ): Promise<void> {
-  await dataStore.refreshTeklifler(kullanici);
+  await Promise.all([
+    dataStore.refreshTeklifler(kullanici),
+    dataStore.refreshCariler(kullanici),
+  ]);
 }
 
 function teklifKaydet(teklif: Teklif): void {

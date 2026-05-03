@@ -13,6 +13,7 @@ const TeklifEditor = lazy(() => import('./pages/TeklifEditor'));
 const VeriYonetimiSayfasi = lazy(() => import('./pages/VeriYonetimiSayfasi'));
 const PersonelSayfasi = lazy(() => import('./pages/PersonelSayfasi'));
 const FirmaProfilSayfasi = lazy(() => import('./pages/FirmaProfilSayfasi'));
+const AnalizSayfasi = lazy(() => import('./pages/AnalizSayfasi'));
 
 function PageFallback() {
   return (
@@ -77,6 +78,11 @@ function RouterIcerigi() {
           <Route path="/firma-profili" element={
             <YoneticiOnly>
               <Suspense fallback={<PageFallback />}><FirmaProfilSayfasi /></Suspense>
+            </YoneticiOnly>
+          } />
+          <Route path="/analiz" element={
+            <YoneticiOnly>
+              <Suspense fallback={<PageFallback />}><AnalizSayfasi /></Suspense>
             </YoneticiOnly>
           } />
         </Route>

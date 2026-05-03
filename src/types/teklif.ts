@@ -3,7 +3,29 @@ import type { TeklifSatiri } from './teklifSatiri';
 import type { ImageItem } from './imageItem';
 
 export type ParaBirimi = 'TRY' | 'EUR' | 'USD';
-export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'iptal';
+/**
+ * Teklif durumu — tek-model yaklaşımı: durum hem aşamayı hem iş sonucunu gösterir.
+ *  - taslak     : üzerinde çalışılıyor
+ *  - hazir      : PDF üretildi, gönderim için hazır
+ *  - gonderildi : müşteriye gönderildi, yanıt bekleniyor
+ *  - onaylandi  : müşteri onayladı / sipariş alındı
+ *  - reddedildi : müşteri teklifi reddetti (rakipte kaldı, fiyat tutmadı vb.)
+ *  - iptal      : süreç iptal edildi (proje iptal, müşteri vazgeçti vb.)
+ */
+export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'reddedildi' | 'iptal';
+
+/**
+ * İş sonucu — yöneticinin win/loss analizi yapabilmesi için. `durum`'dan
+ * bağımsız: `durum=gonderildi` ile `sonuc=beklemede` paralel devam edebilir.
+ *  - kazanildi   → Sipariş alındı, anlaşma kapandı
+ *  - kaybedildi  → Müşteri başka rakipten / fiyat / zaman vs. nedenle aldı
+ *  - iptal       → Müşteri vazgeçti veya bizim tarafımızdan iptal
+ *  - beklemede   → Hâlâ açık, takipte (varsayılan, undefined eşdeğer)
+ */
+export type TeklifSonuc = 'kazanildi' | 'kaybedildi' | 'iptal' | 'beklemede';
+
+/** Kaybedildi durumunda — kök neden segmentasyonu (sebep raporları için). */
+export type KayipSebebi = 'fiyat' | 'rakip' | 'zaman' | 'ihtiyac_yok' | 'diger';
 
 /**
  * Otomatik kayıt sistemi için yeni durum modeli.
@@ -79,4 +101,18 @@ export interface Teklif {
   lastSyncedAt?: string;
   /** Multi-tenant: bu kaydın hangi grup şirketine ait olduğu (meba/elmos/mesa). */
   firmaId?: string;
+
+  // ── İş sonucu (yönetici analiz için) ─────────────────────────────────────
+  /** Bu teklif iş olarak ne sonuç verdi? undefined → 'beklemede' kabul. */
+  sonuc?: TeklifSonuc;
+  /** sonuc='kaybedildi' ise kök neden — opsiyonel ama analiz için değerli. */
+  kayipSebebi?: KayipSebebi;
+  /** sonuc='kaybedildi' ise işi alan rakip firma — serbest metin. */
+  rakipFirma?: string;
+  /** Sonuç ne zaman girildi (ISO). */
+  sonucTarihi?: string;
+  /** Kim sonucu girdi. */
+  sonucGirenKullaniciId?: string;
+  /** Yöneticinin sonuca ilişkin notu (gizli, müşteriye gitmez). */
+  sonucNotu?: string;
 }

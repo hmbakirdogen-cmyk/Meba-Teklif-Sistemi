@@ -295,9 +295,22 @@ export default function TeklifEditor() {
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
 
-      // 3) E-posta başarıyla gönderildiyse → status "gonderildi"
-      if (hedef === 'email' && sonuc.epostaHazirlandi) {
-        await state.kaydetWithStatus('gonderildi');
+      // 3) Durum auto-progression — kullanıcının manuel kararına saygı:
+      //    'onaylandı' veya 'iptal' set edilmişse otomatik geçişler tetiklenmez.
+      //    Aksi takdirde:
+      //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap
+      //      hedef='email' → durum 'taslak'/'hazır' ise 'gönderildi' yap (e-posta hazırlandıysa)
+      const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
+      if (state.durum !== 'onaylandi' && state.durum !== 'iptal') {
+        if (hedef === 'pdf' && state.durum === 'taslak') {
+          state.setDurum('hazir');
+        }
+        if (hedef === 'email' && sonuc.epostaHazirlandi && yumusakDurumlar.includes(state.durum)) {
+          state.setDurum('gonderildi');
+          await state.kaydetWithStatus('gonderildi');
+        } else if (hedef === 'email' && sonuc.epostaHazirlandi) {
+          await state.kaydetWithStatus('gonderildi');
+        }
       }
     } catch (error) {
       if (error instanceof TeklifDisaAktarimHatasi) {
@@ -441,7 +454,7 @@ export default function TeklifEditor() {
         teklifNo={state.teklifNo}
         teklifNoDurumu={state.teklifNoDurumu}
         cariAdi={state.cari ? formatCariAdi(state.cari.firmaAdi) : undefined}
-        status={state.status}
+        durum={state.durum}
         uretiliyor={state.uretiliyor}
         onGeriDon={handleGeriDon}
         onPdfIndir={handlePdfIndir}
@@ -449,6 +462,7 @@ export default function TeklifEditor() {
         onYazdir={handleYazdir}
         onSatirEkle={state.satirEkle}
         onPanelAc={handlePanelAc}
+        onDurumDegistir={state.setDurum}
       />
 
       {/* Ana alan: Belge + Panel */}

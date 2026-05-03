@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220">
+  <g transform="translate(20 20)">
+    <polygon points="145.42562584220408,58 145.42562584220408,122 90,154 34.57437415779592,122 34.574374157795916,58.000000000000014 89.99999999999993,26" fill="#33691e"/>
+              <circle cx="90" cy="90" r="39.68" fill="#558b2f"/>
+    <text x="90" y="100" text-anchor="middle" dominant-baseline="middle"
+          font-family="-apple-system, Segoe UI, Roboto, Helvetica, sans-serif"
+          font-size="42" font-weight="700" fill="#ffffff" letter-spacing="-1">TT</text>
+  </g>
+</svg>

@@ -270,6 +270,9 @@ export const api = {
     upsert:      (c: Cari)              => put<Cari>(`/cariler/${c.id}`, c),
     sil:         (id: string)           => del(`/cariler/${id}`),
     bulkReplace: (liste: Cari[])        => put<Cari[]>('/cariler', liste),
+    uploadLogo:  (id: string, fotoBase64: string) =>
+      post<{ logoUrl: string; cari: Cari }>(`/cariler/${id}/logo`, { fotoBase64 }),
+    silLogo:     (id: string)           => del(`/cariler/${id}/logo`),
   },
 
   urunler: {

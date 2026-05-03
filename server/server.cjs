@@ -476,19 +476,35 @@ async function outlookTaslagiAc({ aliciEposta, konu, govde, htmlGovde, ekDosyaYo
     '$inspector.Activate()',
     'try {',
     "  Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue | Out-Null",
-    "  Add-Type -Namespace Win32 -Name User32 -MemberDefinition '[System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(System.IntPtr hWnd); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool ShowWindowAsync(System.IntPtr hWnd, int nCmdShow);' -ErrorAction SilentlyContinue | Out-Null",
+    // P/Invoke: foreground stealing protection'ı bypass etmek için 5 metod birden:
+    //   - SetForegroundWindow / ShowWindowAsync(9=RESTORE)
+    //   - BringWindowToTop  → Z-order'da en üste alır
+    //   - SwitchToThisWindow(hwnd,true) → ALT+TAB benzeri direkt swap (anti-stealing kuralını atlar)
+    //   - keybd_event(ALT,...) → bir tuş "kullanıcı aktivitesi" simüle eder, OS foreground hakkını verir
+    "  Add-Type -Namespace Win32 -Name User32 -MemberDefinition '[System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(System.IntPtr hWnd); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool ShowWindowAsync(System.IntPtr hWnd, int nCmdShow); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool BringWindowToTop(System.IntPtr hWnd); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern void SwitchToThisWindow(System.IntPtr hWnd, bool fAltTab); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, System.UIntPtr dwExtraInfo); [System.Runtime.InteropServices.DllImport(\"user32.dll\")] public static extern bool IsIconic(System.IntPtr hWnd);' -ErrorAction SilentlyContinue | Out-Null",
     '  $hwndValue = 0',
     '  try { $hwndValue = [int64]$inspector.Hwnd } catch { $hwndValue = 0 }',
     '  if ($hwndValue -gt 0) {',
-    '    [Win32.User32]::ShowWindowAsync([System.IntPtr]$hwndValue, 9) | Out-Null',
-    '    [Win32.User32]::SetForegroundWindow([System.IntPtr]$hwndValue) | Out-Null',
+    '    $hwnd = [System.IntPtr]$hwndValue',
+    // 1) Minimize ise restore (9 = SW_RESTORE)
+    '    if ([Win32.User32]::IsIconic($hwnd)) { [Win32.User32]::ShowWindowAsync($hwnd, 9) | Out-Null }',
+    '    else { [Win32.User32]::ShowWindowAsync($hwnd, 5) | Out-Null }',  // 5 = SW_SHOW
+    // 2) Klavye sahte vuruşu — anti-stealing'i bypass için kritik
+    '    [Win32.User32]::keybd_event(0xA4, 0, 0, [System.UIntPtr]::Zero)',
+    '    [Win32.User32]::keybd_event(0xA4, 0, 2, [System.UIntPtr]::Zero)',
+    // 3) Z-order'da öne
+    '    [Win32.User32]::BringWindowToTop($hwnd) | Out-Null',
+    // 4) Foreground'a al
+    '    [Win32.User32]::SetForegroundWindow($hwnd) | Out-Null',
+    // 5) Garantili: SwitchToThisWindow (fAltTab=true → ALT+TAB benzeri davranır)
+    '    [Win32.User32]::SwitchToThisWindow($hwnd, $true)',
     '  } else {',
     "    [Microsoft.VisualBasic.Interaction]::AppActivate('Outlook') | Out-Null",
     '  }',
     '} catch {',
     '  # Odak zorlamasi platform/surum kisitlarinda sessizce gecilir.',
     '}',
-    'Start-Sleep -Milliseconds 120',
+    'Start-Sleep -Milliseconds 220',
     '$inspector.Activate()',
   ];
 
@@ -876,6 +892,9 @@ const server = http.createServer(async (req, res) => {
     if (teklifCrud.remove(url, method))       return teklifCrud.handleRemove(req, res, url);
 
     // ── CARILER ──────────────────────────────────────────────────────────────
+    // Logo upload/delete: generic CRUD'dan once eslessin diye burada
+    if (method === 'POST'   && /^\/api\/cariler\/[^/]+\/logo$/.test(url)) return await authRoutes.uploadCariLogo(req, res, url);
+    if (method === 'DELETE' && /^\/api\/cariler\/[^/]+\/logo$/.test(url)) return await authRoutes.deleteCariLogo(req, res, url);
     if (cariCrud.list(url, method))           return cariCrud.handleList(req, res);
     if (cariCrud.bulkReplace(url, method))    return await cariCrud.handleBulkReplace(req, res);
     if (cariCrud.upsert(url, method))         return await cariCrud.handleUpsert(req, res, url);
