@@ -275,6 +275,25 @@ Veya admin UI'dan `POST /api/sync/full` ile yeni DB push edilebilir
 
 ---
 
+## Modül sistemi (ESM frontend, CJS backend)
+
+Proje **karışık modül sistemi** kullanır — bu **kasıtlıdır**:
+
+| Konum | Modül sistemi | Uzantı | Sebep |
+|---|---|---|---|
+| `src/**/*.ts(x)` | ECMAScript Modules (ESM) | `.ts` / `.tsx` | Vite ESM ister, `package.json` `"type": "module"` global |
+| `server/**/*.cjs` | CommonJS (CJS) | `.cjs` | `.cjs` uzantısı `"type": "module"` override eder; bytenode ile derlemede CJS daha stabil |
+| `launcher.cjs`, `KUR.bat`/`BASLAT.bat` script'leri | CommonJS | `.cjs` | Aynı sebep — Node native, build-time bağımsız |
+
+**Yeni dosya eklerken:**
+- Frontend (React/Vite): `src/` altı, `.ts` / `.tsx` (ESM, `import`/`export`)
+- Backend (HTTP server, auth, sync): `server/` altı, `.cjs` (CJS, `require`/`module.exports`)
+- Launcher / kurulum scripti: kök ya da `launcher/`, `.cjs`
+
+İki sistem birbirini görmez — frontend backend'i HTTP üzerinden çağırır (`apiClient.ts`).
+
+---
+
 ## <a id="mimari"></a>12. Mimari Diyagram
 
 ```

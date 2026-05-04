@@ -129,6 +129,7 @@ export default function ProfilFotoModal({ open, onClose }: ProfilFotoModalProps)
           icon={<CameraOutlined />}
           onClick={() => fileInputRef.current?.click()}
           disabled={yukleniyor}
+          aria-label={onizleme ? 'Yeni foto seç' : 'Foto seç'}
         >
           {onizleme ? 'Yeni foto seç' : 'Foto seç'}
         </Button>

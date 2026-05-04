@@ -37,7 +37,10 @@ export function SyncStatusBar() {
   const { message } = AntdApp.useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
-  const isAdmin = aktifKullanici?.rol === 'admin';
+  const isAdminLike =
+    aktifKullanici?.rol === 'admin'
+    || aktifKullanici?.rol === 'super_admin'
+    || aktifKullanici?.rol === 'firma_admin';
 
   const palette = PALETTE[state.phase] || PALETTE.idle;
 
@@ -80,6 +83,20 @@ export function SyncStatusBar() {
           {state.lastError}
         </div>
       )}
+      {state.storageQuotaExceeded && (
+        <div style={{
+          marginTop: 8, padding: 8,
+          background: '#fff7ed', borderRadius: 6,
+          color: '#9a3412', fontSize: 11,
+          border: '1px solid #fdba74',
+        }}>
+          ⚠️ Yerel depolama dolu. Yeni kayıtlar geçici olarak kaydedilemiyor.
+          Uzun süredir senkronize olunmadıysa biriken kuyruk olabilir; bu
+          mesaj kaybolmazsa tarayıcıda <strong>localStorage</strong>'ı
+          temizlemeniz gerekebilir (sayfayı yenilemeden önce yöneticinize
+          danışın — bekleyen kayıtlar kaybolabilir).
+        </div>
+      )}
       <Button
         type="primary"
         size="small"
@@ -90,7 +107,7 @@ export function SyncStatusBar() {
       >
         {state.phase === 'syncing' ? <Spin size="small" /> : 'Şimdi Senkronize Et'}
       </Button>
-      {isAdmin && state.conflictCount > 0 && (
+      {isAdminLike && state.conflictCount > 0 && (
         <Button
           size="small"
           block
@@ -150,7 +167,7 @@ export function SyncStatusBar() {
         </button>
       </Badge>
     </Popover>
-    {isAdmin && (
+    {isAdminLike && (
       <CakismaCozumDialog
         open={conflictModalOpen}
         onClose={() => setConflictModalOpen(false)}

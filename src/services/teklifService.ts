@@ -97,6 +97,66 @@ function teklifKopyala(
   };
 }
 
+/**
+ * Revize teklif oluştur — kaynak teklifin tam kopyasını yeni bir kayıt olarak
+ * üretir. Eski teklif değişmez (immutable snapshot olarak kalır), yeni revize
+ * üzerinde editleme yapılabilir.
+ *
+ * Kurallar:
+ *  - Yeni id: yeni teklifIdUret()
+ *  - teklifNo: kaynak.teklifNo'dan '-RevN' suffix'i sıyrılır → base, sonra
+ *    base + '-Rev{revizyonNo}' formatına dönüştürülür.
+ *  - revizyonNo: (kaynak.revizyonNo ?? 0) + 1
+ *  - kaynakTeklifId: kaynak.id (direkt parent)
+ *  - kokTeklifId: kaynak.kokTeklifId ?? kaynak.id (zincirin başı)
+ *  - durum + status: 'taslak' (yeni revize sıfırdan başlar)
+ *  - sonuç meta verileri ve PDF bilgileri sıfırlanır.
+ */
+function revizeOlustur(
+  id: string,
+  kullanici?: { id: string; adSoyad: string; rol: string; unvan?: string },
+): Teklif | undefined {
+  const kaynak = teklifGetir(id);
+  if (!kaynak) return undefined;
+  const now = dayjs().toISOString();
+  const yeniRevizyonNo = (kaynak.revizyonNo ?? 0) + 1;
+  const baseTeklifNo = kaynak.teklifNo.replace(/-Rev\d+$/, '');
+  return {
+    ...kaynak,
+    id: teklifIdUret(),
+    teklifNo: `${baseTeklifNo}-Rev${yeniRevizyonNo}`,
+    durum: 'taslak',
+    status: 'taslak',
+    revizyonNo: yeniRevizyonNo,
+    kaynakTeklifId: kaynak.id,
+    kokTeklifId: kaynak.kokTeklifId ?? kaynak.id,
+    olusturmaTarihi: now,
+    guncellemeTarihi: now,
+    // Sonuç meta sıfırla — bu yeni bir revize, daha sonuçlanmadı
+    sonucTarihi: undefined,
+    sonucGirenKullaniciId: undefined,
+    sonucNotu: undefined,
+    kayipSebebi: undefined,
+    rakipFirma: undefined,
+    // PDF dosya bilgileri sıfırlanır — yeni PDF üretilecek
+    pdfYolu: undefined,
+    pdfDosyaAdi: undefined,
+    pdfOlusturmaTarihi: undefined,
+    // Sync meta sıfırla — yeni kayıt
+    version: undefined,
+    deviceId: undefined,
+    updatedBy: undefined,
+    lastSyncedAt: undefined,
+    deletedAt: undefined,
+    ...(kullanici && {
+      hazirlayanKullaniciId: kullanici.id,
+      hazirlayanAdSoyad: kullanici.adSoyad,
+      hazirlayanRol: kullanici.rol,
+      hazirlayanUnvan: kullanici.unvan,
+    }),
+  };
+}
+
 function teklifIdUret(): string {
   return 't' + Date.now().toString(36);
 }
@@ -113,6 +173,7 @@ export const teklifService = {
   teklifCacheGuncelle,
   teklifSil,
   teklifKopyala,
+  revizeOlustur,
   teklifIdUret,
   teklifNoUretAsync,
 };

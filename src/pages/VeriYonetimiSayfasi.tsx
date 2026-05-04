@@ -363,7 +363,13 @@ function UrunSetModal({
                     </Form.Item>
                   </Col>
                   <Col span={1} style={{ paddingTop: 22, textAlign: 'right' }}>
-                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} className={buttonClassNames.smallActionDanger} />
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => remove(field.name)}
+                      aria-label="Alt Kalem Sil"
+                      className={buttonClassNames.smallActionDanger}
+                    />
                   </Col>
                 </Row>
               ))}
@@ -415,18 +421,20 @@ export default function VeriYonetimiSayfasi() {
 
   // ── Cari işlemleri ──────────────────────────────────────────────────────────
   async function cariDosyaOku(file: File) {
+    let basarili = false;
     setCariYukleniyor(true); setCariHata(null); setCariSonuc(null);
     try {
       const sonuc = await cariExcelOku(file);
       setCariSonuc(sonuc);
       cariListesiYenile();
       message.success(`${sonuc.eklenen} cari eklendi, ${sonuc.guncellenen} güncellendi.`);
+      basarili = true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
       setCariHata(msg);
       message.error('Cari dosyası okunamadı.');
     } finally { setCariYukleniyor(false); }
-    return false;
+    return basarili;
   }
 
   function cariSil(id: string) {
@@ -440,18 +448,20 @@ export default function VeriYonetimiSayfasi() {
 
   // ── Ürün işlemleri ──────────────────────────────────────────────────────────
   async function urunDosyaOku(file: File) {
+    let basarili = false;
     setUrunYukleniyor(true); setUrunHata(null);
     try {
       const sonuc = await urunExcelOku(file);
       setUrunSonuclar((p) => [sonuc, ...p]);
       urunListesiYenile();
       message.success(`${sonuc.eklenen} ürün eklendi, ${sonuc.guncellenen} güncellendi — ${sonuc.kategori}`);
+      basarili = true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
       setUrunHata(msg);
       message.error('Ürün dosyası okunamadı.');
     } finally { setUrunYukleniyor(false); }
-    return false;
+    return basarili;
   }
 
   function urunSil(id: string) {
@@ -570,8 +580,14 @@ export default function VeriYonetimiSayfasi() {
         <Button type="primary" icon={<PlusOutlined />} onClick={cariEkleAc} className={buttonClassNames.primary}>
           Yeni Cari
         </Button>
-        <Upload accept=".xlsx,.xls" showUploadList={false}
-          beforeUpload={(f: UploadFile) => cariDosyaOku(f as unknown as File)}>
+        <Upload
+          accept=".xlsx,.xls"
+          showUploadList={false}
+          beforeUpload={(f: UploadFile) => {
+            void cariDosyaOku(f as unknown as File);
+            return Upload.LIST_IGNORE;
+          }}
+        >
           <Button icon={<UploadOutlined />} loading={cariYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
         </Upload>
         <Button icon={<FileExcelOutlined />} onClick={cariSablonIndir} className={buttonClassNames.secondary}>
@@ -618,8 +634,15 @@ export default function VeriYonetimiSayfasi() {
         <Button type="primary" icon={<PlusOutlined />} onClick={urunEkleAc} className={buttonClassNames.primary}>
           Yeni Ürün
         </Button>
-        <Upload accept=".xlsx,.xls" multiple showUploadList={false}
-          beforeUpload={(f: UploadFile) => urunDosyaOku(f as unknown as File)}>
+        <Upload
+          accept=".xlsx,.xls"
+          multiple
+          showUploadList={false}
+          beforeUpload={(f: UploadFile) => {
+            void urunDosyaOku(f as unknown as File);
+            return Upload.LIST_IGNORE;
+          }}
+        >
           <Button icon={<UploadOutlined />} loading={urunYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
         </Upload>
         <Button icon={<FileExcelOutlined />} onClick={urunSablonIndir} className={buttonClassNames.secondary}>
@@ -636,7 +659,14 @@ export default function VeriYonetimiSayfasi() {
           onConfirm={urunleriSifirla}
           okText="Evet, sıfırla" cancelText="İptal" okButtonProps={{ danger: true }}
         >
-          <Button icon={<ReloadOutlined />} danger className={buttonClassNames.danger}>Varsayılana Sıfırla</Button>
+          <Button
+            icon={<ReloadOutlined />}
+            danger
+            disabled={urunler.length === 0}
+            className={buttonClassNames.danger}
+          >
+            Varsayılana Sıfırla
+          </Button>
         </Popconfirm>
       </div>
 

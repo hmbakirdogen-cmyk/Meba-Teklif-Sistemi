@@ -149,7 +149,9 @@ function syncWithFallback<T>(
   promise: Promise<T>,
   fallback: { collection: 'teklifler' | 'cariler' | 'urunler' | 'urunSetleri'; op: 'upsert' | 'delete'; id: string; payload: unknown },
 ): void {
-  promise.catch(() => {
+  promise.catch((err: unknown) => {
+    // 403 Forbidden — sahiplik hatası, offline kuyruğa ekleme
+    if (err && typeof err === 'object' && (err as { status?: number }).status === 403) return;
     syncEngine.enqueue(fallback);
   });
 }

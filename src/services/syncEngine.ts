@@ -53,6 +53,10 @@ export interface SyncState {
   lastPullAt: string | null;
   lastPushAt: string | null;
   lastError: string | null;
+  /** localStorage kotasi dolduğunda true — UI turuncu uyari göstermeli.
+   *  Bu durumda yeni kayitlar kaybolabilir; kullanici eski snapshot/queue'yu
+   *  temizlemeli. */
+  storageQuotaExceeded?: boolean;
 }
 
 type Listener = (state: SyncState) => void;
@@ -84,9 +88,28 @@ function writeJSON(key: string, value: unknown): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // localStorage dolu olabilir; sessizce geç (queue kayıp olabilir ama
-    // kullanıcı oturumu çökertilmemeli).
+    // Yazma başarılıysa flag'i temizle (kullanıcı eski snapshot'ı temizlemiş
+    // olabilir → tekrar yazılabilir hâle gelmiştir).
+    if (currentState.storageQuotaExceeded) {
+      currentState = { ...currentState, storageQuotaExceeded: false };
+      notify();
+    }
+  } catch (err) {
+    // QuotaExceededError yakala — kullanıcıya görünür uyari ver.
+    // Browser'lar farklı code/name kullanır: 22 (Chrome), 1014 (Firefox),
+    // 'QuotaExceededError' (modern), 'NS_ERROR_DOM_QUOTA_REACHED' (Firefox eski).
+    const e = err as DOMException;
+    const isQuota =
+      e?.name === 'QuotaExceededError' ||
+      e?.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      e?.code === 22 ||
+      e?.code === 1014;
+    if (isQuota && !currentState.storageQuotaExceeded) {
+      currentState = { ...currentState, storageQuotaExceeded: true };
+      notify();
+      console.warn('[sync] localStorage kotasi doldu — yeni kayitlar kaydedilemiyor!');
+    }
+    // Sessizce geç — kullanıcı oturumu çökertilmemeli, sadece uyarı verilir.
   }
 }
 
@@ -101,6 +124,12 @@ let currentState: SyncState = {
   lastError: null,
 };
 
+// Module-level cache — setPhase her çağrısında localStorage parse etmemek için.
+// queue/conflicts mutasyon noktaları (enqueue/setQueue/clearQueueItem,
+// setConflicts/resolveConflict) cache'i günceller.
+let _queueLengthCache = 0;
+let _conflictCountCache = 0;
+
 const listeners = new Set<Listener>();
 
 function notify(): void {
@@ -113,8 +142,8 @@ function setPhase(phase: SyncPhase, error: string | null = null): void {
   currentState = {
     ...currentState,
     phase,
-    queueLength: getQueue().length,
-    conflictCount: getConflicts().length,
+    queueLength: _queueLengthCache,
+    conflictCount: _conflictCountCache,
     lastError: error,
   };
   notify();
@@ -128,11 +157,24 @@ function getQueue(): QueueItem[] {
 
 function setQueue(q: QueueItem[]): void {
   writeJSON(KEYS.queue, q);
+  _queueLengthCache = q.length;
 }
 
+/**
+ * Queue'ya yeni bir değişiklik ekler.
+ *
+ * KASIT: Aynı `id+collection` için son op kazanır (op tipine bakılmaz).
+ * Senaryo: kullanıcı bir teklifi kaydeder (upsert) → 5sn sonra siler (delete).
+ * Push edilmemişse ikinci enqueue ilkini ezer ve sadece delete kalır →
+ * server soft-delete eder → tüm client'lar pull'da tombstone alır.
+ * Bu DOĞRU ve istenen davranıştır: en son kullanıcı niyeti geçerli.
+ *
+ * Diğer yön (delete sonra upsert): pratikte olmaz çünkü delete sonrası
+ * UI'dan kayıt görünmez; ama oluşursa son upsert kazanır → kayıt yeniden
+ * canlanır.
+ */
 export function enqueue(item: Omit<QueueItem, 'enqueuedAt'>): void {
   const q = getQueue();
-  // Aynı id+collection+op için duplicate ekleme (en son hal kalır)
   const filtered = q.filter((x) => !(x.id === item.id && x.collection === item.collection));
   filtered.push({ ...item, enqueuedAt: new Date().toISOString() });
   setQueue(filtered);
@@ -160,6 +202,7 @@ export function getConflicts(): SyncConflict[] {
 
 function setConflicts(c: SyncConflict[]): void {
   writeJSON(KEYS.conflicts, c);
+  _conflictCountCache = c.length;
 }
 
 export function resolveConflict(
@@ -178,7 +221,19 @@ export function resolveConflict(
     clearQueueItem(collection, id);
   } else if (choice === 'client') {
     // Force-push: client kaydı server'a tekrar gönder, version bump et.
-    const localPayload = readJSON<Record<string, unknown>>(`meba_conflict_local_${id}`, {} as Record<string, unknown>);
+    // Anahtar collection-prefix'li (geriye uyum: eski anahtar varsa migrate).
+    const newKey = `meba_conflict_local_${collection}_${id}`;
+    const oldKey = `meba_conflict_local_${id}`;
+    let localPayload = readJSON<Record<string, unknown>>(newKey, {} as Record<string, unknown>);
+    // Eski anahtar varsa yeni anahtara taşı, eskisini sil (one-shot migration)
+    if (Object.keys(localPayload).length === 0) {
+      const legacy = readJSON<Record<string, unknown>>(oldKey, {} as Record<string, unknown>);
+      if (legacy && Object.keys(legacy).length > 0) {
+        writeJSON(newKey, legacy);
+        try { localStorage.removeItem(oldKey); } catch { /* ignore */ }
+        localPayload = legacy;
+      }
+    }
     if (localPayload && Object.keys(localPayload).length > 0) {
       // Client'ın version'ını server'ın +1'ine set et (override için)
       const existing = conflict.existing as { version?: number };
@@ -305,9 +360,13 @@ export async function pushOnce(): Promise<void> {
 
       const result = await api.sync.push(payload);
 
-      // Accepted olanlar queue'dan çıkar
+      // Accepted olanlar queue'dan çıkar — RACE-SAFE.
+      // ÖNEMLİ: queue snapshot'ı (yukarıda const queue) kullanıcı bu sürede
+      // enqueue() çağırmışsa stale olur. Yeni eklenen kaydı silmemek için
+      // GÜNCEL queue'yu yeniden okuyup sadece accepted olanları çıkarıyoruz.
       const acceptedKeys = new Set(result.accepted.map((a) => `${a.collection}:${a.id}`));
-      const remainingQueue = queue.filter((q) => !acceptedKeys.has(`${q.collection}:${q.id}`));
+      const fresh = getQueue();
+      const remainingQueue = fresh.filter((q) => !acceptedKeys.has(`${q.collection}:${q.id}`));
       setQueue(remainingQueue);
 
       // Conflict olanları kaydet
@@ -317,11 +376,13 @@ export async function pushOnce(): Promise<void> {
           (c) => !existing.some((e) => e.collection === c.collection && e.id === c.id),
         );
 
-        // Conflict olan local payload'ları sakla (resolveConflict 'client' seçerse kullanılır)
+        // Conflict olan local payload'ları sakla (resolveConflict 'client' seçerse kullanılır).
+        // Anahtar collection-prefix'li: aynı id'li iki farklı koleksiyon (cari + urun)
+        // çakışırsa birbirinin payload'unu ezmesin.
         for (const c of result.conflicts) {
           const queueItem = queue.find((q) => q.collection === c.collection && q.id === c.id);
           if (queueItem) {
-            writeJSON(`meba_conflict_local_${c.id}`, queueItem.payload);
+            writeJSON(`meba_conflict_local_${c.collection}_${c.id}`, queueItem.payload);
           }
         }
 
@@ -343,23 +404,63 @@ export async function pushOnce(): Promise<void> {
   return activeOperation;
 }
 
-export async function syncNow(kullanici?: { id: string; rol: string }): Promise<void> {
-  await pushOnce();
-  await pullOnce(kullanici);
+// Top-level syncNow guard: 60sn timer + 'online' event + 'visibilitychange'
+// aynı anda tetiklenirse pushOnce/pullOnce'un kendi guard'ları zincirleme
+// olarak serileştirir; ama o sürede syncNow promise'i 4-5 kere açılırdı.
+// Burada tek aktif syncNow promise'i tutuyoruz + 2sn debounce ile sık
+// tekrar tetiklemeleri yutuyoruz (kullanıcı manuel "Şimdi senkronize et"
+// için force=true kullanabilir).
+let activeSyncNow: Promise<void> | null = null;
+let lastSyncNowTs = 0;
+const SYNC_NOW_DEBOUNCE_MS = 2000;
+
+export async function syncNow(
+  kullanici?: { id: string; rol: string },
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  if (activeSyncNow) return activeSyncNow;
+  if (!opts.force && Date.now() - lastSyncNowTs < SYNC_NOW_DEBOUNCE_MS) return;
+  activeSyncNow = (async () => {
+    try {
+      await pushOnce();
+      await pullOnce(kullanici);
+    } finally {
+      lastSyncNowTs = Date.now();
+      activeSyncNow = null;
+    }
+  })();
+  return activeSyncNow;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function mergeById<T extends { id: string; version?: number }>(
+function mergeById<T extends { id: string; version?: number; lastSyncedAt?: string }>(
   existing: T[],
   delta: T[],
 ): T[] {
   const map = new Map(existing.map((r) => [r.id, r]));
   for (const item of delta) {
     const cur = map.get(item.id);
-    if (!cur || ((item.version ?? 0) >= (cur.version ?? 0))) {
+    if (!cur) {
       map.set(item.id, item);
+      continue;
     }
+    const iv = item.version ?? 0;
+    const cv = cur.version ?? 0;
+    // STRICT: yeni version > eski → kabul. Eski "=>" idi, eşitlikte
+    // server snapshot'ı henüz push edilmemiş yerel kaydı eziyordu (veri kaybı).
+    if (iv > cv) {
+      map.set(item.id, item);
+    } else if (iv === cv) {
+      // Eşitlik tiebreak: server'ın yazdığı lastSyncedAt yeni ise kabul
+      // (server-authoritative now() bumpRecord'ta). Yoksa localı koru.
+      const it = Date.parse(item.lastSyncedAt ?? '');
+      const ct = Date.parse(cur.lastSyncedAt ?? '');
+      if (Number.isFinite(it) && Number.isFinite(ct) && it > ct) {
+        map.set(item.id, item);
+      }
+    }
+    // iv < cv: localı koru (server'da daha eski snapshot var)
   }
   return Array.from(map.values());
 }
@@ -384,11 +485,14 @@ export function setOnlineState(online: boolean): void {
   }
 }
 
-// Initial state'i hesapla (mount'ta)
+// Initial state'i hesapla (mount'ta) — cache'leri de doldur ki setPhase
+// sonradan tekrar parse etmek zorunda kalmasın.
+_queueLengthCache = getQueue().length;
+_conflictCountCache = getConflicts().length;
 currentState = {
   ...currentState,
-  queueLength: getQueue().length,
-  conflictCount: getConflicts().length,
+  queueLength: _queueLengthCache,
+  conflictCount: _conflictCountCache,
   lastPullAt: localStorage.getItem(KEYS.lastPullAt),
   lastPushAt: localStorage.getItem(KEYS.lastPushAt),
 };

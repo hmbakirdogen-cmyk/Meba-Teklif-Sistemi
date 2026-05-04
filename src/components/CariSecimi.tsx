@@ -51,7 +51,7 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
     form.validateFields().then((vals) => {
       const yeni: Cari = {
         id: cariService.cariIdUret(),
-        cariKod: vals.cariKod,
+        cariKod: normalizeProductCode(vals.cariKod || ''),
         firmaAdi: formatCariAdi(cleanTextInput(vals.firmaAdi ?? '')),
         yetkiliKisi: vals.yetkiliKisi || '',
         telefon: vals.telefon || '',

@@ -147,7 +147,8 @@ function SonNotlarBlok({ teklifler, isMobile, C }: SonNotlarBlokProps) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {notlar.map((t) => {
-          const cfg = t.sonuc ? SONUC_CFG[t.sonuc] : null;
+          // SONUC_CFG artık doğrudan durum'a göre anahtarlandı (sonuc field'i kaldırıldı).
+          const cfg = SONUC_CFG[t.durum] ?? null;
           return (
             <div key={t.id} style={{
               display: 'flex', alignItems: 'flex-start', gap: 10,
@@ -169,7 +170,7 @@ function SonNotlarBlok({ teklifler, isMobile, C }: SonNotlarBlokProps) {
                     {cfg.emoji} {cfg.label}
                   </span>
                 )}
-                {t.sonuc === 'kaybedildi' && t.kayipSebebi && (
+                {t.durum === 'reddedildi' && t.kayipSebebi && (
                   <span style={{ fontSize: 10, color: C.textFaint }}>
                     {KAYIP_SEBEBI_LABEL[t.kayipSebebi]}
                     {t.rakipFirma ? ` · ${t.rakipFirma}` : ''}

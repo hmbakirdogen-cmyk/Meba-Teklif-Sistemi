@@ -68,6 +68,31 @@ function ensureOturumlar(db) {
   });
 }
 
+/**
+ * Suresi gecmis oturumlari fiziksel olarak DB'den sil ve disk'e yaz.
+ * Server.cjs boot'unda 1 kez + her 1 saatte bir background olarak cagrilir.
+ * Hicbir kullanici online degilken DB'de zombi session birikmesin diye.
+ *
+ * Returns: kaldirilan session sayisi.
+ */
+function pruneExpiredSessions(readDB, writeDB) {
+  try {
+    const db = readDB();
+    const oncekiSayi = Array.isArray(db.oturumlar) ? db.oturumlar.length : 0;
+    ensureOturumlar(db); // mevcut filter mantigini kullan
+    const kalan = db.oturumlar.length;
+    const kaldirildi = oncekiSayi - kalan;
+    if (kaldirildi > 0) {
+      writeDB(db);
+      console.log(`[session-cleanup] ${kaldirildi} expired session removed`);
+    }
+    return kaldirildi;
+  } catch (err) {
+    console.warn('[session-cleanup] failed:', err.message);
+    return 0;
+  }
+}
+
 function findSession(db, token) {
   ensureOturumlar(db);
   return db.oturumlar.find((s) => s.token === token) || null;
@@ -707,4 +732,4 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
   };
 }
 
-module.exports = { createAuthRoutes, getAuthContext, requireAuth, canAccessFirma, sanitizeUser };
+module.exports = { createAuthRoutes, getAuthContext, requireAuth, canAccessFirma, sanitizeUser, pruneExpiredSessions };

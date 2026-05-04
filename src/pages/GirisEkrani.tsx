@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, memo } from 'react';
+import { useState, useRef, useMemo, memo, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { useFirma } from '../context/useFirma';
 import { useKullanici } from '../context/useKullanici';
@@ -148,12 +148,30 @@ function AmbientBackground({
   const spotY = mouse.y;
 
   return (
-    <>
-      {/* Aurora 1 — sol-üst soğuk mavi */}
+    // Sabit (fixed) tam viewport arkaplan katmani. Sayfa boyutu / scroll'dan
+    // bagimsiz, her zaman gorunen alanin tamamini kaplar. Form icerigi ayri
+    // bir scale'li kapsayicida render edilir — bu sebeple buradaki gorseller
+    // her zaman tam ekran sinematik kompozisyon korur.
+    <div
+      aria-hidden
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100dvh',
+        overflow: 'hidden',
+        clipPath: 'inset(0)',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
+    >
+      {/* Aurora 1 — sol-üst soğuk mavi.
+          Viewport köşelerinden taşan büyük yumuşak parıltı. Wrapper'da
+          overflow: hidden + clip-path olduğu için sayfa dışına çıkmaz. */}
       <div style={{
         position: 'absolute', top: '-15%', left: '-12%',
-        width: '80vw', height: '80vw',
-        maxWidth: 1200, maxHeight: 1200,
+        width: 'min(95vmax, 1700px)', height: 'min(95vmax, 1700px)',
         background:
           'radial-gradient(circle, rgba(40,90,180,0.55) 0%, rgba(20,45,100,0.30) 35%, transparent 65%)',
         filter: 'blur(46px)',
@@ -163,8 +181,7 @@ function AmbientBackground({
       {/* Aurora 2 — sağ-alt indigo */}
       <div style={{
         position: 'absolute', bottom: '-22%', right: '-15%',
-        width: '85vw', height: '85vw',
-        maxWidth: 1300, maxHeight: 1300,
+        width: 'min(100vmax, 1900px)', height: 'min(100vmax, 1900px)',
         background:
           'radial-gradient(circle, rgba(80,55,150,0.45) 0%, rgba(35,20,75,0.28) 35%, transparent 65%)',
         filter: 'blur(54px)',
@@ -174,8 +191,7 @@ function AmbientBackground({
       {/* Aurora 3 — sağ-üst teal */}
       <div style={{
         position: 'absolute', top: '8%', right: '4%',
-        width: '50vw', height: '50vw',
-        maxWidth: 800, maxHeight: 800,
+        width: 'min(60vmax, 1100px)', height: 'min(60vmax, 1100px)',
         background:
           'radial-gradient(circle, rgba(20,140,170,0.36) 0%, rgba(10,60,90,0.22) 35%, transparent 65%)',
         filter: 'blur(40px)',
@@ -262,7 +278,7 @@ function AmbientBackground({
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)',
       }} />
-    </>
+    </div>
   );
 }
 
@@ -1002,6 +1018,28 @@ export default function GirisEkrani() {
   const [personelHata, setPersonelHata] = useState<string | null>(null);
   const [mouse, setMouse] = useState({ x: -9999, y: -9999 });
 
+  // Sayfa kucuk viewport'lara fit-to-screen ile sigsin: tasarim 1200×800
+  // boyutunda kalir, viewport daha kucukse uniform olarak scale edilir
+  // (her sey orantili olarak kuculur, hicbir sey tasmaz / kirpilmaz).
+  // Viewport tasarim boyutundan buyukse 1× kalir (asiri buyumesin).
+  const DESIGN_W = 1200;
+  const DESIGN_H = 800;
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    function compute() {
+      const sw = window.innerWidth / DESIGN_W;
+      const sh = window.innerHeight / DESIGN_H;
+      setScale(Math.min(1, sw, sh));
+    }
+    compute();
+    window.addEventListener('resize', compute);
+    window.addEventListener('orientationchange', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.removeEventListener('orientationchange', compute);
+    };
+  }, []);
+
   async function firmaSec(f: Firma) {
     setSecilenFirma(f);
     setPersonelHata(null);
@@ -1037,21 +1075,54 @@ export default function GirisEkrani() {
   const haloColor = secilenFirma?.renkVurgu || accent(0.6);
 
   return (
+    // DIS STAGE: viewport'u tamamen kaplar, koyu degrade arkaplan + ortala.
+    // Burayi mouse takip eden de bu div, cunku icteki scale'li kutu kucult-
+    // ulduğunde de mouse koordinatlarinin viewport-relative kalmasini istiyoruz.
     <div
-      onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setMouse({
+        // Mouse'u tasarim boyutuna donustur: kullanici nereye geldiyse
+        // scale'lı icteki cocuga dogru noktaya denk gelsin
+        x: (e.clientX - (window.innerWidth - DESIGN_W * scale) / 2) / scale,
+        y: (e.clientY - (window.innerHeight - DESIGN_H * scale) / 2) / scale,
+      })}
       style={{
-        minHeight: '100vh',
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: '100dvh',
         background: 'linear-gradient(160deg, #04081a 0%, #0a132a 45%, #060c1c 100%)',
-        display: 'flex', flexDirection: 'column',
+        display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         fontFamily:
           '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
-        position: 'relative', overflow: 'hidden',
+        overflow: 'hidden',
         color: 'rgba(220,232,250,0.92)',
       }}
     >
       <style>{ANIMATIONS_CSS}</style>
+      {/* AMBIENT BACKGROUND — arkaplan katmanlari her zaman tam viewport'u
+          kaplar (sinematik tam-ekran his). Scale uygulanmaz. Form icerigi
+          ayri bir scale'li kapsayicida. */}
       <AmbientBackground mouse={mouse} scenesOpacity={adim === 'firma' ? 1 : 0.25} />
+
+      {/* FORM SAHNESI: tasarim 1200×800. transform: scale() ile viewport'a
+          oranli olarak kuculur. Arkaplan tam viewport'ta kalirken sadece
+          form/baslik/kartlar bu kapsayici icinde olcekleneceginden, kucuk
+          ekranlarda "hepsi sigsin" davranisini saglar; tam ekranda ise
+          tasarim boyutunda gorunur. */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          width: DESIGN_W,
+          height: DESIGN_H,
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+          flexShrink: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
 
       {/* FIRMA SEÇİMİ */}
       {adim === 'firma' && (
@@ -1183,6 +1254,7 @@ export default function GirisEkrani() {
         />
       )}
 
+      </div>
     </div>
   );
 }

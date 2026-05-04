@@ -48,6 +48,9 @@ interface KumandaPaneliProps {
   /** Görünürlük yetkisi: 'team' = ekibe açık (toggle ON), 'private' = gizli (OFF). */
   visibility: 'private' | 'team';
   onVisibilityDegistir: (v: 'private' | 'team') => void;
+  /** Serbest çizim modu aktif mi */
+  serberstCizimAktif: boolean;
+  onSerberstCizimToggle: () => void;
 }
 
 export default function KumandaPaneli({
@@ -59,6 +62,7 @@ export default function KumandaPaneli({
   notlarGosterilsin, onNotlarGosterilsinDegistir,
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
+  serberstCizimAktif, onSerberstCizimToggle,
 }: KumandaPaneliProps) {
   const { aktifKullanici } = useKullanici();
   const isYonetici = aktifKullanici?.rol === 'super_admin' || aktifKullanici?.rol === 'admin';
@@ -364,6 +368,20 @@ export default function KumandaPaneli({
            Lock butonu özel: is-editing/is-locked class'larıyla güçlü
            ışık alır (yeşil/kırmızı), diğer butonlardan ayrışır. */
         .control-panel button.button-image        { --button-accent: #6f8fbf; --button-glow: rgba(111, 143, 191, 0.30); }
+        /* Serbest çizim — kurumsal yeşil-teal (kalem/fırça) */
+        .control-panel button.button-draw         { --button-accent: #3dba8c; --button-glow: rgba( 61, 186, 140, 0.32); }
+        .control-panel button.button-draw.is-active {
+          color: #3dba8c;
+          border-color: rgba(61, 186, 140, 0.80);
+          background:
+            radial-gradient(circle at 50% 30%, rgba(61,186,140,0.20), transparent 65%),
+            linear-gradient(180deg, rgba(10,40,28,0.82), rgba(4,18,12,0.90));
+          box-shadow:
+            0 0 18px rgba(61,186,140,0.45),
+            0 0 48px rgba(61,186,140,0.20),
+            inset 0 0 20px rgba(61,186,140,0.14),
+            inset 0 1px 0 rgba(255,255,255,0.15);
+        }
         /* Pembe â†’ kurumsal şarap kırmızısı */
         .control-panel button.button-row-discount { --button-accent: #d94f64; --button-glow: rgba(217,  79, 100, 0.32); }
         /* Purple â†’ kurumsal teal/petrol mavisi */
@@ -413,8 +431,9 @@ export default function KumandaPaneli({
           display: flex;
           align-items: center;
           justify-content: center;
+          gap: calc(5px * var(--panel-scale));
           width: 100%;
-          height: calc(20px * var(--panel-scale));
+          height: calc(28px * var(--panel-scale));
           margin-top: calc(6px * var(--panel-scale));
           padding: 0;
           border: 1px solid rgba(255, 255, 255, 0.10);
@@ -422,6 +441,9 @@ export default function KumandaPaneli({
           background: rgba(255, 255, 255, 0.03);
           color: rgba(255, 220, 215, 0.55);
           opacity: 0.85;
+          font-size: calc(10px * var(--panel-scale));
+          font-weight: 600;
+          letter-spacing: 0.015em;
         }
         .panel-expand-toggle:hover {
           background: rgba(255, 255, 255, 0.06);
@@ -711,6 +733,7 @@ export default function KumandaPaneli({
           --press-glow: rgba(255, 80, 120, 0.42);
           width: 100%;
           height: calc(78px * var(--panel-scale));
+          transition: height 0.25s ease;
           border-radius: calc(18px * var(--panel-scale));
           border: 1px solid rgba(255, 100, 120, 0.4);
           background:
@@ -738,6 +761,11 @@ export default function KumandaPaneli({
             0 10px 20px rgba(0,0,0,0.42),
             inset 0 6px 18px rgba(0, 0, 0, 0.35),
             inset 0 -8px 18px rgba(0, 0, 0, 0.40);
+        }
+
+        /* Panel kapalıyken lock-button daha yüksek */
+        .control-panel[data-collapsed="true"] .lock-button {
+          height: calc(116px * var(--panel-scale));
         }
 
         /* Düzenleme aktifken (kilitli=false) sakin sürekli iç ışık */
@@ -1104,7 +1132,7 @@ export default function KumandaPaneli({
         }
       `}</style>
 
-      <div className="control-panel" data-editing={!readOnly}>
+      <div className="control-panel" data-editing={!readOnly} data-collapsed={!panelGenis}>
         <section className="panel-section">
           <SecLabel text="Düzenleme" />
 
@@ -1142,7 +1170,8 @@ export default function KumandaPaneli({
               aria-label={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
               aria-expanded={panelGenis}
             >
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <span>{panelGenis ? 'Kapat' : 'Aç'}</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                 <polyline
                   points={panelGenis ? '6 15 12 9 18 15' : '6 9 12 15 18 9'}
                   fill="none"
@@ -1185,6 +1214,27 @@ export default function KumandaPaneli({
             onChange={onFileChange}
             style={{ display: 'none' }}
           />
+        </section>
+
+        <section className="panel-section">
+          <Tooltip
+            title={serberstCizimAktif ? 'Çizimi Kapat' : 'Serbest Çizim'}
+            placement="left"
+            mouseEnterDelay={1}
+            color={TOOLTIP_COLOR}
+            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
+          >
+            <button
+              type="button"
+              className={`image-add button-draw ${serberstCizimAktif ? 'is-active' : ''}`}
+              onClick={onSerberstCizimToggle}
+              aria-label={serberstCizimAktif ? 'Çizimi Kapat' : 'Serbest Çizim'}
+              aria-pressed={serberstCizimAktif}
+            >
+              <span className="button-sweep" aria-hidden="true" />
+              <DrawIcon />
+            </button>
+          </Tooltip>
         </section>
 
         <section className="panel-section">
@@ -1299,6 +1349,44 @@ export default function KumandaPaneli({
       </div>
 
     </div>
+  );
+}
+
+function DrawIcon() {
+  return (
+    <svg className="premium-panel-icon" viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      {/* Gölge */}
+      <ellipse cx="32" cy="57" rx="18" ry="3" fill="rgba(0,0,0,0.18)" />
+
+      {/* Kalem gövdesi — ana silindir */}
+      <rect className="pi-body" x="26" y="8" width="12" height="38" rx="4" />
+      {/* Parlama — sol kenar */}
+      <rect x="27.5" y="9.5" width="3" height="34" rx="1.5" fill="rgba(255,255,255,0.22)" />
+      {/* Gölge — sağ kenar */}
+      <rect x="35" y="10" width="2" height="34" rx="1" fill="rgba(0,0,0,0.15)" />
+
+      {/* Silgi (üst) */}
+      <rect x="26" y="8" width="12" height="7" rx="3" fill="rgba(255,150,160,0.75)" />
+      <rect x="27" y="9" width="5" height="4" rx="1.5" fill="rgba(255,200,205,0.45)" />
+
+      {/* Metal bant */}
+      <rect x="26" y="15" width="12" height="3" rx="0" fill="rgba(180,180,210,0.60)" />
+      <rect x="26" y="15.5" width="12" height="1" fill="rgba(255,255,255,0.30)" />
+
+      {/* Kalem uç — şeklendirilmiş konik */}
+      <path d="M 26 46 L 30.5 56 L 33.5 56 L 38 46 Z" fill="rgba(210,175,110,0.70)" stroke="rgba(120,80,20,0.30)" strokeWidth="0.8" strokeLinejoin="round" />
+      <path d="M 29 46 L 30.5 56 L 33.5 56 L 35 46 Z" fill="rgba(240,210,140,0.55)" />
+      {/* Maden kalem ucu */}
+      <path d="M 30.5 54 L 32 58 L 33.5 54 Z" className="pi-glyph" strokeWidth="0" style={{ fill: 'currentColor', opacity: 0.85 }} />
+
+      {/* Yatay çizgi detayları (gövdede) */}
+      <line x1="26" y1="22" x2="38" y2="22" stroke="rgba(255,255,255,0.10)" strokeWidth="0.8" />
+      <line x1="26" y1="28" x2="38" y2="28" stroke="rgba(0,0,0,0.10)" strokeWidth="0.8" />
+
+      {/* Fırça efekti — çizgi izleri sol altta */}
+      <path d="M 9 50 Q 14 46 18 50 Q 22 54 26 49" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="pi-glyph" opacity="0.65" />
+      <path d="M 8 56 Q 12 53 15 56" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="pi-glyph" opacity="0.40" />
+    </svg>
   );
 }
 

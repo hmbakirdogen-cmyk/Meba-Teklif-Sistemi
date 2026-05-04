@@ -1,3 +1,20 @@
+/**
+ * Kullanıcı rolleri ve yetki kapsamları:
+ *
+ * - **super_admin** : Tüm firmalara erişir + sistem ayarlarını yönetebilir.
+ *                     `firmaId` null olabilir (firma kapsamı dışı).
+ * - **firma_admin** : Sadece kendi firmasının yöneticisi. `firmaId` zorunlu.
+ *                     Firma kullanıcılarını yönetir, raporlara erişir.
+ * - **admin**       : Tüm firmalara veri erişimi var (raporlama amaçlı yönetici)
+ *                     ama sistem ayarlarına dokunmaz. `firmaId` null olabilir.
+ *                     Genel "Yönetici" yetkili — super_admin'den daha kısıtlı.
+ * - **engineer**    : Teklif hazırlar, kendi tekliflerini görür (private),
+ *                     ekip teklifleri (team) için okuma yetkisi var.
+ * - **sales**       : engineer ile aynı kapsam — satış sorumlusu.
+ *
+ * Yetki kontrol noktaları: `auth-routes.cjs` requireAdmin/requireSuperAdmin,
+ * `syncEngine.ts` applyVisibilityFilter, `teklifService.ts` görünürlük filtresi.
+ */
 export type KullaniciRol = 'super_admin' | 'firma_admin' | 'engineer' | 'sales' | 'admin';
 
 export interface Kullanici {

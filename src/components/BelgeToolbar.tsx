@@ -9,7 +9,7 @@
  * pill click → manuel override menüsü.
  */
 
-import { Button, Dropdown, Space, Tooltip, Spin } from 'antd';
+import { App, Button, Dropdown, Space, Tooltip, Spin } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -21,14 +21,19 @@ import {
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
 import { buttonClassNames } from '../styles/buttonStyles';
-import type { TeklifDurum } from '../types';
+import type { TeklifDurum, TeklifStatus } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
 
 interface BelgeToolbarProps {
   teklifNo: string;
   teklifNoDurumu: 'hazir' | 'yukleniyor' | 'hata';
   cariAdi?: string;
+  hasCari?: boolean;
   durum: TeklifDurum;
+  /** Otomatik kayıt durumu — durum'la birlikte "düzenlendi" göstergesi için
+   *  kullanılır. Status taslak iken durum ileri bir aşamadaysa, içerik son
+   *  kayıttan/gönderimden sonra değiştirilmiş demektir. */
+  status?: TeklifStatus;
   uretiliyor: boolean;
   onGeriDon: () => void;
   onPdfIndir: () => void;
@@ -70,7 +75,9 @@ export default function BelgeToolbar({
   teklifNo,
   teklifNoDurumu,
   cariAdi,
+  hasCari = true,
   durum,
+  status,
   uretiliyor,
   onGeriDon,
   onPdfIndir,
@@ -81,7 +88,27 @@ export default function BelgeToolbar({
   onDurumDegistir,
 }: BelgeToolbarProps) {
   const C = useColors();
+  const { modal } = App.useApp();
   const durumRenk = DURUM_RENK[durum];
+
+  // Sonuclanmis durum (onaylandi/reddedildi/iptal) -> baska duruma gecisi
+  // onaya bagla. Kazanmis bir teklifin yanlislikla taslaga dusurulmesi ya
+  // da iptal edilmis bir kaydin tekrar 'gonderildi' yapilmasi gibi
+  // mantiksiz gecisleri engeller.
+  function durumDegistirGuvenli(yeniDurum: TeklifDurum) {
+    const KAPALI: TeklifDurum[] = ['onaylandi', 'reddedildi', 'iptal'];
+    if (KAPALI.includes(durum) && yeniDurum !== durum) {
+      modal.confirm({
+        title: 'Sonuçlanmış teklifin durumunu değiştir?',
+        content: `Bu teklif "${DURUM_ETIKET[durum]}" olarak işaretliydi. Yeni durum: "${DURUM_ETIKET[yeniDurum]}". Devam etmek istiyor musunuz?`,
+        okText: 'Evet, değiştir',
+        cancelText: 'Vazgeç',
+        onOk: () => onDurumDegistir(yeniDurum),
+      });
+      return;
+    }
+    onDurumDegistir(yeniDurum);
+  }
 
   const durumMenuItems: MenuProps['items'] = (Object.keys(DURUM_ETIKET) as TeklifDurum[]).map((d) => ({
     key: d,
@@ -92,10 +119,11 @@ export default function BelgeToolbar({
           background: DURUM_RENK[d].color, flexShrink: 0,
         }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: durum === d ? 700 : 600, color: 'inherit' }}>
+          {/* Etiket kendi durum rengiyle — gorsel taninma kolaylasir */}
+          <span style={{ fontSize: 12, fontWeight: durum === d ? 700 : 600, color: DURUM_RENK[d].color }}>
             {DURUM_ETIKET[d]}{durum === d ? '  ✓' : ''}
           </span>
-          <span style={{ fontSize: 10.5, color: '#64748b', lineHeight: 1.3 }}>
+          <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.3 }}>
             {DURUM_ACIKLAMA[d]}
           </span>
         </div>
@@ -117,13 +145,23 @@ export default function BelgeToolbar({
       top: 0,
       zIndex: 100,
     }}>
-      {/* Sol: Geri + Teklif bilgisi */}
+      {/* Sol: Geri + Teklif bilgisi.
+          Buton metinli + ikonlu — pratik, hedef alanı geniş. */}
       <Button
-        type="text"
+        type="default"
         icon={<ArrowLeftOutlined />}
         onClick={onGeriDon}
-        style={{ marginRight: 4 }}
-      />
+        style={{
+          marginRight: 8,
+          height: 34,
+          padding: '0 14px',
+          fontSize: 13,
+          fontWeight: 500,
+          borderRadius: 6,
+        }}
+      >
+        Geri
+      </Button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <span style={{
@@ -150,7 +188,7 @@ export default function BelgeToolbar({
         <Dropdown
           menu={{
             items: durumMenuItems,
-            onClick: ({ key }) => onDurumDegistir(key as TeklifDurum),
+            onClick: ({ key }) => durumDegistirGuvenli(key as TeklifDurum),
             selectable: true,
             selectedKeys: [durum],
           }}
@@ -185,6 +223,43 @@ export default function BelgeToolbar({
             <CaretDownOutlined style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }} />
           </button>
         </Dropdown>
+
+        {/* "Revize" göstergesi — durum ileri aşamadayken (hazır/gönderildi/
+            sonuçlanmış) status taslak'a düşmüşse içerik kayıttan/gönderimden
+            sonra değişmiş demektir. Sistem bunu otomatik revize olarak görür. */}
+        {status === 'taslak' && durum !== 'taslak' && (
+          <Tooltip
+            title={
+              durum === 'gonderildi' ? 'Revize teklif — gönderildikten sonra üzerinde değişiklik yapıldı.' :
+              durum === 'hazir'      ? 'Revize — PDF üretildikten sonra değişiklik yapıldı. PDF güncel değil.' :
+              durum === 'onaylandi'  ? 'Revize — onaylanmış teklif sonradan değişti.' :
+              durum === 'reddedildi' ? 'Revize — reddedilmiş teklif sonradan değişti.' :
+              durum === 'iptal'      ? 'Revize — iptal edilmiş teklif sonradan değişti.' :
+              'Revize teklif — üzerinde değişiklik yapıldı.'
+            }
+            mouseEnterDelay={0.25}
+            placement="bottom"
+          >
+            <span
+              aria-label="Revize"
+              style={{
+                display: 'inline-flex', alignItems: 'center',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: '#7c3aed',
+                background: 'rgba(124,58,237,0.10)',
+                border: '1px solid rgba(124,58,237,0.32)',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                cursor: 'help',
+              }}
+            >
+              ⟳ Revize
+            </span>
+          </Tooltip>
+        )}
       </div>
 
       <div style={{ flex: 1 }} />
@@ -196,6 +271,7 @@ export default function BelgeToolbar({
             type="text"
             icon={<PlusOutlined />}
             onClick={onSatirEkle}
+            disabled={!hasCari}
           />
         </Tooltip>
         <Tooltip title="Notlar">

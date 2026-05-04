@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Tooltip, Button, Drawer, Dropdown } from 'antd';
+import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown } from 'antd';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
@@ -36,6 +36,7 @@ const HEADER_LOGO_SCALE: Record<string, number> = {
 export default function AppLayout() {
   const navigate   = useNavigate();
   const location   = useLocation();
+  const { modal }  = App.useApp();
   const { aktifKullanici, cikisYap } = useKullanici();
   const { aktifFirma, firmalar, setAktifFirma } = useFirma();
   const { isDark, temaToggle } = useTheme();
@@ -69,6 +70,17 @@ export default function AppLayout() {
     // tekrar fetch edilmeli — en temiz yol full reload. Az sayida admin var,
     // gun icinde 1-2 kere yapilir, kabul edilebilir tradeoff.
     setTimeout(() => window.location.reload(), 50);
+  }
+
+  function cikisOnayla() {
+    modal.confirm({
+      title: 'Çıkış yapılsın mı?',
+      content: 'Mevcut oturum sonlandırılacak.',
+      okText: 'Çıkış Yap',
+      cancelText: 'Vazgeç',
+      okButtonProps: { danger: true },
+      onOk: () => cikisYap(),
+    });
   }
 
   const menuItems = [
@@ -312,8 +324,8 @@ export default function AppLayout() {
           >
             {/* Avatar — VESIKALIK 3:4, tiklanabilir → profil foto guncelleme modal'i */}
             <Tooltip title="Profil fotoğrafını güncelle" placement="bottom">
-              <button
-                type="button"
+              <Button
+                type="text"
                 onClick={() => setProfilFotoModalOpen(true)}
                 aria-label="Profil fotoğrafını güncelle"
                 style={{
@@ -322,6 +334,8 @@ export default function AppLayout() {
                   cursor: 'pointer', flexShrink: 0,
                   borderRadius: 6, lineHeight: 0,
                   transition: 'transform 0.15s ease, box-shadow 0.18s ease',
+                  minWidth: 0,
+                  height: 'auto',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'scale(1.05)';
@@ -357,7 +371,7 @@ export default function AppLayout() {
                     {aktifKullanici.initials}
                   </div>
                 )}
-              </button>
+              </Button>
             </Tooltip>
 
             {/* İsim — sadece desktop */}
@@ -379,7 +393,7 @@ export default function AppLayout() {
               <Button
                 type="text"
                 icon={<LogoutOutlined />}
-                onClick={cikisYap}
+                onClick={cikisOnayla}
                 size="small"
                 className={buttonClassNames.iconGhostSmall}
                 style={{ color: 'rgba(148,163,184,0.8)' }}
@@ -492,7 +506,7 @@ export default function AppLayout() {
               danger
               size="small"
               icon={<LogoutOutlined />}
-              onClick={() => { setDrawerOpen(false); cikisYap(); }}
+              onClick={() => { setDrawerOpen(false); cikisOnayla(); }}
               className={buttonClassNames.dangerSmall}
               block
             >

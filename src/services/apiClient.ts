@@ -12,7 +12,11 @@ import type { Teklif, Cari, Urun, UrunSeti, Kullanici, Firma } from '../types';
 import { APP_CONFIG } from '../config';
 
 const BASE = APP_CONFIG.API_BASE;
-const TIMEOUT_MS = 8000;
+/** Default network timeout — kısa endpoint'ler için (login, kayıt, get vb.). */
+const TIMEOUT_MS_DEFAULT = 8000;
+/** Uzun endpoint'ler için — bulk replace (1500+ cari) ve sync push/pull/full
+ *  LAN'da 8sn'i kolayca aşabilir. /sync/* ve bulkReplace bunu kullanır. */
+const TIMEOUT_MS_LONG = 30000;
 
 const SESSION_TOKEN_KEY = 'gc_session_token';
 const ACTIVE_FIRMA_KEY = 'gc_active_firma_id';
@@ -119,9 +123,9 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   return h;
 }
 
-function withTimeout(signal?: AbortSignal): { signal: AbortSignal; clear: () => void } {
+function withTimeout(signal?: AbortSignal, timeoutMs: number = TIMEOUT_MS_DEFAULT): { signal: AbortSignal; clear: () => void } {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   if (signal) {
     if (signal.aborted) controller.abort();
     else signal.addEventListener('abort', () => controller.abort());
@@ -150,8 +154,8 @@ async function parseOrThrow<T>(res: Response, label: string): Promise<T> {
   return (body as T);
 }
 
-async function get<T>(path: string): Promise<T> {
-  const { signal, clear } = withTimeout();
+async function get<T>(path: string, timeoutMs?: number): Promise<T> {
+  const { signal, clear } = withTimeout(undefined, timeoutMs);
   try {
     const res = await fetch(`${BASE}${path}`, { headers: buildHeaders(), signal });
     return parseOrThrow<T>(res, `GET ${path}`);
@@ -160,8 +164,8 @@ async function get<T>(path: string): Promise<T> {
   }
 }
 
-async function patch<T>(path: string, body: unknown): Promise<T> {
-  const { signal, clear } = withTimeout();
+async function patch<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
+  const { signal, clear } = withTimeout(undefined, timeoutMs);
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: 'PATCH',
@@ -175,8 +179,8 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
   }
 }
 
-async function put<T>(path: string, body: unknown): Promise<T> {
-  const { signal, clear } = withTimeout();
+async function put<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
+  const { signal, clear } = withTimeout(undefined, timeoutMs);
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: 'PUT',
@@ -190,8 +194,8 @@ async function put<T>(path: string, body: unknown): Promise<T> {
   }
 }
 
-async function del(path: string): Promise<void> {
-  const { signal, clear } = withTimeout();
+async function del(path: string, timeoutMs?: number): Promise<void> {
+  const { signal, clear } = withTimeout(undefined, timeoutMs);
   try {
     const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers: buildHeaders(), signal });
     if (!res.ok) {
@@ -202,8 +206,8 @@ async function del(path: string): Promise<void> {
   }
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const { signal, clear } = withTimeout();
+async function post<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
+  const { signal, clear } = withTimeout(undefined, timeoutMs);
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: 'POST',
@@ -269,7 +273,8 @@ export const api = {
   cariler: {
     upsert:      (c: Cari)              => put<Cari>(`/cariler/${c.id}`, c),
     sil:         (id: string)           => del(`/cariler/${id}`),
-    bulkReplace: (liste: Cari[])        => put<Cari[]>('/cariler', liste),
+    // Bulk replace 1500+ kayıt LAN'da 8sn'i aşar — long timeout.
+    bulkReplace: (liste: Cari[])        => put<Cari[]>('/cariler', liste, TIMEOUT_MS_LONG),
     uploadLogo:  (id: string, fotoBase64: string) =>
       post<{ logoUrl: string; cari: Cari }>(`/cariler/${id}/logo`, { fotoBase64 }),
     silLogo:     (id: string)           => del(`/cariler/${id}/logo`),
@@ -278,14 +283,14 @@ export const api = {
   urunler: {
     upsert:      (u: Urun)              => put<Urun>(`/urunler/${u.id}`, u),
     sil:         (id: string)           => del(`/urunler/${id}`),
-    bulkReplace: (liste: Urun[])        => put<Urun[]>('/urunler', liste),
+    bulkReplace: (liste: Urun[])        => put<Urun[]>('/urunler', liste, TIMEOUT_MS_LONG),
   },
 
   urunSetleri: {
     list:        ()                      => get<UrunSeti[]>('/urunSetleri'),
     upsert:      (s: UrunSeti)           => put<UrunSeti>(`/urunSetleri/${s.id}`, s),
     sil:         (id: string)            => del(`/urunSetleri/${id}`),
-    bulkReplace: (liste: UrunSeti[])     => put<UrunSeti[]>('/urunSetleri', liste),
+    bulkReplace: (liste: UrunSeti[])     => put<UrunSeti[]>('/urunSetleri', liste, TIMEOUT_MS_LONG),
   },
 
   referans: {
@@ -375,6 +380,8 @@ export const api = {
 
   sync: {
     status: () => get<SyncStatus>('/sync/status'),
+    // Sync endpoint'leri LAN'da yüksek hacim taşıyabilir (delta + bulk).
+    // Long timeout ile AbortError riskini düşür.
     pull: (since: string, kullanici?: { id: string; rol: string }) => {
       const params = new URLSearchParams();
       if (since) params.set('since', since);
@@ -383,10 +390,10 @@ export const api = {
         params.set('rol', kullanici.rol);
       }
       const qs = params.toString();
-      return get<SyncPullResult>(`/sync/pull${qs ? '?' + qs : ''}`);
+      return get<SyncPullResult>(`/sync/pull${qs ? '?' + qs : ''}`, TIMEOUT_MS_LONG);
     },
-    push: (payload: SyncPushPayload) => post<SyncPushResult>('/sync/push', payload),
-    full: (payload: Partial<InitData>) => post<{ ok: boolean; replaced: boolean; serverTime: string }>('/sync/full', payload),
+    push: (payload: SyncPushPayload) => post<SyncPushResult>('/sync/push', payload, TIMEOUT_MS_LONG),
+    full: (payload: Partial<InitData>) => post<{ ok: boolean; replaced: boolean; serverTime: string }>('/sync/full', payload, TIMEOUT_MS_LONG),
     devices: () => get<DeviceRecord[]>('/sync/devices'),
     registerDevice: (payload: { deviceId: string; deviceLabel: string }) =>
       post<DeviceRecord>('/sync/register-device', payload),

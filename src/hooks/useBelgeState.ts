@@ -53,6 +53,8 @@ export interface BelgeState {
   contactTitle: 'BEY' | 'HANIM';
   olusturmaTarihi: string;
   hazirlayanKullaniciId?: string;
+  /** Mevcut teklifin orijinal sahibi — yeni teklifte undefined. Sahiplik kontrolü için kullanılır. */
+  teklifSahibiId?: string;
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
   hazirlayanUnvan?: string;
@@ -143,6 +145,10 @@ export function useBelgeState(
 ): BelgeState & BelgeActions {
   const mevcut = mevcutId ? teklifService.teklifGetir(mevcutId) : null;
   const birimler = referansVeriService.birimler.tumunuGetir();
+  // Mevcut teklifin orijinal sahibi — useRef ile tek seferinde sabitlenir.
+  // teklifGetir her render'da çağrılır; autoSave sonrası store'daki sahip değişirse
+  // bu ref etkilenmez ve kontrol geçerliliğini korur.
+  const teklifSahibiIdRef = useRef<string | undefined>(mevcut?.hazirlayanKullaniciId);
 
   const [teklifId] = useState(() => mevcut ? mevcutId! : teklifService.teklifIdUret());
   const [teklifNo, setTeklifNo] = useState(mevcut?.teklifNo ?? '...');
@@ -268,7 +274,8 @@ export function useBelgeState(
       notlarGosterilsin,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
-      hazirlayanKullaniciId: kullanici?.id,
+      // Orijinal sahibi koru — mevcut teklifte hazirlayanKullaniciId değişmemeli
+      hazirlayanKullaniciId: teklifSahibiIdRef.current ?? kullanici?.id,
       hazirlayanAdSoyad: kullanici?.adSoyad,
       hazirlayanRol: kullanici?.rol,
       hazirlayanUnvan: kullanici?.unvan,
@@ -498,7 +505,8 @@ export function useBelgeState(
       notlarGosterilsin,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
-      hazirlayanKullaniciId: kullanici?.id,
+      // Orijinal sahibi koru — mevcut teklifte hazirlayanKullaniciId değişmemeli
+      hazirlayanKullaniciId: teklifSahibiIdRef.current ?? kullanici?.id,
       hazirlayanAdSoyad: kullanici?.adSoyad,
       hazirlayanRol: kullanici?.rol,
       hazirlayanUnvan: kullanici?.unvan,
@@ -560,6 +568,8 @@ export function useBelgeState(
     if (!cari) return;
     if (satirlar.length === 0) return;
     if (teklifNoDurumu !== 'hazir' || teklifNo === 'ERR') return;
+    // Başkasının teklifine otomatik kayıt yapma
+    if (teklifSahibiIdRef.current && kullanici?.id && teklifSahibiIdRef.current !== kullanici.id) return;
 
     // Status kaydedildi/gonderildi iken değişiklik → taslak
     if (status === 'kaydedildi' || status === 'gonderildi') {
@@ -604,6 +614,7 @@ export function useBelgeState(
     contactTitle,
     olusturmaTarihi,
     hazirlayanKullaniciId: kullanici?.id,
+    teklifSahibiId: teklifSahibiIdRef.current,
     hazirlayanAdSoyad: kullanici?.adSoyad,
     hazirlayanRol: kullanici?.rol,
     hazirlayanUnvan: kullanici?.unvan,

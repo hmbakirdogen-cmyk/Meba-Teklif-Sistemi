@@ -14,17 +14,7 @@ export type ParaBirimi = 'TRY' | 'EUR' | 'USD';
  */
 export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'reddedildi' | 'iptal';
 
-/**
- * İş sonucu — yöneticinin win/loss analizi yapabilmesi için. `durum`'dan
- * bağımsız: `durum=gonderildi` ile `sonuc=beklemede` paralel devam edebilir.
- *  - kazanildi   → Sipariş alındı, anlaşma kapandı
- *  - kaybedildi  → Müşteri başka rakipten / fiyat / zaman vs. nedenle aldı
- *  - iptal       → Müşteri vazgeçti veya bizim tarafımızdan iptal
- *  - beklemede   → Hâlâ açık, takipte (varsayılan, undefined eşdeğer)
- */
-export type TeklifSonuc = 'kazanildi' | 'kaybedildi' | 'iptal' | 'beklemede';
-
-/** Kaybedildi durumunda — kök neden segmentasyonu (sebep raporları için). */
+/** Reddedildi/iptal durumunda — kök neden segmentasyonu (sebep raporları için). */
 export type KayipSebebi = 'fiyat' | 'rakip' | 'zaman' | 'ihtiyac_yok' | 'diger';
 
 /**
@@ -88,6 +78,18 @@ export interface Teklif {
    *  undefined → 'team' kabul (geriye uyumluluk için mevcut kayıtlar). */
   visibility?: TeklifVisibility;
 
+  // ── Revizyon alanları ─────────────────────────────────────────────────
+  /** Revizyon numarası — undefined veya 0: orijinal kayıt. 1, 2, ...: kaynak
+   *  teklifin N'inci revizyonu. teklifNo'ya '-RevN' suffix'i de eklenir. */
+  revizyonNo?: number;
+  /** Bu kayıt hangi tekliften revize edildi — direkt kaynak teklifin id'si.
+   *  Revizyonun parent'ı. Undefined ise orijinal kayıt. */
+  kaynakTeklifId?: string;
+  /** Tüm revizyonların ortak kök kayıt id'si — orijinal teklifin id'si.
+   *  Aynı kokTeklifId'ye sahip kayıtlar aynı revizyon ailesindendir.
+   *  Orijinal kayıtta undefined olabilir (kendi id'si zaten kök). */
+  kokTeklifId?: string;
+
   // ── Sync alanları (LAN senkronizasyonu için, geriye uyumlu) ─────────
   /** Optimistic concurrency için sürüm numarası. PUT'ta backend +1 yapar. */
   version?: number;
@@ -102,16 +104,14 @@ export interface Teklif {
   /** Multi-tenant: bu kaydın hangi grup şirketine ait olduğu (meba/elmos/mesa). */
   firmaId?: string;
 
-  // ── İş sonucu (yönetici analiz için) ─────────────────────────────────────
-  /** Bu teklif iş olarak ne sonuç verdi? undefined → 'beklemede' kabul. */
-  sonuc?: TeklifSonuc;
-  /** sonuc='kaybedildi' ise kök neden — opsiyonel ama analiz için değerli. */
+  // ── Sonuç meta verisi (durum=onaylandi/reddedildi/iptal olduğunda doldurulur) ─
+  /** durum='reddedildi' veya 'iptal' ise kök neden — opsiyonel ama analiz için değerli. */
   kayipSebebi?: KayipSebebi;
-  /** sonuc='kaybedildi' ise işi alan rakip firma — serbest metin. */
+  /** durum='reddedildi' ise işi alan rakip firma — serbest metin. */
   rakipFirma?: string;
-  /** Sonuç ne zaman girildi (ISO). */
+  /** Durum sonuçlanmış değere geçtiğinde (onaylandi/reddedildi/iptal) zaman damgası (ISO). */
   sonucTarihi?: string;
-  /** Kim sonucu girdi. */
+  /** Sonuçlanma kararını giren kullanıcı. */
   sonucGirenKullaniciId?: string;
   /** Yöneticinin sonuca ilişkin notu (gizli, müşteriye gitmez). */
   sonucNotu?: string;

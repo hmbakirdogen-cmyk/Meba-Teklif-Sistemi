@@ -1198,3 +1198,30 @@ button.app-btn:active,
   flex-shrink: 0;
   animation: pending-pulse 2.4s ease-in-out infinite;
 }
+
+/* Sonuç-gir butonu için yumuşak pulse — 3+ gün yanıt bekleniyorsa
+   dikkat çekmek için butonun kendisi belli belirsiz yanıp söner. */
+@keyframes sonuc-buton-pulse {
+  0%, 100% {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 0 0 0 rgba(245,158,11,0.0);
+  }
+  50% {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 0 0 5px rgba(245,158,11,0.22);
+  }
+}
+.sonuc-buton-pulse {
+  animation: sonuc-buton-pulse 2.6s ease-in-out infinite;
+}
+
+/* ── Klasör Pulse Animasyonları ────────────────────────────────────────────────── */
+
+@keyframes klasorLambaGlow {
+  0%, 100% {
+    opacity: 0.3;
+    box-shadow: 0 0 3px rgba(255, 152, 0, 0.3);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.8);
+  }
+}

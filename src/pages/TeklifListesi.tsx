@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Dropdown, Input, Modal, Popconfirm, Select, Tooltip } from 'antd';
@@ -9,16 +9,15 @@ import {
   CopyOutlined,
   SearchOutlined,
   ArrowLeftOutlined,
-  CameraOutlined,
   CaretDownOutlined,
+  FlagOutlined,
 } from '@ant-design/icons';
 import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
-import type { Teklif, TeklifDurum, TeklifSonuc, KayipSebebi, Cari, Kullanici } from '../types';
+import type { Teklif, TeklifDurum, KayipSebebi, Cari, Kullanici } from '../types';
 import { formatCurrency, formatDate, formatCariAdi } from '../utils/formatters';
 import { klasorAdiUret } from '../utils/folderUtils';
-import { dosyaToCariLogoBase64 } from '../utils/cariLogo';
 import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -46,14 +45,14 @@ const DURUM_CFG_DARK: Record<TeklifDurum, { label: string; color: string; bg: st
   iptal:      { label: 'İptal',      color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
 };
 
-// İş sonucu — durum'dan bağımsız: yöneticinin win/loss analizi için.
-// Not: DB'de hâlâ 'kazanildi' anahtarı kullanılıyor; UI'da "Onaylandı" gösteriliyor
-// (kullanıcı tarafından "kazanıldı" terimi kaldırıldı, "onaylandı" tek pozitif outcome).
-export const SONUC_CFG: Record<TeklifSonuc, { label: string; color: string; bg: string; border: string; emoji: string }> = {
-  kazanildi:  { label: 'Onaylandı',  color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', emoji: '✓' },
-  kaybedildi: { label: 'Kaybedildi', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', emoji: '✕' },
+// Sonuç görünüm config'i — direkt durum'a bağlı.
+// (Önceden ayrı bir 'sonuc' alanı tutuluyordu; o redundant alan kaldırıldı,
+// sonuç gösterimleri artık doğrudan durum'dan türetiliyor.)
+// Sadece sonuçlanmış durumlar için tanımlı (taslak/hazir/gonderildi'de "sonuç badge" yok).
+export const SONUC_CFG: Partial<Record<TeklifDurum, { label: string; color: string; bg: string; border: string; emoji: string }>> = {
+  onaylandi:  { label: 'Onaylandı',  color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', emoji: '✓' },
+  reddedildi: { label: 'Kaybedildi', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', emoji: '✕' },
   iptal:      { label: 'İptal',      color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', emoji: '○' },
-  beklemede:  { label: 'Beklemede',  color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', emoji: '·' },
 };
 
 // Sebep listesi — hem Kaybedildi hem İptal için aynı havuz; kullanıcı seçer.
@@ -92,6 +91,50 @@ function personelRenk(isim: string): PersonelRenk {
 
 function initials(isim: string): string {
   return isim.trim().split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase();
+}
+
+/**
+ * Teklif numarasını "base" + "-RevN" suffix olarak ayrıştırır.
+ * Listede ve diğer yerlerde "Rev" kısmını ayrı bir mor rozet olarak vurgulamak için.
+ *  TKF-2024-0042       → { base: 'TKF-2024-0042', rev: null }
+ *  TKF-2024-0042-Rev1  → { base: 'TKF-2024-0042', rev: 'Rev1' }
+ */
+function ayrTeklifNo(teklifNo: string): { base: string; rev: string | null } {
+  const m = teklifNo.match(/^(.*?)-?(Rev\d+)$/);
+  if (!m) return { base: teklifNo, rev: null };
+  return { base: m[1], rev: m[2] };
+}
+
+/**
+ * Teklif numarasını render et — varsa "RevN" kısmı ayrı vurgulu rozet olarak.
+ * baseStyle: ana metnin stil özellikleri (fontSize, color vs.).
+ */
+function TeklifNoEtiket({ teklifNo, baseStyle }: { teklifNo: string; baseStyle?: CSSProperties }) {
+  const { base, rev } = ayrTeklifNo(teklifNo);
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...baseStyle }}>
+      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{base}</span>
+      {rev && (
+        <span
+          style={{
+            display: 'inline-flex', alignItems: 'center',
+            padding: '1px 6px',
+            borderRadius: 4,
+            fontSize: 10,
+            fontWeight: 700,
+            color: '#ffffff',
+            background: '#7c3aed',
+            letterSpacing: '0.04em',
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
+            textTransform: 'uppercase',
+          }}
+        >
+          {rev}
+        </span>
+      )}
+    </span>
+  );
 }
 
 function teklifToplamOzeti(teklif: Teklif): string[] {
@@ -228,58 +271,12 @@ const STOP_WORDS = new Set([
   'INC', 'GMBH', 'CO', 'CO.', 'GROUP', 'GRUP', 'VS',
 ]);
 
-function distinctiveWord(firmaAdi: string): string {
-  const ham = String(firmaAdi || '').toLocaleUpperCase('tr-TR').split(/[\s.,/]+/).filter(Boolean);
-  const free = ham.filter((w) => !STOP_WORDS.has(w));
-  return free[0] || ham[0] || '';
-}
-
-/** Premium wordmark: distinctive ilk kelimenin tamamı (ör. "EGE", "ANADOLU", "ÇINAR").
- *  Kısaltma YOK — kart tile'ında font-size dinamik küçültülür. */
-function wordmarkUret(firmaAdi: string): string {
-  const w = distinctiveWord(firmaAdi);
-  if (!w) return '–';
-  // Aşırı uzun kelimeleri (BORÇELİKDEMİRSAN) max 9 karaktere indir, yine de tek kelime
-  return w.length > 9 ? w.slice(0, 9) : w;
-}
-
-/** Wordmark uzunluğuna göre tile içinde sığan font boyutu döner. */
-function wordmarkFontSize(text: string, tileSize: number): number {
-  const n = text.length;
-  // tileSize 52 için: 1-3 harf = 18, 4 = 14, 5 = 12, 6 = 10, 7+ = 9
-  // tileSize 44 (mobile) için orantılı ölçek
-  const baz = tileSize >= 50 ? 1 : 0.85;
-  let s: number;
-  if (n <= 3) s = 18;
-  else if (n === 4) s = 14;
-  else if (n === 5) s = 12;
-  else if (n === 6) s = 10.5;
-  else if (n === 7) s = 9.5;
-  else s = 8.5;
-  return Math.round(s * baz);
-}
-
-/** Logo tile arkaplanı: aşırı renkli değil — düşük doygunluklu kurumsal ton.
- *  Açık modda paper feel için L=92, dark'ta calmer L=18. */
-function logoTileRengi(seed: string, isDark: boolean): { bg: string; text: string } {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffffffff;
-  const hue = Math.abs(h) % 360;
-  if (isDark) {
-    return {
-      bg:   `hsl(${hue}, 22%, 17%)`,
-      text: `hsl(${hue}, 35%, 76%)`,
-    };
-  }
-  return {
-    bg:   `hsl(${hue}, 24%, 91%)`,
-    text: `hsl(${hue}, 38%, 30%)`,
-  };
-}
+// (wordmarkUret / wordmarkFontSize / logoTileRengi / distinctiveWord
+//  cari logo + wordmark görselleri kaldırıldığı için artık kullanılmıyor — silindi.)
 
 // ─── Filtre tipi ─────────────────────────────────────────────────────────────
 
-type Filtre = 'benim' | 'tumu' | 'digerleri';
+type Filtre = 'benim' | 'tumu';
 type Gorunum = 'klasorler' | 'detay';
 type Siralama = 'alfabe' | 'aktiflik' | 'teklifSayisi';
 type GorunumModu = 'grid' | 'liste';
@@ -304,18 +301,38 @@ export default function TeklifListesi() {
   const [cariler, setCariler] = useState<Cari[]>(() => cariService.tumCarileriGetir());
   const [kullanicilar, setKullanicilar] = useState<Kullanici[]>([]);
   const [aramaMetni, setAramaMetni] = useState('');
-  const [aktifFiltre, setAktifFiltre] = useState<Filtre>('benim');
-  const [siralama, setSiralama] = useState<Siralama>('alfabe');
+  const [aktifFiltre, setAktifFiltre] = useState<Filtre>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('teklif_filtre') : null;
+    return saved === 'tumu' ? 'tumu' : 'benim';
+  });
+  const [siralama, setSiralama] = useState<Siralama>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('teklif_siralama') : null;
+    return (saved === 'aktiflik' || saved === 'teklifSayisi') ? saved as Siralama : 'alfabe';
+  });
   const [gorunumModu, setGorunumModu] = useState<GorunumModu>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('teklif_klasor_gorunum') : null;
     return saved === 'liste' ? 'liste' : 'grid';
   });
-  const [gorunum, setGorunum] = useState<Gorunum>('klasorler');
-  const [seciliKlasor, setSeciliKlasor] = useState<string | null>(null);
+  // Liste mount edildiğinde sessionStorage'da son ziyaret edilen klasör varsa
+  // ona dönen "klasör hafızası". TeklifEditor'dan Geri'ye dönüldüğünde önceki
+  // klasörün içine düşüp ana listeye atılmaktan kurtulur.
+  const HATIRLA_KEY = 'teklif_son_klasor';
+  const baslangicKlasor: string | null =
+    typeof window !== 'undefined' ? sessionStorage.getItem(HATIRLA_KEY) : null;
+  const [gorunum, setGorunum] = useState<Gorunum>(baslangicKlasor ? 'detay' : 'klasorler');
+  const [seciliKlasor, setSeciliKlasor] = useState<string | null>(baslangicKlasor);
 
   useEffect(() => {
     try { localStorage.setItem('teklif_klasor_gorunum', gorunumModu); } catch { /* ignore */ }
   }, [gorunumModu]);
+
+  useEffect(() => {
+    try { localStorage.setItem('teklif_siralama', siralama); } catch { /* ignore */ }
+  }, [siralama]);
+
+  useEffect(() => {
+    try { localStorage.setItem('teklif_filtre', aktifFiltre); } catch { /* ignore */ }
+  }, [aktifFiltre]);
 
   const benimId = aktifKullanici?.id;
 
@@ -391,6 +408,7 @@ export default function TeklifListesi() {
   function klasoreGir(klasorAdi: string) {
     setSeciliKlasor(klasorAdi);
     setGorunum('detay');
+    try { sessionStorage.setItem(HATIRLA_KEY, klasorAdi); } catch { /* ignore */ }
     setAramaMetni('');
   }
 
@@ -398,12 +416,12 @@ export default function TeklifListesi() {
     setGorunum('klasorler');
     setSeciliKlasor(null);
     setAramaMetni('');
+    try { sessionStorage.removeItem(HATIRLA_KEY); } catch { /* ignore */ }
   }
 
   // ── Tab bazlı filtreleme ─────────────────────────────────────────────────────
   const tabFiltreli = useMemo(() => {
     if (aktifFiltre === 'benim') return teklifler.filter((t) => t.hazirlayanKullaniciId === benimId);
-    if (aktifFiltre === 'digerleri') return teklifler.filter((t) => t.hazirlayanKullaniciId !== benimId);
     return teklifler;
   }, [teklifler, aktifFiltre, benimId]);
 
@@ -446,7 +464,6 @@ export default function TeklifListesi() {
   }, [tabFiltreli, seciliKlasor, aramaMetni]);
 
   const benimSayisi   = useMemo(() => teklifler.filter((t) => t.hazirlayanKullaniciId === benimId).length, [teklifler, benimId]);
-  const digerSayisi   = useMemo(() => teklifler.filter((t) => t.hazirlayanKullaniciId !== benimId).length, [teklifler, benimId]);
 
   // ── Yönetici özeti — sadece admin/super_admin/firma_admin için ───────────────
   const isAdmin = useMemo(() => {
@@ -459,10 +476,10 @@ export default function TeklifListesi() {
     return computeYoneticiOzeti(teklifler);
   }, [teklifler, isAdmin]);
 
+  // "Diğer Personellerin Teklifleri" sekmesi kullanıcı tercihiyle kaldırıldı.
   const sekmeler: Array<{ key: Filtre; label: string; count: number }> = [
-    { key: 'benim',     label: 'Benim Tekliflerim',           count: benimSayisi     },
-    { key: 'tumu',      label: 'Tüm Teklifler',               count: teklifler.length },
-    { key: 'digerleri', label: 'Diğer Personellerin Teklifleri', count: digerSayisi  },
+    { key: 'benim', label: 'Benim Tekliflerim', count: benimSayisi },
+    { key: 'tumu',  label: 'Tüm Teklifler',     count: teklifler.length },
   ];
 
   // ── Klasör detay başlık bilgisi ──────────────────────────────────────────────
@@ -484,7 +501,7 @@ export default function TeklifListesi() {
         <KlasorGorunumu
           isMobile={isMobile}
           C={C}
-          teklifler={teklifler}
+          teklifler={tabFiltreli}
           klasorler={klasorler}
           kullaniciMap={kullaniciMap}
           aramaMetni={aramaMetni}
@@ -501,6 +518,10 @@ export default function TeklifListesi() {
           onKlasorTikla={klasoreGir}
           onCariGuncelle={updateCariLocal}
           navigate={navigate}
+          benimId={benimId}
+          onSil={teklifSil}
+          onKopyala={teklifKopyala}
+          onRefresh={teklifleriYukle}
         />
       ) : (
         <DetayGorunumu
@@ -519,6 +540,7 @@ export default function TeklifListesi() {
           onGeri={klasordenCik}
           onSil={teklifSil}
           onKopyala={teklifKopyala}
+          onRefresh={teklifleriYukle}
         />
       )}
 
@@ -548,6 +570,11 @@ interface KlasorGorunumuProps {
   onKlasorTikla: (k: string) => void;
   onCariGuncelle: (c: Cari) => void;
   navigate: (path: string) => void;
+  // Aktivite (flat) mod için gerekli ek aksiyonlar:
+  benimId: string | undefined;
+  onSil: (id: string) => void;
+  onKopyala: (id: string) => void;
+  onRefresh: () => void;
 }
 
 export interface YoneticiOzetiData {
@@ -615,11 +642,80 @@ export function computeYoneticiOzeti(teklifler: Teklif[]): YoneticiOzetiData {
 }
 
 function KlasorGorunumu({
-  isMobile, C, klasorler, kullaniciMap, aramaMetni, setAramaMetni,
+  isMobile, C, teklifler, klasorler, kullaniciMap, aramaMetni, setAramaMetni,
   aktifFiltre, setAktifFiltre, siralama, setSiralama, gorunumModu, setGorunumModu,
   sekmeler, yoneticiOzeti, aktifKullaniciAd, onKlasorTikla, onCariGuncelle,
-  navigate,
+  navigate, benimId, onSil, onKopyala, onRefresh,
 }: KlasorGorunumuProps) {
+  const { isDark } = useTheme();
+  const { aktifKullanici } = useKullanici();
+  const { message, modal } = App.useApp();
+  const [sonucModalTeklif, setSonucModalTeklif] = useState<Teklif | null>(null);
+
+  // Aktivite modu için kullanılacak callbacks — DetayGorunumu'ndakinin aynısı.
+  const sonucYaz = useCallback((teklif: Teklif, patch: Partial<Teklif>) => {
+    const guncel: Teklif = {
+      ...teklif,
+      ...patch,
+      sonucGirenKullaniciId: aktifKullanici?.id,
+      guncellemeTarihi: new Date().toISOString(),
+    };
+    teklifService.teklifKaydet(guncel);
+    onRefresh();
+    message.success('Durum güncellendi.');
+  }, [aktifKullanici?.id, message, onRefresh]);
+
+  function modalSave(patch: Partial<Teklif>) {
+    if (!sonucModalTeklif) return;
+    sonucYaz(sonucModalTeklif, patch);
+    setSonucModalTeklif(null);
+  }
+
+  function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
+    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal') {
+      setSonucModalTeklif({ ...teklif, durum: yeniDurum });
+      return;
+    }
+    sonucYaz(teklif, {
+      durum: yeniDurum, sonucTarihi: new Date().toISOString(),
+      kayipSebebi: undefined, rakipFirma: undefined,
+    });
+  }
+
+  function hizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
+    const KAPALI: TeklifDurum[] = ['onaylandi', 'reddedildi', 'iptal'];
+    if (KAPALI.includes(teklif.durum) && yeniDurum !== teklif.durum) {
+      modal.confirm({
+        title: 'Sonuçlanmış teklifin durumunu değiştir?',
+        content: `Bu teklif "${DURUM_CFG[teklif.durum].label}" olarak işaretliydi. Yeni durum: "${DURUM_CFG[yeniDurum].label}". Devam etmek istiyor musunuz?`,
+        okText: 'Evet, değiştir', cancelText: 'Vazgeç',
+        onOk: () => uygulaHizliSonuc(teklif, yeniDurum),
+      });
+      return;
+    }
+    uygulaHizliSonuc(teklif, yeniDurum);
+  }
+
+  // Aktivite modu listesi: mevcut filtreli teklifler (klasör birleşmesi
+  // yapılmadan), guncellemeTarihi (yoksa olusturmaTarihi) tarihine göre
+  // en yeniden eskiye sıralı.
+  const aktiviteler = useMemo(() => {
+    let liste = [...teklifler];
+    if (aramaMetni.trim()) {
+      const q = aramaMetni.toLocaleLowerCase('tr-TR');
+      liste = liste.filter(
+        (t) =>
+          t.teklifNo.toLocaleLowerCase('tr-TR').includes(q) ||
+          t.cari.firmaAdi.toLocaleLowerCase('tr-TR').includes(q) ||
+          (t.hazirlayanAdSoyad?.toLocaleLowerCase('tr-TR').includes(q) ?? false),
+      );
+    }
+    return liste.sort((a, b) => {
+      const ta = a.guncellemeTarihi || a.olusturmaTarihi || a.tarih;
+      const tb = b.guncellemeTarihi || b.olusturmaTarihi || b.tarih;
+      return tb.localeCompare(ta);
+    });
+  }, [teklifler, aramaMetni]);
   const ilkAd = aktifKullaniciAd ? aktifKullaniciAd.split(/\s+/)[0] : '';
   const saat = new Date().getHours();
   const selam = saat < 6 ? 'İyi geceler' : saat < 12 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar';
@@ -671,19 +767,67 @@ function KlasorGorunumu({
           display: 'flex',
           width: 'fit-content',
           maxWidth: '100%',
-          gap: 3,
+          gap: 12,
           alignItems: 'center',
-          background: C.bgElevated,
-          borderRadius: 9,
-          padding: '3px',
-          overflowX: isMobile ? 'auto' : 'visible',
+          flexWrap: 'wrap',
         }}>
-          {sekmeler.map((s) => (
-            <button key={s.key} onClick={() => setAktifFiltre(s.key)} className={tabButtonClassName(aktifFiltre === s.key)}>
-              {s.label}
-              <span className="app-tab-count">{s.count}</span>
-            </button>
-          ))}
+          {/* Tab'lar */}
+          <div style={{
+            display: 'flex',
+            width: 'fit-content',
+            maxWidth: '100%',
+            gap: 3,
+            alignItems: 'center',
+            background: C.bgElevated,
+            borderRadius: 9,
+            padding: '3px',
+            overflowX: isMobile ? 'auto' : 'visible',
+          }}>
+            {sekmeler.map((s) => (
+              <button key={s.key} onClick={() => setAktifFiltre(s.key)} className={tabButtonClassName(aktifFiltre === s.key)}>
+                {s.label}
+                <span className="app-tab-count">{s.count}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Sıralama butonları */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: 3,
+            background: C.bgElevated,
+            borderRadius: 8,
+            border: `1px solid ${C.borderSubtle}`,
+          }}>
+            {([
+              { k: 'aktiflik', l: 'Son aktivite' },
+              { k: 'alfabe',   l: 'A → Z' },
+            ] as Array<{ k: Siralama; l: string }>).map(({ k, l }) => {
+              const aktif = siralama === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setSiralama(k)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: aktif ? 600 : 500,
+                    color: aktif ? C.textPrimary : C.textSecondary,
+                    background: aktif ? C.bgSurface : 'transparent',
+                    border: 'none',
+                    padding: '5px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    letterSpacing: '0.01em',
+                    boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
+                  }}
+                >
+                  {l}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div style={{ width: isMobile ? '100%' : 272, justifySelf: isMobile ? 'stretch' : 'end' }}>
           <Input
@@ -697,102 +841,98 @@ function KlasorGorunumu({
         </div>
       </div>
 
-      {/* Sıralama satırı */}
+      {/* Sıralama satırı → şimdi sayı + grid/liste toggle */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         gap: 12,
         marginBottom: 14,
-        flexWrap: 'wrap',
       }}>
+        <div style={{ fontSize: 11, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
+          {siralama === 'aktiflik'
+            ? `${aktiviteler.length} teklif`
+            : `${klasorler.length} müşteri`}
+        </div>
+        {/* Grid / Liste toggle */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
-          padding: 3,
+          gap: 2,
+          padding: 2,
           background: C.bgElevated,
-          borderRadius: 8,
+          borderRadius: 7,
           border: `1px solid ${C.borderSubtle}`,
         }}>
           {([
-            { k: 'alfabe',       l: 'A → Z' },
-            { k: 'aktiflik',     l: 'Son aktivite' },
-            { k: 'teklifSayisi', l: 'Çok teklifli' },
-          ] as Array<{ k: Siralama; l: string }>).map(({ k, l }) => {
-            const aktif = siralama === k;
+            { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
+            { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
+          ]).map(({ k, l, icon: Icon }) => {
+            const aktif = gorunumModu === k;
             return (
-              <button
-                key={k}
-                onClick={() => setSiralama(k)}
-                style={{
-                  fontSize: 11,
-                  fontWeight: aktif ? 600 : 500,
-                  color: aktif ? C.textPrimary : C.textSecondary,
-                  background: aktif ? C.bgSurface : 'transparent',
-                  border: 'none',
-                  padding: '5px 10px',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  letterSpacing: '0.01em',
-                  boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
-                }}
-              >
-                {l}
-              </button>
+              <Tooltip key={k} title={l} mouseEnterDelay={0.3}>
+                <button
+                  onClick={() => setGorunumModu(k)}
+                  aria-label={l}
+                  style={{
+                    width: 28,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: aktif ? C.bgSurface : 'transparent',
+                    border: 'none',
+                    borderRadius: 5,
+                    cursor: 'pointer',
+                    color: aktif ? C.textPrimary : C.textSecondary,
+                    padding: 0,
+                    boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
+                  }}
+                >
+                  <Icon active={aktif} />
+                </button>
+              </Tooltip>
             );
           })}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 11, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
-            {klasorler.length} müşteri
-          </div>
-          {/* Grid / Liste toggle */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            background: C.bgElevated,
-            borderRadius: 7,
-            border: `1px solid ${C.borderSubtle}`,
-          }}>
-            {([
-              { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
-              { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
-            ]).map(({ k, l, icon: Icon }) => {
-              const aktif = gorunumModu === k;
-              return (
-                <Tooltip key={k} title={l} mouseEnterDelay={0.3}>
-                  <button
-                    onClick={() => setGorunumModu(k)}
-                    aria-label={l}
-                    style={{
-                      width: 28,
-                      height: 24,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: aktif ? C.bgSurface : 'transparent',
-                      border: 'none',
-                      borderRadius: 5,
-                      cursor: 'pointer',
-                      color: aktif ? C.textPrimary : C.textSecondary,
-                      padding: 0,
-                      boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
-                    }}
-                  >
-                    <Icon active={aktif} />
-                  </button>
-                </Tooltip>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
-      {/* Klasör Izgarası */}
-      {klasorler.length === 0 ? (
+      {/* Aktivite modu: flat teklif listesi (en yeniden eskiye).
+          Klasör modu: klasör grid'i (alfabe / teklif sayısı). */}
+      {siralama === 'aktiflik' ? (
+        aktiviteler.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: isMobile ? '48px 16px' : '80px 20px',
+            color: C.textFaint,
+            fontSize: 14,
+            background: C.bgSurface,
+            borderRadius: 12,
+            border: `1px solid ${C.borderSubtle}`,
+          }}>
+            {aramaMetni
+              ? 'Arama kriterlerine uygun teklif bulunamadı.'
+              : 'Henüz teklif bulunmuyor. İlk teklifinizi oluşturun.'}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {aktiviteler.map((t) => (
+              <TeklifKarti
+                key={t.id}
+                teklif={t}
+                benim={t.hazirlayanKullaniciId === benimId}
+                isDark={isDark}
+                C={C}
+                navigate={navigate}
+                onSil={onSil}
+                onKopyala={onKopyala}
+                onSonucAc={() => setSonucModalTeklif(t)}
+                onSonucHizli={(durum) => hizliSonuc(t, durum)}
+              />
+            ))}
+          </div>
+        )
+      ) : klasorler.length === 0 ? (
         <div style={{
           textAlign: 'center',
           padding: isMobile ? '48px 16px' : '80px 20px',
@@ -818,6 +958,13 @@ function KlasorGorunumu({
           onCariGuncelle={onCariGuncelle}
         />
       )}
+
+      <SonucModal
+        open={sonucModalTeklif !== null}
+        teklif={sonucModalTeklif}
+        onClose={() => setSonucModalTeklif(null)}
+        onSave={modalSave}
+      />
     </>
   );
 }
@@ -968,7 +1115,7 @@ function TopluSonucModal({
                       letterSpacing: '0.005em', lineHeight: 1.3,
                       display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap',
                     }}>
-                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{t.teklifNo}</span>
+                      <TeklifNoEtiket teklifNo={t.teklifNo} />
                       <span style={{
                         fontSize: 11, fontWeight: 500, color: C.textSecondary,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1663,21 +1810,9 @@ interface KlasorSatiriProps {
   onCariGuncelle: (c: Cari) => void;
 }
 
-function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick, onCariGuncelle }: KlasorSatiriProps) {
+function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick }: KlasorSatiriProps) {
   const { isDark } = useTheme();
-  const { message } = App.useApp();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(klasor.logoUrl);
-  const [yukleniyor, setYukleniyor] = useState(false);
   const [hover, setHover] = useState(false);
-
-  useEffect(() => { setLogoUrl(klasor.logoUrl); }, [klasor.logoUrl]);
-
-  const wordmark = useMemo(() => wordmarkUret(klasor.firmaAdiDisplay), [klasor.firmaAdiDisplay]);
-  const tile = useMemo(() => logoTileRengi(klasor.cariId || klasor.klasorAdi, isDark), [klasor.cariId, klasor.klasorAdi, isDark]);
-  // aktiviteRengi artık görsel olarak kullanılmıyor (renkli dot kaldırıldı, lamba yerine)
-  // useMemo silindi.
-
 
   const subtitle = useMemo(() => {
     const ham = klasor.firmaAdiDisplay.split(/\s+/).filter(Boolean);
@@ -1685,28 +1820,18 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick, on
     return ikinciKelime ? ikinciKelime : '—';
   }, [klasor.firmaAdiDisplay]);
 
-  async function dosyaSec(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    if (!klasor.cariId) {
-      message.warning('Bu klasör için cari kaydı bulunamadı.');
-      return;
-    }
-    setYukleniyor(true);
-    try {
-      const base64 = await dosyaToCariLogoBase64(f);
-      const sonuc = await api.cariler.uploadLogo(klasor.cariId, base64);
-      setLogoUrl(sonuc.logoUrl);
-      onCariGuncelle(sonuc.cari);
-      message.success('Logo yüklendi.');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Logo yüklenemedi.';
-      message.error(msg);
-    } finally {
-      setYukleniyor(false);
-    }
-  }
+  // Gösterge lambası — gönderilmiş ve 3+ gün eski mi?
+  const hasOverdueOffers = useMemo(() => {
+    const bugun = new Date();
+    return klasor.teklifler.some((t) => {
+      if (t.durum !== 'gonderildi') return false;
+      const tarih = t.guncellemeTarihi || t.tarih;
+      if (!tarih) return false;
+      const teklifTarihi = new Date(tarih);
+      const gunFarki = Math.floor((bugun.getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
+      return gunFarki >= 3;
+    });
+  }, [klasor.teklifler]);
 
   const hazirlayanlar = klasor.topHazirlayanIds
     .map((id) => kullaniciMap.get(id))
@@ -1716,7 +1841,9 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick, on
     .replace(/\s+(SAN\.|TİC\.|LTD\.|A\.Ş\.|ŞTİ\.|İNŞ\.).*$/i, '')
     .trim() || klasor.firmaAdiDisplay;
 
-  // Kolon: [logo 32] [isim/sektör flex] [teklif 95] [tarih 90] [avatars 78]
+  // Kolon: [premium klasör 32] [isim/sektör flex] [teklif 95] [tarih 90] [avatars 78]
+  // Satırlar arası nefes boşluk (margin-bottom + radius) — etiketler kalabalık
+  // gözükmesin diye liste görünümünde her klasör satırı ayrı bir kart olarak.
   return (
     <div
       onClick={onClick}
@@ -1725,85 +1852,51 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick, on
       style={{
         display: 'grid',
         gridTemplateColumns: isMobile
-          ? '36px minmax(0, 1fr) auto'
-          : '36px minmax(0, 1fr) 110px 100px 86px',
+          ? '40px minmax(0, 1fr) auto'
+          : '40px minmax(0, 1fr) 110px 100px 86px',
         alignItems: 'center',
         gap: isMobile ? 10 : 14,
-        padding: isMobile ? '8px 12px' : '8px 14px',
-        background: hover ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,30,60,0.025)') : 'transparent',
-        borderBottom: sonSatir ? 'none' : `1px solid ${C.borderSubtle}`,
+        padding: isMobile ? '12px 12px' : '12px 16px',
+        marginBottom: sonSatir ? 0 : 8,
+        borderRadius: 8,
+        background: hover
+          ? (isDark ? 'rgba(255,255,255,0.045)' : 'rgba(15,30,60,0.04)')
+          : (isDark ? 'rgba(255,255,255,0.018)' : 'rgba(15,30,60,0.012)'),
+        border: `1px solid ${hover ? (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(15,30,60,0.10)') : C.borderSubtle}`,
         cursor: 'pointer',
         userSelect: 'none',
         position: 'relative',
-        transition: 'background 0.12s ease',
+        transition: 'background 0.14s ease, border-color 0.14s ease',
+        overflow: 'visible',
       }}
     >
-      {/* Logo tile */}
+      {/* Gösterge lambası — gönderilmiş 3+ gün eski mi? */}
+      {hasOverdueOffers && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 8,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: 'rgba(255, 152, 0, 0.9)',
+            animation: 'klasorLambaGlow 2s ease-in-out infinite',
+            zIndex: 10,
+            border: '1px solid rgba(255, 200, 87, 0.5)',
+          }}
+        />
+      )}
+      {/* Premium klasör ikonu */}
       <div style={{
-        width: 32,
-        height: 32,
-        borderRadius: 6,
-        background: logoUrl ? (isDark ? '#0f1219' : '#FBFAF7') : tile.bg,
-        border: logoUrl ? `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#E5E1D9'}` : 'none',
+        width: 48,
+        height: 48,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
         flexShrink: 0,
-        position: 'relative',
       }}>
-        {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt={isim}
-            loading="lazy"
-            decoding="async"
-            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 2 }}
-            onError={() => setLogoUrl(undefined)}
-          />
-        ) : (
-          <span style={{
-            fontSize: wordmarkFontSize(wordmark, 32),
-            fontWeight: 700,
-            color: tile.text,
-            letterSpacing: wordmark.length > 5 ? '-0.04em' : '-0.02em',
-            fontFamily: '-apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif',
-            lineHeight: 1,
-            padding: '0 2px',
-            whiteSpace: 'nowrap',
-          }}>
-            {wordmark}
-          </span>
-        )}
-        {/* Hover'da logo upload — küçük overlay */}
-        {klasor.cariId && hover && (
-          <Tooltip title={logoUrl ? 'Logoyu değiştir' : 'Logo yükle'} mouseEnterDelay={0.4}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-              disabled={yukleniyor}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                background: 'rgba(15,23,42,0.55)',
-                border: 'none',
-                borderRadius: 6,
-                color: '#fff',
-                cursor: yukleniyor ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-              }}
-            >
-              <CameraOutlined style={{ fontSize: 12 }} />
-            </button>
-          </Tooltip>
-        )}
+        <PremiumKlasorIcon size={44} isDark={isDark} />
       </div>
 
       {/* İsim + sektör */}
@@ -1832,14 +1925,9 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick, on
         </div>
       </div>
 
-      {/* Teklif sayısı + pulse dot (3+ gün yanıt bekleyen varsa) */}
+      {/* Teklif sayısı (yanıp sönen nokta kullanıcı tercihiyle kaldırıldı) */}
       {!isMobile && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontVariantNumeric: 'tabular-nums' }}>
-          {klasor.ucGunDurumsuzSayi > 0 && (
-            <Tooltip title={`${klasor.ucGunDurumsuzSayi} teklif yanıt bekliyor`} mouseEnterDelay={0.3}>
-              <span className="pending-pulse-dot" aria-label="Yanıt bekliyor" />
-            </Tooltip>
-          )}
           <span style={{ fontSize: 12, color: C.textSecondary, fontWeight: 500 }}>
             {klasor.teklifler.length} teklif
           </span>
@@ -1896,15 +1984,227 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick, on
         </div>
       )}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        style={{ display: 'none' }}
-        onClick={(e) => e.stopPropagation()}
-        onChange={dosyaSec}
-      />
     </div>
+  );
+}
+
+// ─── Premium Klasör İkonu ────────────────────────────────────────────────────
+//
+// Kabartmalı (3D), tema uyumlu, kart logosu yerine kullanılan zarif klasör.
+// Light: warm bej/altın tonlu (premium B2B his), dark: gümüş-grafit.
+// Üstten ışık highlight, alta yumuşak iç gölge, dışta soft drop shadow.
+
+function PremiumKlasorIcon({ size = 52, isDark = false }: { size?: number; isDark?: boolean }) {
+  const VB = 80;
+  const uid = `pkv3-${isDark ? 'd' : 'l'}-${size}`;
+
+  const c = isDark
+    ? {
+        // Arka kapak
+        backTop:    '#5C6A96',
+        backBot:    '#2E3650',
+        // Tab
+        tabTop:     '#7080B8',
+        tabBot:     '#4A5580',
+        tabRim:     'rgba(255,255,255,0.18)',
+        // Kağıt
+        paper1Top:  '#E8EDF8',
+        paper1Bot:  '#C8D2EC',
+        paper2Top:  '#D0D8F0',
+        paper2Bot:  '#B8C4E4',
+        paperLine:  'rgba(80,100,180,0.30)',
+        // Ön kapak
+        frontTop:   '#8A99C8',
+        frontMid:   '#6070A8',
+        frontBot:   '#3A4568',
+        // Aksan / gölge
+        rim:        'rgba(0,0,0,0.55)',
+        shine:      'rgba(255,255,255,0.28)',
+        shineEdge:  'rgba(255,255,255,0.15)',
+        lineColor:  'rgba(255,255,255,0.13)',
+        shadow:     'rgba(10,15,40,0.60)',
+        bottomShadow: 'rgba(0,0,0,0.50)',
+        // Kenar şeridi
+        stripe:     '#5060A0',
+        stripeShine:'rgba(255,255,255,0.22)',
+      }
+    : {
+        // Arka kapak
+        backTop:    '#F0C84A',
+        backBot:    '#A87820',
+        // Tab
+        tabTop:     '#FAD86A',
+        tabBot:     '#C89030',
+        tabRim:     'rgba(255,255,255,0.60)',
+        // Kağıt
+        paper1Top:  '#FFFFFF',
+        paper1Bot:  '#EFF3FF',
+        paper2Top:  '#F5F8FF',
+        paper2Bot:  '#E2E8FF',
+        paperLine:  'rgba(80,100,200,0.18)',
+        // Ön kapak
+        frontTop:   '#FAEEC0',
+        frontMid:   '#F0D060',
+        frontBot:   '#B88020',
+        // Aksan / gölge
+        rim:        'rgba(100,60,0,0.42)',
+        shine:      'rgba(255,255,255,0.90)',
+        shineEdge:  'rgba(255,255,255,0.55)',
+        lineColor:  'rgba(100,65,0,0.15)',
+        shadow:     'rgba(120,80,10,0.35)',
+        bottomShadow: 'rgba(100,60,0,0.40)',
+        // Kenar şeridi
+        stripe:     '#D4A030',
+        stripeShine:'rgba(255,255,255,0.50)',
+      };
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        {/* Gradientler */}
+        <linearGradient id={`${uid}-back`} x1="40" y1="16" x2="40" y2="68" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.backTop} />
+          <stop offset="100%" stopColor={c.backBot} />
+        </linearGradient>
+        <linearGradient id={`${uid}-tab`} x1="22" y1="14" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.tabTop} />
+          <stop offset="100%" stopColor={c.tabBot} />
+        </linearGradient>
+        <linearGradient id={`${uid}-front`} x1="40" y1="28" x2="40" y2="68" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.frontTop} />
+          <stop offset="55%"  stopColor={c.frontMid} />
+          <stop offset="100%" stopColor={c.frontBot} />
+        </linearGradient>
+        <linearGradient id={`${uid}-p1`} x1="40" y1="14" x2="40" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.paper1Top} />
+          <stop offset="100%" stopColor={c.paper1Bot} />
+        </linearGradient>
+        <linearGradient id={`${uid}-p2`} x1="40" y1="16" x2="40" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.paper2Top} />
+          <stop offset="100%" stopColor={c.paper2Bot} />
+        </linearGradient>
+        <linearGradient id={`${uid}-shine`} x1="10" y1="28" x2="10" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.shine} stopOpacity="0.9" />
+          <stop offset="100%" stopColor={c.shine} stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={`${uid}-stripeG`} x1="7" y1="28" x2="11" y2="28" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.stripe} />
+          <stop offset="100%" stopColor={c.frontMid} />
+        </linearGradient>
+        {/* Drop shadow filtresi */}
+        <filter id={`${uid}-fs`} x="-15%" y="-10%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor={c.shadow} floodOpacity="0.55" />
+        </filter>
+        <filter id={`${uid}-ps`} x="-20%" y="-20%" width="150%" height="180%">
+          <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor={c.shadow} floodOpacity="0.40" />
+        </filter>
+        {/* Clip paths */}
+        <clipPath id={`${uid}-frontClip`}>
+          <path d="M 7 29 Q 7 26 10 26 L 70 26 Q 73 26 73 29 L 73 63 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z" />
+        </clipPath>
+      </defs>
+
+      {/* ── Zemin gölgesi */}
+      <ellipse cx="40" cy="70" rx="28" ry="2.8" fill={c.bottomShadow} opacity="0.38" />
+
+      {/* ── Arka kapak gövdesi (tab dahil) */}
+      <path
+        d="M 7 26 Q 7 22 10 22 L 34 22 Q 37 22 38.5 26 L 41 30 L 70 30 Q 73 30 73 33 L 73 63 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z"
+        fill={`url(#${uid}-back)`}
+        stroke={c.rim}
+        strokeWidth="0.8"
+        filter={`url(#${uid}-fs)`}
+      />
+
+      {/* ── Tab yüzeyine ayrı gradient */}
+      <path
+        d="M 8 26 Q 8 23 11 23 L 33.5 23 Q 36 23 37.5 26 L 40 29.5 L 7.5 29.5 Z"
+        fill={`url(#${uid}-tab)`}
+        stroke="none"
+        opacity="0.85"
+      />
+      {/* Tab üst parlak kenar */}
+      <path
+        d="M 9.5 26 Q 9.5 24.5 11.5 24.5 L 33 24.5 Q 35 24.5 36.5 27 L 38.5 29.5"
+        stroke={c.tabRim}
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        opacity="0.8"
+      />
+
+      {/* ── Kağıt 2 — hafif sol yatık */}
+      <g filter={`url(#${uid}-ps)`}>
+        <rect
+          x="17" y="14" width="34" height="17"
+          rx="2.5"
+          fill={`url(#${uid}-p2)`}
+          stroke={isDark ? 'rgba(180,195,230,0.30)' : 'rgba(160,140,80,0.35)'}
+          strokeWidth="0.6"
+          transform="rotate(-4 34 22)"
+        />
+      </g>
+      {/* Kağıt 2 çizgileri */}
+      <line x1="21" y1="19" x2="40" y2="19" stroke={c.paperLine} strokeWidth="1.1" strokeLinecap="round" transform="rotate(-4 34 22)" />
+      <line x1="21" y1="22.5" x2="34" y2="22.5" stroke={c.paperLine} strokeWidth="0.9" strokeLinecap="round" transform="rotate(-4 34 22)" opacity="0.7" />
+
+      {/* ── Kağıt 1 — hafif sağ yatık */}
+      <g filter={`url(#${uid}-ps)`}>
+        <rect
+          x="22" y="13" width="34" height="17"
+          rx="2.5"
+          fill={`url(#${uid}-p1)`}
+          stroke={isDark ? 'rgba(200,215,245,0.35)' : 'rgba(160,140,80,0.40)'}
+          strokeWidth="0.6"
+          transform="rotate(3 39 21)"
+        />
+      </g>
+      {/* Kağıt 1 çizgileri */}
+      <line x1="26" y1="18" x2="50" y2="18" stroke={c.paperLine} strokeWidth="1.1" strokeLinecap="round" transform="rotate(3 39 21)" />
+      <line x1="26" y1="21.5" x2="43" y2="21.5" stroke={c.paperLine} strokeWidth="0.9" strokeLinecap="round" transform="rotate(3 39 21)" opacity="0.7" />
+      <line x1="26" y1="25" x2="37" y2="25" stroke={c.paperLine} strokeWidth="0.8" strokeLinecap="round" transform="rotate(3 39 21)" opacity="0.5" />
+
+      {/* ── Ön kapak */}
+      <path
+        d="M 7 29 Q 7 26 10 26 L 70 26 Q 73 26 73 29 L 73 63 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z"
+        fill={`url(#${uid}-front)`}
+        stroke={c.rim}
+        strokeWidth="0.8"
+      />
+
+      {/* Ön kapak sol dikey kenar şeridi */}
+      <path
+        d="M 7 29 Q 7 26 10 26 L 14 26 L 14 67 L 10 67 Q 7 67 7 63 Z"
+        fill={`url(#${uid}-stripeG)`}
+        opacity="0.6"
+      />
+
+      {/* Ön kapak üst parlak highlight */}
+      <rect x="8" y="26.8" width="64" height="1.6" rx="0.8" fill={c.shine} opacity="0.80" />
+
+      {/* Sol dikey parlama şeridi */}
+      <rect x="8" y="29" width="1.5" height="36" rx="0.75" fill={`url(#${uid}-shine)`} opacity="0.60" />
+
+      {/* Ön kapak içerik — dosya içeriği çizgileri */}
+      <g clipPath={`url(#${uid}-frontClip)`}>
+        {/* Üst çizgi grubu — belge */}
+        <rect x="18" y="36" width="44" height="3"   rx="1.5" fill={c.lineColor} />
+        <rect x="18" y="42" width="36" height="2.5" rx="1.25" fill={c.lineColor} opacity="0.80" />
+        <rect x="18" y="47.5" width="28" height="2.2" rx="1.1" fill={c.lineColor} opacity="0.60" />
+        <rect x="18" y="52.5" width="20" height="2"   rx="1"   fill={c.lineColor} opacity="0.40" />
+
+        {/* Alt köşe gölge derinliği */}
+        <path d="M 7 50 L 73 50 L 73 67 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z"
+          fill={isDark ? 'rgba(0,0,0,0.18)' : 'rgba(100,60,0,0.10)'}
+          opacity="0.7"
+        />
+      </g>
+
+      {/* Alt metal kenar şeridi / fold hissi */}
+      <path
+        d="M 8 63 Q 8 65.5 10 66 L 70 66 Q 72 65.5 72 63 L 72 62 L 8 62 Z"
+        fill={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.30)'}
+      />
+    </svg>
   );
 }
 
@@ -1947,21 +2247,9 @@ interface KlasorKartiProps {
   onCariGuncelle: (c: Cari) => void;
 }
 
-function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncelle }: KlasorKartiProps) {
+function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKartiProps) {
   const { isDark } = useTheme();
-  const { message } = App.useApp();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(klasor.logoUrl);
-  const [yukleniyor, setYukleniyor] = useState(false);
   const [hover, setHover] = useState(false);
-
-  useEffect(() => { setLogoUrl(klasor.logoUrl); }, [klasor.logoUrl]);
-
-  const wordmark = useMemo(() => wordmarkUret(klasor.firmaAdiDisplay), [klasor.firmaAdiDisplay]);
-  const tile = useMemo(() => logoTileRengi(klasor.cariId || klasor.klasorAdi, isDark), [klasor.cariId, klasor.klasorAdi, isDark]);
-  // aktiviteRengi artık görsel olarak kullanılmıyor (renkli dot kaldırıldı, lamba yerine)
-  // useMemo silindi.
-
 
   // Sektör + lokasyon: "Otomasyon · İstanbul" tarzı meta satırı için.
   // db.cariler[].adres alanı il bilgisini taşıyabiliyor; sektör için firma adının
@@ -1972,28 +2260,18 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncell
     return ikinciKelime ? ikinciKelime : klasor.firmaAdiDisplay;
   }, [klasor.firmaAdiDisplay]);
 
-  async function dosyaSec(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    if (!klasor.cariId) {
-      message.warning('Bu klasör için cari kaydı bulunamadı.');
-      return;
-    }
-    setYukleniyor(true);
-    try {
-      const base64 = await dosyaToCariLogoBase64(f);
-      const sonuc = await api.cariler.uploadLogo(klasor.cariId, base64);
-      setLogoUrl(sonuc.logoUrl);
-      onCariGuncelle(sonuc.cari);
-      message.success('Logo yüklendi.');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Logo yüklenemedi.';
-      message.error(msg);
-    } finally {
-      setYukleniyor(false);
-    }
-  }
+  // Pulse kontrolü — gönderilmiş ve 3+ gün eski teklifler var mı?
+  const hasOverdueOffers = useMemo(() => {
+    const bugun = new Date();
+    return klasor.teklifler.some((t) => {
+      if (t.durum !== 'gonderildi') return false;
+      const tarih = t.guncellemeTarihi || t.tarih;
+      if (!tarih) return false;
+      const teklifTarihi = new Date(tarih);
+      const gunFarki = Math.floor((bugun.getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
+      return gunFarki >= 3;
+    });
+  }, [klasor.teklifler]);
 
   const hazirlayanlar = klasor.topHazirlayanIds
     .map((id) => kullaniciMap.get(id))
@@ -2002,7 +2280,6 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncell
   // Premium B2B: kart yüzeyi sayfa zemininden 1 ton koyu (paper, not blast white)
   const cardBg = isDark ? '#161922' : '#F4F3EF';
   const cardBgHover = isDark ? '#1a1e29' : '#EFEDE8';
-  const logoBgPlain = isDark ? '#0f1219' : '#FBFAF7';
 
   const cardStyle: CSSProperties = {
     background: hover ? cardBgHover : cardBg,
@@ -2020,63 +2297,59 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncell
       : 'none',
   };
 
-  const logoSize = isMobile ? 44 : 52;
+  const logoSize = isMobile ? 56 : 68;
+  // Premium klasör ikon kutusu — eski cari logo yerine zarif kabartmalı klasör.
+  // Şeffaf arka plan: ikonun kendi gradient'i ön planda kalsın.
   const logoBoxStyle: CSSProperties = {
     width: logoSize,
     height: logoSize,
     minWidth: logoSize,
-    borderRadius: 8,
-    background: logoUrl ? logoBgPlain : tile.bg,
-    border: logoUrl
-      ? `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#E5E1D9'}`
-      : 'none',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
     flexShrink: 0,
   };
 
   return (
     <div
-      style={cardStyle}
+      style={{
+        ...cardStyle,
+        position: 'relative',
+      }}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
+      {/* Gösterge lambası — gönderilmiş 3+ gün eski teklifler varsa */}
+      {hasOverdueOffers && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: 'rgba(255, 152, 0, 0.9)',
+            boxShadow: '0 0 6px rgba(255, 152, 0, 0.6)',
+            animation: 'klasorLambaGlow 2s ease-in-out infinite',
+            zIndex: 2,
+            border: '1px solid rgba(255, 200, 87, 0.5)',
+          }}
+        />
+      )}
+      
       {/* Üst blok: logo + isim/altyazı */}
       <div style={{
         display: 'flex',
         alignItems: 'flex-start',
         gap: 12,
         padding: isMobile ? '12px 12px 10px' : '14px 14px 12px',
+        position: 'relative',
+        zIndex: 1,
       }}>
         <div style={logoBoxStyle}>
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={klasor.firmaAdiDisplay}
-              loading="lazy"
-              decoding="async"
-              style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }}
-              onError={() => setLogoUrl(undefined)}
-            />
-          ) : (
-            <span style={{
-              fontSize: wordmarkFontSize(wordmark, logoSize),
-              fontWeight: 700,
-              color: tile.text,
-              letterSpacing: wordmark.length > 5 ? '-0.04em' : '-0.02em',
-              fontFamily: '-apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif',
-              lineHeight: 1,
-              padding: '0 4px',
-              textAlign: 'center',
-              whiteSpace: 'nowrap',
-            }}>
-              {wordmark}
-            </span>
-          )}
+          <PremiumKlasorIcon size={logoSize} isDark={isDark} />
         </div>
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -2108,7 +2381,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncell
       </div>
 
       {/* Ayraç */}
-      <div style={{ height: 1, background: C.borderSubtle, margin: '0 14px' }} />
+      <div style={{ height: 1, background: C.borderSubtle, margin: '0 14px', position: 'relative', zIndex: 1 }} />
 
       {/* Alt meta */}
       <div style={{
@@ -2117,13 +2390,10 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncell
         justifyContent: 'space-between',
         gap: 8,
         padding: isMobile ? '8px 12px 12px' : '10px 14px 14px',
+        position: 'relative',
+        zIndex: 1,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          {klasor.ucGunDurumsuzSayi > 0 && (
-            <Tooltip title={`${klasor.ucGunDurumsuzSayi} teklif yanıt bekliyor`} mouseEnterDelay={0.3}>
-              <span className="pending-pulse-dot" aria-label="Yanıt bekliyor" />
-            </Tooltip>
-          )}
           <span style={{
             fontSize: 11,
             color: C.textSecondary,
@@ -2179,47 +2449,6 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick, onCariGuncell
           </div>
         )}
       </div>
-
-      {/* Logo yükleme butonu — hover'da logo bloğu üzerinde belirir */}
-      {klasor.cariId && (
-        <Tooltip title={logoUrl ? 'Logoyu değiştir' : 'Logo yükle'} mouseEnterDelay={0.4}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-            disabled={yukleniyor}
-            style={{
-              position: 'absolute',
-              top: isMobile ? 10 : 12,
-              left: isMobile ? 10 : 12,
-              width: logoSize,
-              height: logoSize,
-              borderRadius: 8,
-              border: 'none',
-              background: 'rgba(15,23,42,0.62)',
-              color: '#fff',
-              cursor: yukleniyor ? 'wait' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: hover ? 1 : 0,
-              transition: 'opacity 0.15s ease',
-              padding: 0,
-            }}
-          >
-            <CameraOutlined style={{ fontSize: 14 }} />
-          </button>
-        </Tooltip>
-      )}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        style={{ display: 'none' }}
-        onClick={(e) => e.stopPropagation()}
-        onChange={dosyaSec}
-      />
     </div>
   );
 }
@@ -2245,18 +2474,23 @@ interface DetayGorunumuProps {
   onGeri: () => void;
   onSil: (id: string) => void;
   onKopyala: (id: string) => void;
+  /** Ust state'teki teklifler array'ini yeniden cek — durum/sonuc kaydedildikten
+   *  sonra UI'in guncel veriyle re-render olmasi icin cagrilir. */
+  onRefresh: () => void;
 }
 
 function DetayGorunumu({
   isMobile, C, klasorAdi, firmaAdiDisplay, teklifler, aramaMetni, setAramaMetni,
   aktifFiltre, setAktifFiltre, sekmeler, benimId, navigate, onGeri, onSil, onKopyala,
+  onRefresh,
 }: DetayGorunumuProps) {
   const { isDark } = useTheme();
   const { aktifKullanici } = useKullanici();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [sonucModalTeklif, setSonucModalTeklif] = useState<Teklif | null>(null);
 
-  // Tek noktadan durum güncelle — hem hızlı (modal-suz) hem modal save kullanır
+  // Tek noktadan durum güncelle — hem hızlı (modal-suz) hem modal save kullanır.
+  // 'sonuc' field'i kaldirildi: sonuç bilgisi artik direkt durum'dan turetiliyor.
   const sonucYaz = useCallback((teklif: Teklif, patch: Partial<Teklif>) => {
     const guncel: Teklif = {
       ...teklif,
@@ -2265,8 +2499,11 @@ function DetayGorunumu({
       guncellemeTarihi: new Date().toISOString(),
     };
     teklifService.teklifKaydet(guncel);
+    // Ust state'i yenile ki UI degisikligi yansisin (sadece store guncellenirse
+    // React re-render olmaz — local "teklifler" state hala eski referansta kalir)
+    onRefresh();
     message.success('Durum güncellendi.');
-  }, [aktifKullanici?.id, message]);
+  }, [aktifKullanici?.id, message, onRefresh]);
 
   function modalSave(patch: Partial<Teklif>) {
     if (!sonucModalTeklif) return;
@@ -2275,12 +2512,32 @@ function DetayGorunumu({
   }
 
   function hizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
+    // Sonuclanmis (onaylandi/reddedildi/iptal) durumdan baska bir duruma
+    // gecis kullanicidan onay ister — kazanmis teklifi yanlislikla taslaga
+    // dusurmemesi vs. icin koruyucu.
+    const KAPALI: TeklifDurum[] = ['onaylandi', 'reddedildi', 'iptal'];
+    const sonuclanmisti = KAPALI.includes(teklif.durum);
+    const farkli = yeniDurum !== teklif.durum;
+    if (sonuclanmisti && farkli) {
+      modal.confirm({
+        title: 'Sonuçlanmış teklifin durumunu değiştir?',
+        content: `Bu teklif "${DURUM_CFG[teklif.durum].label}" olarak işaretliydi. Yeni durum: "${DURUM_CFG[yeniDurum].label}". Devam etmek istiyor musunuz?`,
+        okText: 'Evet, değiştir',
+        cancelText: 'Vazgeç',
+        onOk: () => uygulaHizliSonuc(teklif, yeniDurum),
+      });
+      return;
+    }
+    uygulaHizliSonuc(teklif, yeniDurum);
+  }
+
+  function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
     // Reddedildi VE İptal sebep ister — modalı aç, ön-seçim olarak gelsin
     if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal') {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
     }
-    // Onaylandı — direkt yaz, detay yok
+    // Onaylandı (veya diger acik durumlar) — direkt yaz, detay yok
     sonucYaz(teklif, {
       durum: yeniDurum,
       sonucTarihi: new Date().toISOString(),
@@ -2291,14 +2548,20 @@ function DetayGorunumu({
 
   return (
     <>
-      {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+      {/* Breadcrumb — geri butonu pratik boyutta (text yerine outline border).
+          Ayrıca büyük tıklama hedefi olarak rahat kullanılır. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <Button
-          type="text"
-          size="small"
+          type="default"
           icon={<ArrowLeftOutlined />}
           onClick={onGeri}
-          style={{ color: C.textSecondary, padding: '0 6px', height: 28 }}
+          style={{
+            height: 34,
+            padding: '0 14px',
+            fontSize: 13,
+            fontWeight: 500,
+            borderRadius: 6,
+          }}
         >
           Arşiv
         </Button>
@@ -2430,113 +2693,6 @@ function DetayGorunumu({
 }
 
 /**
- * Sonuç chip — yeni durum modelinde direkt kullanılmıyor (DurumSonucCell
- * kendi render'ını yapıyor). Geriye uyum için API tutuluyor.
- * eslint-disable-next-line @typescript-eslint/no-unused-vars
- */
-// @ts-expect-error — geriye uyum tutulan ama doğrudan kullanılmayan fonksiyon
-function SonucChip({ teklif, onClick }: { teklif: Teklif; onClick: () => void }) {
-  const sonuc = teklif.sonuc;
-  if (!sonuc || !SONUC_CFG[sonuc]) return null;
-  const cfg = SONUC_CFG[sonuc];
-  const notVar = Boolean(teklif.sonucNotu && teklif.sonucNotu.trim().length > 0);
-
-  const durumLabel: Record<string, string> = {
-    taslak: 'Taslak', hazir: 'Hazır', gonderildi: 'Gönderildi',
-    onaylandi: 'Onaylandı', iptal: 'İptal',
-  };
-  // Çok satırlı tooltip içeriği — durum bilgisi de burada
-  const tooltipContent = (
-    <div style={{ maxWidth: 280, lineHeight: 1.45, fontSize: 12 }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>
-        {cfg.emoji} {cfg.label}
-      </div>
-      <div style={{ opacity: 0.85, fontSize: 11 }}>
-        <span style={{ opacity: 0.7 }}>Aşama: </span>{durumLabel[teklif.durum] || teklif.durum}
-      </div>
-      {sonuc === 'kaybedildi' && teklif.kayipSebebi && (
-        <div style={{ opacity: 0.9 }}>
-          <span style={{ opacity: 0.7 }}>Sebep: </span>{KAYIP_SEBEBI_LABEL[teklif.kayipSebebi]}
-        </div>
-      )}
-      {sonuc === 'kaybedildi' && teklif.rakipFirma && (
-        <div style={{ opacity: 0.9 }}>
-          <span style={{ opacity: 0.7 }}>Rakip: </span>{teklif.rakipFirma}
-        </div>
-      )}
-      {notVar && (
-        <div style={{
-          marginTop: 6, paddingTop: 6,
-          borderTop: '1px solid rgba(255,255,255,0.18)',
-          fontSize: 11.5, fontStyle: 'italic', whiteSpace: 'pre-wrap',
-        }}>
-          📝 {teklif.sonucNotu}
-        </div>
-      )}
-      <div style={{ marginTop: 6, fontSize: 10.5, opacity: 0.65 }}>
-        Düzenlemek için tıkla
-      </div>
-    </div>
-  );
-
-  // Şeffaf + karakteristik renk — her sonuç kendi tonunun yarı saydam tinted hâli.
-  // Notion/Linear modern tag stili: soft bg + colored text + ince yumuşak border.
-  const seffafStil: Record<TeklifSonuc, { bg: string; color: string; border: string; bgHover: string }> = {
-    kazanildi: {
-      bg: 'rgba(16, 185, 129, 0.12)',
-      color: '#047857',
-      border: '1px solid rgba(16, 185, 129, 0.32)',
-      bgHover: 'rgba(16, 185, 129, 0.20)',
-    },
-    kaybedildi: {
-      bg: 'rgba(220, 38, 38, 0.10)',
-      color: '#b91c1c',
-      border: '1px solid rgba(220, 38, 38, 0.30)',
-      bgHover: 'rgba(220, 38, 38, 0.18)',
-    },
-    iptal: {
-      bg: 'rgba(100, 116, 139, 0.12)',
-      color: '#475569',
-      border: '1px solid rgba(100, 116, 139, 0.32)',
-      bgHover: 'rgba(100, 116, 139, 0.20)',
-    },
-    beklemede: {
-      bg: 'rgba(8, 145, 178, 0.10)',
-      color: '#0e7490',
-      border: '1px solid rgba(8, 145, 178, 0.30)',
-      bgHover: 'rgba(8, 145, 178, 0.18)',
-    },
-  };
-  const stil = seffafStil[sonuc];
-
-  return (
-    <Tooltip title={tooltipContent} mouseEnterDelay={0.25} placement="top">
-      <button
-        onClick={onClick}
-        style={{
-          display: 'inline-block',
-          padding: '4px 11px',
-          borderRadius: 5,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.005em',
-          color: stil.color,
-          background: stil.bg,
-          border: stil.border,
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-          transition: 'background 0.12s',
-        }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = stil.bgHover; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = stil.bg; }}
-      >
-        {cfg.label}
-      </button>
-    </Tooltip>
-  );
-}
-
-/**
  * Durum chip — tüm durumlar AYNI EBAT. Tıklanırsa 6-durum dropdown.
  * Gönderildi'de chip'in YANINDA ayrı "Sonuç gir ▾" butonu belirir
  * (3 sonuç: Onaylandı/Reddedildi/İptal).
@@ -2595,7 +2751,13 @@ function DurumSonucCell({
   const gunFark = Number.isFinite(olusTs) ? Math.floor((Date.now() - olusTs) / (24 * 3600 * 1000)) : 0;
   const yanitBekleniyor = isGonderildi && gunFark >= 3;
 
+  // (Önceden burada "✎ Revize" rozeti durum sütununa eklenmişti — kullanıcı
+  // tercihiyle kaldırıldı. Revize bilgisi artık teklif numarasındaki '-RevN'
+  // suffix'inden vurgulanıyor; durum sütunu sade kalır.)
+
   return (
+    // Ortalanmış — chip + (varsa) Sonuç gir butonu hücre merkezi etrafında
+    // toplanır. Yanıp sönen nokta kullanıcı tercihiyle kaldırıldı.
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
       <Dropdown menu={{ items: tumDurumlarMenu }} trigger={['click']} placement="bottomRight">
         <button
@@ -2611,39 +2773,49 @@ function DurumSonucCell({
 
       {isGonderildi && (
         <Dropdown menu={{ items: sonucMenu }} trigger={['click']} placement="bottomRight">
-          <button
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '3px 10px',
-              borderRadius: 5,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.005em',
-              color: '#ffffff',
-              background: '#1e40af',
-              border: 'none',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              lineHeight: 1.3,
-              transition: 'background 0.12s',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1e3a8a'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#1e40af'; }}
+          <Tooltip
+            title={yanitBekleniyor ? `Sonuç gir — ${gunFark} gündür yanıt bekleniyor` : 'Sonuç gir'}
+            mouseEnterDelay={0.25}
           >
-            Sonuç gir
-            <CaretDownOutlined style={{ fontSize: 9, opacity: 0.85, marginLeft: 1 }} />
-          </button>
+            <button
+              type="button"
+              aria-label="Sonuç gir"
+              onClick={(e) => e.stopPropagation()}
+              className={yanitBekleniyor ? 'sonuc-buton-pulse' : undefined}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 24, height: 24,
+                padding: 0,
+                borderRadius: 5,
+                color: '#ffffff',
+                background: 'linear-gradient(135deg, #1e40af 0%, #3b5fd9 100%)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.08)',
+                cursor: 'pointer',
+                transition: 'transform 0.10s, box-shadow 0.15s, filter 0.15s',
+                lineHeight: 1,
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.transform = 'translateY(-1px)';
+                el.style.filter = 'brightness(1.10)';
+                el.style.boxShadow = '0 2px 6px rgba(30,64,175,0.35), inset 0 1px 0 rgba(255,255,255,0.12)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.transform = 'translateY(0)';
+                el.style.filter = 'none';
+                el.style.boxShadow = '0 1px 2px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.08)';
+              }}
+            >
+              <FlagOutlined style={{ fontSize: 11 }} />
+            </button>
+          </Tooltip>
         </Dropdown>
       )}
 
-      {yanitBekleniyor && (
-        <Tooltip title={`${gunFark} gündür yanıt bekleniyor`} mouseEnterDelay={0.3}>
-          <span className="pending-pulse-dot" aria-label="Yanıt bekleniyor" />
-        </Tooltip>
-      )}
     </div>
   );
 }
@@ -2718,11 +2890,20 @@ function SonucGirLink({
 
 // Sonuç dropdown menüsünde küçük etiket — durum bazlı, sade
 function DurumMenuLabel({ durum, hint }: { durum: TeklifDurum; hint: string }) {
-  const label = DURUM_CFG[durum].label;
+  const { isDark } = useTheme();
+  // Etiket kendi durum rengiyle gosterilir (gorsel taninma kolaylasir).
+  // Dark mode'da daha acik tonlar kullanilir; ipucu metni notr kalir.
+  const cfg = isDark ? DURUM_CFG_DARK[durum] : DURUM_CFG[durum];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 180, padding: '2px 0' }}>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>{label}</span>
-      <span style={{ fontSize: 10.5, color: '#64748b', lineHeight: 1.2 }}>{hint}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 180, padding: '2px 0' }}>
+      <span style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: cfg.color, flexShrink: 0,
+      }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: cfg.color }}>{cfg.label}</span>
+        <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.2 }}>{hint}</span>
+      </div>
     </div>
   );
 }
@@ -2737,21 +2918,14 @@ interface SonucModalProps {
 }
 
 function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
-  const C = useColors();
-  // Modal artık DURUM-bazlı çalışır: onaylandi / reddedildi / iptal
-  const [durum, setDurum] = useState<TeklifDurum>('onaylandi');
+  // Sade modal: sebep + (reddedildi'de) rakip firma + opsiyonel not.
+  // Durum dışarıdan zaten reddedildi veya iptal olarak gelir.
   const [sebep, setSebep] = useState<KayipSebebi | undefined>();
   const [rakip, setRakip] = useState('');
   const [not, setNot] = useState('');
 
   useEffect(() => {
     if (teklif) {
-      // Sadece sonuçlandırma durumlarını başlangıç olarak al; gönderildi/hazır vs ise default onaylandı
-      const baslangic: TeklifDurum =
-        teklif.durum === 'reddedildi' || teklif.durum === 'iptal' || teklif.durum === 'onaylandi'
-          ? teklif.durum
-          : 'onaylandi';
-      setDurum(baslangic);
       setSebep(teklif.kayipSebebi);
       setRakip(teklif.rakipFirma ?? '');
       setNot(teklif.sonucNotu ?? '');
@@ -2759,31 +2933,22 @@ function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
   }, [teklif]);
 
   function kaydet() {
+    if (!teklif) return;
+    const durum = teklif.durum;
     const patch: Partial<Teklif> = {
       durum,
       sonucTarihi: new Date().toISOString(),
+      kayipSebebi: sebep,
+      rakipFirma: durum === 'reddedildi' ? (rakip.trim() || undefined) : undefined,
       sonucNotu: not.trim() || undefined,
     };
-    if (durum === 'reddedildi') {
-      patch.kayipSebebi = sebep;
-      patch.rakipFirma = rakip.trim() || undefined;
-    } else if (durum === 'iptal') {
-      patch.kayipSebebi = sebep;
-      patch.rakipFirma = undefined;
-    } else {
-      patch.kayipSebebi = undefined;
-      patch.rakipFirma = undefined;
-    }
     onSave(patch);
   }
 
   if (!teklif) return null;
 
-  const sebepIstenir = durum === 'reddedildi' || durum === 'iptal';
-  const okDisabled = sebepIstenir && !sebep;
-  const durumKonfig = DURUM_CFG[durum];
-
-  void durumKonfig;
+  const okDisabled = !sebep;
+  const baslik = teklif.durum === 'iptal' ? 'İptal — Sebep' : 'Reddedildi — Sebep';
 
   return (
     <Modal
@@ -2791,89 +2956,39 @@ function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
       onCancel={onClose}
       onOk={kaydet}
       okButtonProps={{ disabled: okDisabled }}
-      title={teklif.teklifNo}
+      title={baslik}
       okText="Kaydet"
       cancelText="Vazgeç"
-      width={500}
+      width={420}
       destroyOnHidden
     >
-      <div style={{ paddingTop: 2 }}>
-        <div style={{
-          fontSize: 12, color: C.textSecondary, marginBottom: 14,
-          lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {teklif.cari?.firmaAdi}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {([
-            { key: 'onaylandi'  as TeklifDurum, label: 'Onaylandı'  },
-            { key: 'reddedildi' as TeklifDurum, label: 'Reddedildi' },
-            { key: 'iptal'      as TeklifDurum, label: 'İptal'      },
-          ]).map((s) => {
-            const aktif = durum === s.key;
-            return (
-              <button
-                key={s.key}
-                onClick={() => setDurum(s.key)}
-                type="button"
-                style={{
-                  display: 'inline-block',
-                  background: aktif ? '#1e3a8a' : '#1e40af',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: 5,
-                  padding: '10px 14px',
-                  fontSize: 13,
-                  fontWeight: aktif ? 700 : 600,
-                  cursor: 'pointer',
-                  letterSpacing: '0.005em',
-                  lineHeight: 1.2,
-                  boxShadow: aktif ? '0 0 0 3px rgba(30,64,175,0.22)' : 'none',
-                  transition: 'background 0.12s, box-shadow 0.12s',
-                }}
-                onMouseEnter={(e) => { if (!aktif) (e.currentTarget as HTMLElement).style.background = '#1e3a8a'; }}
-                onMouseLeave={(e) => { if (!aktif) (e.currentTarget as HTMLElement).style.background = '#1e40af'; }}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {sebepIstenir && (
-          <div style={{ marginTop: 14 }}>
-            <Select
-              value={sebep}
-              onChange={(v) => setSebep(v)}
-              placeholder="Sebep *"
-              style={{ width: '100%' }}
-              status={!sebep ? 'warning' : undefined}
-              options={(Object.keys(KAYIP_SEBEBI_LABEL) as KayipSebebi[]).map((k) => ({
-                value: k, label: KAYIP_SEBEBI_LABEL[k],
-              }))}
-            />
-            {durum === 'reddedildi' && (
-              <Input
-                placeholder="Rakip firma (opsiyonel)"
-                value={rakip}
-                onChange={(e) => setRakip(e.target.value)}
-                maxLength={100}
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </div>
-        )}
-
-        <Input.TextArea
-          value={not}
-          onChange={(e) => setNot(e.target.value)}
-          rows={3}
-          placeholder="Not (gizli)"
-          maxLength={500}
-          style={{ marginTop: 12 }}
+      <Select
+        value={sebep}
+        onChange={(v) => setSebep(v)}
+        placeholder="Sebep seçin"
+        style={{ width: '100%' }}
+        status={!sebep ? 'warning' : undefined}
+        options={(Object.keys(KAYIP_SEBEBI_LABEL) as KayipSebebi[]).map((k) => ({
+          value: k, label: KAYIP_SEBEBI_LABEL[k],
+        }))}
+      />
+      {teklif.durum === 'reddedildi' && (
+        <Input
+          placeholder="Rakip firma (opsiyonel)"
+          value={rakip}
+          onChange={(e) => setRakip(e.target.value)}
+          maxLength={100}
+          style={{ marginTop: 10 }}
         />
-      </div>
+      )}
+      <Input.TextArea
+        value={not}
+        onChange={(e) => setNot(e.target.value)}
+        rows={3}
+        placeholder="Not (opsiyonel)"
+        maxLength={500}
+        style={{ marginTop: 10 }}
+      />
     </Modal>
   );
 }
@@ -2915,6 +3030,17 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
   const durumGosterim =
     (isDark ? DURUM_CFG_DARK[teklif.durum] : DURUM_CFG[teklif.durum]) ??
     (isDark ? DURUM_CFG_DARK.taslak : DURUM_CFG.taslak);
+  const silinebilir = !(['onaylandi', 'reddedildi', 'iptal'] as TeklifDurum[]).includes(teklif.durum);
+
+  // Gösterge lambası — gönderilmiş ve 3+ gün eski mi?
+  const hasOverdueOffers = useMemo(() => {
+    if (teklif.durum !== 'gonderildi') return false;
+    const tarih = teklif.guncellemeTarihi || teklif.tarih;
+    if (!tarih) return false;
+    const teklifTarihi = new Date(tarih);
+    const gunFarki = Math.floor((new Date().getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
+    return gunFarki >= 3;
+  }, [teklif.durum, teklif.guncellemeTarihi, teklif.tarih]);
 
 
   const actionButtonStyle: CSSProperties = {
@@ -2941,10 +3067,29 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
           ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,31,69,0.11)')
           : C.borderSubtle}`,
         borderRadius: 10,
-        overflow: 'hidden',
+        overflow: 'visible',
         transition: 'box-shadow 0.14s',
+        position: 'relative',
       }}
     >
+      {/* Gösterge lambası — gönderilmiş 3+ gün eski mi? */}
+      {hasOverdueOffers && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: 'rgba(255, 152, 0, 0.9)',
+            animation: 'klasorLambaGlow 2s ease-in-out infinite',
+            zIndex: 10,
+            border: '1px solid rgba(255, 200, 87, 0.5)',
+          }}
+        />
+      )}
+      
       <div style={{ width: 3, flexShrink: 0, background: benim ? '#0f1f45' : renk.accent, alignSelf: 'stretch' }} />
 
       <div style={{
@@ -2982,10 +3127,9 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
                 color: C.textFaint,
                 letterSpacing: '0.02em',
                 lineHeight: 1.2,
-                fontVariantNumeric: 'tabular-nums',
               }}
             >
-              {teklif.teklifNo}
+              <TeklifNoEtiket teklifNo={teklif.teklifNo} />
             </button>
             {teklif.visibility === 'private' && (
               <Tooltip title="Gizli — sadece hazırlayan ve yönetici görür" mouseEnterDelay={0.3}>
@@ -3074,19 +3218,39 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
             <Tooltip title="Kopyala">
               <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => onKopyala(teklif.id)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
             </Tooltip>
-            <Popconfirm
-              title="Teklif silinecek"
-              description="Bu işlem geri alınamaz. Emin misiniz?"
-              onConfirm={() => onSil(teklif.id)}
-              okText="Sil"
-              cancelText="İptal"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="text" size="small" danger icon={<DeleteOutlined />}
-                style={{ ...actionButtonStyle, color: isDark ? '#f87171' : '#dc2626' }}
-                className={buttonClassNames.smallActionDanger}
-              />
-            </Popconfirm>
+            {silinebilir ? (
+              <Popconfirm
+                title="Teklif silinecek"
+                description="Bu işlem geri alınamaz. Emin misiniz?"
+                onConfirm={() => onSil(teklif.id)}
+                okText="Sil"
+                cancelText="İptal"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label="Teklifi Sil"
+                  style={{ ...actionButtonStyle, color: isDark ? '#f87171' : '#dc2626' }}
+                  className={buttonClassNames.smallActionDanger}
+                />
+              </Popconfirm>
+            ) : (
+              <Tooltip title="Sonuçlanmış teklifler silinemez" mouseEnterDelay={0.25}>
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  disabled
+                  icon={<DeleteOutlined />}
+                  aria-label="Teklifi Sil"
+                  style={{ ...actionButtonStyle, color: C.textFaint }}
+                  className={buttonClassNames.smallActionDanger}
+                />
+              </Tooltip>
+            )}
           </div>
         </div>
       </div>

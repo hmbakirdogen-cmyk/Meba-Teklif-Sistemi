@@ -5,7 +5,7 @@
  * Müşteri, ayarlar, satır detayı ve notlar modları.
  */
 import React from 'react';
-import { Select, Input, Button, AutoComplete, InputNumber } from 'antd';
+import { Select, Input, Button, AutoComplete, InputNumber, Popconfirm } from 'antd';
 import {
   CloseOutlined,
   DeleteOutlined,
@@ -326,15 +326,24 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
         )}
 
         {/* Sil butonu */}
-        <Button
-          danger
-          type="text"
-          icon={<DeleteOutlined />}
-          onClick={() => onSatirSil(satir.id)}
-          style={{ marginTop: 8 }}
+        <Popconfirm
+          title="Satır silinecek"
+          description="Bu işlem geri alınamaz. Emin misiniz?"
+          onConfirm={() => onSatirSil(satir.id)}
+          okText="Sil"
+          cancelText="İptal"
+          okButtonProps={{ danger: true }}
         >
-          Satırı Sil
-        </Button>
+          <Button
+            danger
+            type="text"
+            icon={<DeleteOutlined />}
+            aria-label="Satırı Sil"
+            style={{ marginTop: 8 }}
+          >
+            Satırı Sil
+          </Button>
+        </Popconfirm>
       </div>
 
       {/* Yeni satır ekle butonu */}

@@ -9,6 +9,7 @@
  * Layout: Toolbar (üst) + Canlı A4 Belge (merkez) + Sağ Panel (isteğe bağlı)
  */
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import type React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
 import { useKullanici } from '../context/useKullanici';
@@ -61,10 +62,28 @@ export default function TeklifEditor() {
   //   • Mevcut teklif (id var) → editMode = false (kilitli=true)  → güvenli görüntüleme
   const [modeKilitli, setModeKilitli] = useState<boolean>(() => Boolean(id));
 
+  // Serbest çizim modu
+  const [cizimModu, setCizimModu] = useState(false);
+  const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cizimRenk = useRef('#E53935');
+  const cizimKalinlik = useRef(3);
+  const cizimCiziyor = useRef(false);
+  const cizimSonKonum = useRef<{ x: number; y: number } | null>(null);
+
   const state = useBelgeState(
     id,
     aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan } : null,
   );
+
+  // Başkasina ait teklif: personel (non-admin) başkasinin teklifini düzeleyemez
+  const sahipDegil = useMemo(() => {
+    if (!id) return false; // yeni teklif — her zaman kendi
+    const rol = aktifKullanici?.rol;
+    if (rol === 'admin' || rol === 'super_admin' || rol === 'firma_admin') return false;
+    const sahipId = state.teklifSahibiId; // mevcut teklifin orijinal sahibi
+    if (!sahipId) return false; // sahip belirsiz (çok eski kayıt) — izin ver
+    return sahipId !== aktifKullanici?.id;
+  }, [id, aktifKullanici, state.teklifSahibiId]);
 
   const stateCari = state.cari;
   const stateSatirSayisi = state.satirlar.length;
@@ -76,12 +95,17 @@ export default function TeklifEditor() {
   }, [kaydetWithStatus, stateCari, stateSatirSayisi]);
 
   const handleModeKilitliDegistir = useCallback((v: boolean) => {
+    // Sahip olmayan personel kilidi açamaz
+    if (!v && sahipDegil) {
+      message.warning('Bu teklif başka bir personele ait, düzenleyemezsiniz.');
+      return;
+    }
     setModeKilitli(v);
     if (v) {
       setEditingAlan(null);
       void persistStatusByMode(true);
     }
-  }, [persistStatusByMode]);
+  }, [persistStatusByMode, sahipDegil, message]);
 
   // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve müşteri alanını aç (muhatap odak)
   const yeniTeklif = !id;
@@ -296,12 +320,14 @@ export default function TeklifEditor() {
       showExportMessage(sonuc);
 
       // 3) Durum auto-progression — kullanıcının manuel kararına saygı:
-      //    'onaylandı' veya 'iptal' set edilmişse otomatik geçişler tetiklenmez.
-      //    Aksi takdirde:
+      //    'onaylandı' / 'reddedildi' / 'iptal' (sonuçlanmış) ise otomatik
+      //    geçiş tetiklenmez — kapanmış teklifin durumu yanlışlıkla 'hazir' ya
+      //    da 'gonderildi'ye dönmesin. Aksi takdirde:
       //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap
       //      hedef='email' → durum 'taslak'/'hazır' ise 'gönderildi' yap (e-posta hazırlandıysa)
       const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
-      if (state.durum !== 'onaylandi' && state.durum !== 'iptal') {
+      const sonuclanmis = state.durum === 'onaylandi' || state.durum === 'reddedildi' || state.durum === 'iptal';
+      if (!sonuclanmis) {
         if (hedef === 'pdf' && state.durum === 'taslak') {
           state.setDurum('hazir');
         }
@@ -442,6 +468,52 @@ export default function TeklifEditor() {
     state.setSeciliSatirId(null);
   }, [state]);
 
+  // ── REVIZE GUARD ─────────────────────────────────────────────────────────
+  // Sonuçlanmış / gönderilmiş teklif düzenlenmek istendiğinde orijinal kayıt
+  // korunur, yeni bir revize teklif oluşturulup oraya yönlendirilir.
+  const { modal } = App.useApp();
+  const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'reddedildi', 'iptal'] as const;
+  const kilitli = (KAPALI_DURUMLAR as readonly string[]).includes(state.durum);
+  const durumEtiket: Record<string, string> = {
+    gonderildi: 'gönderildi', onaylandi: 'onaylandı',
+    reddedildi: 'reddedildi', iptal: 'iptal edildi',
+  };
+
+  const revizeOlusturVeGec = useCallback(() => {
+    if (!id) return;
+    const k = aktifKullanici;
+    const yeni = teklifService.revizeOlustur(
+      id,
+      k ? { id: k.id, adSoyad: k.adSoyad, rol: k.rol, unvan: k.unvan } : undefined,
+    );
+    if (!yeni) {
+      message.error('Revize oluşturulamadı.');
+      return;
+    }
+    teklifService.teklifKaydet(yeni);
+    message.success(`Revize oluşturuldu: ${yeni.teklifNo}`);
+    navigate(`/teklif/${yeni.id}`, { replace: true });
+  }, [id, aktifKullanici, message, navigate]);
+
+  const revizeOnayAc = useCallback(() => {
+    modal.confirm({
+      title: 'Yeni revize oluşturulsun mu?',
+      content: `Bu teklif ${durumEtiket[state.durum] || state.durum}. Düzenleme için orijinal kayıt korunarak yeni bir revize teklif oluşturulacak. Yeni revize üzerinde editleyip ayrı bir PDF üretebileceksiniz.`,
+      okText: 'Evet, revize oluştur',
+      cancelText: 'Vazgeç',
+      onOk: () => revizeOlusturVeGec(),
+    });
+  }, [modal, state.durum, revizeOlusturVeGec]);
+
+  // Düzenleme alanına tıklama yakalandığında: kilitli ise onay modalı aç ve
+  // tıklamanın iç bileşenlere ulaşmasını engelle.
+  const handleKilitliClickCapture = useCallback((e: React.MouseEvent) => {
+    if (!kilitli) return;
+    e.stopPropagation();
+    e.preventDefault();
+    revizeOnayAc();
+  }, [kilitli, revizeOnayAc]);
+
   return (
     <div style={{
       display: 'flex',
@@ -454,7 +526,9 @@ export default function TeklifEditor() {
         teklifNo={state.teklifNo}
         teklifNoDurumu={state.teklifNoDurumu}
         cariAdi={state.cari ? formatCariAdi(state.cari.firmaAdi) : undefined}
+        hasCari={Boolean(state.cari)}
         durum={state.durum}
+        status={state.status}
         uretiliyor={state.uretiliyor}
         onGeriDon={handleGeriDon}
         onPdfIndir={handlePdfIndir}
@@ -465,13 +539,53 @@ export default function TeklifEditor() {
         onDurumDegistir={state.setDurum}
       />
 
+      {/* Revize banner — kapalı durumda (gönderildi/sonuçlanmış) düzenleme
+          için kullanıcı yönlendirilir. Belgeye tıklamak da aynı modalı açar. */}
+      {kilitli && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '10px 18px',
+          background: 'rgba(124,58,237,0.08)',
+          borderBottom: '1px solid rgba(124,58,237,0.28)',
+          color: '#5b21b6',
+          fontSize: 13,
+        }}>
+          <span style={{ fontSize: 16 }}>⟳</span>
+          <span style={{ flex: 1 }}>
+            Bu teklif <b>{durumEtiket[state.durum] || state.durum}</b>. Düzenlemek için orijinal kayıt korunur, yeni bir revize teklif oluşturulur.
+          </span>
+          <button
+            type="button"
+            onClick={revizeOnayAc}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 5,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#ffffff',
+              background: '#7c3aed',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#6d28d9'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#7c3aed'; }}
+          >
+            Yeni Revize Oluştur
+          </button>
+        </div>
+      )}
+
       {/* Ana alan: Belge + Panel */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        background: '#E0DDD9',
-        alignItems: 'flex-start',
-      }}>
+      <div
+        onClickCapture={handleKilitliClickCapture}
+        style={{
+          flex: 1,
+          display: 'flex',
+          background: '#E0DDD9',
+          alignItems: 'flex-start',
+        }}
+      >
         {/* Belge alanı (natural flow — body scrolls) */}
         <div
           style={{
@@ -532,6 +646,18 @@ export default function TeklifEditor() {
               </div>
             </div>
           )}
+
+          {/* Serbest Çizim Canvas Overlay */}
+          {cizimModu && (
+            <SerberstCizimOverlay
+              canvasRef={cizimCanvasRef}
+              renkRef={cizimRenk}
+              kalinlikRef={cizimKalinlik}
+              ciziyorRef={cizimCiziyor}
+              sonKonumRef={cizimSonKonum}
+              onKapat={() => setCizimModu(false)}
+            />
+          )}
         </div>
 
         {/* Sağ Panel (ikincil — gelişmiş düzenleme) */}
@@ -576,8 +702,301 @@ export default function TeklifEditor() {
           onResimEkle={handleResimEkle}
           visibility={state.visibility}
           onVisibilityDegistir={state.setVisibility}
+          serberstCizimAktif={cizimModu}
+          onSerberstCizimToggle={() => setCizimModu((v) => !v)}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Serbest Çizim Overlay ───────────────────────────────────────────────────
+
+interface SerberstCizimOverlayProps {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  renkRef: React.MutableRefObject<string>;
+  kalinlikRef: React.MutableRefObject<number>;
+  ciziyorRef: React.MutableRefObject<boolean>;
+  sonKonumRef: React.MutableRefObject<{ x: number; y: number } | null>;
+  onKapat: () => void;
+}
+
+const RENKLER = ['#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#000000', '#FFFFFF'];
+const KALINLIKLAR = [2, 4, 8, 14];
+
+function SerberstCizimOverlay({
+  canvasRef, renkRef, kalinlikRef, ciziyorRef, sonKonumRef, onKapat,
+}: SerberstCizimOverlayProps) {
+  const [aktifRenk, setAktifRenk] = useState(renkRef.current);
+  const [aktifKalinlik, setAktifKalinlik] = useState(kalinlikRef.current);
+  const [silgiModu, setSilgiModu] = useState(false);
+
+  // Canvas boyutunu container'a uydur
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const ro = new ResizeObserver(() => {
+      const { width, height } = parent.getBoundingClientRect();
+      // Mevcut içeriği koru
+      const tmp = document.createElement('canvas');
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
+      tmp.getContext('2d')?.drawImage(canvas, 0, 0);
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')?.drawImage(tmp, 0, 0);
+    });
+    ro.observe(parent);
+    // ilk boyut
+    const { width, height } = parent.getBoundingClientRect();
+    canvas.width = width;
+    canvas.height = height;
+    return () => ro.disconnect();
+  }, [canvasRef]);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent): { x: number; y: number } => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      const t = e.touches[0];
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
+
+  const basla = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    ciziyorRef.current = true;
+    sonKonumRef.current = getPos(e);
+  };
+
+  const ciz = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    if (!ciziyorRef.current || !sonKonumRef.current) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(sonKonumRef.current.x, sonKonumRef.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    if (silgiModu) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.lineWidth = kalinlikRef.current * 4;
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.lineWidth = kalinlikRef.current;
+      ctx.strokeStyle = renkRef.current;
+    }
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    sonKonumRef.current = pos;
+  };
+
+  const bitir = () => {
+    ciziyorRef.current = false;
+    sonKonumRef.current = null;
+  };
+
+  const temizle = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const renkSec = (r: string) => {
+    renkRef.current = r;
+    setAktifRenk(r);
+    setSilgiModu(false);
+  };
+
+  const kalinlikSec = (k: number) => {
+    kalinlikRef.current = k;
+    setAktifKalinlik(k);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 50,
+        pointerEvents: 'none',
+      }}
+    >
+      {/* Çizim canvas — sadece çizim olaylarını yakalar */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'all',
+          cursor: silgiModu ? 'cell' : 'crosshair',
+          touchAction: 'none',
+        }}
+        onMouseDown={basla}
+        onMouseMove={ciz}
+        onMouseUp={bitir}
+        onMouseLeave={bitir}
+        onTouchStart={basla}
+        onTouchMove={ciz}
+        onTouchEnd={bitir}
+      />
+
+      {/* Araç çubuğu */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 28,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'rgba(20,20,30,0.88)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: 14,
+          padding: '8px 14px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          pointerEvents: 'all',
+          userSelect: 'none',
+          zIndex: 51,
+        }}
+      >
+        {/* Renkler */}
+        {RENKLER.map((r) => (
+          <button
+            key={r}
+            type="button"
+            title={r}
+            onClick={() => renkSec(r)}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: r,
+              border: aktifRenk === r && !silgiModu ? '2.5px solid #fff' : '2px solid rgba(255,255,255,0.25)',
+              cursor: 'pointer',
+              padding: 0,
+              outline: aktifRenk === r && !silgiModu ? '2px solid rgba(255,255,255,0.5)' : 'none',
+              outlineOffset: 1,
+              flexShrink: 0,
+              boxShadow: r === '#FFFFFF' ? 'inset 0 0 0 1px rgba(0,0,0,0.3)' : undefined,
+            }}
+          />
+        ))}
+
+        {/* Ayırıcı */}
+        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.18)', flexShrink: 0 }} />
+
+        {/* Kalınlıklar */}
+        {KALINLIKLAR.map((k) => (
+          <button
+            key={k}
+            type="button"
+            title={`${k}px`}
+            onClick={() => kalinlikSec(k)}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              background: aktifKalinlik === k && !silgiModu ? 'rgba(255,255,255,0.18)' : 'transparent',
+              border: aktifKalinlik === k && !silgiModu ? '1px solid rgba(255,255,255,0.40)' : '1px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+            }}
+          >
+            <div style={{
+              width: Math.min(k * 2.5, 20),
+              height: Math.min(k * 2.5, 20),
+              borderRadius: '50%',
+              background: aktifRenk,
+              opacity: silgiModu ? 0.3 : 1,
+            }} />
+          </button>
+        ))}
+
+        {/* Ayırıcı */}
+        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.18)', flexShrink: 0 }} />
+
+        {/* Silgi */}
+        <button
+          type="button"
+          title="Silgi"
+          onClick={() => setSilgiModu((v) => !v)}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: silgiModu ? 'rgba(255,255,255,0.20)' : 'transparent',
+            border: silgiModu ? '1px solid rgba(255,255,255,0.45)' : '1px solid rgba(255,255,255,0.15)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: 15,
+          }}
+        >
+          ✏️
+        </button>
+
+        {/* Temizle */}
+        <button
+          type="button"
+          title="Tümünü Temizle"
+          onClick={temizle}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: 'transparent',
+            border: '1px solid rgba(255,80,80,0.40)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ff6666',
+            fontSize: 15,
+          }}
+        >
+          🗑
+        </button>
+
+        {/* Ayırıcı */}
+        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.18)', flexShrink: 0 }} />
+
+        {/* Kapat */}
+        <button
+          type="button"
+          title="Çizimi Kapat"
+          onClick={onKapat}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.25)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'rgba(255,255,255,0.70)',
+            fontSize: 16,
+            fontWeight: 700,
+          }}
+        >
+          ✕
+        </button>
+      </div>
     </div>
   );
 }

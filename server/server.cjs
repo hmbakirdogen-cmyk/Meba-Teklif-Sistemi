@@ -5,7 +5,7 @@ const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
 const { spawn } = require('child_process');
-const { createAuthRoutes, getAuthContext } = require('./auth-routes.cjs');
+const { createAuthRoutes, getAuthContext, pruneExpiredSessions } = require('./auth-routes.cjs');
 const { startBackupScheduler } = require('./backupScheduler.cjs');
 
 const DB_PATH = path.join(__dirname, 'db.json');
@@ -78,27 +78,48 @@ function readDB() {
   }
 }
 
+// Senkron sleep — Atomics.wait kernel-level wait yapar (CPU yakmaz).
+// Eski busy-wait while(Date.now() < ...) %100 CPU tüketiyordu.
+const _SLEEP_AB = new Int32Array(new SharedArrayBuffer(4));
+function sleepSync(ms) {
+  Atomics.wait(_SLEEP_AB, 0, 0, ms);
+}
+
+// Stale lock ne zaman temizlenir: lock dosyasının mtime'ı bu süreden eskiyse
+// önceki yazıcı crash etmiş demektir, biz alıp devam ederiz.
+const STALE_LOCK_MS = 5000;
+
 // File lock ile yazma — multi-process write race condition'larina karsi
 // ikinci hat savunma. Launcher PID lock primary.
 function writeDBLocked(data) {
   let fd = null;
-  let retries = 5;
+  let retries = 10;
   while (retries-- > 0) {
     try {
       fd = fs.openSync(DB_LOCK_PATH, 'wx'); // exclusive create
       break;
     } catch (err) {
-      if (err.code === 'EEXIST' && retries > 0) {
-        // 50ms backoff
-        const wait = Date.now() + 50;
-        while (Date.now() < wait) { /* busy wait — kisa surede biter */ }
-        continue;
+      if (err.code === 'EEXIST') {
+        // Stale lock kontrolü: önceki yazıcı crash etmişse mtime eskidir.
+        try {
+          const st = fs.statSync(DB_LOCK_PATH);
+          if (Date.now() - st.mtimeMs > STALE_LOCK_MS) {
+            console.warn('[writeDBLocked] stale lock cleared (mtime > ' + STALE_LOCK_MS + 'ms)');
+            try { fs.unlinkSync(DB_LOCK_PATH); } catch { /* ignore */ }
+            continue; // hemen yeniden dene
+          }
+        } catch { /* stat fail ise normal retry'a düş */ }
+        if (retries > 0) {
+          // Kernel-level wait (50ms) — CPU yakmaz.
+          sleepSync(50);
+          continue;
+        }
       }
       throw err;
     }
   }
   if (fd === null) {
-    throw new Error('writeDBLocked: lock alinamadi (5 deneme)');
+    throw new Error('writeDBLocked: lock alinamadi (10 deneme, ~500ms)');
   }
   try {
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
@@ -107,6 +128,24 @@ function writeDBLocked(data) {
     try { fs.unlinkSync(DB_LOCK_PATH); } catch { /* ignore */ }
   }
 }
+
+// Process crash/exit'te lock temizliği — bir sonraki yazıcı stale lock
+// beklemek zorunda kalmasın diye.
+function _cleanupLockOnExit() {
+  try {
+    if (fs.existsSync(DB_LOCK_PATH)) {
+      fs.unlinkSync(DB_LOCK_PATH);
+    }
+  } catch { /* ignore */ }
+}
+process.on('exit',     _cleanupLockOnExit);
+process.on('SIGINT',  () => { _cleanupLockOnExit(); process.exit(130); });
+process.on('SIGTERM', () => { _cleanupLockOnExit(); process.exit(143); });
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+  _cleanupLockOnExit();
+  process.exit(1);
+});
 
 // Geri uyumluluk: eski writeDB cagrilarini lock'lu surume yonlendir.
 function writeDB(data) {
@@ -123,15 +162,20 @@ function writeDB(data) {
 function bumpRecord(prev, incoming, ctx) {
   const { deviceId, userId } = ctx || {};
   const prevVersion = (prev && typeof prev.version === 'number') ? prev.version : 0;
+  // Server-authoritative now() — clock drift veya eski/manipule client
+  // tarihinin DB'ye sizmasina izin verme. Hem lastSyncedAt hem
+  // guncellemeTarihi server otoritesinde.
+  const now = new Date().toISOString();
   return {
     ...prev,
     ...incoming,
     version: prevVersion + 1,
     deviceId: deviceId || incoming.deviceId || (prev && prev.deviceId) || SERVER_CONFIG.deviceId,
     updatedBy: userId || incoming.updatedBy || (prev && prev.updatedBy) || (incoming.hazirlayanKullaniciId || (prev && prev.hazirlayanKullaniciId)) || null,
-    lastSyncedAt: new Date().toISOString(),
-    // Eski kayitlarda guncellemeTarihi varsa onu da yansit (Teklif tipi)
-    guncellemeTarihi: incoming.guncellemeTarihi || new Date().toISOString(),
+    lastSyncedAt: now,
+    // incoming.guncellemeTarihi YOK SAYILIR — eski client tarihini geri yazsa
+    // bile mergeById tiebreak'inda kayba yol acmasin diye.
+    guncellemeTarihi: now,
   };
 }
 
@@ -710,6 +754,22 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
       const db = readDB();
       const arr = db[collectionKey] || (db[collectionKey] = []);
       const idx = arr.findIndex((item) => item.id === id);
+
+      // Teklif sahiplik kontrolü — personel başkasının teklifini düzenleyemez
+      if (collectionKey === 'teklifler') {
+        const isAdminLike = ctx.rol === 'admin' || ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
+        if (!isAdminLike && idx >= 0) {
+          const existing = arr[idx];
+          if (existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
+            return send(res, 403, { error: 'Bu teklifi düzenleme yetkiniz yok.' });
+          }
+        }
+        // Yeni kayıt: hazirlayanKullaniciId boşsa context'ten set et
+        if (!isAdminLike && idx < 0 && ctx.userId && !body.hazirlayanKullaniciId) {
+          body.hazirlayanKullaniciId = ctx.userId;
+        }
+      }
+
       if (idx >= 0) {
         arr[idx] = bumpRecord(arr[idx], body, ctx);
       } else {
@@ -732,6 +792,16 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
       const db = readDB();
       const arr = db[collectionKey] || [];
       const idx = arr.findIndex((item) => item.id === id);
+
+      // Teklif sahiplik kontrolü — personel başkasının teklifini silemez
+      if (collectionKey === 'teklifler' && idx >= 0) {
+        const isAdminLike = ctx.rol === 'admin' || ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
+        const existing = arr[idx];
+        if (!isAdminLike && existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
+          return send(res, 403, { error: 'Bu teklifi silme yetkiniz yok.' });
+        }
+      }
+
       if (idx >= 0) {
         arr[idx] = softDeleteRecord(arr[idx], ctx);
         writeDB(db);
@@ -1221,8 +1291,9 @@ const server = http.createServer(async (req, res) => {
           const existing = idx >= 0 ? arr[idx] : null;
 
           // Yetki kontrolü — sadece teklifler için (cari/ürün paylaşımlı)
-          if (col === 'teklifler' && existing && ctx.rol !== 'admin') {
-            if (existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
+          if (col === 'teklifler' && existing) {
+            const isAdminLike = ctx.rol === 'admin' || ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
+            if (!isAdminLike && existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
               conflicts.push({ collection: col, id: item.id, reason: 'forbidden', existing });
               continue;
             }
@@ -1360,4 +1431,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  Ag:     http://' + ip + ':' + PORT);
   console.log('');
   startBackupScheduler();
+
+  // Session cleanup — boot'ta 1 kez + her 1 saatte bir background olarak.
+  // Hicbir kullanici online degilken DB'de zombi session birikmesin diye.
+  pruneExpiredSessions(readDB, writeDB);
+  setInterval(() => { pruneExpiredSessions(readDB, writeDB); }, 60 * 60 * 1000);
 });
