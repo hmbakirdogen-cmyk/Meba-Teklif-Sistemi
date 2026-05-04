@@ -9,22 +9,13 @@ echo   Grup Sirketleri Teklif Sistemi baslatiliyor...
 echo   (MEBA - MESA - ELMOS)
 echo.
 
-REM 1) Onceligi paket icindeki bin\node.exe'ye ver (USB'den geldi, kurulum gerekmez)
-REM 2) Yoksa sistem PATH'ine bak (Node.js elle kurulmussa)
-set "NODE_EXE="
-if exist "%~dp0bin\node.exe" (
-  set "NODE_EXE=%~dp0bin\node.exe"
-) else (
-  where node >nul 2>&1
-  if %errorLevel% EQU 0 set "NODE_EXE=node"
-)
-
-if "%NODE_EXE%"=="" (
+REM Node.js sistem PATH'inde olmali. Yoksa nodejs.org'dan LTS surumunu kurun.
+where node >nul 2>&1
+if %errorLevel% NEQ 0 (
   echo   HATA: Node.js bulunamadi.
   echo.
-  echo   Cozum 1: USB'den paketle birlikte gelen bin\node.exe eksik.
-  echo            USB icerigini eksiksiz kopyaladiginizdan emin olun.
-  echo   Cozum 2: https://nodejs.org/ adresinden Node.js LTS surumunu kurun.
+  echo   Cozum: https://nodejs.org/ adresinden Node.js LTS surumunu kurun
+  echo          ve bilgisayari yeniden baslatin.
   echo.
   pause
   exit /b 1
@@ -47,4 +38,4 @@ if not exist "dist\index.html" (
 )
 
 REM Launcher'i baslat (PID lock + backend + frontend + browser auto-open)
-"%NODE_EXE%" launcher.cjs
+node launcher.cjs
