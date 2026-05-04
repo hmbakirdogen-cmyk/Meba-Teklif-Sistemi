@@ -5,7 +5,7 @@
  *
  * Akış:
  *   1. PID lock kontrol — başka instance varsa tarayıcıda mevcut URL'i aç ve exit
- *   2. config/server-config.json veya client-config.json oku → port/mode al
+ *   2. config/server-config.json oku → port bilgisi al
  *   3. Backend spawn (server/server.cjs) → /api/health 200 dönene kadar bekle
  *   4. Static frontend server (dist/) başlat
  *   5. Tarayıcıyı http://localhost:<frontendPort>'ta aç
@@ -25,21 +25,21 @@ const { openBrowser } = require('./launcher/openBrowser.cjs');
 // ── Config oku ────────────────────────────────────────────────────────────────
 
 function readConfig() {
+  // Online-only mimari: sadece server-config.json okunur. Eski client-config
+  // desteği kaldırıldı (kullanıcılar tarayıcıdan bağlanır, client kurulumu yok).
   const serverConfigPath = path.join(__dirname, 'config', 'server-config.json');
-  const clientConfigPath = path.join(__dirname, 'config', 'client-config.json');
-  const defaults = { mode: 'server', listenPort: 3001, frontendPort: 5173, autoOpenBrowser: true };
+  const defaults = { listenPort: 3001, frontendPort: 5173, autoOpenBrowser: true };
 
-  for (const p of [serverConfigPath, clientConfigPath]) {
-    if (fs.existsSync(p)) {
-      try {
-        const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
-        return { ...defaults, ...raw };
-      } catch (err) {
-        console.warn(`[launcher] ${path.basename(p)} okunamadı:`, err.message);
-      }
+  if (fs.existsSync(serverConfigPath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(serverConfigPath, 'utf-8'));
+      return { ...defaults, ...raw };
+    } catch (err) {
+      console.warn(`[launcher] server-config.json okunamadı:`, err.message);
     }
+  } else {
+    console.warn('[launcher] config/server-config.json yok, defaultlar kullanılıyor.');
   }
-  console.warn('[launcher] config/ içinde config dosyası yok, defaultlar kullanılıyor.');
   return defaults;
 }
 
@@ -89,7 +89,6 @@ process.on('exit',    () => releaseInstance());
   console.log('  ════════════════════════════════════════════════');
   console.log('  Grup Şirketleri Teklif Sistemi — Başlatıcı');
   console.log('  (MEBA · MESA · ELMOS)');
-  console.log('  Mode:     ' + (config.mode || 'server'));
   console.log('  Backend:  http://localhost:' + BACKEND_PORT);
   console.log('  Frontend: ' + FRONTEND_URL);
   console.log('  ════════════════════════════════════════════════');
@@ -125,8 +124,9 @@ process.on('exit',    () => releaseInstance());
     return;
   }
 
-  // 3. PID lock + tarayıcı
-  lockInstance(FRONTEND_URL, config.mode || 'server');
+  // 3. PID lock + tarayıcı (mode parametresi eski client desteği için
+  //    pidLock imzasında kalıyor; sabit 'server' geçilir)
+  lockInstance(FRONTEND_URL, 'server');
   if (AUTO_OPEN) {
     setTimeout(() => openBrowser(FRONTEND_URL), 600);
   }
