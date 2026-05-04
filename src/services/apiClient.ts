@@ -378,72 +378,7 @@ export const api = {
     }
   },
 
-  sync: {
-    status: () => get<SyncStatus>('/sync/status'),
-    // Sync endpoint'leri LAN'da yüksek hacim taşıyabilir (delta + bulk).
-    // Long timeout ile AbortError riskini düşür.
-    pull: (since: string, kullanici?: { id: string; rol: string }) => {
-      const params = new URLSearchParams();
-      if (since) params.set('since', since);
-      if (kullanici) {
-        params.set('userId', kullanici.id);
-        params.set('rol', kullanici.rol);
-      }
-      const qs = params.toString();
-      return get<SyncPullResult>(`/sync/pull${qs ? '?' + qs : ''}`, TIMEOUT_MS_LONG);
-    },
-    push: (payload: SyncPushPayload) => post<SyncPushResult>('/sync/push', payload, TIMEOUT_MS_LONG),
-    full: (payload: Partial<InitData>) => post<{ ok: boolean; replaced: boolean; serverTime: string }>('/sync/full', payload, TIMEOUT_MS_LONG),
-    devices: () => get<DeviceRecord[]>('/sync/devices'),
-    registerDevice: (payload: { deviceId: string; deviceLabel: string }) =>
-      post<DeviceRecord>('/sync/register-device', payload),
-  },
+  // Sync mimarisi (offline queue/conflict/push/pull) tamamen kaldırıldı —
+  // proje artık tek server + tarayıcı modelinde çalışıyor. Yazımlar dataStore
+  // üzerinden direkt PUT/DELETE; bağlantı durumu syncEngine + api.health ile.
 };
-
-// ── Sync types ────────────────────────────────────────────────────────────────
-
-export interface SyncStatus {
-  ok: boolean;
-  serverTime: string;
-  deviceId: string;
-  deviceLabel: string;
-  recordCounts: { teklifler: number; cariler: number; urunler: number; urunSetleri: number };
-  liveCounts: { teklifler: number; cariler: number; urunler: number; urunSetleri: number };
-  registeredDevices: number;
-}
-
-export interface SyncPullResult {
-  serverTime: string;
-  teklifler: Teklif[];
-  cariler: Cari[];
-  urunler: Urun[];
-  urunSetleri: UrunSeti[];
-}
-
-export interface SyncPushPayload {
-  teklifler?: Teklif[];
-  cariler?: Cari[];
-  urunler?: Urun[];
-  urunSetleri?: UrunSeti[];
-}
-
-export interface SyncConflict {
-  collection: 'teklifler' | 'cariler' | 'urunler' | 'urunSetleri';
-  id: string;
-  reason: 'version_conflict' | 'forbidden';
-  existing: Teklif | Cari | Urun | UrunSeti;
-}
-
-export interface SyncPushResult {
-  serverTime: string;
-  accepted: Array<{ collection: string; id: string; version: number }>;
-  conflicts: SyncConflict[];
-}
-
-export interface DeviceRecord {
-  deviceId: string;
-  deviceLabel: string;
-  firstSeenAt: string;
-  lastSeenAt: string;
-  userAgent: string;
-}

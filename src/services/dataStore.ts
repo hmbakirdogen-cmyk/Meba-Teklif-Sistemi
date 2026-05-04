@@ -2,15 +2,16 @@
  * dataStore.ts
  * In-memory cache of all shared data.
  *
- * Strategy:
+ * Strategy (online-only mimari):
  *  - App start: fetch everything from server → populate cache. Server
- *    erişilemiyorsa localStorage snapshot'tan restore (offline-first).
+ *    erişilemiyorsa hata fırlat → App.tsx ServerErrorScreen gösterir.
  *  - Reads: synchronous, from cache (no await needed in services).
- *  - Writes: update cache immediately + try server (PUT/DELETE). Network
- *    fail olursa syncEngine.enqueue() ile offline queue'ya yazılır.
+ *  - Writes: update cache immediately + fire-and-forget PUT/DELETE. Network
+ *    fail olursa console.error + syncEngine.setOnlineState(false) ile UI'a
+ *    "Bağlı Değil" yansıt; kullanıcı manuel "Yeniden Bağlan" tetikler.
  *
- * This keeps all existing service method signatures synchronous so React
- * components need zero changes.
+ * Eski offline queue mantığı (syncEngine.enqueue, snapshot, conflict) tamamen
+ * kaldırıldı — proje artık tek server + tarayıcı modelinde çalışıyor.
  */
 
 import type { Teklif, Cari, Urun, UrunSeti } from '../types';
@@ -24,6 +25,23 @@ function withFirmaId<T extends { firmaId?: string }>(rec: T): T {
   if (rec.firmaId) return rec;
   const firmaId = getActiveFirmaId();
   return firmaId ? { ...rec, firmaId } : rec;
+}
+
+/**
+ * Defense-in-depth görünürlük filtresi — server zaten filtre uyguluyor ama
+ * gelecekte init/refresh fonksiyonlarında ek bir koruma katmanı olarak
+ * kullanılabilir. Şu an dataStore içinde aktif çağrılmıyor (server'a güveniyoruz)
+ * ancak ileride gerekirse burada hazır.
+ */
+export function applyVisibilityFilter(
+  teklifler: Teklif[],
+  kullanici?: { id: string; rol: string },
+): Teklif[] {
+  if (!kullanici || kullanici.rol === 'admin') return teklifler;
+  return teklifler.filter((t) => {
+    const vis = t.visibility || 'team';
+    return vis === 'team' || t.hazirlayanKullaniciId === kullanici.id;
+  });
 }
 
 // ── Store shape ───────────────────────────────────────────────────────────────
@@ -98,68 +116,38 @@ async function migrasyonDene(): Promise<void> {
 export async function initDataStore(
   kullanici?: { id: string; rol: string },
 ): Promise<void> {
-  // Server erişilebiliyorsa migration + init dene
-  try {
-    await migrasyonDene();
-    const data = await api.init(kullanici);
-    store = {
-      teklifler: data.teklifler,
-      cariler:   data.cariler,
-      urunler:   data.urunler,
-      urunSetleri: data.urunSetleri ?? [],
-      referans:  data.referans,
-      sayac:     data.sayac ?? { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
-    };
-    // Başarılı init sonrası snapshot kaydet (offline restore için)
-    syncEngine.saveSnapshot({
-      teklifler: store.teklifler,
-      cariler: store.cariler,
-      urunler: store.urunler,
-      urunSetleri: store.urunSetleri,
-      referans: store.referans,
-      sayac: store.sayac,
-    });
-  } catch (err) {
-    // Server'a ulaşılamadı → localStorage snapshot'tan restore et (offline mode)
-    const snapshot = syncEngine.loadSnapshot();
-    if (!snapshot) {
-      // Hiç snapshot yok → hata fırlat (App.tsx ServerErrorScreen gösterir)
-      throw err;
-    }
-    store = {
-      teklifler: snapshot.teklifler ?? [],
-      cariler:   snapshot.cariler ?? [],
-      urunler:   snapshot.urunler ?? [],
-      urunSetleri: snapshot.urunSetleri ?? [],
-      referans:  snapshot.referans ?? VARSAYILAN_REFERANS,
-      sayac:     snapshot.sayac ?? { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
-    };
-    syncEngine.setOnlineState(false);
-    console.warn('[initDataStore] Offline mod: localStorage snapshot kullanildi.');
-  }
+  // Online-only: server erişilemezse hata fırlat → App.tsx ServerErrorScreen.
+  await migrasyonDene();
+  const data = await api.init(kullanici);
+  store = {
+    teklifler: data.teklifler,
+    cariler:   data.cariler,
+    urunler:   data.urunler,
+    urunSetleri: data.urunSetleri ?? [],
+    referans:  data.referans,
+    sayac:     data.sayac ?? { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
+  };
+  // Init başarılı → online state set
+  syncEngine.setOnlineState(true);
 }
 
-// ── Fire-and-forget write helper with offline fallback ────────────────────────
+// ── Network error handler — fire-and-forget yazımlar için ────────────────────
 
 /**
- * Server'a yazma denemesi; network hata olursa syncEngine queue'sine ekler.
- * `op`/`collection`/`id`/`payload` queue item'i için gerekli.
+ * Promise reddedildiğinde:
+ *   - 403 (Forbidden): caller bilsin diye sessizce yut (sahiplik hatası UI'da
+ *     ayrıca message ile gösterilir).
+ *   - Diğer ağ hataları: console.error + syncEngine offline state.
+ *
+ * Yeni online-only mimaride başarısız yazımlar yeniden denenmez — kullanıcı
+ * "Bağlı Değil" görür, manuel "Yeniden Bağlan" yapar, işlemi tekrar dener.
  */
-function syncWithFallback<T>(
-  promise: Promise<T>,
-  fallback: { collection: 'teklifler' | 'cariler' | 'urunler' | 'urunSetleri'; op: 'upsert' | 'delete'; id: string; payload: unknown },
-): void {
+function handleNetworkError(promise: Promise<unknown>, label: string): void {
   promise.catch((err: unknown) => {
-    // 403 Forbidden — sahiplik hatası, offline kuyruğa ekleme
     if (err && typeof err === 'object' && (err as { status?: number }).status === 403) return;
-    syncEngine.enqueue(fallback);
+    console.error(`[dataStore] ${label} ağ hatası:`, err);
+    syncEngine.setOnlineState(false, err instanceof Error ? err.message : 'Ağ hatası');
   });
-}
-
-// Backwards-compat: eski `sync()` helper'i hala kullanan yerler için.
-// Yeni kod syncWithFallback kullanmalı.
-function sync(promise: Promise<unknown>): void {
-  promise.catch(() => {});
 }
 
 // ── Public cache accessors ────────────────────────────────────────────────────
@@ -194,12 +182,12 @@ export const dataStore = {
     const idx = store.teklifler.findIndex((x) => x.id === enriched.id);
     if (idx >= 0) { store.teklifler[idx] = enriched; }
     else { store.teklifler.unshift(enriched); }
-    syncWithFallback(api.teklifler.upsert(enriched), { collection: 'teklifler', op: 'upsert', id: enriched.id, payload: enriched });
+    handleNetworkError(api.teklifler.upsert(enriched), 'upsertTeklif');
   },
 
   deleteTeklif(id: string): void {
     store.teklifler = store.teklifler.filter((x) => x.id !== id);
-    syncWithFallback(api.teklifler.sil(id), { collection: 'teklifler', op: 'delete', id, payload: { id } });
+    handleNetworkError(api.teklifler.sil(id), 'deleteTeklif');
   },
 
   // ── Cariler ───────────────────────────────────────────────────────────────
@@ -212,18 +200,18 @@ export const dataStore = {
     const idx = store.cariler.findIndex((x) => x.id === enriched.id);
     if (idx >= 0) { store.cariler[idx] = enriched; }
     else { store.cariler.push(enriched); }
-    syncWithFallback(api.cariler.upsert(enriched), { collection: 'cariler', op: 'upsert', id: enriched.id, payload: enriched });
+    handleNetworkError(api.cariler.upsert(enriched), 'upsertCari');
   },
 
   deleteCari(id: string): void {
     store.cariler = store.cariler.filter((x) => x.id !== id);
-    syncWithFallback(api.cariler.sil(id), { collection: 'cariler', op: 'delete', id, payload: { id } });
+    handleNetworkError(api.cariler.sil(id), 'deleteCari');
   },
 
   bulkReplaceCariler(liste: Cari[]): void {
     const enriched = liste.map(withFirmaId);
     store.cariler = enriched;
-    sync(api.cariler.bulkReplace(enriched));
+    handleNetworkError(api.cariler.bulkReplace(enriched), 'bulkReplaceCariler');
   },
 
   // ── Urunler ───────────────────────────────────────────────────────────────
@@ -236,18 +224,18 @@ export const dataStore = {
     const idx = store.urunler.findIndex((x) => x.id === enriched.id);
     if (idx >= 0) { store.urunler[idx] = enriched; }
     else { store.urunler.push(enriched); }
-    syncWithFallback(api.urunler.upsert(enriched), { collection: 'urunler', op: 'upsert', id: enriched.id, payload: enriched });
+    handleNetworkError(api.urunler.upsert(enriched), 'upsertUrun');
   },
 
   deleteUrun(id: string): void {
     store.urunler = store.urunler.filter((x) => x.id !== id);
-    syncWithFallback(api.urunler.sil(id), { collection: 'urunler', op: 'delete', id, payload: { id } });
+    handleNetworkError(api.urunler.sil(id), 'deleteUrun');
   },
 
   bulkReplaceUrunler(liste: Urun[]): void {
     const enriched = liste.map(withFirmaId);
     store.urunler = enriched;
-    sync(api.urunler.bulkReplace(enriched));
+    handleNetworkError(api.urunler.bulkReplace(enriched), 'bulkReplaceUrunler');
   },
 
   // ── Ürün Setleri ─────────────────────────────────────────────────────────
@@ -260,18 +248,18 @@ export const dataStore = {
     const idx = store.urunSetleri.findIndex((x) => x.id === enriched.id);
     if (idx >= 0) { store.urunSetleri[idx] = enriched; }
     else { store.urunSetleri.push(enriched); }
-    syncWithFallback(api.urunSetleri.upsert(enriched), { collection: 'urunSetleri', op: 'upsert', id: enriched.id, payload: enriched });
+    handleNetworkError(api.urunSetleri.upsert(enriched), 'upsertUrunSeti');
   },
 
   deleteUrunSeti(id: string): void {
     store.urunSetleri = store.urunSetleri.filter((x) => x.id !== id);
-    syncWithFallback(api.urunSetleri.sil(id), { collection: 'urunSetleri', op: 'delete', id, payload: { id } });
+    handleNetworkError(api.urunSetleri.sil(id), 'deleteUrunSeti');
   },
 
   bulkReplaceUrunSetleri(liste: UrunSeti[]): void {
     const enriched = liste.map(withFirmaId);
     store.urunSetleri = enriched;
-    sync(api.urunSetleri.bulkReplace(enriched));
+    handleNetworkError(api.urunSetleri.bulkReplace(enriched), 'bulkReplaceUrunSetleri');
   },
 
   // ── Referans ──────────────────────────────────────────────────────────────
@@ -280,7 +268,7 @@ export const dataStore = {
 
   setReferans(r: Referans): void {
     store.referans = r;
-    sync(api.referans.kaydet(r));
+    handleNetworkError(api.referans.kaydet(r), 'setReferans');
   },
 
   // ── Sayac ─────────────────────────────────────────────────────────────────

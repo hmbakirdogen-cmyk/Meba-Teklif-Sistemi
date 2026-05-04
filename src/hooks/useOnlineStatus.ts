@@ -48,6 +48,6 @@ export function useOnlineStatus(): SyncState & { isOnline: boolean } {
 
   return {
     ...state,
-    isOnline: state.phase === 'online' || state.phase === 'syncing' || state.phase === 'conflict',
+    isOnline: state.phase === 'online',
   };
 }

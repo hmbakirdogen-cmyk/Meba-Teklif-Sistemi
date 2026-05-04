@@ -10,7 +10,7 @@ const { startBackupScheduler } = require('./backupScheduler.cjs');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const DB_LOCK_PATH = DB_PATH + '.lock';
-const SYNC_TELEMETRY_LOG_PATH = path.join(__dirname, 'sync_telemetry.log');
+// (SYNC_TELEMETRY_LOG_PATH kaldırıldı — sync mimarisi temizliği.)
 const EMAIL_TELEMETRY_LOG_PATH = path.join(__dirname, 'email_dispatch.log');
 const SERVER_CONFIG_PATH = path.join(__dirname, '..', 'config', 'server-config.json');
 
@@ -63,14 +63,11 @@ const DB_DEFAULTS = {
   urunSetleri: [],
   referans: { markalar: [], birimler: [], teslimSecenekleri: [] },
   sayac: { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
-  _devices: [],
 };
 
 function readDB() {
   try {
     const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-    // Geriye uyumluluk: eski db.json'larda _devices yoksa init et
-    if (!Array.isArray(data._devices)) data._devices = [];
     return data;
   } catch (err) {
     console.warn('[readDB] db.json okunamadi, varsayilan yapi kullaniliyor:', err.message);
@@ -635,16 +632,6 @@ function send(res, status, data) {
   res.end(json);
 }
 
-function syncTelemetryYaz(telemetry) {
-  const record = { timestamp: new Date().toISOString(), ...telemetry };
-  try {
-    fs.appendFileSync(SYNC_TELEMETRY_LOG_PATH, JSON.stringify(record) + '\n', 'utf-8');
-  } catch { /* ignore */ }
-  if (SERVER_CONFIG.logLevel === 'debug') {
-    try { console.info('[SyncTelemetry]', JSON.stringify(record)); } catch { /* ignore */ }
-  }
-}
-
 function emailTelemetryYaz(telemetry) {
   const record = {
     timestamp: new Date().toISOString(),
@@ -1203,186 +1190,9 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // ══ SYNC ENDPOINTS ════════════════════════════════════════════════════════
-    // Multi-PC LAN senkronizasyonu için. Tüm endpoint'ler defense-in-depth
-    // visibility filter uygular (admin değilse private + ekibinin teklifleri).
-    // Soft-deleted (deletedAt) kayıtlar pull'da tombstone olarak döner; UI
-    // listelerinde gizli (handleList'te filter).
-
-    if (method === 'GET' && (url === '/api/sync/status' || url.startsWith('/api/sync/status?'))) {
-      const db = readDB();
-      const stats = {
-        ok: true,
-        serverTime: new Date().toISOString(),
-        deviceId: SERVER_CONFIG.deviceId,
-        deviceLabel: SERVER_CONFIG.deviceLabel,
-        recordCounts: {
-          teklifler:   db.teklifler.length,
-          cariler:     db.cariler.length,
-          urunler:     db.urunler.length,
-          urunSetleri: db.urunSetleri.length,
-        },
-        liveCounts: {
-          teklifler:   db.teklifler.filter(isLiveRecord).length,
-          cariler:     db.cariler.filter(isLiveRecord).length,
-          urunler:     db.urunler.filter(isLiveRecord).length,
-          urunSetleri: db.urunSetleri.filter(isLiveRecord).length,
-        },
-        registeredDevices: (db._devices || []).length,
-      };
-      return send(res, 200, stats);
-    }
-
-    // GET /api/sync/pull?since=<ISO>&userId=&rol=
-    // since'den sonra updatedAt/lastSyncedAt'lı tüm kayıtları döner (tombstone'lar dahil).
-    // Visibility filter ZORUNLU.
-    if (method === 'GET' && url.startsWith('/api/sync/pull')) {
-      const parsed = new URL(url, 'http://localhost');
-      const since = parsed.searchParams.get('since') || '';
-      const qUserId = parsed.searchParams.get('userId') || '';
-      const qRol = parsed.searchParams.get('rol') || '';
-      const db = readDB();
-
-      // since filter: lastSyncedAt > since OR (since boşsa tümü)
-      const sinceFilter = (rec) => {
-        if (!since) return true;
-        const ts = rec.lastSyncedAt || rec.guncellemeTarihi || rec.olusturmaTarihi || '';
-        return ts > since;
-      };
-
-      // Visibility filter teklifler için
-      const visibilityOk = (t) => {
-        if (qRol === 'admin') return true;
-        const vis = t.visibility || 'team';
-        return vis === 'team' || t.hazirlayanKullaniciId === qUserId;
-      };
-
-      const teklifler   = db.teklifler.filter((r) => sinceFilter(r) && visibilityOk(r));
-      const cariler     = db.cariler.filter(sinceFilter);
-      const urunler     = db.urunler.filter(sinceFilter);
-      const urunSetleri = db.urunSetleri.filter(sinceFilter);
-
-      return send(res, 200, {
-        serverTime: new Date().toISOString(),
-        teklifler,
-        cariler,
-        urunler,
-        urunSetleri,
-      });
-    }
-
-    // POST /api/sync/push — bulk upsert with version-vector check
-    // Body: { teklifler?, cariler?, urunler?, urunSetleri? } — her biri sync alanlarıyla
-    // Conflict: incoming.version <= existing.version ise reddedilir (existing döner).
-    if (method === 'POST' && url === '/api/sync/push') {
-      const body = await parseBody(req);
-      const ctx = parseRequestCtx(req);
-      const db = readDB();
-      const conflicts = [];
-      const accepted = [];
-
-      const collections = ['teklifler', 'cariler', 'urunler', 'urunSetleri'];
-      for (const col of collections) {
-        const incoming = Array.isArray(body[col]) ? body[col] : [];
-        const arr = db[col] || (db[col] = []);
-        for (const item of incoming) {
-          if (!item || !item.id) continue;
-          const idx = arr.findIndex((r) => r.id === item.id);
-          const existing = idx >= 0 ? arr[idx] : null;
-
-          // Yetki kontrolü — sadece teklifler için (cari/ürün paylaşımlı)
-          if (col === 'teklifler' && existing) {
-            const isAdminLike = ctx.rol === 'admin' || ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
-            if (!isAdminLike && existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
-              conflicts.push({ collection: col, id: item.id, reason: 'forbidden', existing });
-              continue;
-            }
-          }
-
-          // Version-vector check
-          const incomingVer = typeof item.version === 'number' ? item.version : 0;
-          const existingVer = existing && typeof existing.version === 'number' ? existing.version : 0;
-          if (existing && incomingVer <= existingVer && incomingVer > 0) {
-            // Client eski sürüm gönderdi — conflict
-            conflicts.push({ collection: col, id: item.id, reason: 'version_conflict', existing });
-            continue;
-          }
-
-          // Bumpla ve kabul et
-          if (idx >= 0) {
-            arr[idx] = bumpRecord(existing, item, ctx);
-            accepted.push({ collection: col, id: item.id, version: arr[idx].version });
-          } else {
-            const fresh = bumpRecord(null, item, ctx);
-            if (col === 'teklifler') arr.unshift(fresh);
-            else arr.push(fresh);
-            accepted.push({ collection: col, id: item.id, version: fresh.version });
-          }
-        }
-      }
-
-      writeDB(db);
-      syncTelemetryYaz({
-        op: 'push',
-        deviceId: ctx.deviceId,
-        userId: ctx.userId,
-        accepted: accepted.length,
-        conflicts: conflicts.length,
-      });
-      return send(res, 200, {
-        serverTime: new Date().toISOString(),
-        accepted,
-        conflicts,
-      });
-    }
-
-    // POST /api/sync/full — admin + same-machine only; tüm DB'yi replace eder.
-    // Acil durum kurtarma için — yanlış makineden çağrılırsa yıkıcı olur.
-    if (method === 'POST' && url === '/api/sync/full') {
-      const ctx = parseRequestCtx(req);
-      if (ctx.rol !== 'admin') {
-        return send(res, 403, { error: 'Sadece admin /api/sync/full kullanabilir.' });
-      }
-      if (!isSameMachineClient(req)) {
-        return send(res, 403, { error: 'Full restore yalnızca server makinesinden tetiklenebilir.' });
-      }
-      const body = await parseBody(req);
-      const db = readDB();
-      const merged = {
-        ...db,
-        teklifler:   Array.isArray(body.teklifler)   ? body.teklifler   : db.teklifler,
-        cariler:     Array.isArray(body.cariler)     ? body.cariler     : db.cariler,
-        urunler:     Array.isArray(body.urunler)     ? body.urunler     : db.urunler,
-        urunSetleri: Array.isArray(body.urunSetleri) ? body.urunSetleri : db.urunSetleri,
-      };
-      writeDB(merged);
-      syncTelemetryYaz({ op: 'full', deviceId: ctx.deviceId, userId: ctx.userId });
-      return send(res, 200, { ok: true, replaced: true, serverTime: new Date().toISOString() });
-    }
-
-    if (method === 'GET' && (url === '/api/sync/devices' || url.startsWith('/api/sync/devices?'))) {
-      const db = readDB();
-      return send(res, 200, db._devices || []);
-    }
-
-    if (method === 'POST' && url === '/api/sync/register-device') {
-      const body = await parseBody(req);
-      if (!body.deviceId) return send(res, 400, { error: 'deviceId zorunlu.' });
-      const db = readDB();
-      if (!Array.isArray(db._devices)) db._devices = [];
-      const idx = db._devices.findIndex((d) => d.deviceId === body.deviceId);
-      const record = {
-        deviceId:    body.deviceId,
-        deviceLabel: body.deviceLabel || 'Bilinmeyen Cihaz',
-        firstSeenAt: idx >= 0 ? db._devices[idx].firstSeenAt : new Date().toISOString(),
-        lastSeenAt:  new Date().toISOString(),
-        userAgent:   req.headers['user-agent'] || '',
-      };
-      if (idx >= 0) db._devices[idx] = record;
-      else db._devices.push(record);
-      writeDB(db);
-      return send(res, 200, record);
-    }
+    // (Sync endpoint'leri kaldırıldı — online-only mimari. PUT/DELETE
+    //  optimistic concurrency için bumpRecord/softDeleteRecord/isLiveRecord
+    //  helper'ları korunuyor.)
 
     // ── MIGRATION endpoint — frontend pushes its localStorage data once ───────
     if (url === '/api/migrate' && method === 'POST') {

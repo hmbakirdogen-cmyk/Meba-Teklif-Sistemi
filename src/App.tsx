@@ -5,7 +5,6 @@ import AppRouter from './AppRouter'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
 import { initNetworkConfig } from './services/networkConfig'
-import { syncEngine } from './services/syncEngine'
 import { ThemeProvider } from './context/ThemeContext'
 import { useTheme } from './context/useTheme'
 import { useKullanici } from './context/useKullanici'
@@ -185,39 +184,9 @@ function ThemedApp() {
     };
   }, [userId, userRol, oturumAnahtari]);
 
-  // Otomatik senkronizasyon — db.json her zaman güncel kalsın diye agresif sync:
-  //   - Periyodik 60 sn (eskiden 5 dk) → offline kuyruktaki değişiklikler hızla akar
-  //   - Online dönüş ('online' event) → bekleyen queue anında push
-  //   - Tab visible olunca → arka planda biriken iş hemen sync olur
-  useEffect(() => {
-    if (!hazir || !userId || !userRol) return;
-    const kullanici = { id: userId, rol: userRol };
-    const tick = () => { void syncEngine.syncNow(kullanici); };
-
-    // İlk tetik 5 sn sonra (initial pull initDataStore zaten yaptı)
-    const initialDelay = window.setTimeout(tick, 5_000);
-    const id = window.setInterval(tick, 60 * 1000);
-
-    // Network online'a dönerse hemen sync — offline iken yapılan tüm kayıtları
-    // anında db.json'a aktarır.
-    const onOnline = () => { void syncEngine.syncNow(kullanici); };
-    window.addEventListener('online', onOnline);
-
-    // Tab tekrar görünür olduğunda sync — kullanıcı başka sekmede çalışmış olabilir.
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        void syncEngine.syncNow(kullanici);
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-
-    return () => {
-      window.clearTimeout(initialDelay);
-      window.clearInterval(id);
-      window.removeEventListener('online', onOnline);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [hazir, userId, userRol]);
+  // Online-only mimaride sync engine kaldırıldı. Bağlantı durumu
+  // useOnlineStatus hook'undan otomatik gelir (30sn'de bir health check).
+  // Manuel "Yeniden Bağlan" butonu SyncStatusBar'da.
 
   return (
     <ConfigProvider theme={antdTheme}>

@@ -1,22 +1,20 @@
 /**
- * SyncStatusBar.tsx — Header'da sync durumu gösteren chip.
- * Tıklayınca popover ile detay + manuel senkronize tetik.
+ * SyncStatusBar.tsx — Header'da bağlantı durumu gösteren chip.
+ * Online-only mimaride sadece "Bağlı / Bağlı Değil / Bağlanıyor" görünümü;
+ * eski queue/conflict göstergeleri kaldırıldı.
+ *
+ * Tıklayınca popover: son health check zamanı + "Yeniden Bağlan" butonu.
  */
 
 import { useState } from 'react';
-import { Popover, App as AntdApp, Button, Spin, Badge } from 'antd';
+import { Popover, App as AntdApp, Button, Spin } from 'antd';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { syncEngine } from '../services/syncEngine';
-import { useKullanici } from '../context/useKullanici';
-import CakismaCozumDialog from './CakismaCozumDialog';
 
 const PALETTE = {
-  online:    { bg: '#dcfce7', fg: '#166534', dot: '#16a34a', label: 'Bağlı' },
-  syncing:   { bg: '#dbeafe', fg: '#1e3a8a', dot: '#2563eb', label: 'Senkronize ediliyor' },
-  offline:   { bg: '#f1f5f9', fg: '#475569', dot: '#94a3b8', label: 'Çevrimdışı' },
-  conflict:  { bg: '#fff7ed', fg: '#9a3412', dot: '#ea580c', label: 'Çakışma' },
-  connecting:{ bg: '#fef9c3', fg: '#854d0e', dot: '#ca8a04', label: 'Bağlanıyor' },
-  idle:      { bg: '#f1f5f9', fg: '#475569', dot: '#94a3b8', label: 'Hazır' },
+  online:     { bg: '#dcfce7', fg: '#166534', dot: '#16a34a', label: 'Bağlı' },
+  offline:    { bg: '#fef2f2', fg: '#991b1b', dot: '#dc2626', label: 'Bağlı Değil' },
+  connecting: { bg: '#fef9c3', fg: '#854d0e', dot: '#ca8a04', label: 'Bağlanıyor' },
 };
 
 function formatRelativeTime(iso: string | null): string {
@@ -33,68 +31,47 @@ function formatRelativeTime(iso: string | null): string {
 
 export function SyncStatusBar() {
   const state = useOnlineStatus();
-  const { aktifKullanici } = useKullanici();
   const { message } = AntdApp.useApp();
   const [isOpen, setIsOpen] = useState(false);
-  const [conflictModalOpen, setConflictModalOpen] = useState(false);
-  const isAdminLike =
-    aktifKullanici?.rol === 'admin'
-    || aktifKullanici?.rol === 'super_admin'
-    || aktifKullanici?.rol === 'firma_admin';
+  const [loading, setLoading] = useState(false);
 
-  const palette = PALETTE[state.phase] || PALETTE.idle;
+  const palette = PALETTE[state.phase] || PALETTE.connecting;
 
-  const handleSyncNow = async () => {
-    setIsOpen(false);
-    void message.loading({ content: 'Senkronize ediliyor...', key: 'sync', duration: 0 });
+  const handleReconnect = async () => {
+    setLoading(true);
     try {
-      await syncEngine.syncNow(
-        aktifKullanici ? { id: aktifKullanici.id, rol: aktifKullanici.rol } : undefined,
-      );
-      message.success({ content: 'Senkronize edildi', key: 'sync', duration: 2 });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Hata';
-      message.error({ content: `Senkron hatası: ${msg}`, key: 'sync', duration: 3 });
+      const ok = await syncEngine.reconnect();
+      if (ok) {
+        message.success({ content: 'Bağlantı kuruldu', duration: 2 });
+        setIsOpen(false);
+      } else {
+        message.error({ content: 'Server\'a ulaşılamadı', duration: 3 });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const popoverContent = (
-    <div style={{ minWidth: 240, fontSize: 12.5 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ color: '#64748b' }}>Son alış (pull):</span>
-        <span style={{ fontWeight: 600 }}>{formatRelativeTime(state.lastPullAt)}</span>
+    <div style={{ minWidth: 220, fontSize: 12.5 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ color: '#64748b' }}>Durum:</span>
+        <span style={{ fontWeight: 600 }}>{palette.label}</span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ color: '#64748b' }}>Son gönderim (push):</span>
-        <span style={{ fontWeight: 600 }}>{formatRelativeTime(state.lastPushAt)}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ color: '#64748b' }}>Son kontrol:</span>
+        <span style={{ fontWeight: 600 }}>{formatRelativeTime(state.lastHealthCheckAt)}</span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ color: '#64748b' }}>Senkron bekleyen:</span>
-        <span style={{ fontWeight: 600 }}>{state.queueLength} kayıt</span>
-      </div>
-      {state.conflictCount > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ color: '#9a3412' }}>Çakışma:</span>
-          <span style={{ fontWeight: 700, color: '#9a3412' }}>{state.conflictCount}</span>
-        </div>
-      )}
       {state.lastError && (
-        <div style={{ marginTop: 8, padding: 8, background: '#fef2f2', borderRadius: 6, color: '#991b1b', fontSize: 11 }}>
-          {state.lastError}
-        </div>
-      )}
-      {state.storageQuotaExceeded && (
         <div style={{
-          marginTop: 8, padding: 8,
-          background: '#fff7ed', borderRadius: 6,
-          color: '#9a3412', fontSize: 11,
-          border: '1px solid #fdba74',
+          marginTop: 8,
+          padding: 8,
+          background: '#fef2f2',
+          borderRadius: 6,
+          color: '#991b1b',
+          fontSize: 11,
         }}>
-          ⚠️ Yerel depolama dolu. Yeni kayıtlar geçici olarak kaydedilemiyor.
-          Uzun süredir senkronize olunmadıysa biriken kuyruk olabilir; bu
-          mesaj kaybolmazsa tarayıcıda <strong>localStorage</strong>'ı
-          temizlemeniz gerekebilir (sayfayı yenilemeden önce yöneticinize
-          danışın — bekleyen kayıtlar kaybolabilir).
+          {state.lastError}
         </div>
       )}
       <Button
@@ -102,77 +79,52 @@ export function SyncStatusBar() {
         size="small"
         block
         style={{ marginTop: 12 }}
-        onClick={handleSyncNow}
-        disabled={state.phase === 'syncing'}
+        onClick={handleReconnect}
+        disabled={loading}
       >
-        {state.phase === 'syncing' ? <Spin size="small" /> : 'Şimdi Senkronize Et'}
+        {loading ? <Spin size="small" /> : 'Yeniden Bağlan'}
       </Button>
-      {isAdminLike && state.conflictCount > 0 && (
-        <Button
-          size="small"
-          block
-          danger
-          style={{ marginTop: 6 }}
-          onClick={() => { setIsOpen(false); setConflictModalOpen(true); }}
-        >
-          Çakışmaları Görüntüle ({state.conflictCount})
-        </Button>
-      )}
     </div>
   );
 
   return (
-    <>
     <Popover
       content={popoverContent}
-      title="Senkronizasyon Durumu"
+      title="Sunucu Bağlantısı"
       trigger="click"
       open={isOpen}
       onOpenChange={setIsOpen}
       placement="bottomRight"
     >
-      <Badge count={state.queueLength} size="small" offset={[-4, 4]}>
-        <button
-          type="button"
+      <button
+        type="button"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '4px 10px',
+          background: palette.bg,
+          color: palette.fg,
+          border: 'none',
+          borderRadius: 999,
+          fontSize: 11.5,
+          fontWeight: 600,
+          cursor: 'pointer',
+          letterSpacing: 0.2,
+        }}
+        aria-label={`Sunucu durumu: ${palette.label}`}
+      >
+        <span
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '4px 10px',
-            background: palette.bg,
-            color: palette.fg,
-            border: 'none',
+            width: 8,
+            height: 8,
             borderRadius: 999,
-            fontSize: 11.5,
-            fontWeight: 600,
-            cursor: 'pointer',
-            letterSpacing: 0.2,
+            background: palette.dot,
+            display: 'inline-block',
           }}
-          aria-label={`Sync durumu: ${palette.label}`}
-        >
-          {state.phase === 'syncing' ? (
-            <Spin size="small" />
-          ) : (
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                background: palette.dot,
-                display: 'inline-block',
-              }}
-            />
-          )}
-          <span>{palette.label}</span>
-        </button>
-      </Badge>
+        />
+        <span>{palette.label}</span>
+      </button>
     </Popover>
-    {isAdminLike && (
-      <CakismaCozumDialog
-        open={conflictModalOpen}
-        onClose={() => setConflictModalOpen(false)}
-      />
-    )}
-    </>
   );
 }
