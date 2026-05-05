@@ -430,7 +430,7 @@ export default function PaginatedBelgeInlineEditor({
           <div style={PARTY_LABEL_STYLE}>
             Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
           </div>
-          <div style={PARTY_NAME_STYLE}>{firmaBilgi.kisaAd}{firmaBilgi.kisaAd === 'MEBA Mekanik' ? ' Ltd. Şti.' : ''}</div>
+          <div style={PARTY_NAME_STYLE}>{firmaBilgi.ad}</div>
           <div style={PARTY_BODY_STYLE}>
             {firmaBilgi.telefon ? <>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}<br /></> : null}
             {firmaBilgi.web}
