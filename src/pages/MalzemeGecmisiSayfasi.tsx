@@ -15,7 +15,8 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Input, Button, Spin } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, DownloadOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { teklifService } from '../services/teklifService';
 import { useKullanici } from '../context/useKullanici';
@@ -131,6 +132,60 @@ export default function MalzemeGecmisiSayfasi() {
     setMarkaQ(markaInput);
   }
 
+  // ── Excel export — mevcut filtrelenmiş sonuç listesini xlsx olarak indir ──
+  function excelExport() {
+    if (sonuclar.length === 0) return;
+
+    const data = sonuclar.map(({ satir, teklif }) => ({
+      'Tarih': teklif.tarih ? formatDate(teklif.tarih) : '',
+      'Teklif No': teklif.teklifNo || '',
+      'Cari Firma': formatCariAdi(teklif.cari?.firmaAdi || ''),
+      'Ürün Kodu': satir.urunKod || '',
+      'Marka': satir.marka || '',
+      'Açıklama': satir.aciklama || satir.urunAdi || '',
+      'Miktar': Number(satir.miktar || 0),
+      'Birim': satir.birim || '',
+      'Birim Fiyat': Number(satir.birimFiyat || 0),
+      'Para Birimi': satir.paraBirimi || '',
+      'Durum': DURUM_CFG[teklif.durum]?.label || teklif.durum || '',
+      'Hazırlayan': teklif.hazirlayanAdSoyad || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Sütun genişlikleri (içerik uzunluğuna göre yaklaşık)
+    const headers = Object.keys(data[0]);
+    ws['!cols'] = headers.map((h) => {
+      const maxLen = data.reduce((max, row) => {
+        const v = row[h as keyof typeof row];
+        const s = typeof v === 'number' ? v.toFixed(2) : String(v || '');
+        return Math.max(max, s.length);
+      }, h.length);
+      return { wch: Math.min(60, Math.max(8, maxLen + 2)) };
+    });
+
+    // Header satırı bold
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      const cell = ws[addr];
+      if (cell) {
+        cell.s = { font: { bold: true } };
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Malzeme Geçmişi');
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const fileName = `Malzeme_Gecmisi_${yyyy}-${mm}-${dd}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+  }
+
   function durumBadge(durum: TeklifDurum) {
     const cfg = isDark ? DURUM_CFG_DARK[durum] : DURUM_CFG[durum];
     return (
@@ -224,21 +279,34 @@ export default function MalzemeGecmisiSayfasi() {
         </Button>
       </div>
 
-      {/* Durum satırı */}
+      {/* Durum satırı + Excel export */}
       <div style={{
         marginBottom: 12,
-        fontSize: 13,
-        color: aramaYapildi ? C.textPrimary : C.textFaint,
-        fontWeight: aramaYapildi ? 600 : 400,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexWrap: 'wrap',
       }}>
-        {yukleniyor ? (
-          <span><Spin size="small" /> &nbsp;Yükleniyor...</span>
-        ) : !aramaYapildi ? (
-          'Aramaya başlamak için ürün kodu, açıklama veya marka yazın.'
-        ) : sonuclar.length === 0 ? (
-          'Sonuç bulunamadı.'
-        ) : (
-          `${sonuclar.length.toLocaleString('tr-TR')} sonuç bulundu`
+        <div style={{
+          fontSize: 13,
+          color: aramaYapildi ? C.textPrimary : C.textFaint,
+          fontWeight: aramaYapildi ? 600 : 400,
+        }}>
+          {yukleniyor ? (
+            <span><Spin size="small" /> &nbsp;Yükleniyor...</span>
+          ) : !aramaYapildi ? (
+            'Aramaya başlamak için ürün kodu, açıklama veya marka yazın.'
+          ) : sonuclar.length === 0 ? (
+            'Sonuç bulunamadı.'
+          ) : (
+            `${sonuclar.length.toLocaleString('tr-TR')} sonuç bulundu`
+          )}
+        </div>
+        {sonuclar.length > 0 && (
+          <Button icon={<DownloadOutlined />} onClick={excelExport}>
+            Excel'e Aktar
+          </Button>
         )}
       </div>
 
