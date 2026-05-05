@@ -1520,7 +1520,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
         <div style={{
           fontSize: 12,
           fontWeight: 600,
-          color: C.textPrimary,
+          color: 'var(--text-primary, inherit)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25,
           whiteSpace: 'normal',
@@ -1596,38 +1596,32 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
   );
 }
 
-// ─── Premium Klasör İkonu (3D amber, detaylı kapak + iç çizgiler) ────────────
-// User-provided 56x56 3D folder: çok katmanlı gölge/parlaklık, kapak tab'ı,
-// iç içe gradient, içte iki yatay belge çizgisi.
+// ─── Premium Klasör İkonu (3D amber, 72x72 high-detail) ──────────────────────
+// User-provided 72x72: 11 katman (alt gölge, gövde, üst yüzey, kapak tab'ı +
+// alt kenar gölgesi, kapak üst parlaklık, gövde alt gradient, üst kenar shine,
+// 2 yatay iç belge çizgisi, 1 sağ üst köşe parlaklık spotu).
 // `isDark` prop'u geriye uyum için tutuluyor (caller'lar pass ediyor).
 
-function PremiumKlasorIcon({ size = 56, isDark = false }: { size?: number; isDark?: boolean }) {
+function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDark?: boolean }) {
   void isDark;
-  const uid = `pki56-${size}`;
+  const uid = `pki72-${size}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Klasör gövdesi - alt katman gölge */}
-      <path d="M6 20C6 17.8 7.8 16 10 16H46C48.2 16 50 17.8 50 20V44C50 46.2 48.2 48 46 48H10C7.8 48 6 46.2 6 44V20Z" fill="#B45309"/>
-      {/* Klasör gövdesi */}
-      <path d="M6 20C6 17.8 7.8 16 10 16H46C48.2 16 50 17.8 50 20V43C50 45.2 48.2 47 46 47H10C7.8 47 6 45.2 6 43V20Z" fill="#D97706"/>
-      {/* Klasör gövdesi üst yüzey - açık ton */}
-      <path d="M6 20H50V28H6V20Z" fill="#F59E0B"/>
-      {/* Klasör kapak tab'ı */}
-      <path d="M6 14C6 11.8 7.8 10 10 10H22L26 14H6Z" fill="#B45309"/>
-      <path d="M6 13C6 10.8 7.8 9 10 9H22L26 13H6Z" fill="#D97706"/>
-      {/* Kapak üst yüzey parlaklık */}
-      <path d="M6 9H22L24 11H6V9Z" fill="#FBBF24" opacity="0.6"/>
-      {/* Gövde alt gradient - derinlik */}
-      <path d="M6 28H50V43C50 45.2 48.2 47 46 47H10C7.8 47 6 45.2 6 43V28Z" fill={`url(#${uid})`}/>
-      {/* Üst kenar parlaklık */}
-      <path d="M10 16H46C48.2 16 50 17.8 50 20V21H6V20C6 17.8 7.8 16 10 16Z" fill="#FCD34D" opacity="0.5"/>
-      {/* Klasör içi çizgi detayı */}
-      <path d="M14 34H42" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
-      <path d="M14 38H36" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round" opacity="0.3"/>
+    <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 26C8 23.8 9.8 22 12 22H60C62.2 22 64 23.8 64 26V58C64 60.2 62.2 62 60 62H12C9.8 62 8 60.2 8 58V26Z" fill="#92400E"/>
+      <path d="M8 24C8 21.8 9.8 20 12 20H60C62.2 20 64 21.8 64 24V57C64 59.2 62.2 61 60 61H12C9.8 61 8 59.2 8 57V24Z" fill="#D97706"/>
+      <path d="M8 24H64V34H8V24Z" fill="#F59E0B"/>
+      <path d="M8 18C8 15.8 9.8 14 12 14H28L34 20H8V18Z" fill="#92400E"/>
+      <path d="M8 17C8 14.8 9.8 13 12 13H28L34 19H8V17Z" fill="#B45309"/>
+      <path d="M8 13H27L31 17H8V13Z" fill="#FCD34D" opacity="0.5"/>
+      <path d="M8 34H64V57C64 59.2 62.2 61 60 61H12C9.8 61 8 59.2 8 57V34Z" fill={`url(#${uid})`}/>
+      <path d="M12 20H60C62.2 20 64 21.8 64 24V26H8V24C8 21.8 9.8 20 12 20Z" fill="#FCD34D" opacity="0.6"/>
+      <path d="M18 44H54" stroke="#92400E" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
+      <path d="M18 50H44" stroke="#92400E" strokeWidth="2" strokeLinecap="round" opacity="0.35"/>
+      <path d="M36 34H56C58 34 60 35.5 60 37.5V38H36V34Z" fill="#FCD34D" opacity="0.2"/>
       <defs>
-        <linearGradient id={uid} x1="28" y1="28" x2="28" y2="47" gradientUnits="userSpaceOnUse">
+        <linearGradient id={uid} x1="36" y1="34" x2="36" y2="61" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#F59E0B"/>
-          <stop offset="100%" stopColor="#B45309"/>
+          <stop offset="100%" stopColor="#92400E"/>
         </linearGradient>
       </defs>
     </svg>
@@ -1714,7 +1708,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       : 'none',
   };
 
-  const logoSize = 56;
+  const logoSize = 72;
   // Premium klasör ikon kutusu — eski cari logo yerine zarif kabartmalı klasör.
   // Şeffaf arka plan: ikonun kendi gradient'i ön planda kalsın.
   const logoBoxStyle: CSSProperties = {
@@ -1773,7 +1767,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
           <div style={{
             fontSize: isMobile ? 12 : 13,
             fontWeight: 600,
-            color: C.textPrimary,
+            color: 'var(--text-primary, inherit)',
             letterSpacing: '-0.01em',
             lineHeight: 1.25,
             whiteSpace: 'normal',
