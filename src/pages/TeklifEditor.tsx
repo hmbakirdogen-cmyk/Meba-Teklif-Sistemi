@@ -35,6 +35,7 @@ import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
 import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
+import { usePDFKayit } from '../hooks/usePDFKayit';
 
 function waitForNextPaint(): Promise<void> {
   return new Promise((resolve) => {
@@ -48,6 +49,7 @@ export default function TeklifEditor() {
   const { message } = App.useApp();
   const { aktifKullanici } = useKullanici();
   const { firmalar } = useFirma();
+  const pdfKayit = usePDFKayit();
   const C = useColors();
 
   const sablonRef = useRef<HTMLDivElement>(null);
@@ -319,6 +321,20 @@ export default function TeklifEditor() {
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
 
+      // ── File System Access ile yerel klasöre paralel kayıt ──────────────
+      // Sadece PDF hedefi için. Hook destekli değilse / kullanıcı reddederse
+      // sessizce geçer; mevcut server upload akışı dokunulmadı.
+      if (hedef === 'pdf' && pdfKayit.supported && state.cari) {
+        const ksonuc = await pdfKayit.kaydetPDF(blob, state.teklifNo, state.cari.firmaAdi);
+        if (ksonuc.ok && ksonuc.path) {
+          message.success(`PDF kaydedildi: ${ksonuc.path}`, 4);
+        } else if (ksonuc.iptal) {
+          // Sessizce geç — kullanıcı klasör seçimini iptal etti, server kaydı zaten oldu
+        } else if (ksonuc.error) {
+          message.warning(`Yerel klasör kaydı yapılamadı: ${ksonuc.error}`, 5);
+        }
+      }
+
       // 3) Durum auto-progression — kullanıcının manuel kararına saygı:
       //    'onaylandı' / 'reddedildi' / 'iptal' (sonuçlanmış) ise otomatik
       //    geçiş tetiklenmez — kapanmış teklifin durumu yanlışlıkla 'hazir' ya
@@ -352,7 +368,7 @@ export default function TeklifEditor() {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message, showExportMessage, aktifKullanici?.firmaId, firmalar]);
+  }, [teklifObj, state, message, showExportMessage, aktifKullanici?.firmaId, firmalar, pdfKayit]);
 
   const handlePdfIndir = useCallback(async () => {
     await handleDisaAktar('pdf');
