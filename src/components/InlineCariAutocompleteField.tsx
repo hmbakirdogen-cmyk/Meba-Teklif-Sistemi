@@ -61,18 +61,6 @@ export function InlineCariAutocompleteField({
         >
           <span
             style={{
-              color: '#94a3b8',
-              fontSize: '0.78em',
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.02em',
-              flexShrink: 0,
-            }}
-          >
-            [{cari.cariKod}]
-          </span>
-          <span
-            style={{
               minWidth: 0,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
