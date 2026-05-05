@@ -1595,12 +1595,14 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
 }
 
 // ─── Premium Klasör İkonu (Kurumsal: champagne-gold + bronze + brown) ────────
-// Sofistike B2B his: amber'in canlı/oyuncak hissi yerine champagne-gold +
-// derin bronze tonlama. 15 katman: drop shadow ellipse, tab back+body+
-// highlight, body back shadow + main 3-stop diagonal gradient + top
-// specular shine + accent strip + inner pages peek + bottom inner shadow +
-// right edge shading + top-left gloss + 2 paper texture lines + premium
-// metalik kilit detayı.
+// Sofistike B2B his + klasörden DIŞARI SARKAN KAĞITLAR: amber'in canlı/oyuncak
+// hissi yerine champagne-gold + derin bronze tonlama. Yaklaşık 18 katman:
+// drop shadow ellipse, tab back+body+highlight, body back shadow + 3 PEEKING
+// PAPERS (rightmost ecru/slight right tilt; middle tallest white with FOLDED
+// CORNER + 2 text lines; leftmost bright white slight right tilt) + body
+// main 3-stop diagonal gradient + top specular shine + accent strip + bottom
+// inner shadow + right edge shading + top-left gloss + 2 paper texture lines
+// + premium metalik kilit detayı.
 
 function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDark?: boolean }) {
   void isDark;
@@ -1651,7 +1653,32 @@ function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDar
       {/* 5. Body back shadow (offset for depth) */}
       <path d="M6 26C6 23.8 7.8 22 10 22H62C64.2 22 66 23.8 66 26V60C66 62.2 64.2 64 62 64H10C7.8 64 6 62.2 6 60V26Z" fill="#3D2515"/>
 
-      {/* 6. Body main — rich diagonal gradient */}
+      {/* ───── PAPERS PEEKING OUT (klasör içinden dışarı sarkan kağıtlar) ───── */}
+      {/* Layer order: between back shadow and body main → peek above body top edge */}
+      {/* Paper 3 — rightmost, slight right tilt, ecru tint */}
+      <g transform="rotate(2.5 54 20)">
+        <rect x="48" y="14" width="12" height="14" rx="0.5" fill="#F0E8D2"/>
+        <rect x="48" y="14" width="12" height="0.5" fill="#3D2515" opacity="0.22"/>
+      </g>
+      {/* Paper 2 — middle, tallest, slight left tilt, with folded corner */}
+      <g transform="rotate(-1.2 41 18)">
+        <path d="M34 12.5 L47 12.5 L49 14.5 L49 26.5 L34 26.5 Z" fill="#FFFEF5"/>
+        {/* Folded corner (triangle showing back side) */}
+        <path d="M47 12.5 L49 14.5 L47 14.5 Z" fill="#D4C8A5"/>
+        {/* Paper top edge thin shadow (depth) */}
+        <rect x="34" y="12.5" width="13" height="0.5" fill="#3D2515" opacity="0.25"/>
+        {/* Faint text lines on visible part */}
+        <line x1="36" y1="16.5" x2="46" y2="16.5" stroke="#A89860" strokeWidth="0.4" opacity="0.40"/>
+        <line x1="36" y1="18.5" x2="44" y2="18.5" stroke="#A89860" strokeWidth="0.4" opacity="0.30"/>
+      </g>
+      {/* Paper 1 — leftmost, slight right tilt, brightest white */}
+      <g transform="rotate(1.5 29 20)">
+        <rect x="22" y="14.5" width="14" height="12" rx="0.5" fill="#FAF6E8"/>
+        <rect x="22" y="14.5" width="14" height="0.5" fill="#3D2515" opacity="0.20"/>
+        <line x1="24" y1="18" x2="33" y2="18" stroke="#A89860" strokeWidth="0.4" opacity="0.32"/>
+      </g>
+
+      {/* 6. Body main — rich diagonal gradient (covers paper bottoms) */}
       <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#body-${uid})`}/>
 
       {/* 7. Top specular — sharp light line at upper edge */}
@@ -1660,26 +1687,22 @@ function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDar
       {/* 8. Top accent strip — paper edge shading */}
       <path d="M6 25H66V31H6V25Z" fill="#E8C988" opacity="0.45"/>
 
-      {/* 9. Inner pages slits (white peek between flaps) */}
-      <rect x="14" y="22" width="44" height="0.8" fill="#FAF6E8" opacity="0.6"/>
-      <rect x="16" y="23" width="40" height="0.6" fill="#FAF6E8" opacity="0.4"/>
-
-      {/* 10. Bottom inner shadow (gravity depth) */}
+      {/* 9. Bottom inner shadow (gravity depth) */}
       <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#bottom-${uid})`}/>
 
-      {/* 11. Right edge shadow gradient */}
+      {/* 10. Right edge shadow gradient */}
       <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#right-${uid})`}/>
 
-      {/* 12. Top-left specular gloss (premium polished feel) */}
+      {/* 11. Top-left specular gloss (premium polished feel) */}
       <ellipse cx="14" cy="26" rx="5" ry="1.5" fill="#FAF6E8" opacity="0.40"/>
 
-      {/* 13. Paper texture lines (subtle) */}
-      <path d="M14 40H56" stroke="#3D2515" strokeWidth="0.7" strokeLinecap="round" opacity="0.20"/>
-      <path d="M14 46H48" stroke="#3D2515" strokeWidth="0.7" strokeLinecap="round" opacity="0.15"/>
+      {/* 12. Paper texture lines on front pocket (subtle) */}
+      <path d="M14 42H56" stroke="#3D2515" strokeWidth="0.7" strokeLinecap="round" opacity="0.20"/>
+      <path d="M14 48H48" stroke="#3D2515" strokeWidth="0.7" strokeLinecap="round" opacity="0.15"/>
 
-      {/* 14. Premium metalik kilit/seal (top-center) */}
-      <rect x="32" y="19.5" width="8" height="2" rx="0.6" fill="#6B4423"/>
-      <rect x="32" y="19.5" width="8" height="0.8" fill="#E8C988" opacity="0.7"/>
+      {/* 13. Premium metalik kilit/seal (front pocket) */}
+      <rect x="32" y="20" width="8" height="2" rx="0.6" fill="#6B4423"/>
+      <rect x="32" y="20" width="8" height="0.8" fill="#E8C988" opacity="0.7"/>
     </svg>
   );
 }
