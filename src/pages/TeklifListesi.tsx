@@ -1525,6 +1525,9 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
           lineHeight: 1.25,
           whiteSpace: 'normal',
           wordBreak: 'break-word',
+          overflow: 'visible',
+          display: 'block',
+          WebkitLineClamp: 'unset',
         }}>
           {isim}
         </div>
@@ -1593,222 +1596,25 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
   );
 }
 
-// ─── Premium Klasör İkonu ────────────────────────────────────────────────────
-//
-// Kabartmalı (3D), tema uyumlu, kart logosu yerine kullanılan zarif klasör.
-// Light: warm bej/altın tonlu (premium B2B his), dark: gümüş-grafit.
-// Üstten ışık highlight, alta yumuşak iç gölge, dışta soft drop shadow.
+// ─── Premium Klasör İkonu (3D amber, tek tema) ───────────────────────────────
+// User-provided 3D folder: amber/altın gradient, ön kapak vurgulu.
+// `isDark` prop'u geriye uyum için tutuluyor (caller'lar pass ediyor).
 
-function PremiumKlasorIcon({ size = 52, isDark = false }: { size?: number; isDark?: boolean }) {
-  const VB = 80;
-  const uid = `pkv3-${isDark ? 'd' : 'l'}-${size}`;
-
-  const c = isDark
-    ? {
-        // Arka kapak
-        backTop:    '#5C6A96',
-        backBot:    '#2E3650',
-        // Tab
-        tabTop:     '#7080B8',
-        tabBot:     '#4A5580',
-        tabRim:     'rgba(255,255,255,0.18)',
-        // Kağıt
-        paper1Top:  '#E8EDF8',
-        paper1Bot:  '#C8D2EC',
-        paper2Top:  '#D0D8F0',
-        paper2Bot:  '#B8C4E4',
-        paperLine:  'rgba(80,100,180,0.30)',
-        // Ön kapak
-        frontTop:   '#8A99C8',
-        frontMid:   '#6070A8',
-        frontBot:   '#3A4568',
-        // Aksan / gölge
-        rim:        'rgba(0,0,0,0.55)',
-        shine:      'rgba(255,255,255,0.28)',
-        shineEdge:  'rgba(255,255,255,0.15)',
-        lineColor:  'rgba(255,255,255,0.13)',
-        shadow:     'rgba(10,15,40,0.60)',
-        bottomShadow: 'rgba(0,0,0,0.50)',
-        // Kenar şeridi
-        stripe:     '#5060A0',
-        stripeShine:'rgba(255,255,255,0.22)',
-      }
-    : {
-        // Arka kapak
-        backTop:    '#F0C84A',
-        backBot:    '#A87820',
-        // Tab
-        tabTop:     '#FAD86A',
-        tabBot:     '#C89030',
-        tabRim:     'rgba(255,255,255,0.60)',
-        // Kağıt
-        paper1Top:  '#FFFFFF',
-        paper1Bot:  '#EFF3FF',
-        paper2Top:  '#F5F8FF',
-        paper2Bot:  '#E2E8FF',
-        paperLine:  'rgba(80,100,200,0.18)',
-        // Ön kapak
-        frontTop:   '#FAEEC0',
-        frontMid:   '#F0D060',
-        frontBot:   '#B88020',
-        // Aksan / gölge
-        rim:        'rgba(100,60,0,0.42)',
-        shine:      'rgba(255,255,255,0.90)',
-        shineEdge:  'rgba(255,255,255,0.55)',
-        lineColor:  'rgba(100,65,0,0.15)',
-        shadow:     'rgba(120,80,10,0.35)',
-        bottomShadow: 'rgba(100,60,0,0.40)',
-        // Kenar şeridi
-        stripe:     '#D4A030',
-        stripeShine:'rgba(255,255,255,0.50)',
-      };
-
+function PremiumKlasorIcon({ size = 48, isDark = false }: { size?: number; isDark?: boolean }) {
+  void isDark;
+  const uid = `pki-${size}`;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`} fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 12C4 9.8 5.8 8 8 8H18L22 12H40C42.2 12 44 13.8 44 16V36C44 38.2 42.2 40 40 40H8C5.8 40 4 38.2 4 36V12Z" fill="#F59E0B"/>
+      <path d="M4 18H44V36C44 38.2 42.2 40 40 40H8C5.8 40 4 38.2 4 36V18Z" fill="#FBBF24"/>
+      <path d="M4 18H44V22H4V18Z" fill="#F59E0B" opacity="0.5"/>
+      <path d="M8 40H40C42.2 40 44 38.2 44 36V18H4V36C4 38.2 5.8 40 8 40Z" fill={`url(#${uid})`}/>
       <defs>
-        {/* Gradientler */}
-        <linearGradient id={`${uid}-back`} x1="40" y1="16" x2="40" y2="68" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.backTop} />
-          <stop offset="100%" stopColor={c.backBot} />
+        <linearGradient id={uid} x1="24" y1="18" x2="24" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FCD34D"/>
+          <stop offset="100%" stopColor="#D97706"/>
         </linearGradient>
-        <linearGradient id={`${uid}-tab`} x1="22" y1="14" x2="22" y2="26" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.tabTop} />
-          <stop offset="100%" stopColor={c.tabBot} />
-        </linearGradient>
-        <linearGradient id={`${uid}-front`} x1="40" y1="28" x2="40" y2="68" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.frontTop} />
-          <stop offset="55%"  stopColor={c.frontMid} />
-          <stop offset="100%" stopColor={c.frontBot} />
-        </linearGradient>
-        <linearGradient id={`${uid}-p1`} x1="40" y1="14" x2="40" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.paper1Top} />
-          <stop offset="100%" stopColor={c.paper1Bot} />
-        </linearGradient>
-        <linearGradient id={`${uid}-p2`} x1="40" y1="16" x2="40" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.paper2Top} />
-          <stop offset="100%" stopColor={c.paper2Bot} />
-        </linearGradient>
-        <linearGradient id={`${uid}-shine`} x1="10" y1="28" x2="10" y2="52" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.shine} stopOpacity="0.9" />
-          <stop offset="100%" stopColor={c.shine} stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id={`${uid}-stripeG`} x1="7" y1="28" x2="11" y2="28" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.stripe} />
-          <stop offset="100%" stopColor={c.frontMid} />
-        </linearGradient>
-        {/* Drop shadow filtresi */}
-        <filter id={`${uid}-fs`} x="-15%" y="-10%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor={c.shadow} floodOpacity="0.55" />
-        </filter>
-        <filter id={`${uid}-ps`} x="-20%" y="-20%" width="150%" height="180%">
-          <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor={c.shadow} floodOpacity="0.40" />
-        </filter>
-        {/* Clip paths */}
-        <clipPath id={`${uid}-frontClip`}>
-          <path d="M 7 29 Q 7 26 10 26 L 70 26 Q 73 26 73 29 L 73 63 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z" />
-        </clipPath>
       </defs>
-
-      {/* ── Zemin gölgesi */}
-      <ellipse cx="40" cy="70" rx="28" ry="2.8" fill={c.bottomShadow} opacity="0.38" />
-
-      {/* ── Arka kapak gövdesi (tab dahil) */}
-      <path
-        d="M 7 26 Q 7 22 10 22 L 34 22 Q 37 22 38.5 26 L 41 30 L 70 30 Q 73 30 73 33 L 73 63 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z"
-        fill={`url(#${uid}-back)`}
-        stroke={c.rim}
-        strokeWidth="0.8"
-        filter={`url(#${uid}-fs)`}
-      />
-
-      {/* ── Tab yüzeyine ayrı gradient */}
-      <path
-        d="M 8 26 Q 8 23 11 23 L 33.5 23 Q 36 23 37.5 26 L 40 29.5 L 7.5 29.5 Z"
-        fill={`url(#${uid}-tab)`}
-        stroke="none"
-        opacity="0.85"
-      />
-      {/* Tab üst parlak kenar */}
-      <path
-        d="M 9.5 26 Q 9.5 24.5 11.5 24.5 L 33 24.5 Q 35 24.5 36.5 27 L 38.5 29.5"
-        stroke={c.tabRim}
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        opacity="0.8"
-      />
-
-      {/* ── Kağıt 2 — hafif sol yatık */}
-      <g filter={`url(#${uid}-ps)`}>
-        <rect
-          x="17" y="14" width="34" height="17"
-          rx="2.5"
-          fill={`url(#${uid}-p2)`}
-          stroke={isDark ? 'rgba(180,195,230,0.30)' : 'rgba(160,140,80,0.35)'}
-          strokeWidth="0.6"
-          transform="rotate(-4 34 22)"
-        />
-      </g>
-      {/* Kağıt 2 çizgileri */}
-      <line x1="21" y1="19" x2="40" y2="19" stroke={c.paperLine} strokeWidth="1.1" strokeLinecap="round" transform="rotate(-4 34 22)" />
-      <line x1="21" y1="22.5" x2="34" y2="22.5" stroke={c.paperLine} strokeWidth="0.9" strokeLinecap="round" transform="rotate(-4 34 22)" opacity="0.7" />
-
-      {/* ── Kağıt 1 — hafif sağ yatık */}
-      <g filter={`url(#${uid}-ps)`}>
-        <rect
-          x="22" y="13" width="34" height="17"
-          rx="2.5"
-          fill={`url(#${uid}-p1)`}
-          stroke={isDark ? 'rgba(200,215,245,0.35)' : 'rgba(160,140,80,0.40)'}
-          strokeWidth="0.6"
-          transform="rotate(3 39 21)"
-        />
-      </g>
-      {/* Kağıt 1 çizgileri */}
-      <line x1="26" y1="18" x2="50" y2="18" stroke={c.paperLine} strokeWidth="1.1" strokeLinecap="round" transform="rotate(3 39 21)" />
-      <line x1="26" y1="21.5" x2="43" y2="21.5" stroke={c.paperLine} strokeWidth="0.9" strokeLinecap="round" transform="rotate(3 39 21)" opacity="0.7" />
-      <line x1="26" y1="25" x2="37" y2="25" stroke={c.paperLine} strokeWidth="0.8" strokeLinecap="round" transform="rotate(3 39 21)" opacity="0.5" />
-
-      {/* ── Ön kapak */}
-      <path
-        d="M 7 29 Q 7 26 10 26 L 70 26 Q 73 26 73 29 L 73 63 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z"
-        fill={`url(#${uid}-front)`}
-        stroke={c.rim}
-        strokeWidth="0.8"
-      />
-
-      {/* Ön kapak sol dikey kenar şeridi */}
-      <path
-        d="M 7 29 Q 7 26 10 26 L 14 26 L 14 67 L 10 67 Q 7 67 7 63 Z"
-        fill={`url(#${uid}-stripeG)`}
-        opacity="0.6"
-      />
-
-      {/* Ön kapak üst parlak highlight */}
-      <rect x="8" y="26.8" width="64" height="1.6" rx="0.8" fill={c.shine} opacity="0.80" />
-
-      {/* Sol dikey parlama şeridi */}
-      <rect x="8" y="29" width="1.5" height="36" rx="0.75" fill={`url(#${uid}-shine)`} opacity="0.60" />
-
-      {/* Ön kapak içerik — dosya içeriği çizgileri */}
-      <g clipPath={`url(#${uid}-frontClip)`}>
-        {/* Üst çizgi grubu — belge */}
-        <rect x="18" y="36" width="44" height="3"   rx="1.5" fill={c.lineColor} />
-        <rect x="18" y="42" width="36" height="2.5" rx="1.25" fill={c.lineColor} opacity="0.80" />
-        <rect x="18" y="47.5" width="28" height="2.2" rx="1.1" fill={c.lineColor} opacity="0.60" />
-        <rect x="18" y="52.5" width="20" height="2"   rx="1"   fill={c.lineColor} opacity="0.40" />
-
-        {/* Alt köşe gölge derinliği */}
-        <path d="M 7 50 L 73 50 L 73 67 Q 73 67 70 67 L 10 67 Q 7 67 7 63 Z"
-          fill={isDark ? 'rgba(0,0,0,0.18)' : 'rgba(100,60,0,0.10)'}
-          opacity="0.7"
-        />
-      </g>
-
-      {/* Alt metal kenar şeridi / fold hissi */}
-      <path
-        d="M 8 63 Q 8 65.5 10 66 L 70 66 Q 72 65.5 72 63 L 72 62 L 8 62 Z"
-        fill={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.30)'}
-      />
     </svg>
   );
 }
@@ -1893,7 +1699,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       : 'none',
   };
 
-  const logoSize = isMobile ? 42 : 50;
+  const logoSize = 48;
   // Premium klasör ikon kutusu — eski cari logo yerine zarif kabartmalı klasör.
   // Şeffaf arka plan: ikonun kendi gradient'i ön planda kalsın.
   const logoBoxStyle: CSSProperties = {
@@ -1957,6 +1763,9 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
             lineHeight: 1.25,
             whiteSpace: 'normal',
             wordBreak: 'break-word',
+            overflow: 'visible',
+            display: 'block',
+            WebkitLineClamp: 'unset',
           }}>
             {formatCariAdi(klasor.firmaAdiDisplay)
               .replace(/\s+(SAN\.|TİC\.|LTD\.|A\.Ş\.|ŞTİ\.|İNŞ\.).*$/i, '')
