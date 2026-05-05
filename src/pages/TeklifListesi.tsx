@@ -246,7 +246,7 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
 
 // ─── Filtre tipi ─────────────────────────────────────────────────────────────
 
-type Filtre = 'benim' | 'tumu';
+type Filtre = 'benim' | 'tumu' | 'aktiflik';
 type Gorunum = 'klasorler' | 'detay';
 type Siralama = 'alfabe' | 'aktiflik' | 'teklifSayisi';
 type GorunumModu = 'grid' | 'liste';
@@ -443,10 +443,12 @@ export default function TeklifListesi() {
     return computeYoneticiOzeti(teklifler);
   }, [teklifler, isAdmin]);
 
-  // "Diğer Personellerin Teklifleri" sekmesi kullanıcı tercihiyle kaldırıldı.
+  // 3 tab birleşik: Son aktivite (flat liste) + Benim Tekliflerim + Tüm Teklifler (klasör grid).
+  // Eski "Teklif Klasörleri" sıralama toggle'ı kaldırıldı, yerine sekme satırına entegre.
   const sekmeler: Array<{ key: Filtre; label: string; count: number }> = [
-    { key: 'benim', label: 'Benim Tekliflerim', count: benimSayisi },
-    { key: 'tumu',  label: 'Tüm Teklifler',     count: teklifler.length },
+    { key: 'aktiflik', label: 'Son aktivite',      count: teklifler.length },
+    { key: 'benim',    label: 'Benim Tekliflerim', count: benimSayisi },
+    { key: 'tumu',     label: 'Tüm Teklifler',     count: teklifler.length },
   ];
 
   // ── Klasör detay başlık bilgisi ──────────────────────────────────────────────
@@ -617,6 +619,18 @@ function KlasorGorunumu({
   const { isDark } = useTheme();
   const { aktifKullanici } = useKullanici();
   const { message, modal } = App.useApp();
+
+  // Aktif sekme: siralama 'aktiflik' ise üstün, değilse aktifFiltre değeri.
+  const aktifSekme: Filtre = siralama === 'aktiflik' ? 'aktiflik' : aktifFiltre;
+  // Sekme tıklamasını işle — siralama ve aktifFiltre'yi birlikte ayarlar.
+  function sekmeyeTikla(k: Filtre) {
+    if (k === 'aktiflik') {
+      setSiralama('aktiflik');
+    } else {
+      setAktifFiltre(k);
+      setSiralama('alfabe');
+    }
+  }
   const [sonucModalTeklif, setSonucModalTeklif] = useState<Teklif | null>(null);
 
   // Aktivite modu için kullanılacak callbacks — DetayGorunumu'ndakinin aynısı.
@@ -738,7 +752,7 @@ function KlasorGorunumu({
           alignItems: 'center',
           flexWrap: 'wrap',
         }}>
-          {/* Tab'lar */}
+          {/* 3 birleşik tab: Son aktivite | Benim Tekliflerim | Tüm Teklifler */}
           <div style={{
             display: 'flex',
             width: 'fit-content',
@@ -750,47 +764,23 @@ function KlasorGorunumu({
             padding: '3px',
             overflowX: isMobile ? 'auto' : 'visible',
           }}>
-            {sekmeler.map((s) => (
-              <button key={s.key} onClick={() => setAktifFiltre(s.key)} className={tabButtonClassName(aktifFiltre === s.key)}>
-                {s.label}
-                <span className="app-tab-count">{s.count}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Sıralama butonları */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: 3,
-            background: C.bgElevated,
-            borderRadius: 8,
-            border: `1px solid ${C.borderSubtle}`,
-          }}>
-            {([
-              { k: 'aktiflik', l: 'Son aktivite' },
-              { k: 'alfabe',   l: 'Teklif Klasörleri' },
-            ] as Array<{ k: Siralama; l: string }>).map(({ k, l }) => {
-              const aktif = siralama === k;
+            {sekmeler.map((s) => {
+              const aktif = aktifSekme === s.key;
               return (
                 <button
-                  key={k}
-                  onClick={() => setSiralama(k)}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: aktif ? 600 : 500,
-                    color: aktif ? C.textPrimary : C.textSecondary,
-                    background: aktif ? C.bgSurface : 'transparent',
-                    border: 'none',
-                    padding: '5px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    letterSpacing: '0.01em',
-                    boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
-                  }}
+                  key={s.key}
+                  onClick={() => sekmeyeTikla(s.key)}
+                  className={tabButtonClassName(aktif)}
+                  style={aktif ? {
+                    background: 'var(--tab-active-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: '#1E3A5F',
+                    boxShadow: '0 0 0 2px rgba(30,58,95,0.18), 0 1px 3px rgba(15,30,60,0.10)',
+                    fontWeight: 700,
+                  } : undefined}
                 >
-                  {l}
+                  {s.label}
+                  <span className="app-tab-count">{s.count}</span>
                 </button>
               );
             })}
