@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Input, Button, Spin } from 'antd';
+import { Input, Button, Spin, Select } from 'antd';
 import { SearchOutlined, DownloadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
@@ -65,6 +65,7 @@ export default function MalzemeGecmisiSayfasi() {
   const [markaInput, setMarkaInput] = useState('');
   const [urunQ, setUrunQ] = useState('');
   const [markaQ, setMarkaQ] = useState('');
+  const [durumFiltre, setDurumFiltre] = useState<TeklifDurum | ''>('');
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
@@ -103,7 +104,8 @@ export default function MalzemeGecmisiSayfasi() {
     const u = norm(urunQ);
     const m = norm(markaQ);
     if (!u && !m) return [];
-    return tumSatirlar.filter(({ satir }) => {
+    return tumSatirlar.filter(({ satir, teklif }) => {
+      if (durumFiltre && teklif.durum !== durumFiltre) return false;
       if (m) {
         const sm = norm(String(satir.marka || ''));
         if (!sm.includes(m)) return false;
@@ -125,7 +127,7 @@ export default function MalzemeGecmisiSayfasi() {
       const ub = b.teklif.guncellemeTarihi || '';
       return ub.localeCompare(ua);
     });
-  }, [tumSatirlar, urunQ, markaQ]);
+  }, [tumSatirlar, urunQ, markaQ, durumFiltre]);
 
   function onAraEnter() {
     setUrunQ(urunInput);
@@ -251,7 +253,7 @@ export default function MalzemeGecmisiSayfasi() {
       {/* Arama satırı */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr auto',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 180px auto',
         gap: 10,
         marginBottom: 18,
       }}>
@@ -273,6 +275,19 @@ export default function MalzemeGecmisiSayfasi() {
           onChange={(e) => setMarkaInput(e.target.value)}
           onPressEnter={onAraEnter}
           style={{ borderRadius: 8 }}
+        />
+        <Select
+          size="large"
+          value={durumFiltre || 'all'}
+          onChange={(v) => setDurumFiltre(v === 'all' ? '' : (v as TeklifDurum))}
+          style={{ width: '100%' }}
+          options={[
+            { value: 'all', label: 'Tüm Durumlar' },
+            ...(Object.keys(DURUM_CFG) as TeklifDurum[]).map((d) => ({
+              value: d,
+              label: DURUM_CFG[d].label,
+            })),
+          ]}
         />
         <Button type="primary" size="large" icon={<SearchOutlined />} onClick={onAraEnter} style={{ minWidth: isMobile ? '100%' : 110 }}>
           Ara
