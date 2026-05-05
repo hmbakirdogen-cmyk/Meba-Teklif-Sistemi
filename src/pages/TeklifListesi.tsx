@@ -780,7 +780,7 @@ function KlasorGorunumu({
           }}>
             {([
               { k: 'aktiflik', l: 'Son aktivite' },
-              { k: 'alfabe',   l: 'A → Z' },
+              { k: 'alfabe',   l: 'Teklif Klasörleri' },
             ] as Array<{ k: Siralama; l: string }>).map(({ k, l }) => {
               const aktif = siralama === k;
               return (
