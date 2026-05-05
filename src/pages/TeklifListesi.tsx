@@ -1469,8 +1469,8 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
       style={{
         display: 'grid',
         gridTemplateColumns: isMobile
-          ? '32px minmax(0, 1fr) auto'
-          : '32px minmax(0, 1fr) 80px 78px 68px',
+          ? '52px minmax(0, 1fr) auto'
+          : '52px minmax(0, 1fr) 80px 78px 68px',
         alignItems: 'center',
         gap: isMobile ? 8 : 10,
         padding: isMobile ? '8px 10px' : '8px 12px',
@@ -1505,14 +1505,14 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
       )}
       {/* Premium klasör ikonu */}
       <div style={{
-        width: 36,
-        height: 36,
+        width: 52,
+        height: 52,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
       }}>
-        <PremiumKlasorIcon size={32} isDark={isDark} />
+        <PremiumKlasorIcon size={48} isDark={isDark} />
       </div>
 
       {/* İsim + sektör */}
