@@ -1594,34 +1594,92 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
   );
 }
 
-// ─── Premium Klasör İkonu (3D amber, 72x72 high-detail) ──────────────────────
-// User-provided 72x72: 11 katman (alt gölge, gövde, üst yüzey, kapak tab'ı +
-// alt kenar gölgesi, kapak üst parlaklık, gövde alt gradient, üst kenar shine,
-// 2 yatay iç belge çizgisi, 1 sağ üst köşe parlaklık spotu).
-// `isDark` prop'u geriye uyum için tutuluyor (caller'lar pass ediyor).
+// ─── Premium Klasör İkonu (Kurumsal: champagne-gold + bronze + brown) ────────
+// Sofistike B2B his: amber'in canlı/oyuncak hissi yerine champagne-gold +
+// derin bronze tonlama. 15 katman: drop shadow ellipse, tab back+body+
+// highlight, body back shadow + main 3-stop diagonal gradient + top
+// specular shine + accent strip + inner pages peek + bottom inner shadow +
+// right edge shading + top-left gloss + 2 paper texture lines + premium
+// metalik kilit detayı.
 
 function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDark?: boolean }) {
   void isDark;
-  const uid = `pki72-${size}`;
+  const uid = `pki-${size}-${Math.random().toString(36).slice(2, 7)}`;
   return (
     <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 26C8 23.8 9.8 22 12 22H60C62.2 22 64 23.8 64 26V58C64 60.2 62.2 62 60 62H12C9.8 62 8 60.2 8 58V26Z" fill="#92400E"/>
-      <path d="M8 24C8 21.8 9.8 20 12 20H60C62.2 20 64 21.8 64 24V57C64 59.2 62.2 61 60 61H12C9.8 61 8 59.2 8 57V24Z" fill="#D97706"/>
-      <path d="M8 24H64V34H8V24Z" fill="#F59E0B"/>
-      <path d="M8 18C8 15.8 9.8 14 12 14H28L34 20H8V18Z" fill="#92400E"/>
-      <path d="M8 17C8 14.8 9.8 13 12 13H28L34 19H8V17Z" fill="#B45309"/>
-      <path d="M8 13H27L31 17H8V13Z" fill="#FCD34D" opacity="0.5"/>
-      <path d="M8 34H64V57C64 59.2 62.2 61 60 61H12C9.8 61 8 59.2 8 57V34Z" fill={`url(#${uid})`}/>
-      <path d="M12 20H60C62.2 20 64 21.8 64 24V26H8V24C8 21.8 9.8 20 12 20Z" fill="#FCD34D" opacity="0.6"/>
-      <path d="M18 44H54" stroke="#92400E" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
-      <path d="M18 50H44" stroke="#92400E" strokeWidth="2" strokeLinecap="round" opacity="0.35"/>
-      <path d="M36 34H56C58 34 60 35.5 60 37.5V38H36V34Z" fill="#FCD34D" opacity="0.2"/>
       <defs>
-        <linearGradient id={uid} x1="36" y1="34" x2="36" y2="61" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#F59E0B"/>
-          <stop offset="100%" stopColor="#92400E"/>
+        {/* Body — diagonal warm gold gradient (upper-left light, lower-right shadow) */}
+        <linearGradient id={`body-${uid}`} x1="0" y1="20" x2="72" y2="62" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#F0DCA8"/>
+          <stop offset="40%" stopColor="#D9A85A"/>
+          <stop offset="100%" stopColor="#6B4423"/>
+        </linearGradient>
+        {/* Tab — subtle vertical refinement */}
+        <linearGradient id={`tab-${uid}`} x1="0" y1="10" x2="0" y2="20" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#E8C988"/>
+          <stop offset="100%" stopColor="#A87E3D"/>
+        </linearGradient>
+        {/* Top specular — sharp light at top edge */}
+        <linearGradient id={`shine-${uid}`} x1="0" y1="20" x2="0" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FAF0DC" stopOpacity="0.85"/>
+          <stop offset="100%" stopColor="#FAF0DC" stopOpacity="0"/>
+        </linearGradient>
+        {/* Bottom inner shadow — depth at base */}
+        <linearGradient id={`bottom-${uid}`} x1="0" y1="48" x2="0" y2="62" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3D2515" stopOpacity="0"/>
+          <stop offset="100%" stopColor="#3D2515" stopOpacity="0.45"/>
+        </linearGradient>
+        {/* Right edge shading */}
+        <linearGradient id={`right-${uid}`} x1="50" y1="30" x2="68" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#000" stopOpacity="0"/>
+          <stop offset="100%" stopColor="#000" stopOpacity="0.22"/>
         </linearGradient>
       </defs>
+
+      {/* 1. Drop shadow ellipse — folder hovers above surface */}
+      <ellipse cx="36" cy="65" rx="26" ry="2" fill="#1A0F08" opacity="0.20"/>
+
+      {/* 2. Tab back shadow */}
+      <path d="M8 17C8 14.8 9.8 13 12 13H29L34.5 18H8V17Z" fill="#3D2515" opacity="0.55"/>
+
+      {/* 3. Tab body */}
+      <path d="M8 14C8 11.8 9.8 10 12 10H28L34 15H8V14Z" fill={`url(#tab-${uid})`}/>
+
+      {/* 4. Tab top thin highlight */}
+      <path d="M11 11H27L29 13H10V12C10 11.5 10.5 11 11 11Z" fill="#FAF0DC" opacity="0.55"/>
+
+      {/* 5. Body back shadow (offset for depth) */}
+      <path d="M6 26C6 23.8 7.8 22 10 22H62C64.2 22 66 23.8 66 26V60C66 62.2 64.2 64 62 64H10C7.8 64 6 62.2 6 60V26Z" fill="#3D2515"/>
+
+      {/* 6. Body main — rich diagonal gradient */}
+      <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#body-${uid})`}/>
+
+      {/* 7. Top specular — sharp light line at upper edge */}
+      <path d="M10 20H62C64.2 20 66 21.8 66 24V25H6V24C6 21.8 7.8 20 10 20Z" fill={`url(#shine-${uid})`}/>
+
+      {/* 8. Top accent strip — paper edge shading */}
+      <path d="M6 25H66V31H6V25Z" fill="#E8C988" opacity="0.45"/>
+
+      {/* 9. Inner pages slits (white peek between flaps) */}
+      <rect x="14" y="22" width="44" height="0.8" fill="#FAF6E8" opacity="0.6"/>
+      <rect x="16" y="23" width="40" height="0.6" fill="#FAF6E8" opacity="0.4"/>
+
+      {/* 10. Bottom inner shadow (gravity depth) */}
+      <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#bottom-${uid})`}/>
+
+      {/* 11. Right edge shadow gradient */}
+      <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#right-${uid})`}/>
+
+      {/* 12. Top-left specular gloss (premium polished feel) */}
+      <ellipse cx="14" cy="26" rx="5" ry="1.5" fill="#FAF6E8" opacity="0.40"/>
+
+      {/* 13. Paper texture lines (subtle) */}
+      <path d="M14 40H56" stroke="#3D2515" strokeWidth="0.7" strokeLinecap="round" opacity="0.20"/>
+      <path d="M14 46H48" stroke="#3D2515" strokeWidth="0.7" strokeLinecap="round" opacity="0.15"/>
+
+      {/* 14. Premium metalik kilit/seal (top-center) */}
+      <rect x="32" y="19.5" width="8" height="2" rx="0.6" fill="#6B4423"/>
+      <rect x="32" y="19.5" width="8" height="0.8" fill="#E8C988" opacity="0.7"/>
     </svg>
   );
 }
