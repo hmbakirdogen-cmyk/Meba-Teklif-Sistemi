@@ -1454,9 +1454,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
     .map((id) => kullaniciMap.get(id))
     .filter((k): k is Kullanici => Boolean(k));
 
-  const isim = formatCariAdi(klasor.firmaAdiDisplay)
-    .replace(/\s+(SAN\.|TİC\.|LTD\.|A\.Ş\.|ŞTİ\.|İNŞ\.).*$/i, '')
-    .trim() || klasor.firmaAdiDisplay;
+  const isim = formatCariAdi(klasor.firmaAdiDisplay) || klasor.firmaAdiDisplay;
 
   // Kolon: [premium klasör 32] [isim/sektör flex] [teklif 95] [tarih 90] [avatars 78]
   // Satırlar arası nefes boşluk (margin-bottom + radius) — etiketler kalabalık
@@ -1776,9 +1774,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
             display: 'block',
             WebkitLineClamp: 'unset',
           }}>
-            {formatCariAdi(klasor.firmaAdiDisplay)
-              .replace(/\s+(SAN\.|TİC\.|LTD\.|A\.Ş\.|ŞTİ\.|İNŞ\.).*$/i, '')
-              .trim() || klasor.firmaAdiDisplay}
+            {formatCariAdi(klasor.firmaAdiDisplay) || klasor.firmaAdiDisplay}
           </div>
         </div>
       </div>
