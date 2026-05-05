@@ -1346,12 +1346,9 @@ function KlasorIzgarasi({
 
   const gridStyle: CSSProperties = liste
     ? {
-        display: 'flex',
-        flexDirection: 'column',
-        background: C.bgSurface,
-        borderRadius: 10,
-        border: `1px solid ${C.borderSubtle}`,
-        overflow: 'hidden',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+        gap: isMobile ? 8 : 10,
       }
     : {
         display: 'grid',
@@ -1448,7 +1445,7 @@ interface KlasorSatiriProps {
   onCariGuncelle: (c: Cari) => void;
 }
 
-function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick }: KlasorSatiriProps) {
+function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSatiriProps) {
   const { isDark } = useTheme();
   const [hover, setHover] = useState(false);
 
@@ -1495,7 +1492,6 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick }: 
         alignItems: 'center',
         gap: isMobile ? 10 : 14,
         padding: isMobile ? '12px 12px' : '12px 16px',
-        marginBottom: sonSatir ? 0 : 8,
         borderRadius: 8,
         background: hover
           ? (isDark ? 'rgba(255,255,255,0.045)' : 'rgba(15,30,60,0.04)')
@@ -1545,9 +1541,8 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick }: 
           color: C.textPrimary,
           letterSpacing: '-0.01em',
           lineHeight: 1.3,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
         }}>
           {isim}
         </div>
@@ -1555,9 +1550,8 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, sonSatir, onClick }: 
           fontSize: 11,
           color: C.textFaint,
           lineHeight: 1.3,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
         }}>
           {subtitle}
         </div>
