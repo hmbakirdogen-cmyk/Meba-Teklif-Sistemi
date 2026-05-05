@@ -19,6 +19,14 @@ Belirli bir teklifin carisini bir başkasıyla değiştirir.
 - **Idempotent DEĞİL:** Her çalıştırmada hardcoded ID'leri etkiler.
 - **Sadece dev/test:** Üretimde kullanma.
 
+### `migrate-admin-to-firma-admin.cjs` (idempotent)
+`admin` rolündeki 3 yönetim kurulu üyesini (Ahmet/Fatih/Mehmet Maraş)
+`firma_admin` rolüne migrate eder + her birine `gosterilenFirmalar=[meba,mesa,elmos]`
+ekler. firmaId'leri Ahmet→elmos, Fatih/Mehmet Maraş→mesa olarak set eder.
+- **Idempotent:** admin yoksa no-op.
+- **Validation:** Beklenmeyen kullaniciAdi varsa abort.
+- **Çalıştırılma tarihi:** 2026-05-05 (yetki sistemi temizliği).
+
 ## Yeni proje kurulumu
 
 Yeni bir kurulumda bu scriptleri çalıştırmaya **gerek yok** — şu anki `db.json`
