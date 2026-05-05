@@ -240,19 +240,9 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
   );
 }
 
-// ─── Sektörel/genel kelimeleri filtre — wordmark için ─────────────────────────
-// Bu kelimeler tek başına firmayı tanımlamaz; brand wordmark'a katmıyoruz.
-const STOP_WORDS = new Set([
-  'ELEKTRİK', 'ELEKTRIK', 'MEKANİK', 'MEKANIK', 'OTOMASYON', 'MAKİNE', 'MAKINA', 'MAKİNA',
-  'TESİSAT', 'TESISAT', 'ENDÜSTRİYEL', 'ENDUSTRIYEL', 'MÜHENDİSLİK', 'MUHENDISLIK',
-  'HİDROLİK', 'HIDROLIK', 'PNÖMATİK', 'PNOMATIK', 'TEKNİK', 'TEKNIK', 'KONTROL',
-  'PROSES', 'YENİLİKÇİ', 'YENILIKCI', 'SAN', 'TİC', 'TIC', 'LTD', 'A.Ş.', 'AS',
-  'ŞTİ', 'STI', 'İNŞ', 'INS', 'VE', 'SAN.', 'TİC.', 'LTD.', 'A.Ş', 'A.S.',
-  'INC', 'GMBH', 'CO', 'CO.', 'GROUP', 'GRUP', 'VS',
-]);
+// (wordmarkUret / STOP_WORDS / logoTileRengi / distinctiveWord
+//  cari logo + wordmark + kategori subtitle kaldırıldığı için artık kullanılmıyor — silindi.)
 
-// (wordmarkUret / wordmarkFontSize / logoTileRengi / distinctiveWord
-//  cari logo + wordmark görselleri kaldırıldığı için artık kullanılmıyor — silindi.)
 
 // ─── Filtre tipi ─────────────────────────────────────────────────────────────
 
@@ -1348,14 +1338,14 @@ function KlasorIzgarasi({
     ? {
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-        gap: isMobile ? 8 : 10,
+        gap: isMobile ? 6 : 8,
       }
     : {
         display: 'grid',
         gridTemplateColumns: isMobile
-          ? 'repeat(auto-fill, minmax(220px, 1fr))'
-          : 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: isMobile ? 14 : 18,
+          ? 'repeat(auto-fill, minmax(170px, 1fr))'
+          : 'repeat(auto-fill, minmax(210px, 1fr))',
+        gap: isMobile ? 10 : 12,
       };
 
   const itemEl = (klasor: CustomerFolder, idx: number, total: number) =>
@@ -1406,21 +1396,19 @@ function KlasorIzgarasi({
               display: 'flex',
               alignItems: 'baseline',
               gap: 10,
-              marginBottom: liste ? 6 : 10,
+              marginBottom: liste ? 8 : 12,
               paddingBottom: 6,
               borderBottom: `1px solid ${C.borderSubtle}`,
             }}>
               <div style={{
-                fontSize: liste ? 14 : 18,
+                fontSize: liste ? 26 : 32,
                 fontWeight: 700,
                 color: C.textPrimary,
                 letterSpacing: '-0.02em',
                 fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1,
               }}>
                 {harf}
-              </div>
-              <div style={{ fontSize: 11, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
-                {grup.length}
               </div>
             </div>
             <div style={gridStyle}>
@@ -1448,12 +1436,6 @@ interface KlasorSatiriProps {
 function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSatiriProps) {
   const { isDark } = useTheme();
   const [hover, setHover] = useState(false);
-
-  const subtitle = useMemo(() => {
-    const ham = klasor.firmaAdiDisplay.split(/\s+/).filter(Boolean);
-    const ikinciKelime = ham[1] && !STOP_WORDS.has(ham[1].toLocaleUpperCase('tr-TR')) ? ham[1] : '';
-    return ikinciKelime ? ikinciKelime : '—';
-  }, [klasor.firmaAdiDisplay]);
 
   // Gösterge lambası — gönderilmiş ve 3+ gün eski mi?
   const hasOverdueOffers = useMemo(() => {
@@ -1487,12 +1469,12 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
       style={{
         display: 'grid',
         gridTemplateColumns: isMobile
-          ? '40px minmax(0, 1fr) auto'
-          : '40px minmax(0, 1fr) 110px 100px 86px',
+          ? '32px minmax(0, 1fr) auto'
+          : '32px minmax(0, 1fr) 80px 78px 68px',
         alignItems: 'center',
-        gap: isMobile ? 10 : 14,
-        padding: isMobile ? '12px 12px' : '12px 16px',
-        borderRadius: 8,
+        gap: isMobile ? 8 : 10,
+        padding: isMobile ? '8px 10px' : '8px 12px',
+        borderRadius: 7,
         background: hover
           ? (isDark ? 'rgba(255,255,255,0.045)' : 'rgba(15,30,60,0.04)')
           : (isDark ? 'rgba(255,255,255,0.018)' : 'rgba(15,30,60,0.012)'),
@@ -1523,44 +1505,35 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
       )}
       {/* Premium klasör ikonu */}
       <div style={{
-        width: 48,
-        height: 48,
+        width: 36,
+        height: 36,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
       }}>
-        <PremiumKlasorIcon size={44} isDark={isDark} />
+        <PremiumKlasorIcon size={32} isDark={isDark} />
       </div>
 
       {/* İsim + sektör */}
       <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <div style={{
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 600,
           color: C.textPrimary,
           letterSpacing: '-0.01em',
-          lineHeight: 1.3,
+          lineHeight: 1.25,
           whiteSpace: 'normal',
           wordBreak: 'break-word',
         }}>
           {isim}
-        </div>
-        <div style={{
-          fontSize: 11,
-          color: C.textFaint,
-          lineHeight: 1.3,
-          whiteSpace: 'normal',
-          wordBreak: 'break-word',
-        }}>
-          {subtitle}
         </div>
       </div>
 
       {/* Teklif sayısı (yanıp sönen nokta kullanıcı tercihiyle kaldırıldı) */}
       {!isMobile && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontVariantNumeric: 'tabular-nums' }}>
-          <span style={{ fontSize: 12, color: C.textSecondary, fontWeight: 500 }}>
+          <span style={{ fontSize: 11, color: C.textSecondary, fontWeight: 500 }}>
             {klasor.teklifler.length} teklif
           </span>
         </div>
@@ -1568,7 +1541,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
 
       {/* Tarih (mobile gizli) */}
       {!isMobile && (
-        <div style={{ fontSize: 11, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ fontSize: 10, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
           {formatDate(klasor.sonTarih)}
         </div>
       )}
@@ -1578,13 +1551,13 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
         {hazirlayanlar.length > 0 && hazirlayanlar.slice().reverse().map((k, i) => (
           <Tooltip key={k.id} title={k.adSoyad} mouseEnterDelay={0.3}>
             <div style={{
-              width: 22, height: 22, borderRadius: '50%',
+              width: 18, height: 18, borderRadius: '50%',
               border: `2px solid ${C.bgSurface}`,
-              marginLeft: i === 0 ? 0 : -7,
+              marginLeft: i === 0 ? 0 : -6,
               background: k.profilFotoUrl ? '#0b1220' : (isDark ? '#1f2937' : '#e2e8f0'),
               overflow: 'hidden',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9, fontWeight: 600,
+              fontSize: 8, fontWeight: 600,
               color: isDark ? '#cbd5e1' : '#475569',
               flexShrink: 0,
             }}>
@@ -1883,15 +1856,6 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
   const { isDark } = useTheme();
   const [hover, setHover] = useState(false);
 
-  // Sektör + lokasyon: "Otomasyon · İstanbul" tarzı meta satırı için.
-  // db.cariler[].adres alanı il bilgisini taşıyabiliyor; sektör için firma adının
-  // ikinci kelimesini (varsa) kullanıyoruz — gerçek sektör alanı şu an yok.
-  const subtitle = useMemo(() => {
-    const ham = klasor.firmaAdiDisplay.split(/\s+/).filter(Boolean);
-    const ikinciKelime = ham[1] && !STOP_WORDS.has(ham[1].toLocaleUpperCase('tr-TR')) ? ham[1] : '';
-    return ikinciKelime ? ikinciKelime : klasor.firmaAdiDisplay;
-  }, [klasor.firmaAdiDisplay]);
-
   // Pulse kontrolü — gönderilmiş ve 3+ gün eski teklifler var mı?
   const hasOverdueOffers = useMemo(() => {
     const bugun = new Date();
@@ -1929,7 +1893,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       : 'none',
   };
 
-  const logoSize = isMobile ? 56 : 68;
+  const logoSize = isMobile ? 42 : 50;
   // Premium klasör ikon kutusu — eski cari logo yerine zarif kabartmalı klasör.
   // Şeffaf arka plan: ikonun kendi gradient'i ön planda kalsın.
   const logoBoxStyle: CSSProperties = {
@@ -1975,8 +1939,8 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       <div style={{
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 12,
-        padding: isMobile ? '12px 12px 10px' : '14px 14px 12px',
+        gap: 9,
+        padding: isMobile ? '8px 10px 6px' : '10px 12px 8px',
         position: 'relative',
         zIndex: 1,
       }}>
@@ -1986,48 +1950,37 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{
-            fontSize: isMobile ? 13 : 14,
+            fontSize: isMobile ? 12 : 13,
             fontWeight: 600,
             color: C.textPrimary,
             letterSpacing: '-0.01em',
-            lineHeight: 1.3,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            lineHeight: 1.25,
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
           }}>
             {formatCariAdi(klasor.firmaAdiDisplay)
               .replace(/\s+(SAN\.|TİC\.|LTD\.|A\.Ş\.|ŞTİ\.|İNŞ\.).*$/i, '')
               .trim() || klasor.firmaAdiDisplay}
           </div>
-          <div style={{
-            fontSize: 11,
-            color: C.textSecondary,
-            lineHeight: 1.35,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
-            {subtitle}
-          </div>
         </div>
       </div>
 
       {/* Ayraç */}
-      <div style={{ height: 1, background: C.borderSubtle, margin: '0 14px', position: 'relative', zIndex: 1 }} />
+      <div style={{ height: 1, background: C.borderSubtle, margin: '0 12px', position: 'relative', zIndex: 1 }} />
 
       {/* Alt meta */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 8,
-        padding: isMobile ? '8px 12px 12px' : '10px 14px 14px',
+        gap: 6,
+        padding: isMobile ? '6px 10px 8px' : '7px 12px 10px',
         position: 'relative',
         zIndex: 1,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <span style={{
-            fontSize: 11,
+            fontSize: 10,
             color: C.textSecondary,
             fontWeight: 500,
             fontVariantNumeric: 'tabular-nums',
@@ -2036,7 +1989,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
             {klasor.teklifler.length} teklif
           </span>
           <span style={{
-            fontSize: 11,
+            fontSize: 10,
             color: C.textFaint,
             fontVariantNumeric: 'tabular-nums',
           }}>
@@ -2050,17 +2003,17 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
             {hazirlayanlar.slice().reverse().map((k, i) => (
               <Tooltip key={k.id} title={k.adSoyad} mouseEnterDelay={0.3}>
                 <div style={{
-                  width: 22,
-                  height: 22,
+                  width: 18,
+                  height: 18,
                   borderRadius: '50%',
                   border: `2px solid ${C.bgSurface}`,
-                  marginLeft: i === 0 ? 0 : -7,
+                  marginLeft: i === 0 ? 0 : -6,
                   background: k.profilFotoUrl ? '#0b1220' : (isDark ? '#1f2937' : '#e2e8f0'),
                   overflow: 'hidden',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 9,
+                  fontSize: 8,
                   fontWeight: 600,
                   color: isDark ? '#cbd5e1' : '#475569',
                 }}>
