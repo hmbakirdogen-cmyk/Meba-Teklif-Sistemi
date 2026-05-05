@@ -8,6 +8,26 @@ const { spawn } = require('child_process');
 const { createAuthRoutes, getAuthContext, pruneExpiredSessions } = require('./auth-routes.cjs');
 const { startBackupScheduler } = require('./backupScheduler.cjs');
 
+// Puppeteer-core lazy-load: kullanici PDF render etmediyse modul yuklenmez,
+// startup hizini yavaslatmaz. Chrome yolu sistem default'u; yoksa fallback.
+let _puppeteerCache = null;
+function getPuppeteer() {
+  if (_puppeteerCache !== null) return _puppeteerCache;
+  try { _puppeteerCache = require('puppeteer-core'); }
+  catch { _puppeteerCache = false; }
+  return _puppeteerCache;
+}
+const CHROME_PATHS = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+];
+function findChrome() {
+  for (const p of CHROME_PATHS) { if (fs.existsSync(p)) return p; }
+  return null;
+}
+
 const DB_PATH = path.join(__dirname, 'db.json');
 const DB_LOCK_PATH = DB_PATH + '.lock';
 // (SYNC_TELEMETRY_LOG_PATH kaldırıldı — sync mimarisi temizliği.)
@@ -1005,6 +1025,82 @@ const server = http.createServer(async (req, res) => {
       s.deger += 1;
       writeDB(db);
       return send(res, 200, { firmaId, yil: s.yil, ay: s.ay, deger: s.deger });
+    }
+
+    // ── Puppeteer ile server-side PDF render ────────────────────────────────
+    // Body: { teklifId } (token cookie/header session ile gelir; print sayfası
+    // public render olduğu için Puppeteer'a session token inject ederiz)
+    if (url === '/api/teklif/render-pdf' && method === 'POST') {
+      const body = await parseBody(req);
+      const teklifId = typeof body?.teklifId === 'string' ? body.teklifId.trim() : '';
+      if (!teklifId) {
+        return send(res, 400, { ok: false, error: 'teklif_id_required' });
+      }
+
+      const puppeteer = getPuppeteer();
+      if (!puppeteer) {
+        return send(res, 503, { ok: false, error: 'puppeteer_not_installed' });
+      }
+      const chromePath = findChrome();
+      if (!chromePath) {
+        return send(res, 503, { ok: false, error: 'chrome_not_found' });
+      }
+
+      // Caller'ın session token'i — Puppeteer'a localStorage'a inject ederiz ki
+      // print sayfasi /api/teklifler fetch'inde 401 almasın.
+      const authHeader = req.headers['authorization'] || '';
+      const sessionToken = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7).trim()
+        : '';
+
+      // Kendi launcher portumuz (frontend dist serve eden static server)
+      const printPort = SERVER_CONFIG.frontendPort || 5173;
+      const printUrl = `http://localhost:${printPort}/teklif/${encodeURIComponent(teklifId)}/print`;
+
+      let browser = null;
+      try {
+        browser = await puppeteer.launch({
+          executablePath: chromePath,
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        });
+        const page = await browser.newPage();
+        await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 2 });
+
+        // Session token + active firmaId inject — apiClient bunları okur
+        if (sessionToken) {
+          await page.evaluateOnNewDocument((tok) => {
+            try { localStorage.setItem('gc_session_token', tok); } catch (_) { /* ignore */ }
+          }, sessionToken);
+        }
+        const firmaIdHeader = req.headers['x-firma-id'];
+        if (typeof firmaIdHeader === 'string' && firmaIdHeader) {
+          await page.evaluateOnNewDocument((fid) => {
+            try { localStorage.setItem('gc_active_firma_id', fid); } catch (_) { /* ignore */ }
+          }, firmaIdHeader);
+        }
+
+        await page.goto(printUrl, { waitUntil: 'networkidle0', timeout: 30000 });
+        await page.waitForSelector('[data-print-ready="true"]', { timeout: 15000 });
+
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+          preferCSSPageSize: false,
+        });
+
+        const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+        return send(res, 200, { ok: true, pdfBase64, sayfa: pdfBuffer.length });
+      } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        const code = msg.includes('Timeout') || msg.includes('timeout') ? 'timeout' : 'render_failed';
+        return send(res, 500, { ok: false, error: code, detay: msg });
+      } finally {
+        if (browser) {
+          try { await browser.close(); } catch (_) { /* ignore */ }
+        }
+      }
     }
 
     if ((url === '/api/teklif/disa-aktar' || url === '/api/pdf/kaydet-ve-ac') && method === 'POST') {

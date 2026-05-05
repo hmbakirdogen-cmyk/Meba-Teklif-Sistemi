@@ -294,14 +294,58 @@ export default function TeklifEditor() {
 
     try {
       await waitForNextPaint();
-      // 2) PDF oluştur
-      const { pdf, pageImages } = hedef === 'email'
-        ? await buildEmailPdf(sablonRef.current)
-        : await buildPdf(sablonRef.current);
+
+      // 2a) Önce server-side Puppeteer denemesi (font-embed, hızlı, deterministic).
+      //     Sadece "pdf" hedefi için. Email PDF email-cap (1MB) zinciri içerdiği
+      //     için şimdilik client tarafta üretilmeye devam eder.
+      let blob: Blob | null = null;
+      let pageImages: string[] = [];
+      let pdfFromServer = false;
+
+      if (hedef === 'pdf') {
+        try {
+          const apiClient = await import('../services/apiClient');
+          const { APP_CONFIG } = await import('../config');
+          const token = apiClient.getSessionToken() || '';
+          const firmaId = apiClient.getActiveFirmaId() || '';
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          if (firmaId) headers['X-Firma-Id'] = firmaId;
+          const res = await fetch(`${APP_CONFIG.API_BASE}/teklif/render-pdf`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ teklifId: teklifObj.id }),
+          });
+          const data = await res.json() as { ok?: boolean; pdfBase64?: string; error?: string };
+          if (res.ok && data.ok && data.pdfBase64) {
+            const bin = atob(data.pdfBase64);
+            const u8 = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i += 1) u8[i] = bin.charCodeAt(i);
+            blob = new Blob([u8.buffer], { type: 'application/pdf' });
+            pdfFromServer = true;
+          } else {
+            // sessizce client fallback'e düş; user'a yansıtmıyoruz
+            console.warn('[render-pdf] server fail, client fallback:', data.error);
+          }
+        } catch (err) {
+          console.warn('[render-pdf] network/exception, client fallback:', err);
+        }
+      }
+
+      // 2b) Server başarısız veya hedef='email' ise client tarafta üret
+      if (!blob) {
+        const { pdf, pageImages: imgs } = hedef === 'email'
+          ? await buildEmailPdf(sablonRef.current)
+          : await buildPdf(sablonRef.current);
+        pageImages = imgs;
+        blob = pdf.output('blob');
+      }
       printImagesRef.current = pageImages;
-      const blob = pdf.output('blob');
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
+      if (pdfFromServer) {
+        message.success('PDF server tarafında üretildi (font-embed).', 2);
+      }
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
       // Eski tekliflerde firmaId bos kalmis olabilir — fallback "GRUP SIRKETLERI"

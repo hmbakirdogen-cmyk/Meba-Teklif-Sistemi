@@ -69,3 +69,9 @@ server/db.json
 
 # Production build çıktısı (build:production komutu üretir)
 build-deployment/
+# Lokal kullanıcı veri dosyaları (XLSX/XLS) — repo dışı
+meba_cariler.XLSX
+mesa_*.xls
+*_cariler.xls
+*_urunler.xls
+*.XLSX

@@ -15,6 +15,7 @@ const VeriYonetimiSayfasi = lazy(() => import('./pages/VeriYonetimiSayfasi'));
 const PersonelSayfasi = lazy(() => import('./pages/PersonelSayfasi'));
 const FirmaProfilSayfasi = lazy(() => import('./pages/FirmaProfilSayfasi'));
 const AnalizSayfasi = lazy(() => import('./pages/AnalizSayfasi'));
+const TeklifPrintSayfasi = lazy(() => import('./pages/TeklifPrintSayfasi'));
 
 function PageFallback() {
   return (
@@ -40,6 +41,19 @@ function YoneticiOnly({ children }: { children: ReactNode }) {
 
 function RouterIcerigi() {
   const { aktifKullanici, yukleniyor } = useKullanici();
+
+  // Print route — Puppeteer için layout/login kontrolü atlanır.
+  // Server-side render için public; teklif API auth'u session token ile
+  // (server endpoint Puppeteer'a token inject eder).
+  if (typeof window !== 'undefined' && /^\/teklif\/[^/]+\/print$/.test(window.location.pathname)) {
+    return (
+      <Routes>
+        <Route path="/teklif/:id/print" element={
+          <Suspense fallback={<PageFallback />}><TeklifPrintSayfasi /></Suspense>
+        } />
+      </Routes>
+    );
+  }
 
   if (yukleniyor) {
     return (
