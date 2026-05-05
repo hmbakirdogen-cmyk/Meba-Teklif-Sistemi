@@ -63,7 +63,10 @@ function serveFile(filePath, res) {
     const isHashed = filePath.includes('/assets/') || filePath.includes('\\assets\\');
     const isVolatileRoot = !isHashed && (baseName === 'sw.js' || baseName === 'manifest.json' || baseName.startsWith('icon-'));
     let cacheCtrl;
-    if (ext === '.html' || isVolatileRoot) {
+    if (ext === '.html') {
+      // HTML'i HİÇ cache'leme — vbust script ve yeni chunk hash'leri her seferinde gelsin.
+      cacheCtrl = 'no-store, no-cache, must-revalidate, max-age=0';
+    } else if (isVolatileRoot) {
       cacheCtrl = 'no-cache';
     } else if (isHashed) {
       cacheCtrl = 'public, max-age=86400';
