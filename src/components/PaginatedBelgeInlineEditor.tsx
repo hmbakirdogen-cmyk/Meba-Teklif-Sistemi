@@ -503,7 +503,7 @@ export default function PaginatedBelgeInlineEditor({
                 {teklif.cari.vergiNo && (
                   <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
                 )}
-                {teklif.cari.adres && <div>{teklif.cari.adres}</div>}
+                {/* Adres ALICI bölümünden kaldırıldı (kullanıcı tercihi) */}
               </div>
             </div>
           ) : (
@@ -521,7 +521,7 @@ export default function PaginatedBelgeInlineEditor({
                 {teklif.cari.vergiNo && (
                   <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
                 )}
-                {teklif.cari.adres && <div>{teklif.cari.adres}</div>}
+                {/* Adres ALICI bölümünden kaldırıldı (kullanıcı tercihi) */}
               </div>
             </>
           )}
