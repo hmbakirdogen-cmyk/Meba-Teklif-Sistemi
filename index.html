@@ -23,6 +23,45 @@
         document.documentElement.setAttribute('data-theme', t);
       } catch(e) {}
     </script>
+    <!--
+      One-shot cache + service worker reset (vBust3).
+      index.html `Cache-Control: no-cache` ile her seferinde server'dan revalidate
+      olduğu için bu script GARANTİLİ çalışır. Eski cache + SW kayıtları temizler,
+      hiç sayfa açmamış kullanıcı için no-op (flag ile bir kez tetiklenir).
+      Yeni dağıtımda VBUST_KEY'i değiştirerek tekrar tetiklenebilir.
+    -->
+    <script>
+      (function() {
+        var VBUST_KEY = 'meba_cache_bust_v3';
+        try {
+          if (localStorage.getItem(VBUST_KEY) === '1') return;
+        } catch (e) { return; }
+        var tasks = [];
+        if ('serviceWorker' in navigator) {
+          tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function(rs) {
+              return Promise.all(rs.map(function(r) { return r.unregister(); }));
+            }).catch(function() {})
+          );
+        }
+        if (typeof caches !== 'undefined' && caches.keys) {
+          tasks.push(
+            caches.keys().then(function(keys) {
+              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+            }).catch(function() {})
+          );
+        }
+        Promise.all(tasks).then(function() {
+          try { localStorage.setItem(VBUST_KEY, '1'); } catch (e) {}
+          var didReload = sessionStorage.getItem('meba_vbust_reloaded');
+          if (didReload !== '1') {
+            try { sessionStorage.setItem('meba_vbust_reloaded', '1'); } catch (e) {}
+            // location.reload(true) deprecated; force fresh fetch via cache-busting URL
+            location.replace(location.pathname + '?vbust=' + Date.now());
+          }
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

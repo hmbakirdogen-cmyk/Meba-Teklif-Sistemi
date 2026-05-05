@@ -54,9 +54,25 @@ function serveFile(filePath, res) {
       return;
     }
     const ext = path.extname(filePath).toLowerCase();
+    // Cache stratejisi:
+    //   - HTML: no-cache (her seferinde server'dan revalidate)
+    //   - sw.js, manifest.json: no-cache (URL sabit, içerik değişir)
+    //   - assets/<hash>.* (Vite content-hashed): max-age=86400 (URL değişince yeni)
+    //   - Diğer root statik (icon-*.png vs.): no-cache (sabit URL, content swap olabilir)
+    const baseName = path.basename(filePath).toLowerCase();
+    const isHashed = filePath.includes('/assets/') || filePath.includes('\\assets\\');
+    const isVolatileRoot = !isHashed && (baseName === 'sw.js' || baseName === 'manifest.json' || baseName.startsWith('icon-'));
+    let cacheCtrl;
+    if (ext === '.html' || isVolatileRoot) {
+      cacheCtrl = 'no-cache';
+    } else if (isHashed) {
+      cacheCtrl = 'public, max-age=86400';
+    } else {
+      cacheCtrl = 'public, max-age=300';
+    }
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400',
+      'Cache-Control': cacheCtrl,
     });
     res.end(data);
   });
