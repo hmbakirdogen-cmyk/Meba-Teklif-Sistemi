@@ -87,7 +87,7 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
         <SearchOutlined style={{ color: C.textFaint, fontSize: 15, flexShrink: 0 }} />
         <Select
           showSearch
-          placeholder="Cari seçin (firma adı veya cari kod ile arayın)..."
+          placeholder="Müşteri ara..."
           variant="borderless"
           style={{ flex: 1, minWidth: 0, height: 40, fontSize: 14 }}
           value={value?.id}
@@ -107,14 +107,6 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
             if (!cari) return null;
             return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
-                <span style={{
-                  color: C.textFaint,
-                  fontSize: 11,
-                  fontVariantNumeric: 'tabular-nums',
-                  flexShrink: 0,
-                }}>
-                  [{cari.cariKod}]
-                </span>
                 <span style={{ fontWeight: 500, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {formatCariAdi(cari.firmaAdi)}
                 </span>
@@ -161,18 +153,8 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
             <UserOutlined style={{ fontSize: 16, color: C.textFaint }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Firma adı + kod */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: C.textFaint,
-                letterSpacing: 1.0,
-                textTransform: 'uppercase',
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                {value.cariKod}
-              </span>
+            {/* Firma adı (cari kod prefix kaldırıldı) */}
+            <div style={{ marginBottom: 3 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, letterSpacing: -0.2 }}>
                 {formatCariAdi(value.firmaAdi)}
               </span>
