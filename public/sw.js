@@ -3,9 +3,9 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', (e) => {
-  // Sadece GET isteklerini geçir, hata olursa network'e bırak
+  // Cross-origin isteklere (localhost:3001 API) dokunma
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request).catch(() => Response.error())
-  );
+  e.respondWith(fetch(e.request).catch(() => Response.error()));
 });
