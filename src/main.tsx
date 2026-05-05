@@ -42,3 +42,15 @@ createRoot(document.getElementById('root')!).render(
     </FirmaProvider>
   </StrictMode>,
 )
+
+// PWA service worker kaydı.
+// Browser security policy: HTTPS veya localhost gerekli. LAN HTTP'de
+// tarayıcı kaydı reddeder (SecurityError) — sessizce geç, normal web
+// app olarak çalışmaya devam eder.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* HTTP LAN ortamında beklenir, kullanıcıyı rahatsız etmiyoruz */
+    });
+  });
+}

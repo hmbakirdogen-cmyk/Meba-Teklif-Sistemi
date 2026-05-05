@@ -108,6 +108,24 @@ $sh.Save()
 `BASLAT.bat` zaten açıksa ikinci tıklamada port çakışması yapmaz —
 mevcut tarayıcıyı yeniden açar (single-instance lock).
 
+### Masaüstü uygulaması (PWA)
+
+Sistem PWA (Progressive Web App) olarak desteklenir. Header'daki
+"Masaüstüne Ekle" butonuna tıklayarak uygulamayı işletim sisteminin
+masaüstüne kurabilirsiniz — kurulum sonrası ayrı bir pencerede,
+URL barı olmadan, native uygulama gibi açılır.
+
+**Tarayıcı kısıtı:** Service worker ve install prompt **HTTPS** veya
+**localhost** gerektirir (browser security policy):
+
+| Kullanıcı | URL | Buton |
+|---|---|---|
+| Server PC'de doğrudan | `http://localhost:5173` | ✅ Görünür, kurulabilir |
+| LAN'da diğer PC'ler | `http://192.168.x.y:5173` | ❌ Görünmez (HTTPS gerekli) |
+
+LAN kullanıcıları normal tarayıcı sekmesinden kullanmaya devam eder —
+fonksiyonel açıdan PWA modu ile aynıdır, sadece masaüstü ikonu yoktur.
+
 ---
 
 ## <a id="yetki"></a>5. Yetki Sistemi

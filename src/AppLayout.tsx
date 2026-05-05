@@ -5,7 +5,7 @@ import ProfilFotoModal from './components/ProfilFotoModal';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
-  CheckOutlined, BarChartOutlined,
+  CheckOutlined, BarChartOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
@@ -14,6 +14,7 @@ import { formatAdSoyad, formatUnvan } from './utils/formatters';
 import { isYonetici, tumFirmalaraErisir } from './utils/yetkiUtils';
 import { useColors } from './hooks/useColors';
 import { useIsMobile } from './hooks/useIsMobile';
+import { usePWAInstall } from './hooks/usePWAInstall';
 import { buttonClassNames } from './styles/buttonStyles';
 import { SyncStatusBar } from './components/SyncStatusBar';
 
@@ -57,6 +58,9 @@ export default function AppLayout() {
   // Firma değiştirme yetkisi: super_admin (tüm sistem) + firma_admin
   // (gosterilenFirmalar=3 firma → yönetim kurulu).
   const cokFirmaErisir = tumFirmalaraErisir(rol);
+
+  // PWA — masaüstüne kurulum (sadece localhost veya HTTPS'de gözükür).
+  const { canInstall, install } = usePWAInstall();
 
   function navigate_(path: string) {
     setDrawerOpen(false);
@@ -389,6 +393,27 @@ export default function AppLayout() {
               </div>
             </div>
 
+            {/* PWA — Masaüstüne Ekle (yalnızca desteklenen tarayıcılar + localhost/HTTPS'de) */}
+            {canInstall && (
+              <Tooltip title="Bu uygulamayı masaüstüne yükle">
+                <Button
+                  type="default"
+                  ghost
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={() => void install()}
+                  style={{
+                    height: 28,
+                    borderColor: 'rgba(30,58,95,0.55)',
+                    color: '#cfe1ff',
+                    fontSize: 11,
+                  }}
+                >
+                  Masaüstüne Ekle
+                </Button>
+              </Tooltip>
+            )}
+
             {/* Çıkış */}
             <Tooltip title="Çıkış Yap">
               <Button
@@ -405,13 +430,26 @@ export default function AppLayout() {
 
         {/* ── HAMBURGER — sadece mobile ── */}
         {isMobile && (
-          <Button
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={() => setDrawerOpen(true)}
-            className={buttonClassNames.iconGhost}
-            style={{ color: 'rgba(255,255,255,0.85)', fontSize: 18, marginLeft: 2 }}
-          />
+          <>
+            {canInstall && (
+              <Tooltip title="Masaüstüne yükle">
+                <Button
+                  type="text"
+                  icon={<DownloadOutlined />}
+                  onClick={() => void install()}
+                  className={buttonClassNames.iconGhost}
+                  style={{ color: 'rgba(207,225,255,0.9)', fontSize: 16, marginRight: 2 }}
+                />
+              </Tooltip>
+            )}
+            <Button
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              className={buttonClassNames.iconGhost}
+              style={{ color: 'rgba(255,255,255,0.85)', fontSize: 18, marginLeft: 2 }}
+            />
+          </>
         )}
       </Header>
 
