@@ -678,8 +678,9 @@ function KlasorGorunumu({
   }
 
   // Aktivite modu listesi: mevcut filtreli teklifler (klasör birleşmesi
-  // yapılmadan), guncellemeTarihi (yoksa olusturmaTarihi) tarihine göre
-  // en yeniden eskiye sıralı.
+  // yapılmadan), kart üzerinde GÖRÜNEN `tarih` alanına göre en yeniden
+  // eskiye sıralı. Aynı tarihte ise olusturmaTarihi/guncellemeTarihi ile
+  // tie-break (daha yeni güncellenmiş olan üstte).
   const aktiviteler = useMemo(() => {
     let liste = [...teklifler];
     if (aramaMetni.trim()) {
@@ -692,9 +693,13 @@ function KlasorGorunumu({
       );
     }
     return liste.sort((a, b) => {
-      const ta = a.guncellemeTarihi || a.olusturmaTarihi || a.tarih;
-      const tb = b.guncellemeTarihi || b.olusturmaTarihi || b.tarih;
-      return tb.localeCompare(ta);
+      const ta = a.tarih || a.olusturmaTarihi || a.guncellemeTarihi || '';
+      const tb = b.tarih || b.olusturmaTarihi || b.guncellemeTarihi || '';
+      const cmp = tb.localeCompare(ta);
+      if (cmp !== 0) return cmp;
+      const ua = a.guncellemeTarihi || a.olusturmaTarihi || '';
+      const ub = b.guncellemeTarihi || b.olusturmaTarihi || '';
+      return ub.localeCompare(ua);
     });
   }, [teklifler, aramaMetni]);
   const ilkAd = aktifKullaniciAd ? aktifKullaniciAd.split(/\s+/)[0] : '';
