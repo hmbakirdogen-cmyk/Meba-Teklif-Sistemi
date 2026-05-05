@@ -872,7 +872,17 @@ function KlasorGorunumu({
               : 'Henüz teklif bulunmuyor. İlk teklifinizi oluşturun.'}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={
+            gorunumModu === 'grid'
+              ? {
+                  display: 'grid',
+                  gridTemplateColumns: isMobile
+                    ? 'repeat(auto-fill, minmax(280px, 1fr))'
+                    : 'repeat(auto-fill, minmax(360px, 1fr))',
+                  gap: 8,
+                }
+              : { display: 'flex', flexDirection: 'column', gap: 6 }
+          }>
             {aktiviteler.map((t) => (
               <TeklifKarti
                 key={t.id}
