@@ -1,34 +1,34 @@
-# MEBA Teklif Sistemi
+# Grup Şirketleri Teklif Sistemi (MEBA · MESA · ELMOS)
 
-MEBA Mekanik Ltd. Şti. için geliştirilmiş, **offline-first** ve **yerel ağ
-senkronizasyonlu** profesyonel teklif hazırlama ve yönetim sistemi.
+> **Online-only mimari.** Tüm kullanıcılar merkezi server'a tarayıcıdan bağlanır.
+> Sync engine ve offline mod **kaldırılmıştır** — tek server, çok kullanıcı,
+> tarayıcıdan erişim.
+
+3 grup şirketinin (MEBA Mekanik, MESA Otomasyon, ELMOS Elektrik) ortak teklif
+hazırlama ve yönetim platformu.
 
 - React 19 + Vite + TypeScript + Ant Design 6 (frontend)
 - Node.js (saf — Express yok) HTTP API + JSON dosya tabanlı DB (backend)
-- USB ile taşınabilir, masaüstü kısayolu ile başlatılabilir
-- Ana bilgisayar açıkken LAN üzerinden otomatik senkron
+- Tek server kurulumu — kullanıcılar tarayıcıdan `http://server-ip:5173` ile bağlanır
+- Multi-tenant: her firmanın kendi cari, ürün, teklif veri seti
 
 ---
 
 ## İçindekiler
 
 1. [Hızlı Başlangıç](#hizli-baslangic)
-2. [Çok-Bilgisayarlı Kurulum](#cok-bilgisayarli-kurulum)
-3. [USB Kurulumu](#usb-kurulumu)
-4. [Masaüstü Kısayolu](#masaustu-kisayolu)
-5. [Çalıştırma & Durdurma](#calistirma)
-6. [Senkronizasyon Mimarisi](#senkronizasyon)
-7. [Çakışma Çözümü](#cakisma)
-8. [Offline Kullanım](#offline)
-9. [Yetki Sistemi](#yetki)
-10. [Güncelleme](#guncelleme)
-11. [Yedekleme](#yedekleme)
-12. [Mimari Diyagram](#mimari)
-13. [Sorun Giderme](#sorun)
+2. [Server Kurulumu](#server-kurulumu)
+3. [Masaüstü Kısayolu](#masaustu-kisayolu)
+4. [Çalıştırma & Durdurma](#calistirma)
+5. [Yetki Sistemi](#yetki)
+6. [Güncelleme](#guncelleme)
+7. [Yedekleme](#yedekleme)
+8. [Mimari Diyagram](#mimari)
+9. [Sorun Giderme](#sorun)
 
 ---
 
-## <a id="hizli-baslangic"></a>1. Hızlı Başlangıç (Tek Bilgisayar)
+## <a id="hizli-baslangic"></a>1. Hızlı Başlangıç (Tek Bilgisayar / Geliştirme)
 
 ```bash
 git clone https://github.com/hmbakirdogen-cmyk/Meba-Teklif-Sistemi.git
@@ -47,231 +47,122 @@ npm run start  # API + Vite dev server, paralel
 
 ---
 
-## <a id="cok-bilgisayarli-kurulum"></a>2. Çok-Bilgisayarlı Kurulum (Server + Client'lar)
+## <a id="server-kurulumu"></a>2. Server Kurulumu (Üretim)
 
-### Ana bilgisayar (Server)
-
-```bash
-cd C:\MEBA\Meba-Teklif-Sistemi
-copy config\server-config.template.json config\server-config.json
-firewall-allow.bat   # yönetici olarak — 3001/5173/4173 portlarını aç
-node launcher.cjs
-```
-
-Sunucu kurulu makinenin IP'si (örn. `192.168.1.54`) tüm istemcilerde
-`client-config.json`'a yazılır.
-
-### İstemci PC'ler (Client)
-
-USB üzerinden **MEBA-KUR.bat** çalıştırılır → C:\MEBA içine kurulur,
-masaüstü kısayolu oluşur, server IP girilir.
-
-Detay → [USB Kurulumu](#usb-kurulumu).
-
----
-
-## <a id="usb-kurulumu"></a>3. USB Kurulumu (Adım Adım)
-
-USB belleğe **tüm proje + node_modules + dist + Node.js binary'si** kopyalanır.
-Şu klasörler zorunlu:
-
-- `server/` — backend kodu + `db.json` (server modunda canlı, client'ta lokal kopya)
-- `dist/` — production frontend build'i (önceden `npm run build` ile üretilmeli)
-- `node_modules/` — bağımlılıklar (USB'de hazır → hedef PC'de internet/install gerekmez)
-- **`bin/node.exe`** — Node.js binary'si (~87 MB; hedef PC'de Node.js kurulumu gerekmesin diye)
-- `config/` — `*.template.json` şablonları (KUR.bat runtime config'leri üretir)
-- `launcher.cjs`, `launcher/` — başlatıcı modülleri
-- `MEBA-*.bat` — Windows başlatma/durdurma scriptleri
-- `assets/icon/meba-premium.ico` — masaüstü kısayolu için
-
-### `bin/node.exe`'yi USB'ye eklemek (server PC'de bir kerelik)
-
-Git repo'da `bin/` ignore'lu (87 MB binary GitHub'a push edilmez). USB
-hazırlarken manuel kopyalanır:
-
-```powershell
-# Server PC'de, Node.js kurulu olduğu varsayılır
-mkdir C:\MEBA-USB-HAZIRLIK\bin
-copy "C:\Program Files\nodejs\node.exe" "C:\MEBA-USB-HAZIRLIK\bin\node.exe"
-```
-
-Veya hazır kurulumdan: `C:\MEBA\Meba-Teklif-Sistemi\bin\node.exe` zaten var
-ise USB'ye doğrudan klasörüyle birlikte sürükle-bırak.
-
-`MEBA-BASLAT.bat` öncelikle `bin\node.exe`'yi kullanır; yoksa sistem PATH'ine
-düşer (Node.js elle kurulmuşsa). İkisi de yoksa anlaşılır hata mesajı verir.
+Sistem **online-only**: sadece **bir bilgisayar**a (ofiste sürekli açık duracak
+ana sunucu) kurulur. Diğer kullanıcılar ek kurulum yapmaz, kendi
+tarayıcılarından bağlanır.
 
 ### Adımlar
 
-1. USB'yi hedef PC'ye tak.
-2. `USB:\MEBA-KUR.bat`'a **sağ-tık → Yönetici olarak çalıştır**.
-3. Mod seç:
-   - **1 = SERVER** — bu PC ana bilgisayar olacak
-   - **2 = CLIENT** — bu PC istemci (server IP'si sorulur)
-4. Kurulum bitince masaüstünde "MEBA Teklif Sistemi" kısayolu oluşur.
+1. **Node.js LTS** kur — https://nodejs.org/ (server PC'sinde bir kerelik)
+2. USB'yi server PC'ye tak.
+3. `USB:\KUR.bat`'a **sağ-tık → Yönetici olarak çalıştır**.
+4. Kurulum bitince masaüstünde "Teklif Sistemi" kısayolu oluşur.
+5. `firewall-allow.bat` (yönetici) ile 3001/5173 portlarını LAN'a aç.
+6. Diğer kullanıcılar kendi PC'lerinde tarayıcı açıp `http://<server-ip>:5173`
+   adresine gider — kurulum yapmaz.
 
-KUR.bat ne yapar?
-- `xcopy` ile `C:\MEBA\Meba-Teklif-Sistemi`'ye kopyalar
-- `config/*.template.json`'dan runtime config üretir + UUID `deviceId` ekler
+### KUR.bat ne yapar?
+
+- `xcopy` ile `C:\GroupCompanies\TeklifSistemi`'ne kopyalar
+- `config/server-config.template.json`'dan runtime config üretir + UUID
+  `deviceId` ekler
 - PowerShell `WScript.Shell.CreateShortcut` ile masaüstü kısayolu oluşturur
-- Server modunda `firewall-allow.bat`'ı tetikler
+
+### Server PC'nin IP'sini bulma
+
+```powershell
+ipconfig | findstr IPv4
+```
+
+Bu IP'yi kullanıcılara duyur (`http://192.168.X.Y:5173`).
 
 ---
 
-## <a id="masaustu-kisayolu"></a>4. Masaüstü Kısayolu
+## <a id="masaustu-kisayolu"></a>3. Masaüstü Kısayolu
 
-`MEBA-KUR.bat` otomatik oluşturur. Manuel olarak yeniden oluşturmak için:
+`KUR.bat` otomatik oluşturur. Manuel olarak yeniden oluşturmak için:
 
 ```powershell
 $ws = New-Object -ComObject WScript.Shell
-$sh = $ws.CreateShortcut("$env:USERPROFILE\Desktop\MEBA Teklif Sistemi.lnk")
-$sh.TargetPath = "C:\MEBA\Meba-Teklif-Sistemi\MEBA-BASLAT.bat"
-$sh.WorkingDirectory = "C:\MEBA\Meba-Teklif-Sistemi"
-$sh.IconLocation = "C:\MEBA\Meba-Teklif-Sistemi\assets\icon\meba-premium.ico"
+$sh = $ws.CreateShortcut("$env:USERPROFILE\Desktop\Teklif Sistemi.lnk")
+$sh.TargetPath = "C:\GroupCompanies\TeklifSistemi\BASLAT.bat"
+$sh.WorkingDirectory = "C:\GroupCompanies\TeklifSistemi"
+$sh.IconLocation = "C:\GroupCompanies\TeklifSistemi\assets\icon\teklif-sistemi.ico"
 $sh.WindowStyle = 7
 $sh.Save()
 ```
 
 ---
 
-## <a id="calistirma"></a>5. Çalıştırma & Durdurma
+## <a id="calistirma"></a>4. Çalıştırma & Durdurma
 
 | Script | İşlev |
 |---|---|
-| **MEBA-BASLAT.bat** | Tek başlatıcı. PID lock kontrolü → backend + static frontend → tarayıcı otomatik açılır |
-| **MEBA-DURDUR.bat** | `.meba-running.pid`'den PID okur, `taskkill /T /F` ile kapatır |
-| **MEBA-GUNCELLE.bat** | Git repo varsa `git pull --rebase --autostash` + `npm install` + `npm run build` |
-| **MEBA-SENKRONIZE.bat** | Manuel sync tetik (sadece bilgi/health kontrol; gerçek sync UI'daki "Şimdi Senkronize Et" butonu) |
-| **firewall-allow.bat** | (Yönetici) Windows firewall'da 3001/5173/4173 inbound aç |
+| **BASLAT.bat** | Tek başlatıcı. PID lock kontrolü → backend + static frontend → tarayıcı otomatik açılır. Node.js sistem PATH'inde olmalı. |
+| **DURDUR.bat** | `.meba-running.pid`'den PID okur, `taskkill /T /F` ile kapatır |
+| **GUNCELLE.bat** | Git repo varsa `git pull --rebase --autostash` + `npm install` + `npm run build` |
+| **firewall-allow.bat** | (Yönetici) Windows firewall'da 3001/5173 inbound aç (LAN üzerinden erişim için) |
 
-`MEBA-BASLAT.bat` zaten açıksa ikinci tıklamada port çakışması yapmaz —
+`BASLAT.bat` zaten açıksa ikinci tıklamada port çakışması yapmaz —
 mevcut tarayıcıyı yeniden açar (single-instance lock).
 
 ---
 
-## <a id="senkronizasyon"></a>6. Senkronizasyon Mimarisi
+## <a id="yetki"></a>5. Yetki Sistemi
 
-### Otomatik (her 5 dakika)
-- Frontend `App.tsx` `setInterval(syncEngine.syncNow, 5min)` ile pull + push
-- Sayfa görünür durumdayken çalışır
+Roller (`src/types/kullanici.ts`):
 
-### Manuel
-- Header'daki **Sync chip**'e tıkla → "Şimdi Senkronize Et"
-- Veya `MEBA-SENKRONIZE.bat` (CLI)
-
-### Veri akışı
-
-```
-Client.upsertTeklif(t)
-   ↓ optimistic
-DataStore (cache güncel)
-   ↓
-api.teklifler.upsert(t)  ──── network OK ──── server bumpRecord → version+1
-   ↓                                                       ↓
-   ↓ network fail                              writeDB (file lock)
-syncEngine.enqueue
-   ↓
-localStorage.meba_sync_queue
-   ↓ 5dk sonra otomatik
-syncEngine.pushOnce()
-   ↓
-api.sync.push() → server version-vector check
-                 ├ accepted → queue'dan sil
-                 └ conflict → meba_conflicts'e taşı
-```
-
-### Sync alanları (her record'da)
-
-```ts
-version?: number;       // backend'de PUT'ta +1
-deletedAt?: string;     // soft delete (UI'dan gizli, sync'te tombstone)
-deviceId?: string;      // son yazan cihaz
-updatedBy?: string;     // son güncelleyen kullanıcı id
-lastSyncedAt?: string;  // pull/push başarılı olduğunda
-```
-
----
-
-## <a id="cakisma"></a>7. Çakışma Çözümü
-
-İki kullanıcı aynı teklifi aynı anda düzenlerse, **ikincinin push'u** server
-tarafından `version_conflict` ile reddedilir. Detay:
-
-1. Yerel kayıt `meba_conflicts` localStorage'ına taşınır.
-2. Header'daki Sync chip turuncuya döner ve **Çakışma sayısı** badge'i görünür.
-3. **Sadece admin** rolünden kullanıcı popover'dan "Çakışmaları Görüntüle" görür.
-4. Modal: server vs yerel JSON yan yana. 3 seçim:
-   - **Server'ı Kabul Et** — yerel değişiklik silinir
-   - **Benimkini Zorla Gönder** — version'ı server+1'e set eder, force push
-   - **Manuel Düzenle** — JSON textarea ile özel kayıt
-
----
-
-## <a id="offline"></a>8. Offline Kullanım
-
-Server erişilemediğinde:
-
-- App init `localStorage.meba_last_snapshot`'tan veriyi yükler
-- Sync chip "Çevrimdışı" olur
-- Yeni kayıt/değişiklik queue'ya yazılır
-- TeklifListesi kartlarında "Senkron Bekliyor" rozeti gösterilir
-- Server tekrar erişilebildiğinde otomatik queue boşalır
-
-Snapshot formatı: `{ teklifler, cariler, urunler, urunSetleri, referans, sayac }`
-— her başarılı sync'te güncellenir.
-
----
-
-## <a id="yetki"></a>9. Yetki Sistemi
-
-3 rol (`src/types/kullanici.ts`):
-
-- **admin** — tüm teklifleri görür, çakışmaları çözer, sync/full restore çağırabilir
-- **engineer** — kendi teklifleri + `visibility='team'` olanlar
-- **sales** — engineer ile aynı
-
-**Defense in depth:** Backend `GET /api/sync/pull` zorunlu visibility filter
-uygular. Frontend `syncEngine` server'dan gelen veriyi tekrar filtreler — server
-kötü davransa bile sales rolü engineer'in private teklifini görmez.
+- **super_admin** — sistem sahibi (Mehmet Bakırdöğen). Tüm firmalar arası geçiş,
+  her şeyi görür/değiştirir, kullanıcı oluşturur.
+- **firma_admin** — bir firmanın yöneticisi (3 ortağa karşılık 3 admin: MEBA,
+  MESA, ELMOS). Sadece kendi firmasının verilerini yönetir, kendi firmasında
+  kullanıcı oluşturabilir.
+- **engineer** — mühendis. Kendi tekliflerini görür + `visibility='team'` olanları
+  görür. Cari/ürün ekleyebilir.
+- **sales** — satış. engineer ile aynı.
+- **admin** — *deprecated*, eski kayıtlar için tip korunuyor; yeni kullanıcı
+  bu rolü almaz.
 
 `visibility` toggle KumandaPaneli'nden yapılır:
 - **team** (default) — tüm ekip görür
-- **private** — sadece hazırlayan + admin
+- **private** — sadece hazırlayan + (firma_admin / super_admin)
+
+Backend `/api/teklifler` endpoint'i visibility filter uygular — bu sayede
+örneğin sales rolündeki bir kullanıcı engineer'in private teklifini göremez.
 
 ---
 
-## <a id="guncelleme"></a>10. Güncelleme
+## <a id="guncelleme"></a>6. Güncelleme
 
 ```bash
-MEBA-GUNCELLE.bat
+GUNCELLE.bat
 ```
 
 Git deposundan kurulu sistemler için: `git pull --rebase --autostash`,
 `npm install`, `npm run build`.
 
-USB'den kurulu sistemlerde: yeni USB ile `MEBA-KUR.bat` üzerine kurun (config'ler
+USB'den kurulu sistemlerde: yeni USB ile `KUR.bat` üzerine kurun (config'ler
 korunur — sadece yeni dosyalar üzerine yazılır).
 
 ---
 
-## <a id="yedekleme"></a>11. Yedekleme
+## <a id="yedekleme"></a>7. Yedekleme
 
 **Server makinesinde** kritik dosyalar:
-- `server/db.json` — tüm teklifler, cariler, ürünler
+- `server/db.json` — tüm teklifler, cariler, ürünler, kullanıcılar
 - `config/server-config.json` — deviceId, port ayarları
-- `server/email_dispatch.log`, `server/sync_telemetry.log` — telemetri
+- `server/email_dispatch.log` — email gönderim telemetrisi
 
 ```powershell
 # Windows Görev Zamanlayıcı ile günlük backup
-$src = "C:\MEBA\Meba-Teklif-Sistemi\server\db.json"
-$dst = "D:\backup\meba\db_$(Get-Date -Format yyyy-MM-dd).json"
+$src = "C:\GroupCompanies\TeklifSistemi\server\db.json"
+$dst = "D:\backup\teklif-sistemi\db_$(Get-Date -Format yyyy-MM-dd).json"
 Copy-Item $src $dst
 ```
 
 Restore için: server'ı durdur, `db.json`'ı eski yedekle değiştir, server'ı başlat.
-
-Veya admin UI'dan `POST /api/sync/full` ile yeni DB push edilebilir
-(yalnızca server makinesinden, `isSameMachineClient` korumalı).
 
 ---
 
@@ -287,71 +178,61 @@ Proje **karışık modül sistemi** kullanır — bu **kasıtlıdır**:
 
 **Yeni dosya eklerken:**
 - Frontend (React/Vite): `src/` altı, `.ts` / `.tsx` (ESM, `import`/`export`)
-- Backend (HTTP server, auth, sync): `server/` altı, `.cjs` (CJS, `require`/`module.exports`)
+- Backend (HTTP server, auth): `server/` altı, `.cjs` (CJS, `require`/`module.exports`)
 - Launcher / kurulum scripti: kök ya da `launcher/`, `.cjs`
 
 İki sistem birbirini görmez — frontend backend'i HTTP üzerinden çağırır (`apiClient.ts`).
 
 ---
 
-## <a id="mimari"></a>12. Mimari Diyagram
+## <a id="mimari"></a>8. Mimari Diyagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                       SERVER PC (Office)                         │
-│                                                                  │
-│  ┌────────────────────┐       ┌──────────────────────────────┐  │
-│  │  launcher.cjs      │       │  server.cjs (port 3001)      │  │
-│  │   ├ pidLock        │──────▶│   ├ /api/teklifler           │  │
-│  │   ├ spawnChildren  │       │   ├ /api/sync/pull (filter)  │  │
-│  │   ├ staticServer   │       │   ├ /api/sync/push (version) │  │
-│  │   └ openBrowser    │       │   └ db.json (file lock)      │  │
-│  └────────────────────┘       └──────────────────────────────┘  │
-│         │                                                        │
-│         ▼ http://localhost:5173                                  │
-│  ┌─────────────────────────┐                                    │
-│  │  React UI (dist/)       │                                    │
-│  │   ├ AppLayout            │                                   │
-│  │   ├ SyncStatusBar        │                                   │
-│  │   └ syncEngine.ts        │                                   │
-│  └─────────────────────────┘                                    │
-└──────────────────────────────────┬──────────────────────────────┘
-                                   │ LAN (192.168.x.x:3001/api/sync/*)
+┌──────────────────────────────────────────────────────────┐
+│                  SERVER PC (Office)                       │
+│                                                           │
+│  ┌────────────────────┐    ┌──────────────────────────┐  │
+│  │  launcher.cjs      │    │  server.cjs (port 3001)  │  │
+│  │   ├ pidLock        │───▶│   ├ /api/teklifler       │  │
+│  │   ├ spawnBackend   │    │   ├ /api/health          │  │
+│  │   ├ staticServer   │    │   └ db.json (file lock)  │  │
+│  │   └ openBrowser    │    └──────────────────────────┘  │
+│  └────────────────────┘                                   │
+│         │                                                 │
+│         ▼ http://server-ip:5173                           │
+│  ┌─────────────────────────┐                              │
+│  │  React UI (dist/)       │                              │
+│  │   ├ AppLayout            │                             │
+│  │   └ SyncStatusBar (sade) │                             │
+│  └─────────────────────────┘                              │
+└──────────────────────────────────┬───────────────────────┘
+                                   │ LAN (HTTP)
        ┌───────────────────────────┼───────────────────────────┐
        ▼                           ▼                           ▼
-  ┌─────────┐                ┌─────────┐                 ┌─────────┐
-  │ CLIENT  │                │ CLIENT  │                 │ CLIENT  │
-  │ (USB)   │                │ (USB)   │                 │ (USB)   │
-  │ Lokal   │                │ Lokal   │                 │ Lokal   │
-  │ db.json │                │ db.json │                 │ db.json │
-  │ +       │                │ +       │                 │ +       │
-  │snapshot │                │snapshot │                 │snapshot │
-  └─────────┘                └─────────┘                 └─────────┘
-       Offline-capable, 5dk'da bir sync, conflict aware
+   [tarayıcı]                 [tarayıcı]                  [tarayıcı]
+   (yönetici)                 (mühendis)                  (satış)
+
+       Online-only — kurulum yok, sadece tarayıcı
 ```
 
 ---
 
-## <a id="sorun"></a>13. Sorun Giderme
+## <a id="sorun"></a>9. Sorun Giderme
 
 ### "Backend health check timeout"
-- Backend port (3001) zaten kullanımda. `MEBA-DURDUR.bat` → tekrar başlat.
+- Backend port (3001) zaten kullanımda. `DURDUR.bat` → tekrar başlat.
 - Veya `netstat -ano | findstr :3001` ile zombie process'i bul, kapat.
 
-### "Server bulunamadı" (client)
-- `config/client-config.json` → `serverHost` IP'si doğru mu?
-- Ana bilgisayar açık mı? `ping <IP>` ile test.
-- Firewall ana bilgisayarda 3001 portunu açıyor mu? `firewall-allow.bat` (yönetici).
+### "Server'a bağlanamıyorum"
+- Server PC açık mı? `ping <server-ip>` ile test.
+- Firewall server'da 3001/5173 portunu açıyor mu? `firewall-allow.bat` (yönetici).
+- URL doğru mu? `http://<server-ip>:5173` (HTTPS değil, port 5173).
 
-### "Senkron Bekliyor" rozetleri kaldırılmıyor
-- Header'daki Sync chip "Çevrimdışı" mı? Server kapalı.
-- "Bağlı" ama hala bekliyor → **Çakışma** olabilir, admin'e başvur.
-- localStorage temizleme (son çare): F12 → `localStorage.removeItem('meba_sync_queue')`.
+### Header'da "Bağlı Değil" kırmızı çıkıyor
+- Server tarafında `node launcher.cjs` çalışıyor mu?
+- Tarayıcıyı yenile (F5) veya popover'daki "Yeniden Bağlan" butonuna tıkla.
 
-### Çakışmalar birikiyor
-- Admin **Çakışmaları Görüntüle** ile temizle (her seferinde tek tek karar ver).
-
-### Tarayıcı otomatik açılmıyor
+### Tarayıcı otomatik açılmıyor (server'da)
 - `config/server-config.json` → `autoOpenBrowser: false` mı?
 - Manual: `http://localhost:5173`'e git.
 
@@ -359,11 +240,15 @@ Proje **karışık modül sistemi** kullanır — bu **kasıtlıdır**:
 - `node_modules` eksik veya bozuk: `rm -rf node_modules && npm install`.
 - TypeScript hatası: `npx tsc --noEmit` ile detayı gör.
 
+### "BASLAT.bat: Node.js bulunamadi"
+- Server PC'sine Node.js LTS kurulu değil. https://nodejs.org/ → kur, PC'yi
+  yeniden başlat, tekrar çalıştır.
+
 ---
 
 ## Lisans
 
-Şirket içi kullanım — MEBA Mekanik Ltd. Şti.
+Şirket içi kullanım — MEBA Mekanik · MESA Otomasyon · ELMOS Elektrik.
 
 ## Geliştirici
 
