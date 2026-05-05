@@ -20,6 +20,7 @@ import { formatCurrency, formatDate, formatCariAdi } from '../utils/formatters';
 import { klasorAdiUret } from '../utils/folderUtils';
 import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
+import { isYonetici } from '../utils/yetkiUtils';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { buttonClassNames, tabButtonClassName } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
@@ -444,11 +445,8 @@ export default function TeklifListesi() {
 
   const benimSayisi   = useMemo(() => teklifler.filter((t) => t.hazirlayanKullaniciId === benimId).length, [teklifler, benimId]);
 
-  // ── Yönetici özeti — sadece admin/super_admin/firma_admin için ───────────────
-  const isAdmin = useMemo(() => {
-    const r = aktifKullanici?.rol;
-    return r === 'super_admin' || r === 'admin' || r === 'firma_admin';
-  }, [aktifKullanici]);
+  // ── Yönetici özeti — yalnızca super_admin/firma_admin için ───────────────
+  const isAdmin = useMemo(() => isYonetici(aktifKullanici?.rol), [aktifKullanici]);
 
   const yoneticiOzeti = useMemo(() => {
     if (!isAdmin) return null;

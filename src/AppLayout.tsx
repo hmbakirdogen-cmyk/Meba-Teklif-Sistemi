@@ -11,6 +11,7 @@ import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
 import { useTheme } from './context/useTheme';
 import { formatAdSoyad, formatUnvan } from './utils/formatters';
+import { isYonetici, tumFirmalaraErisir } from './utils/yetkiUtils';
 import { useColors } from './hooks/useColors';
 import { useIsMobile } from './hooks/useIsMobile';
 import { buttonClassNames } from './styles/buttonStyles';
@@ -52,11 +53,10 @@ export default function AppLayout() {
     : location.pathname.startsWith('/firma-profili') ? 'firma-profili'
     : 'teklifler';
   const rol = aktifKullanici?.rol;
-  const isAdminLike = rol === 'super_admin' || rol === 'firma_admin' || rol === 'admin';
-  const isYonetici = isAdminLike;
-  // Firma degistirme yetkisi: sadece tum-firmalara erisen roller (super_admin, admin).
-  // firma_admin tek firmaya bagli oldugu icin gormez.
-  const tumFirmalaraErisir = rol === 'super_admin' || rol === 'admin';
+  const isAdminLike = isYonetici(rol);
+  // Firma değiştirme yetkisi: super_admin (tüm sistem) + firma_admin
+  // (gosterilenFirmalar=3 firma → yönetim kurulu).
+  const cokFirmaErisir = tumFirmalaraErisir(rol);
 
   function navigate_(path: string) {
     setDrawerOpen(false);
@@ -67,8 +67,9 @@ export default function AppLayout() {
     if (yeniFirmaId === aktifFirma?.id) return;
     setAktifFirma(yeniFirmaId);
     // Sayfa state'leri (teklif listesi, cariler, urunler vs.) yeni firmaId ile
-    // tekrar fetch edilmeli — en temiz yol full reload. Az sayida admin var,
-    // gun icinde 1-2 kere yapilir, kabul edilebilir tradeoff.
+    // tekrar fetch edilmeli — en temiz yol full reload. Sadece yöneticiler
+    // (super_admin + firma_admin) bunu yapar, gun icinde 1-2 kere; kabul
+    // edilebilir tradeoff.
     setTimeout(() => window.location.reload(), 50);
   }
 
@@ -187,7 +188,7 @@ export default function AppLayout() {
                   fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   <span>{aktifFirma.kisaAd}</span>
-                  {tumFirmalaraErisir && firmalar.length > 1 && (
+                  {cokFirmaErisir && firmalar.length > 1 && (
                     <SwapOutlined style={{ fontSize: 11, color: 'rgba(170,190,220,0.65)' }} />
                   )}
                 </div>
@@ -205,10 +206,10 @@ export default function AppLayout() {
             paddingRight: isMobile ? 4 : 10,
           };
 
-          // Yöneticiler (super_admin + admin) icin: logo bloku Dropdown ile sarilir.
-          // Default firmalari profil atamasi ile gelir; istedikleri an switcher
-          // ile diger firmalara gecebilirler.
-          if (tumFirmalaraErisir && firmalar.length > 1) {
+          // Yöneticiler (super_admin + firma_admin) icin: logo bloku Dropdown ile sarilir.
+          // firma_admin (yönetim kurulu) gosterilenFirmalar ile 3 firmaya erişir;
+          // istedikleri an switcher ile diger firmalara gecebilirler.
+          if (cokFirmaErisir && firmalar.length > 1) {
             const sortedFirmalar = ['meba', 'elmos', 'mesa']
               .map((id) => firmalar.find((f) => f.id === id))
               .filter((f): f is NonNullable<typeof f> => Boolean(f));
@@ -339,7 +340,7 @@ export default function AppLayout() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.boxShadow = `0 0 0 2px ${isYonetici ? 'rgba(251,191,36,0.32)' : 'rgba(59,130,246,0.32)'}`;
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${isAdminLike ? 'rgba(251,191,36,0.32)' : 'rgba(59,130,246,0.32)'}`;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'scale(1)';
@@ -353,18 +354,18 @@ export default function AppLayout() {
                     style={{
                       width: 27, height: 36, borderRadius: 6,
                       objectFit: 'cover', objectPosition: 'center top',
-                      border: `1px solid ${isYonetici ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
+                      border: `1px solid ${isAdminLike ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
                       display: 'block',
                     }}
                   />
                 ) : (
                   <div style={{
                     width: 27, height: 36, borderRadius: 6,
-                    background: isYonetici ? 'rgba(251,191,36,0.18)' : 'rgba(59,130,246,0.20)',
-                    border: `1px solid ${isYonetici ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
+                    background: isAdminLike ? 'rgba(251,191,36,0.18)' : 'rgba(59,130,246,0.20)',
+                    border: `1px solid ${isAdminLike ? 'rgba(251,191,36,0.45)' : 'rgba(59,130,246,0.45)'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 700,
-                    color: isYonetici ? '#fbbf24' : '#93c5fd',
+                    color: isAdminLike ? '#fbbf24' : '#93c5fd',
                     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
                     letterSpacing: 0.5,
                   }}>
@@ -381,7 +382,7 @@ export default function AppLayout() {
               </div>
               <div style={{
                 fontSize: 10,
-                color: isYonetici ? 'rgba(251,191,36,0.75)' : 'rgba(148,163,184,0.85)',
+                color: isAdminLike ? 'rgba(251,191,36,0.75)' : 'rgba(148,163,184,0.85)',
                 letterSpacing: 0.3, wordBreak: 'break-word',
               }}>
                 {formatUnvan(aktifKullanici.unvan)}
@@ -440,8 +441,8 @@ export default function AppLayout() {
               {formatUnvan(aktifKullanici.unvan)}
             </div>
 
-            {/* Firma degistirici (sadece super_admin / admin) */}
-            {tumFirmalaraErisir && firmalar.length > 1 && (
+            {/* Firma değiştirici (super_admin + firma_admin yönetim kurulu) */}
+            {cokFirmaErisir && firmalar.length > 1 && (
               <div style={{ marginBottom: 12 }}>
                 <div style={{
                   fontSize: 10, color: C.textSecondary, letterSpacing: 1,

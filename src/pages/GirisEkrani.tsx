@@ -12,6 +12,7 @@ import {
   getRememberedSifre, setRememberedSifre, clearRememberedSifre,
 } from '../services/apiClient';
 import { formatAdSoyad, formatUnvan, splitUnvanWithParen } from '../utils/formatters';
+import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 
 /** Login ekranindaki kart icin minimal personel modeli — backend'den gelir. */
 interface PersonelKart {
@@ -1263,7 +1264,7 @@ export default function GirisEkrani() {
 function PersonelAvatar({
   kullanici, haloColor, size = 56,
 }: { kullanici: PersonelKart; haloColor: string; size?: number }) {
-  const isYonetici = kullanici.rol === 'super_admin' || kullanici.rol === 'admin' || kullanici.rol === 'firma_admin';
+  const isYonetici = isYoneticiRol(kullanici.rol);
   const ringColor = isYonetici ? 'rgba(251,191,36,0.55)' : haloColor;
   // Vesikalık format: width = size, height = size * 4/3 (3:4 oran)
   const w = size;
@@ -1418,7 +1419,7 @@ function PersonelKartSecimi({
           Tum kartlar FLEX layout ile esit dagilimli; tek ekrana sigsin diye
           flex-wrap + flex-grow:1 ile mevcut alani paylasirlar. */}
       {!yukleniyor && personel.length > 0 && (() => {
-        const yoneticiRolleri = ['super_admin', 'admin', 'firma_admin'];
+        const yoneticiRolleri = ['super_admin', 'firma_admin'];
         const yoneticiler = personel.filter((p) => yoneticiRolleri.includes(p.rol));
         const personeller = personel.filter((p) => !yoneticiRolleri.includes(p.rol));
         const flexRowStyle: React.CSSProperties = {
@@ -1524,7 +1525,7 @@ function PersonelKart({
   haloColor: string;
   onLoginDene: (sifre: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
-  const isYonetici = kullanici.rol === 'super_admin' || kullanici.rol === 'admin' || kullanici.rol === 'firma_admin';
+  const isYonetici = isYoneticiRol(kullanici.rol);
   const [hatirlanmis, setHatirlanmis] = useState<boolean>(
     () => getRememberedSifre(kullanici.id) !== null,
   );

@@ -1,21 +1,24 @@
 /**
  * Kullanıcı rolleri ve yetki kapsamları:
  *
- * - **super_admin** : Tüm firmalara erişir + sistem ayarlarını yönetebilir.
+ * - **super_admin** : Sistem sahibi (Mehmet Bakırdöğen). Tüm firmalara erişir,
+ *                     firma profili düzenler, kullanıcı oluşturur.
  *                     `firmaId` null olabilir (firma kapsamı dışı).
- * - **firma_admin** : Sadece kendi firmasının yöneticisi. `firmaId` zorunlu.
- *                     Firma kullanıcılarını yönetir, raporlara erişir.
- * - **admin**       : Tüm firmalara veri erişimi var (raporlama amaçlı yönetici)
- *                     ama sistem ayarlarına dokunmaz. `firmaId` null olabilir.
- *                     Genel "Yönetici" yetkili — super_admin'den daha kısıtlı.
+ * - **firma_admin** : Yönetim kurulu üyesi (3 ortak: MEBA + MESA + ELMOS).
+ *                     `gosterilenFirmalar` listesindeki firmalara erişir
+ *                     (yoksa primary `firmaId` fallback). Personel yönetir.
  * - **engineer**    : Teklif hazırlar, kendi tekliflerini görür (private),
  *                     ekip teklifleri (team) için okuma yetkisi var.
  * - **sales**       : engineer ile aynı kapsam — satış sorumlusu.
  *
- * Yetki kontrol noktaları: `auth-routes.cjs` requireAdmin/requireSuperAdmin,
- * `syncEngine.ts` applyVisibilityFilter, `teklifService.ts` görünürlük filtresi.
+ * `admin` rolü kaldırıldı (2026-05-05) — yönetim kurulu üyeleri firma_admin'e
+ * migrate edildi, gosterilenFirmalar=["meba","mesa","elmos"] ile 3 firmaya
+ * erişimleri sürdürüldü.
+ *
+ * Yetki kontrol noktaları: backend `auth-routes.cjs` requireAdmin /
+ * requireSuperAdmin / canAccessFirma; frontend `src/utils/yetkiUtils.ts`.
  */
-export type KullaniciRol = 'super_admin' | 'firma_admin' | 'engineer' | 'sales' | 'admin';
+export type KullaniciRol = 'super_admin' | 'firma_admin' | 'engineer' | 'sales';
 
 export interface Kullanici {
   id: string;
@@ -26,6 +29,7 @@ export interface Kullanici {
   initials: string;
   aktifMi: boolean;
   firmaId?: string | null;
+  gosterilenFirmalar?: string[];
   profilFotoUrl?: string;
   mustChangePassword?: boolean;
   olusturmaTarihi?: string;
@@ -37,8 +41,7 @@ export interface Kullanici {
 
 export const ROL_ETIKET: Record<KullaniciRol, string> = {
   super_admin: 'Süper Yönetici',
-  firma_admin: 'Firma Yöneticisi',
-  admin: 'Yönetici',
+  firma_admin: 'Firma Yöneticisi · Elektrik Elektronik Mühendisi',
   engineer: 'Mühendis',
   sales: 'Satış Sorumlusu',
 };

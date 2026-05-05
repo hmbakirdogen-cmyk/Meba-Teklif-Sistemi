@@ -15,9 +15,11 @@
  */
 
 import type { Teklif, Cari, Urun, UrunSeti } from '../types';
+import type { KullaniciRol } from '../types/kullanici';
 import { api, getActiveFirmaId } from './apiClient';
 import type { Referans, Sayac } from './apiClient';
 import { syncEngine } from './syncEngine';
+import { isYonetici } from '../utils/yetkiUtils';
 
 /** Yeni eklenen kayda (firmaId yoksa) aktif firmaId'yi inject eder.
  *  Mevcut firmaId varsa dokunulmaz — eski kayitlari koruyalim. */
@@ -35,9 +37,9 @@ function withFirmaId<T extends { firmaId?: string }>(rec: T): T {
  */
 export function applyVisibilityFilter(
   teklifler: Teklif[],
-  kullanici?: { id: string; rol: string },
+  kullanici?: { id: string; rol: KullaniciRol },
 ): Teklif[] {
-  if (!kullanici || kullanici.rol === 'admin') return teklifler;
+  if (!kullanici || isYonetici(kullanici.rol)) return teklifler;
   return teklifler.filter((t) => {
     const vis = t.visibility || 'team';
     return vis === 'team' || t.hazirlayanKullaniciId === kullanici.id;

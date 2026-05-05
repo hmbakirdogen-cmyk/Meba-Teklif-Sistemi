@@ -10,6 +10,7 @@ import {
   PremiumVisibilityIcon,
 } from './premium-icons';
 import { useKullanici } from '../context/useKullanici';
+import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
@@ -65,7 +66,7 @@ export default function KumandaPaneli({
   serberstCizimAktif, onSerberstCizimToggle,
 }: KumandaPaneliProps) {
   const { aktifKullanici } = useKullanici();
-  const isYonetici = aktifKullanici?.rol === 'super_admin' || aktifKullanici?.rol === 'admin';
+  const isYonetici = isYoneticiRol(aktifKullanici?.rol);
 
   const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
   const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));

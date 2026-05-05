@@ -10,6 +10,7 @@ import {
   setStoredKullanici,
   getSessionToken,
 } from '../services/apiClient';
+import { tumFirmalaraErisir } from '../utils/yetkiUtils';
 
 export function KullaniciProvider({ children }: { children: ReactNode }) {
   const [aktifKullanici, setAktifKullanici] = useState<Kullanici | null>(() => getStoredKullanici());
@@ -57,10 +58,21 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
       // bir firma sectiyse server 403 doner — defense in depth.
       const r = await api.auth.login(kullaniciAdi, sifre, secilenFirmaId ?? null);
       // Frontend'de ek savunma katmani (eski client'larda backend cevabi
-      // gelse bile yanlis firma'ya gecisi engelle):
-      const tumFirmalaraErisir =
-        r.kullanici.rol === 'super_admin' || r.kullanici.rol === 'admin';
-      if (!tumFirmalaraErisir && secilenFirmaId && secilenFirmaId !== r.kullanici.firmaId) {
+      // gelse bile yanlis firma'ya gecisi engelle). Kontrol mantığı backend
+      // (auth-routes.cjs login) ile aynı tutuluyor.
+      const k = r.kullanici;
+      const erisilebilir = (() => {
+        if (!secilenFirmaId) return true;
+        if (k.rol === 'super_admin') return true;
+        if (k.rol === 'firma_admin') {
+          if (Array.isArray(k.gosterilenFirmalar) && k.gosterilenFirmalar.length > 0) {
+            return k.gosterilenFirmalar.includes(secilenFirmaId);
+          }
+          return k.firmaId === secilenFirmaId;
+        }
+        return k.firmaId === secilenFirmaId;
+      })();
+      if (!erisilebilir) {
         try { await api.auth.logout(); } catch { /* network onemsiz */ }
         return {
           ok: false as const,
@@ -75,8 +87,9 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
       //   2) Backend'in dondurdugu firma (kullanici.firmaId varsa)
       //   3) kullanici.firmaId fallback
       //   4) null (super_admin firma secmediyse)
+      const cokFirma = tumFirmalaraErisir(k.rol);
       const firmaIdToActivate =
-        (tumFirmalaraErisir ? secilenFirmaId : null) ??
+        (cokFirma ? secilenFirmaId : null) ??
         (r.firma ? r.firma.id : null) ??
         r.kullanici.firmaId ??
         null;

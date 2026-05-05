@@ -5,11 +5,12 @@ import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
 import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
 import { LogoContainer } from '../components/LogoContainer';
+import { isSuperAdmin as isSuperAdminFn } from '../utils/yetkiUtils';
 
 export default function FirmaProfilSayfasi() {
   const { aktifKullanici } = useKullanici();
   const { firmalar, firmaGuncelle, refresh } = useFirma();
-  const isSuperAdmin = aktifKullanici?.rol === 'super_admin';
+  const isSuperAdmin = isSuperAdminFn(aktifKullanici?.rol);
 
   const [activeFirmaId, setActiveFirmaId] = useState<string>(() => {
     if (isSuperAdmin) return firmalar[0]?.id || 'meba';

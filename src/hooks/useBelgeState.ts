@@ -19,7 +19,9 @@ import { cariService } from '../services/musteriService';
 import { urunSetService } from '../services/urunSetService';
 import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
 import { sanitizeMultilineText } from '../utils/formatters';
+import { isYonetici } from '../utils/yetkiUtils';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
+import type { KullaniciRol } from '../types/kullanici';
 import dayjs from 'dayjs';
 
 const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
@@ -135,7 +137,7 @@ interface BelgeActions {
 interface KullaniciBilgisi {
   id: string;
   adSoyad: string;
-  rol: string;
+  rol: KullaniciRol;
   unvan?: string;
 }
 
@@ -176,12 +178,12 @@ export function useBelgeState(
   const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
   const [status, setStatus] = useState<TeklifStatus>(mevcut?.status ?? 'taslak');
   // Görünürlük yetkisi: yeni teklifte rol-bazlı default
-  //  - admin → 'private' (gizli) — yöneticinin teklifi varsayılan gizli
-  //  - engineer/sales → 'team' (mevcut davranış: herkes görüyor)
+  //  - yönetici (super_admin/firma_admin) → 'private' (gizli)
+  //  - engineer/sales → 'team' (herkes görür)
   //  - mevcut teklifte: kayıttaki değer veya undefined → 'team' (geriye uyumluluk)
   const [visibility, setVisibilityState] = useState<TeklifVisibility>(() => {
     if (mevcut) return mevcut.visibility ?? 'team';
-    return kullanici?.rol === 'admin' ? 'private' : 'team';
+    return isYonetici(kullanici?.rol) ? 'private' : 'team';
   });
 
   // Panel state — yalnızca araç çubuğundan erişilir (ikincil)

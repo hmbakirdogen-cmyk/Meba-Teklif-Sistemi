@@ -6,6 +6,7 @@ import GirisEkrani from './pages/GirisEkrani';
 import { useKullanici } from './context/useKullanici';
 import IlkGirisModal from './components/IlkGirisModal';
 import { ilkGirisGerekli } from './utils/ilkGiris';
+import { isYonetici } from './utils/yetkiUtils';
 
 // Lazy-loaded pages — ağır sayfalar başlangıçta yüklenmez
 const TeklifListesi = lazy(() => import('./pages/TeklifListesi'));
@@ -33,9 +34,7 @@ function TeklifEditorWrapper() {
 /** Yönetici olmayan kullanıcılar /teklifler'e yönlendirilir. */
 function YoneticiOnly({ children }: { children: ReactNode }) {
   const { aktifKullanici } = useKullanici();
-  const rol = aktifKullanici?.rol;
-  const isYonetici = rol === 'super_admin' || rol === 'admin' || rol === 'firma_admin';
-  if (!isYonetici) return <Navigate to="/teklifler" replace />;
+  if (!isYonetici(aktifKullanici?.rol)) return <Navigate to="/teklifler" replace />;
   return <>{children}</>;
 }
 

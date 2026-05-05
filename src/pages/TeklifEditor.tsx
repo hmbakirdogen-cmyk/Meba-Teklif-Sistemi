@@ -26,6 +26,7 @@ import {
   TeklifDisaAktarimHatasi,
 } from '../services/pdfKayitService';
 import { formatCariAdi } from '../utils/formatters';
+import { isYonetici } from '../utils/yetkiUtils';
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
@@ -75,11 +76,10 @@ export default function TeklifEditor() {
     aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan } : null,
   );
 
-  // Başkasina ait teklif: personel (non-admin) başkasinin teklifini düzeleyemez
+  // Başkasına ait teklif: personel (yönetici olmayan) başkasının teklifini düzenleyemez.
   const sahipDegil = useMemo(() => {
     if (!id) return false; // yeni teklif — her zaman kendi
-    const rol = aktifKullanici?.rol;
-    if (rol === 'admin' || rol === 'super_admin' || rol === 'firma_admin') return false;
+    if (isYonetici(aktifKullanici?.rol)) return false;
     const sahipId = state.teklifSahibiId; // mevcut teklifin orijinal sahibi
     if (!sahipId) return false; // sahip belirsiz (çok eski kayıt) — izin ver
     return sahipId !== aktifKullanici?.id;

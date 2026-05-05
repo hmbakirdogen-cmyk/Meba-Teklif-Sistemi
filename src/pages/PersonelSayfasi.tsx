@@ -9,6 +9,11 @@ import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Kullanici, KullaniciRol } from '../types/kullanici';
 import { formatAdSoyad, formatUnvan } from '../utils/formatters';
+import {
+  isSuperAdmin as isSuperAdminFn,
+  isYonetici,
+  tumFirmalaraErisir as tumFirmalaraErisirFn,
+} from '../utils/yetkiUtils';
 
 interface FormValues {
   kullaniciAdi: string;
@@ -27,11 +32,11 @@ export default function PersonelSayfasi() {
   const [duzenlenen, setDuzenlenen] = useState<Kullanici | null>(null);
   const [form] = Form.useForm<FormValues>();
 
-  const isSuperAdmin = aktifKullanici?.rol === 'super_admin';
-  // 'admin' rolü de personel yönetimi yapabilir (yöneticiler hariç).
-  const isAdmin = isSuperAdmin || aktifKullanici?.rol === 'admin';
-  // 'admin' rolü tüm firmalara erişir → firma seçici göstermesi gerek.
-  const tumFirmalaraErisir = isSuperAdmin || aktifKullanici?.rol === 'admin';
+  const isSuperAdmin = isSuperAdminFn(aktifKullanici?.rol);
+  // firma_admin de personel yönetimi yapabilir (yöneticiler hariç).
+  const isAdmin = isYonetici(aktifKullanici?.rol);
+  // firma_admin (yönetim kurulu) tüm firmalara erişir → firma seçici göstermesi gerek.
+  const tumFirmalaraErisir = tumFirmalaraErisirFn(aktifKullanici?.rol);
 
   const fetchListe = useCallback(async () => {
     setYukleniyor(true);
@@ -139,7 +144,6 @@ export default function PersonelSayfasi() {
   const rolEtiket: Record<KullaniciRol, { color: string; label: string }> = {
     super_admin: { color: 'gold',    label: 'Süper Yönetici' },
     firma_admin: { color: 'orange',  label: 'Firma Yöneticisi' },
-    admin:       { color: 'orange',  label: 'Yönetici' },
     engineer:    { color: 'blue',    label: 'Mühendis' },
     sales:       { color: 'green',   label: 'Satış' },
   };
@@ -195,8 +199,8 @@ export default function PersonelSayfasi() {
       key: 'actions',
       align: 'right' as const,
       render: (_: unknown, k: Kullanici) => {
-        // admin (super değil) yöneticileri düzenleyemez/silemez/sıfırlayamaz
-        const targetIsYonetici = ['admin', 'firma_admin', 'super_admin'].includes(k.rol);
+        // firma_admin (super değil) başka yöneticileri düzenleyemez/silemez/sıfırlayamaz
+        const targetIsYonetici = ['firma_admin', 'super_admin'].includes(k.rol);
         const yoneticiKilidi = !isSuperAdmin && targetIsYonetici;
         return (
           <Space size="small">
@@ -306,8 +310,11 @@ export default function PersonelSayfasi() {
             <Select>
               <Select.Option value="engineer">Mühendis</Select.Option>
               <Select.Option value="sales">Satış Sorumlusu</Select.Option>
-              {isSuperAdmin && <Select.Option value="admin">Yönetici (tüm firmalar)</Select.Option>}
-              {isSuperAdmin && <Select.Option value="firma_admin">Firma Yöneticisi (tek firma)</Select.Option>}
+              {isSuperAdmin && (
+                <Select.Option value="firma_admin">
+                  Firma Yöneticisi · Elektrik Elektronik Mühendisi
+                </Select.Option>
+              )}
             </Select>
           </Form.Item>
           {tumFirmalaraErisir && !duzenlenen && (
@@ -315,10 +322,7 @@ export default function PersonelSayfasi() {
               noStyle
               shouldUpdate={(prev, curr) => prev.rol !== curr.rol}
             >
-              {({ getFieldValue }) => {
-                const secilenRol = getFieldValue('rol');
-                // 'admin' rolu tum firmalara erisir → firmaId gerekmez
-                if (secilenRol === 'admin') return null;
+              {() => {
                 return (
                   <Form.Item name="firmaId" label="Firma" rules={[{ required: true, message: 'Firma seçiniz' }]}>
                     <Select placeholder="Firma seçin">

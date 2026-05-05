@@ -1,14 +1,16 @@
 import dayjs from 'dayjs';
 import type { Teklif } from '../types';
+import type { KullaniciRol } from '../types/kullanici';
 import { dataStore } from './dataStore';
+import { isYonetici } from '../utils/yetkiUtils';
 
 /** Defansif client-side visibility filter. Backend zaten filtreliyor olsa da
  *  ek savunma katmanı: cache'de eski/yetkisiz teklifler kalmış olabilir. */
 function visibilityFiltrele(
   liste: Teklif[],
-  kullanici?: { id: string; rol: string },
+  kullanici?: { id: string; rol: KullaniciRol },
 ): Teklif[] {
-  if (!kullanici || kullanici.rol === 'admin') return liste;
+  if (!kullanici || isYonetici(kullanici.rol)) return liste;
   return liste.filter((t) => {
     const vis = t.visibility ?? 'team';
     return vis === 'team' || t.hazirlayanKullaniciId === kullanici.id;
@@ -32,7 +34,7 @@ function normalizeEskiKayit(t: Teklif): Teklif {
 }
 
 function tumTeklifleriGetir(
-  kullanici?: { id: string; rol: string },
+  kullanici?: { id: string; rol: KullaniciRol },
 ): Teklif[] {
   const liste = dataStore.getTeklifler().map(normalizeEskiKayit);
   return visibilityFiltrele(liste, kullanici);
@@ -40,7 +42,7 @@ function tumTeklifleriGetir(
 
 function teklifGetir(
   id: string,
-  kullanici?: { id: string; rol: string },
+  kullanici?: { id: string; rol: KullaniciRol },
 ): Teklif | undefined {
   return tumTeklifleriGetir(kullanici).find((t) => t.id === id);
 }
@@ -52,7 +54,7 @@ function teklifGetir(
  *  Cariler de paralel tazelenir — kart logoları/cari snapshot'ları için
  *  güncel master kayıtlara ihtiyaç var. */
 async function tekliferiYenile(
-  kullanici?: { id: string; rol: string },
+  kullanici?: { id: string; rol: KullaniciRol },
 ): Promise<void> {
   await Promise.all([
     dataStore.refreshTeklifler(kullanici),
