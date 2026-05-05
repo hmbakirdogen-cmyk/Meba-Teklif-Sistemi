@@ -115,15 +115,19 @@ mevcut tarayıcıyı yeniden açar (single-instance lock).
 Roller (`src/types/kullanici.ts`):
 
 - **super_admin** — sistem sahibi (Mehmet Bakırdöğen). Tüm firmalar arası geçiş,
-  her şeyi görür/değiştirir, kullanıcı oluşturur.
-- **firma_admin** — bir firmanın yöneticisi (3 ortağa karşılık 3 admin: MEBA,
-  MESA, ELMOS). Sadece kendi firmasının verilerini yönetir, kendi firmasında
-  kullanıcı oluşturabilir.
+  her şeyi görür/değiştirir, kullanıcı oluşturur, firma profili düzenler.
+- **firma_admin** — yönetim kurulu üyeleri (3 ortak: Ahmet Esmeray, Fatih Lazoğlu,
+  Mehmet Maraş). `gosterilenFirmalar` listesindeki firmalara erişir — şu an
+  3'ü de `["meba","mesa","elmos"]` ile tüm firmalara geçiş yapabilir.
+  Personel yönetir; firma profili düzenleyemez (sadece super_admin).
 - **engineer** — mühendis. Kendi tekliflerini görür + `visibility='team'` olanları
   görür. Cari/ürün ekleyebilir.
 - **sales** — satış. engineer ile aynı.
-- **admin** — *deprecated*, eski kayıtlar için tip korunuyor; yeni kullanıcı
-  bu rolü almaz.
+
+> **Not:** Eski `admin` rolü 2026-05-05 tarihinde kaldırıldı. 3 yönetim kurulu
+> üyesi `firma_admin`'e migrate edildi. Yetki kontrolü için frontend
+> `src/utils/yetkiUtils.ts`, backend `server/auth-routes.cjs` (requireAdmin /
+> requireSuperAdmin / canAccessFirma).
 
 `visibility` toggle KumandaPaneli'nden yapılır:
 - **team** (default) — tüm ekip görür
