@@ -22,7 +22,7 @@ import { useKullanici } from '../context/useKullanici';
 import { useTheme } from '../context/useTheme';
 import { useColors } from '../hooks/useColors';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { formatDate, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatCariAdi, formatDisplayNumber } from '../utils/formatters';
 import type { Teklif, TeklifSatiri, TeklifDurum } from '../types';
 
 // ── Durum etiketleri (TeklifListesi ile birebir aynı) ──────────────────────
@@ -262,6 +262,7 @@ export default function MalzemeGecmisiSayfasi() {
                 <th style={headerCellStyle}>Açıklama</th>
                 <th style={{ ...headerCellStyle, textAlign: 'right' }}>Miktar</th>
                 <th style={headerCellStyle}>Birim</th>
+                <th style={{ ...headerCellStyle, textAlign: 'right' }}>Birim Fiyat</th>
                 <th style={headerCellStyle}>Durum</th>
                 <th style={headerCellStyle}>Hazırlayan</th>
               </tr>
@@ -307,6 +308,11 @@ export default function MalzemeGecmisiSayfasi() {
                     </td>
                     <td style={{ ...cellStyle, color: C.textSecondary, whiteSpace: 'nowrap' }}>
                       {satir.birim || '—'}
+                    </td>
+                    <td style={{ ...cellStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      {Number(satir.birimFiyat || 0) > 0
+                        ? `${formatDisplayNumber(Number(satir.birimFiyat), 2, 2)} ${satir.paraBirimi || ''}`.trim()
+                        : '—'}
                     </td>
                     <td style={cellStyle}>
                       {durumBadge(teklif.durum)}
