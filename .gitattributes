@@ -20,3 +20,4 @@
 *.pdf binary
 *.exe binary
 *.blockmap binary
+src/hooks/usePDFKayit.ts text
