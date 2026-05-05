@@ -1464,9 +1464,9 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
         padding: isMobile ? '8px 10px' : '8px 12px',
         borderRadius: 7,
         background: hover
-          ? (isDark ? 'rgba(255,255,255,0.045)' : 'rgba(15,30,60,0.04)')
-          : (isDark ? 'rgba(255,255,255,0.018)' : 'rgba(15,30,60,0.012)'),
-        border: `1px solid ${hover ? (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(15,30,60,0.10)') : C.borderSubtle}`,
+          ? (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(15,30,60,0.05)')
+          : (isDark ? 'rgba(255,255,255,0.055)' : 'rgba(15,30,60,0.025)'),
+        border: `1px solid ${hover ? (isDark ? 'rgba(255,255,255,0.20)' : 'rgba(15,30,60,0.16)') : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,30,60,0.10)')}`,
         cursor: 'pointer',
         userSelect: 'none',
         position: 'relative',
@@ -1755,13 +1755,13 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
     .map((id) => kullaniciMap.get(id))
     .filter((k): k is Kullanici => Boolean(k));
 
-  // Premium B2B: kart yüzeyi sayfa zemininden 1 ton koyu (paper, not blast white)
-  const cardBg = isDark ? '#161922' : '#F4F3EF';
-  const cardBgHover = isDark ? '#1a1e29' : '#EFEDE8';
+  // Premium B2B kart yüzeyi — sayfa zemininden belirgin ayrılır
+  const cardBg = isDark ? '#1F2533' : '#FFFFFF';
+  const cardBgHover = isDark ? '#262D3D' : '#F7F4ED';
 
   const cardStyle: CSSProperties = {
     background: hover ? cardBgHover : cardBg,
-    border: `1px solid ${hover ? (isDark ? 'rgba(255,255,255,0.10)' : '#D7D3CC') : (isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8')}`,
+    border: `1px solid ${hover ? (isDark ? 'rgba(255,255,255,0.16)' : '#CDC7BD') : (isDark ? 'rgba(255,255,255,0.10)' : '#D7D3CC')}`,
     borderRadius: 10,
     cursor: 'pointer',
     transition: 'background 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease',
