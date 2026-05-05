@@ -673,9 +673,9 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
       qFirma = new URL(req.url || '', 'http://localhost').searchParams.get('firmaId') || '';
     } catch { /* ignore */ }
     const requested = headerFirma || qFirma || '';
-    // Eski client (firmaId yollamaz): super_admin/admin ise tumu, degilse user.firmaId
+    // Eski client (firmaId yollamaz): super_admin ise tumu, digerleri user.firmaId
     if (!requested) {
-      if (ctx.rol === 'super_admin' || ctx.rol === 'admin') {
+      if (ctx.rol === 'super_admin') {
         return { tumu: true, firmaId: null };
       }
       return { tumu: false, firmaId: null };
@@ -744,7 +744,7 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
 
       // Teklif sahiplik kontrolü — personel başkasının teklifini düzenleyemez
       if (collectionKey === 'teklifler') {
-        const isAdminLike = ctx.rol === 'admin' || ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
+        const isAdminLike = ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
         if (!isAdminLike && idx >= 0) {
           const existing = arr[idx];
           if (existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
@@ -782,7 +782,7 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
 
       // Teklif sahiplik kontrolü — personel başkasının teklifini silemez
       if (collectionKey === 'teklifler' && idx >= 0) {
-        const isAdminLike = ctx.rol === 'admin' || ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
+        const isAdminLike = ctx.rol === 'super_admin' || ctx.rol === 'firma_admin';
         const existing = arr[idx];
         if (!isAdminLike && existing.hazirlayanKullaniciId && existing.hazirlayanKullaniciId !== ctx.userId) {
           return send(res, 403, { error: 'Bu teklifi silme yetkiniz yok.' });
@@ -912,7 +912,7 @@ const server = http.createServer(async (req, res) => {
       delete cleanDb.kullanicilar;
       delete cleanDb.oturumlar;
       delete cleanDb.auditLog;
-      const isAdminLike = qRol === 'admin' || qRol === 'super_admin' || qRol === 'firma_admin';
+      const isAdminLike = qRol === 'super_admin' || qRol === 'firma_admin';
       if (isAdminLike || !qRol) {
         return send(res, 200, cleanDb);
       }
@@ -935,7 +935,7 @@ const server = http.createServer(async (req, res) => {
       const qFirmaId = parsed.searchParams.get('firmaId') || (req.headers['x-firma-id'] || '');
       let all = readDB().teklifler.filter(isLiveRecord);
       if (qFirmaId) all = all.filter((t) => t.firmaId === qFirmaId);
-      const isAdminLike = qRol === 'admin' || qRol === 'super_admin' || qRol === 'firma_admin';
+      const isAdminLike = qRol === 'super_admin' || qRol === 'firma_admin';
       if (!qRol || isAdminLike) {
         return send(res, 200, all);
       }
