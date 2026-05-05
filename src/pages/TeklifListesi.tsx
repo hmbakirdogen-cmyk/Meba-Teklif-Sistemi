@@ -1468,7 +1468,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
         display: 'grid',
         gridTemplateColumns: isMobile
           ? '52px minmax(0, 1fr) auto'
-          : '52px minmax(0, 1fr) 80px 78px 68px',
+          : '52px minmax(0, 1fr) auto auto auto',
         alignItems: 'center',
         gap: isMobile ? 8 : 10,
         padding: isMobile ? '8px 10px' : '8px 12px',
