@@ -16,6 +16,7 @@ const PersonelSayfasi = lazy(() => import('./pages/PersonelSayfasi'));
 const FirmaProfilSayfasi = lazy(() => import('./pages/FirmaProfilSayfasi'));
 const AnalizSayfasi = lazy(() => import('./pages/AnalizSayfasi'));
 const TeklifPrintSayfasi = lazy(() => import('./pages/TeklifPrintSayfasi'));
+const MalzemeGecmisiSayfasi = lazy(() => import('./pages/MalzemeGecmisiSayfasi'));
 
 function PageFallback() {
   return (
@@ -76,6 +77,7 @@ function RouterIcerigi() {
         <Route path="/" element={<Navigate to="/teklifler" replace />} />
         <Route element={<AppLayout />}>
           <Route path="/teklifler" element={<Suspense fallback={<PageFallback />}><TeklifListesi /></Suspense>} />
+          <Route path="/malzeme-gecmisi" element={<Suspense fallback={<PageFallback />}><MalzemeGecmisiSayfasi /></Suspense>} />
           <Route path="/teklif/yeni" element={<Suspense fallback={<PageFallback />}><TeklifEditor /></Suspense>} />
           <Route path="/teklif/:id" element={<Suspense fallback={<PageFallback />}><TeklifEditorWrapper /></Suspense>} />
           <Route path="/veri" element={

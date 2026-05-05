@@ -5,7 +5,7 @@ import ProfilFotoModal from './components/ProfilFotoModal';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
-  CheckOutlined, BarChartOutlined, DownloadOutlined,
+  CheckOutlined, BarChartOutlined, DownloadOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
@@ -94,6 +94,12 @@ export default function AppLayout() {
       icon: <FileTextOutlined />,
       label: 'Teklif Yönetimi',
       onClick: () => navigate_('/teklifler'),
+    },
+    {
+      key: 'malzeme-gecmisi',
+      icon: <HistoryOutlined />,
+      label: 'Malzeme Geçmişi',
+      onClick: () => navigate_('/malzeme-gecmisi'),
     },
     ...(isAdminLike ? [
       {
