@@ -41,7 +41,7 @@ export interface Kullanici {
 
 export const ROL_ETIKET: Record<KullaniciRol, string> = {
   super_admin: 'Süper Yönetici',
-  firma_admin: 'Firma Yöneticisi · Elektrik Elektronik Mühendisi',
+  firma_admin: 'Firma Yöneticisi',
   engineer: 'Mühendis',
   sales: 'Satış Sorumlusu',
 };

@@ -17,6 +17,7 @@ interface CanliA4BelgeProps {
   onEditingAlanDegistir: (alan: EditingAlan) => void;
   onCariDegistir: (cari: Cari) => void;
   onCariEPostaDegistir: (email: string) => void;
+  onCariTelefonDegistir: (telefon: string) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
@@ -27,6 +28,7 @@ interface CanliA4BelgeProps {
   satirBazliIskonto: boolean;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
+  onGecerlilikSuresiDegistir: (sure: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onSatirSil: (id: string) => void;
@@ -62,6 +64,7 @@ export default function CanliA4Belge({
   onEditingAlanDegistir,
   onCariDegistir,
   onCariEPostaDegistir,
+  onCariTelefonDegistir,
   contactName,
   contactTitle,
   onContactNameDegistir,
@@ -72,6 +75,7 @@ export default function CanliA4Belge({
   satirBazliIskonto,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
+  onGecerlilikSuresiDegistir,
   onSatirGuncelle,
   onSatiraSetUygula,
   onSatirSil,
@@ -241,6 +245,7 @@ export default function CanliA4Belge({
             onEditingAlanDegistir={onEditingAlanDegistir}
             onCariDegistir={onCariDegistir}
             onCariEPostaDegistir={onCariEPostaDegistir}
+            onCariTelefonDegistir={onCariTelefonDegistir}
             contactName={contactName}
             contactTitle={contactTitle}
             onContactNameDegistir={onContactNameDegistir}
@@ -251,6 +256,7 @@ export default function CanliA4Belge({
             satirBazliIskonto={satirBazliIskonto}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
+            onGecerlilikSuresiDegistir={onGecerlilikSuresiDegistir}
             onSatirGuncelle={onSatirGuncelle}
             onSatiraSetUygula={onSatiraSetUygula}
             onSatirSil={onSatirSil}

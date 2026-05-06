@@ -118,9 +118,9 @@ export default function TeklifEditor() {
   useEffect(() => {
     if (yeniTeklif && cari && satirlar.length === 0) {
       satirEkle();
-      // Cari seçildikten sonra müşteri panelini aç → muhatap alanına odak gider
+      // Cari seçildikten sonra muhatap popup'ı açılsın
       muhatapGosterildiRef.current = true;
-      setEditingAlan('musteri');
+      setEditingAlan('musteri-muhatap');
     }
   }, [yeniTeklif, cari, satirlar.length, satirEkle]);
 
@@ -170,7 +170,7 @@ export default function TeklifEditor() {
       hazirlayanAdSoyad: state.hazirlayanAdSoyad,
       hazirlayanRol: state.hazirlayanRol,
       hazirlayanUnvan: state.hazirlayanUnvan,
-      gecerlilikSuresi: '1 Hafta',
+      gecerlilikSuresi: state.gecerlilikSuresi,
       contactName: state.contactName.trim() || undefined,
       contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
       gorseller: state.gorseller.length > 0 ? state.gorseller : undefined,
@@ -200,6 +200,7 @@ export default function TeklifEditor() {
     state.hazirlayanUnvan,
     state.contactName,
     state.contactTitle,
+    state.gecerlilikSuresi,
     state.gorseller,
   ]);
 
@@ -665,6 +666,7 @@ export default function TeklifEditor() {
               onEditingAlanDegistir={setEditingAlan}
               onCariDegistir={state.setCari}
               onCariEPostaDegistir={state.setCariEPosta}
+              onCariTelefonDegistir={state.setCariTelefon}
               contactName={state.contactName}
               contactTitle={state.contactTitle}
               onContactNameDegistir={state.setContactName}
@@ -675,6 +677,7 @@ export default function TeklifEditor() {
               satirBazliIskonto={state.satirBazliIskonto}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
+              onGecerlilikSuresiDegistir={state.setGecerlilikSuresi}
               onSatirGuncelle={state.satirGuncelle}
               onSatiraSetUygula={state.satiraSetUygula}
               onSatirSil={state.satirSil}
@@ -707,14 +710,18 @@ export default function TeklifEditor() {
             </div>
           )}
 
-          {/* Serbest Çizim Canvas Overlay */}
-          {cizimModu && (
+          {/* Serbest Çizim Canvas Overlay — daima mount; aktif=false iken
+              canvas pointer-events kapalı, toolbar gizli, ama çizimler DOM'da
+              kaldığı için belgenin üzerinde görünür kalır. Aynı butona tekrar
+              basıldığında editlenebilir hale geri döner. */}
+          {teklifObj && (
             <SerberstCizimOverlay
               canvasRef={cizimCanvasRef}
               renkRef={cizimRenk}
               kalinlikRef={cizimKalinlik}
               ciziyorRef={cizimCiziyor}
               sonKonumRef={cizimSonKonum}
+              aktif={cizimModu}
               onKapat={() => setCizimModu(false)}
             />
           )}
@@ -778,6 +785,9 @@ interface SerberstCizimOverlayProps {
   kalinlikRef: React.MutableRefObject<number>;
   ciziyorRef: React.MutableRefObject<boolean>;
   sonKonumRef: React.MutableRefObject<{ x: number; y: number } | null>;
+  /** true: canvas etkileşimi açık + toolbar görünür. false: çizimler DOM'da kalır
+   *  ama düzenlenemez/silinemez (toolbar gizli, canvas pointer-events kapalı). */
+  aktif: boolean;
   onKapat: () => void;
 }
 
@@ -785,7 +795,7 @@ const RENKLER = ['#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#000000
 const KALINLIKLAR = [2, 4, 8, 14];
 
 function SerberstCizimOverlay({
-  canvasRef, renkRef, kalinlikRef, ciziyorRef, sonKonumRef, onKapat,
+  canvasRef, renkRef, kalinlikRef, ciziyorRef, sonKonumRef, aktif, onKapat,
 }: SerberstCizimOverlayProps) {
   const [aktifRenk, setAktifRenk] = useState(renkRef.current);
   const [aktifKalinlik, setAktifKalinlik] = useState(kalinlikRef.current);
@@ -886,7 +896,8 @@ function SerberstCizimOverlay({
         pointerEvents: 'none',
       }}
     >
-      {/* Çizim canvas — sadece çizim olaylarını yakalar */}
+      {/* Çizim canvas — daima mount, çizimler korunur. aktif=false iken
+          pointer-events kapalı (etkileşim yok) ama görünür kalır. */}
       <canvas
         ref={canvasRef}
         style={{
@@ -894,20 +905,21 @@ function SerberstCizimOverlay({
           inset: 0,
           width: '100%',
           height: '100%',
-          pointerEvents: 'all',
-          cursor: silgiModu ? 'cell' : 'crosshair',
+          pointerEvents: aktif ? 'all' : 'none',
+          cursor: aktif ? (silgiModu ? 'cell' : 'crosshair') : 'default',
           touchAction: 'none',
         }}
-        onMouseDown={basla}
-        onMouseMove={ciz}
-        onMouseUp={bitir}
-        onMouseLeave={bitir}
-        onTouchStart={basla}
-        onTouchMove={ciz}
-        onTouchEnd={bitir}
+        onMouseDown={aktif ? basla : undefined}
+        onMouseMove={aktif ? ciz : undefined}
+        onMouseUp={aktif ? bitir : undefined}
+        onMouseLeave={aktif ? bitir : undefined}
+        onTouchStart={aktif ? basla : undefined}
+        onTouchMove={aktif ? ciz : undefined}
+        onTouchEnd={aktif ? bitir : undefined}
       />
 
-      {/* Araç çubuğu */}
+      {/* Araç çubuğu — sadece çizim aktifken görünür */}
+      {aktif && (
       <div
         style={{
           position: 'fixed',
@@ -1034,10 +1046,10 @@ function SerberstCizimOverlay({
         {/* Ayırıcı */}
         <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.18)', flexShrink: 0 }} />
 
-        {/* Kapat */}
+        {/* Kilitle — çizim modunu kapatır ama çizimler belgede kalır */}
         <button
           type="button"
-          title="Çizimi Kapat"
+          title="Çizimi Kilitle (çizimler kalır, düzenlenemez)"
           onClick={onKapat}
           style={{
             width: 32,
@@ -1049,14 +1061,14 @@ function SerberstCizimOverlay({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'rgba(255,255,255,0.70)',
-            fontSize: 16,
-            fontWeight: 700,
+            color: 'rgba(255,255,255,0.85)',
+            fontSize: 14,
           }}
         >
-          ✕
+          🔒
         </button>
       </div>
+      )}
     </div>
   );
 }

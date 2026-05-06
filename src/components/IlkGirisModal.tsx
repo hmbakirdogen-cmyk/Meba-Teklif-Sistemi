@@ -36,8 +36,8 @@ export default function IlkGirisModal() {
       return;
     }
     setYukleniyor(true);
-    // Mevcut şifre = varsayılan (123456) — ilk girişte mecburen 123456 ile login oldu
-    const r = await sifreDegistir('123456', yeniSifre);
+    // Mevcut şifre = varsayılan (0000) — ilk girişte mecburen 0000 ile login oldu
+    const r = await sifreDegistir('0000', yeniSifre);
     setYukleniyor(false);
     if (!r.ok) {
       setSifreHata(r.error || 'Şifre değiştirilemedi.');

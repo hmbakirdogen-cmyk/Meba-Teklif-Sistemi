@@ -189,8 +189,13 @@ function UrunModal({
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
         <Row gutter={12}>
           <Col span={10}>
-            <Form.Item name="urunKod" label="Ürün Kodu" rules={[{ required: true, message: 'Zorunlu' }]}>
-              <Input placeholder="CP96SDB80-200" />
+            <Form.Item
+              name="urunKod"
+              label="Ürün Kodu"
+              rules={[{ required: true, message: 'Zorunlu' }]}
+              getValueFromEvent={(e) => (e?.target?.value ?? '').toLocaleUpperCase('tr-TR')}
+            >
+              <Input placeholder="CP96SDB80-200" autoCapitalize="characters" style={{ textTransform: 'uppercase' }} />
             </Form.Item>
           </Col>
         </Row>
@@ -336,8 +341,11 @@ function UrunSetModal({
                       label="Alt Ürün Kodu"
                       rules={[{ required: true, message: 'Zorunlu' }]}
                       style={{ marginBottom: 0 }}
+                      getValueFromEvent={(e) => (e?.target?.value ?? '').toLocaleUpperCase('tr-TR')}
                     >
                       <Input
+                        autoCapitalize="characters"
+                        style={{ textTransform: 'uppercase' }}
                         onBlur={(e) => {
                           const kod = normalizeProductCode(e.target.value ?? '');
                           const aciklama = koddanAciklamaGetir(kod);

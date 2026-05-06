@@ -816,47 +816,49 @@ function KlasorGorunumu({
             ? `${aktiviteler.length} teklif`
             : `${klasorler.length} müşteri`}
         </div>
-        {/* Grid / Liste toggle */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          padding: 2,
-          background: C.bgElevated,
-          borderRadius: 7,
-          border: `1px solid ${C.borderSubtle}`,
-        }}>
-          {([
-            { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
-            { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
-          ]).map(({ k, l, icon: Icon }) => {
-            const aktif = gorunumModu === k;
-            return (
-              <Tooltip key={k} title={l} mouseEnterDelay={0.3}>
-                <button
-                  onClick={() => setGorunumModu(k)}
-                  aria-label={l}
-                  style={{
-                    width: 28,
-                    height: 24,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: aktif ? C.bgSurface : 'transparent',
-                    border: 'none',
-                    borderRadius: 5,
-                    cursor: 'pointer',
-                    color: aktif ? C.textPrimary : C.textSecondary,
-                    padding: 0,
-                    boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
-                  }}
-                >
-                  <Icon active={aktif} />
-                </button>
-              </Tooltip>
-            );
-          })}
-        </div>
+        {/* Grid / Liste toggle — sadece klasör modunda (aktivite modunda teklif listesi her zaman liste görünümü) */}
+        {siralama !== 'aktiflik' && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            background: C.bgElevated,
+            borderRadius: 7,
+            border: `1px solid ${C.borderSubtle}`,
+          }}>
+            {([
+              { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
+              { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
+            ]).map(({ k, l, icon: Icon }) => {
+              const aktif = gorunumModu === k;
+              return (
+                <Tooltip key={k} title={l} mouseEnterDelay={0.3}>
+                  <button
+                    onClick={() => setGorunumModu(k)}
+                    aria-label={l}
+                    style={{
+                      width: 28,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: aktif ? C.bgSurface : 'transparent',
+                      border: 'none',
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                      color: aktif ? C.textPrimary : C.textSecondary,
+                      padding: 0,
+                      boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
+                    }}
+                  >
+                    <Icon active={aktif} />
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Aktivite modu: flat teklif listesi (en yeniden eskiye).
@@ -877,17 +879,7 @@ function KlasorGorunumu({
               : 'Henüz teklif bulunmuyor. İlk teklifinizi oluşturun.'}
           </div>
         ) : (
-          <div style={
-            gorunumModu === 'grid'
-              ? {
-                  display: 'grid',
-                  gridTemplateColumns: isMobile
-                    ? 'repeat(auto-fill, minmax(280px, 1fr))'
-                    : 'repeat(auto-fill, minmax(360px, 1fr))',
-                  gap: 8,
-                }
-              : { display: 'flex', flexDirection: 'column', gap: 6 }
-          }>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {aktiviteler.map((t) => (
               <TeklifKarti
                 key={t.id}

@@ -198,15 +198,16 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
           <AutoComplete
             value={satir.urunKod}
             onChange={v => {
-              guncelle('urunKod', v);
-              const urun = urunler.find(u => u.urunKod === v);
+              const upper = (v ?? '').toLocaleUpperCase('tr-TR');
+              guncelle('urunKod', upper);
+              const urun = urunler.find(u => u.urunKod === upper);
               if (urun) {
                 guncelle('aciklama', urun.aciklama);
                 if (urun.varsayilanFiyat) guncelle('birimFiyat', urun.varsayilanFiyat);
                 if (urun.birim) guncelle('birim', urun.birim);
               }
             }}
-            style={{ width: '100%' }}
+            style={{ width: '100%', textTransform: 'uppercase' }}
             options={urunler.map(u => ({ value: u.urunKod, label: `${u.urunKod} — ${u.aciklama}` }))}
             filterOption={(input, option) =>
               (option?.value ?? '').toLowerCase().includes(input.toLowerCase()) ||

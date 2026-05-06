@@ -1219,7 +1219,7 @@ export default function KumandaPaneli({
 
         <section className="panel-section">
           <Tooltip
-            title={serberstCizimAktif ? 'Çizimi Kapat' : 'Serbest Çizim'}
+            title={serberstCizimAktif ? 'Çizimi Kilitle (çizim kalır)' : 'Serbest Çizim — düzenle/sil için aç'}
             placement="left"
             mouseEnterDelay={1}
             color={TOOLTIP_COLOR}
@@ -1229,7 +1229,7 @@ export default function KumandaPaneli({
               type="button"
               className={`image-add button-draw ${serberstCizimAktif ? 'is-active' : ''}`}
               onClick={onSerberstCizimToggle}
-              aria-label={serberstCizimAktif ? 'Çizimi Kapat' : 'Serbest Çizim'}
+              aria-label={serberstCizimAktif ? 'Çizimi Kilitle' : 'Serbest Çizim'}
               aria-pressed={serberstCizimAktif}
             >
               <span className="button-sweep" aria-hidden="true" />

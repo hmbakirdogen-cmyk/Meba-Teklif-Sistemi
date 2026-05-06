@@ -30,8 +30,9 @@ const { hashPassword, verifyPassword, generateSessionToken } = require('./auth-h
 
 const PROFIL_FOTO_DIR = path.join(__dirname, '..', 'public', 'profil-fotograflari');
 const CARI_LOGO_DIR   = path.join(__dirname, '..', 'public', 'cari-logolari');
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 saat
-const VARSAYILAN_SIFRE = '123456';
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 saat (varsayilan)
+const SESSION_TTL_REMEMBERED_MS = 30 * 24 * 60 * 60 * 1000; // 30 gun (Beni Hatirla)
+const VARSAYILAN_SIFRE = '0000';
 const MAX_PHOTO_BYTES = 600 * 1024; // 600 KB — frontend resize sonrasi makul
 
 function ensureDirSync(dir) {
@@ -235,12 +236,69 @@ function cariLogoKaydet(cariId, fotoBase64) {
 
 // ── Route handler factory ────────────────────────────────────────────────────
 function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
+  // ── Login brute-force korumasi (in-memory, IP bazli) ──────────────────────
+  // Ayni IP'den 15 dakika icinde 10'dan fazla basarisiz login → kilitli.
+  // Process restart'inda sifirlanir; LAN ortami icin yeterli koruma.
+  const loginAttempts = new Map(); // ip -> { count, firstAttemptAt }
+  const MAX_LOGIN_ATTEMPTS = 10;
+  const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+  function getClientIp(req) {
+    const xff = req.headers['x-forwarded-for'];
+    if (xff) return String(xff).split(',')[0].trim();
+    return (req.socket && req.socket.remoteAddress) || 'unknown';
+  }
+  function checkLoginRateLimit(req) {
+    const ip = getClientIp(req);
+    const now = Date.now();
+    const rec = loginAttempts.get(ip);
+    if (!rec) return { ok: true };
+    // Pencere disinda → eski kayit, sifirla
+    if (now - rec.firstAttemptAt >= LOGIN_WINDOW_MS) {
+      loginAttempts.delete(ip);
+      return { ok: true };
+    }
+    if (rec.count >= MAX_LOGIN_ATTEMPTS) {
+      const kalanMs = LOGIN_WINDOW_MS - (now - rec.firstAttemptAt);
+      return { ok: false, kalanSn: Math.ceil(kalanMs / 1000) };
+    }
+    return { ok: true };
+  }
+  function recordLoginAttempt(req) {
+    const ip = getClientIp(req);
+    const now = Date.now();
+    const rec = loginAttempts.get(ip);
+    if (!rec || now - rec.firstAttemptAt >= LOGIN_WINDOW_MS) {
+      loginAttempts.set(ip, { count: 1, firstAttemptAt: now });
+    } else {
+      rec.count += 1;
+    }
+  }
+  function resetLoginRateLimit(req) {
+    loginAttempts.delete(getClientIp(req));
+  }
+  // Periyodik temizlik — pencere disindaki girdileri sil
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, rec] of loginAttempts) {
+      if (now - rec.firstAttemptAt >= LOGIN_WINDOW_MS) loginAttempts.delete(ip);
+    }
+  }, 5 * 60 * 1000).unref?.();
+
   // POST /api/auth/login
   async function login(req, res) {
+    // 1) Rate limit (parseBody'den ONCE — body okumadan reddet)
+    const rl = checkLoginRateLimit(req);
+    if (!rl.ok) {
+      return send(res, 429, {
+        error: `Çok fazla başarısız giriş denemesi. ${rl.kalanSn} saniye sonra tekrar deneyiniz.`,
+      });
+    }
     const body = await parseBody(req);
     const kullaniciAdi = String(body.kullaniciAdi || '').trim().toLocaleLowerCase('tr-TR');
     const sifre        = String(body.sifre || '');
     const secilenFirmaId = body.secilenFirmaId ? String(body.secilenFirmaId) : null;
+    const beniHatirla  = Boolean(body.beniHatirla);
     if (!kullaniciAdi || !sifre) {
       return send(res, 400, { error: 'Kullanici adi ve sifre zorunlu.' });
     }
@@ -258,11 +316,13 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
       return false;
     });
     if (!k || !k.aktifMi) {
+      recordLoginAttempt(req);
       return send(res, 401, { error: 'Kullanici adi veya sifre hatali.' });
     }
     if (!verifyPassword(sifre, k.sifreHash)) {
       auditLog(db, 'login_failed', { kullanici: k }, { reason: 'wrong_password' });
       writeDB(db);
+      recordLoginAttempt(req);
       return send(res, 401, { error: 'Kullanici adi veya sifre hatali.' });
     }
     // Firma yetki dogrulamasi:
@@ -288,6 +348,7 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
         kullaniciFirmaId: k.firmaId,
       });
       writeDB(db);
+      recordLoginAttempt(req);
       return send(res, 403, {
         error: 'Bu firmaya kayitli degilsiniz. Lutfen kendi firmanizi seciniz.',
       });
@@ -295,7 +356,9 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     // Sifre dogru → oturum olustur
     ensureOturumlar(db);
     const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+    // Beni Hatirla aktifse 30 gun, degilse varsayilan 12 saat
+    const ttlMs = beniHatirla ? SESSION_TTL_REMEMBERED_MS : SESSION_TTL_MS;
+    const expiresAt = new Date(Date.now() + ttlMs).toISOString();
     db.oturumlar.push({
       token,
       kullaniciId: k.id,
@@ -306,6 +369,7 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     });
     auditLog(db, 'login', { kullanici: k });
     writeDB(db);
+    resetLoginRateLimit(req);
     return send(res, 200, {
       token,
       expiresAt,

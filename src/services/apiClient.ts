@@ -50,36 +50,10 @@ export function setActiveFirmaId(firmaId: string | null): void {
   }));
 }
 
-// ── Sifre hatirlama (kullanici bazinda) ─────────────────────────────────────
-// localStorage'da kullanici-id basina obfuscate edilmis sifre. Bu GERCEK
-// SIFRELEME DEGIL — XSS'e karsi koruma yok; sadece casual goz incelemesini
-// engeller. Internal LAN ortaminda "remember me" UX'i icin yeterli; gercek
-// guvenlik backend session token + Windows hesap izolasyonu ile saglanir.
-const REMEMBERED_SIFRE_PREFIX = 'gc_pw_';
-
-function _obf(s: string): string {
-  if (typeof btoa === 'undefined') return s;
-  try { return btoa(unescape(encodeURIComponent(s))); } catch { return s; }
-}
-function _deobf(s: string): string {
-  if (typeof atob === 'undefined') return s;
-  try { return decodeURIComponent(escape(atob(s))); } catch { return ''; }
-}
-
-export function getRememberedSifre(userId: string): string | null {
-  if (typeof window === 'undefined' || !userId) return null;
-  const raw = localStorage.getItem(REMEMBERED_SIFRE_PREFIX + userId);
-  return raw ? _deobf(raw) : null;
-}
-export function setRememberedSifre(userId: string, sifre: string): void {
-  if (typeof window === 'undefined' || !userId) return;
-  if (sifre) localStorage.setItem(REMEMBERED_SIFRE_PREFIX + userId, _obf(sifre));
-  else localStorage.removeItem(REMEMBERED_SIFRE_PREFIX + userId);
-}
-export function clearRememberedSifre(userId: string): void {
-  if (typeof window === 'undefined' || !userId) return;
-  localStorage.removeItem(REMEMBERED_SIFRE_PREFIX + userId);
-}
+// "Beni Hatirla" artik sifre saklamiyor — bunun yerine login isteginde
+// beniHatirla:true gonderilir; backend session TTL'ini 30 gune cikarir.
+// Sifre hicbir yerde saklanmaz; XSS-uyumlu. (Eski getRememberedSifre /
+// setRememberedSifre / clearRememberedSifre / _obf / _deobf kaldirildi.)
 
 export function getStoredKullanici(): Kullanici | null {
   if (typeof window === 'undefined') return null;
@@ -307,10 +281,10 @@ export const api = {
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   auth: {
-    login: (kullaniciAdi: string, sifre: string, secilenFirmaId?: string | null) =>
+    login: (kullaniciAdi: string, sifre: string, secilenFirmaId?: string | null, beniHatirla = false) =>
       post<{ token: string; expiresAt: string; kullanici: Kullanici; firma: Firma | null }>(
         '/auth/login',
-        { kullaniciAdi, sifre, secilenFirmaId: secilenFirmaId ?? null },
+        { kullaniciAdi, sifre, secilenFirmaId: secilenFirmaId ?? null, beniHatirla },
       ),
     logout: ()                                   => post<{ ok: boolean }>('/auth/logout', {}),
     me:     ()                                   => get<{ kullanici: Kullanici; firma: Firma | null }>('/auth/me'),

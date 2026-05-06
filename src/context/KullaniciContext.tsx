@@ -52,11 +52,13 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
     kullaniciAdi: string,
     sifre: string,
     secilenFirmaId?: string | null,
+    beniHatirla = false,
   ) => {
     try {
       // Backend: secilenFirmaId ile login. Personel kendi firmasi disinda
       // bir firma sectiyse server 403 doner — defense in depth.
-      const r = await api.auth.login(kullaniciAdi, sifre, secilenFirmaId ?? null);
+      // beniHatirla=true → backend session TTL'i 30 gun olarak ayarlar.
+      const r = await api.auth.login(kullaniciAdi, sifre, secilenFirmaId ?? null, beniHatirla);
       // Frontend'de ek savunma katmani (eski client'larda backend cevabi
       // gelse bile yanlis firma'ya gecisi engelle). Kontrol mantığı backend
       // (auth-routes.cjs login) ile aynı tutuluyor.

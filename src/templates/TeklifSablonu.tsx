@@ -622,21 +622,15 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </table>
 
       {/* ══ TOPLAM ALANI ════════════════════════════════════════ */}
-      {/* Çerçeve eski 56%/44% yapıda (sayfa sağına kadar uzanır); rakamlar
-         içeride amountRightOffsetPx ile "Toplam" kolonu değer X'ine hizalı. */}
+      {/* Genel Toplam — her iki modda da tablonun hemen altında, sağa hizalı.
+         Siparişi Veren'den tamamen bağımsız; bağımsız blok olarak konumlanır. */}
       <div id="pdf-totals-block">
       {!satirBazliParaBirimi ? (
         <table style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          marginTop: '4px',
-          marginBottom: '14px',
-          tableLayout: 'fixed',
-          borderLeft: 'none',
-          borderRight: 'none',
-          printColorAdjust: 'exact',
-          WebkitPrintColorAdjust: 'exact',
-          ...noBreak,
+          width: '100%', borderCollapse: 'collapse',
+          marginTop: '14px', marginBottom: '0',
+          tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
+          printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
         } as React.CSSProperties}>
           <colgroup>
             <col style={{ width: '56%' }} />
@@ -645,7 +639,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           <tbody>
             <tr>
               <td style={{ borderTop: 'none', borderBottom: 'none' }} />
-              <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
+              <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
                 <TotalsCard
                   araToplam={araToplam}
                   iskontoOrani={iskontoOrani}
@@ -764,15 +758,18 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
       <div id="pdf-bottom-block">
 
-        {/* ── SİPARİŞİ VEREN — 2 sütunlu kompakt düzen ── */}
-        <div id="pdf-signature-block" style={SIGNATURE_SECTION_STYLE}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+        {/* ── SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına ── */}
+        <div id="pdf-signature-block" style={{ display: 'flex', alignItems: 'stretch', gap: '14px' }}>
 
-            {/* Sol: 2-satır dikey başlık */}
+          {/* SİPARİŞİ VEREN — sayfa genişliğinin %70'i, ferah iç boşluk */}
+          <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+
+            {/* Sol: 2-satır dikey başlık — biraz büyük, daha ferah tracking */}
             <div style={{
               flexShrink: 0,
               position: 'relative',
-              width: '28px',
+              width: '40px',
               overflow: 'hidden',
             }}>
               <div style={{
@@ -780,28 +777,28 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%) rotate(-90deg)',
-                width: '100px',
+                width: '120px',
                 textAlign: 'left',
                 userSelect: 'none',
                 whiteSpace: 'nowrap',
               }}>
                 <div style={{
-                  fontSize: '10.8px',
+                  fontSize: '12px',
                   fontWeight: 600,
                   color: C.sigPrimary,
-                  letterSpacing: '0.06em',
+                  letterSpacing: '0.10em',
                   textTransform: 'uppercase',
-                  lineHeight: 1.1,
-                  marginBottom: '4px',
+                  lineHeight: 1.2,
+                  marginBottom: '6px',
                 }}>
                   Siparişi Veren
                 </div>
                 <div style={{
-                  fontSize: '8.64px',
+                  fontSize: '9.2px',
                   fontWeight: 400,
                   color: C.sigSecondary,
-                  letterSpacing: '0.04em',
-                  lineHeight: 1.1,
+                  letterSpacing: '0.06em',
+                  lineHeight: 1.2,
                 }}>
                   Authorised Person
                 </div>
@@ -810,8 +807,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
             {/* Sağ: İçerik — isim, tarih, imza */}
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-                <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
+                <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45' }}>
                   <div style={{ marginBottom: '6px' }}>
                     <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
                     <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
@@ -837,6 +834,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             </div>
 
           </div>
+          </div>
+
         </div>
 
         {/* ── FOOTER (navy şerit) ── */}

@@ -5,7 +5,7 @@ const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
 const { spawn } = require('child_process');
-const { createAuthRoutes, getAuthContext, pruneExpiredSessions } = require('./auth-routes.cjs');
+const { createAuthRoutes, getAuthContext, requireAuth, pruneExpiredSessions } = require('./auth-routes.cjs');
 const { startBackupScheduler } = require('./backupScheduler.cjs');
 
 // Puppeteer-core lazy-load: kullanici PDF render etmediyse modul yuklenmez,
@@ -628,10 +628,22 @@ async function outlookTaslagiAc({ aliciEposta, konu, govde, htmlGovde, ekDosyaYo
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
+// Body size limit: 10 MB. Buyuk PDF/imaj uploadlari icin yeterli; DoS'tan korur.
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => { body += chunk; });
+    let receivedBytes = 0;
+    req.on('data', (chunk) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error('İstek gövdesi çok büyük (maks 10 MB).'));
+        return;
+      }
+      body += chunk;
+    });
     req.on('end', () => {
       try { resolve(body ? JSON.parse(body) : {}); }
       catch (e) { reject(e); }
@@ -642,14 +654,40 @@ function parseBody(req) {
 
 function send(res, status, data) {
   const json = JSON.stringify(data);
+  // CORS header'lari handler basinda monkey-patch ile otomatik eklenir.
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,PUT,POST,PATCH,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role, X-Session-Token, X-Firma-Id',
     'Content-Length': Buffer.byteLength(json, 'utf-8'),
   });
   res.end(json);
+}
+
+// ── CORS — sadece local/private network'ten izin ────────────────────────────
+// Origin yoksa (curl, server-to-server) geriye uyumlu '*' donulur.
+// Origin varsa hostname'in ozel ag (RFC1918) veya localhost olmasi sart.
+function getAllowedOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return '*';
+  let host;
+  try { host = new URL(origin).hostname; } catch { return ''; }
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return origin;
+  // 10.x.x.x
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return origin;
+  // 172.16.x.x – 172.31.x.x
+  if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)) return origin;
+  // 192.168.x.x
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return origin;
+  return '';
+}
+function corsHeaders(req) {
+  const origin = getAllowedOrigin(req);
+  const h = {
+    'Access-Control-Allow-Methods': 'GET,PUT,POST,PATCH,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role, X-Session-Token, X-Firma-Id',
+    'Vary': 'Origin',
+  };
+  if (origin) h['Access-Control-Allow-Origin'] = origin;
+  return h;
 }
 
 function emailTelemetryYaz(telemetry) {
@@ -857,13 +895,18 @@ const server = http.createServer(async (req, res) => {
   const { method } = req;
   const url = req.url || '';
 
-  // CORS preflight
+  // CORS header'larini her yanita otomatik ekle (writeHead monkey-patch).
+  // Boylece send(), authRoutes.* ve diger handler'lar CORS'u manuel set etmek
+  // zorunda kalmaz; izin verilen origin tek noktadan kontrol edilir.
+  const _cors = corsHeaders(req);
+  const _origWriteHead = res.writeHead.bind(res);
+  res.writeHead = function(status, headers) {
+    return _origWriteHead(status, { ..._cors, ...headers });
+  };
+
+  // CORS preflight — monkey-patch zaten gerekli header'lari ekler.
   if (method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,PUT,POST,PATCH,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-Device-Id, X-User-Id, X-User-Role, X-Session-Token, X-Firma-Id',
-    });
+    res.writeHead(204);
     return res.end();
   }
 
@@ -877,6 +920,29 @@ const server = http.createServer(async (req, res) => {
         timestamp: new Date().toISOString(),
         uptimeSec: Math.floor(process.uptime()),
       });
+    }
+
+    // ── AUTH MIDDLEWARE: tum CRUD endpoint'leri oturum tokeni ister ─────────
+    // Public endpoint'ler:
+    //   GET  /api/health           — health check
+    //   POST /api/auth/login       — login akisi
+    //   GET  /api/firmalar         — login oncesi firma seciminde gosterilir
+    //   GET  /api/firma/{id}/personel — login oncesi personel listesi
+    // Bunlarin disinda tum istekler X-Session-Token ister; aksi halde 401.
+    // req._authCtx.kullanici set edilir → handler'lar guvenli kullanici bilgisi.
+    const isPublicEndpoint =
+      (method === 'GET' && (url === '/api/health' || url.startsWith('/api/health?'))) ||
+      (method === 'POST' && url === '/api/auth/login') ||
+      (method === 'GET' && (url === '/api/firmalar' || url.startsWith('/api/firmalar?'))) ||
+      (method === 'GET' && /^\/api\/firma\/[^/]+\/personel$/.test(url));
+
+    if (!isPublicEndpoint) {
+      const _authDb = readDB();
+      const authCheck = requireAuth(_authDb, req);
+      if (!authCheck.ok) {
+        return send(res, authCheck.status, { error: authCheck.error });
+      }
+      req._authCtx = authCheck.ctx;
     }
 
     // ══ AUTH + MULTI-TENANT ROUTES ═══════════════════════════════════════════
@@ -909,10 +975,10 @@ const server = http.createServer(async (req, res) => {
     // firmasinin verilerini doner. super_admin firmaId vermezse tum kayitlar doner.
     // Soft-deleted (deletedAt'lı) kayıtlar UI'dan gizlenir.
     if (method === 'GET' && (url === '/api/init' || url.startsWith('/api/init?'))) {
-      const parsed = new URL(url, 'http://localhost');
-      const qUserId = parsed.searchParams.get('userId') || '';
-      const qRol    = parsed.searchParams.get('rol') || '';
-      const qFirmaId = parsed.searchParams.get('firmaId') || (req.headers['x-firma-id'] || '');
+      // Userid/rol artik auth context'ten — query string'e guven YOK (tampered olabilir)
+      const qUserId = req._authCtx?.kullanici?.id || '';
+      const qRol    = req._authCtx?.kullanici?.rol || '';
+      const qFirmaId = String(req.headers['x-firma-id'] || '');
       const db = readDB();
       const filterLive = (arr) => (arr || []).filter(isLiveRecord);
       const filterByFirma = (arr) => {
@@ -949,10 +1015,10 @@ const server = http.createServer(async (req, res) => {
     // visibility='team' (veya undefined → backward compat 'team') olanları.
     // Query yoksa (legacy caller) → tüm liste döner. Soft-deleted gizli.
     if (method === 'GET' && (url === '/api/teklifler' || url.startsWith('/api/teklifler?'))) {
-      const parsed = new URL(url, 'http://localhost');
-      const qUserId = parsed.searchParams.get('userId') || '';
-      const qRol = parsed.searchParams.get('rol') || '';
-      const qFirmaId = parsed.searchParams.get('firmaId') || (req.headers['x-firma-id'] || '');
+      // Userid/rol artik auth context'ten — query string'e guven YOK
+      const qUserId = req._authCtx?.kullanici?.id || '';
+      const qRol = req._authCtx?.kullanici?.rol || '';
+      const qFirmaId = String(req.headers['x-firma-id'] || '');
       let all = readDB().teklifler.filter(isLiveRecord);
       if (qFirmaId) all = all.filter((t) => t.firmaId === qFirmaId);
       const isAdminLike = qRol === 'super_admin' || qRol === 'firma_admin';

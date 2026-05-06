@@ -13,6 +13,7 @@ export interface KullaniciContextType {
     kullaniciAdi: string,
     sifre: string,
     secilenFirmaId?: string | null,
+    beniHatirla?: boolean,
   ) => Promise<{ ok: true; kullanici: Kullanici } | { ok: false; error: string }>;
   cikisYap: () => Promise<void>;
   /** Eski API geriye uyum — manuel kullanici set eder (login flow icinde kullanilmamali). */

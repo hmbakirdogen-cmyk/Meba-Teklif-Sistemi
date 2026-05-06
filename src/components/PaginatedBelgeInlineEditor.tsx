@@ -1,5 +1,6 @@
-﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Select, Input, DatePicker } from 'antd';
+﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Select, Input, DatePicker, Dropdown, Popover, InputNumber } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -7,6 +8,9 @@ import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
+import { referansVeriService } from '../services/referansVeriService';
+import { urunService } from '../services/urunService';
+import { urunSetService } from '../services/urunSetService';
 import { formatPhone } from '../utils/phone';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { TotalsCard } from './TotalsCard';
@@ -19,6 +23,7 @@ import {
   ROW_SHELL,
   ROW_TEXT,
   DescText,
+  UNIT_OPTIONS,
 } from './InlineTableRowShared';
 import {
   DOCUMENT_BRAND,
@@ -62,7 +67,6 @@ import {
 } from '../templates/teklifDocumentShared';
 import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
 import {
-  SatirCellEditor,
   SatirAksiyonlariPanel,
   SatirIskontoRozeti,
 } from './InlineSatirEditor';
@@ -84,6 +88,7 @@ interface PaginatedBelgeInlineEditorProps {
   onEditingAlanDegistir: (alan: EditingAlan) => void;
   onCariDegistir: (cari: Cari) => void;
   onCariEPostaDegistir: (email: string) => void;
+  onCariTelefonDegistir: (telefon: string) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
@@ -94,6 +99,7 @@ interface PaginatedBelgeInlineEditorProps {
   satirBazliIskonto: boolean;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
+  onGecerlilikSuresiDegistir: (sure: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onSatirSil: (id: string) => void;
@@ -212,6 +218,439 @@ function PageTableWithResizer({
   );
 }
 
+// ── Hücre Düzenleme Popup'ı ──────────────────────────────────────────────────
+// Tek seferlik mount: aktif hücreye göre içerik değişir, ama bileşen ağacındaki
+// kimlik korunur → input'lar her tuşta remount olmaz, focus kaybı yaşanmaz.
+// Antd Popover'ı kullanmıyoruz; kendi portal-tabanlı popup'ımız → boyutlandırma,
+// hizalama, dışarı tıklayınca kapatma davranışı bizde.
+const CELL_POPUP_WIDTHS: Record<SatirCellField, number> = {
+  marka: 280,
+  urunKod: 380,
+  aciklama: 480,
+  miktar: 320,
+  paraBirimi: 240,
+  birimFiyat: 240,
+  teslimat: 280,
+};
+
+function CellEditPopup({
+  teklif,
+  editingAlan,
+  satirFocusCell,
+  onSatirGuncelle,
+  onSatiraSetUygula,
+  onClose,
+  onEnterNext,
+}: {
+  teklif: Teklif;
+  editingAlan: EditingAlan;
+  satirFocusCell: SatirCellField;
+  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  onSatiraSetUygula: (satirId: string, setId: string) => void;
+  onClose: () => void;
+  onEnterNext: () => void;
+}) {
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
+
+  const isOpen = !!editingAlan && editingAlan.startsWith('satir-');
+  const satirId = isOpen ? editingAlan!.slice(6) : null;
+  const satir = satirId ? teklif.satirlar.find((s) => s.id === satirId) ?? null : null;
+
+  const W = CELL_POPUP_WIDTHS[satirFocusCell] ?? 280;
+
+  // Pozisyon: Aktif hücreyi DOM'dan bul, popup'ı altına; yer yoksa üstüne yerleştir.
+  // Sol kenar aktif hücreye, sağ kenar viewport'a clamp'lenir.
+  useLayoutEffect(() => {
+    if (!isOpen || !satirId) {
+      setPos(null);
+      return;
+    }
+    const compute = () => {
+      const sel = `tr[data-satir-id="${CSS.escape(satirId)}"] td[data-cell-field="${satirFocusCell}"]`;
+      const cell = document.querySelector(sel) as HTMLElement | null;
+      if (!cell) return;
+      const rect = cell.getBoundingClientRect();
+      const popupH = popupRef.current?.offsetHeight ?? 100;
+      const GAP = 6;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const placeBelow = spaceBelow >= popupH + 16 || spaceBelow > spaceAbove;
+      const top = placeBelow
+        ? rect.bottom + GAP
+        : Math.max(8, rect.top - popupH - GAP);
+      const maxLeft = window.innerWidth - W - 12;
+      const left = Math.max(8, Math.min(rect.left, maxLeft));
+      setPos({ top, left, minWidth: Math.max(W, rect.width) });
+    };
+    compute();
+    // İçerik açıldıktan sonra popupH değişmiş olabilir → bir frame sonra yeniden ölç.
+    const raf = requestAnimationFrame(compute);
+    const handler = () => compute();
+    window.addEventListener('scroll', handler, true);
+    window.addEventListener('resize', handler);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', handler, true);
+      window.removeEventListener('resize', handler);
+    };
+  }, [isOpen, satirId, satirFocusCell, W]);
+
+  // Escape ile kapat
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  // Dışarı tıklayınca kapat (aktif hücre + Antd dropdown portal'ları hariç)
+  useEffect(() => {
+    if (!isOpen || !satirId) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (popupRef.current?.contains(target)) return;
+      const activeCell = document.querySelector(
+        `tr[data-satir-id="${CSS.escape(satirId)}"] td[data-cell-field="${satirFocusCell}"]`,
+      );
+      if (activeCell?.contains(target)) return;
+      // Antd dropdown'ları (Select, DatePicker vs.) document.body'ye portal'lanır.
+      const closestDropdown =
+        (target as Element)?.closest?.('.ant-select-dropdown, .ant-picker-dropdown, .ant-popover, .ant-dropdown');
+      if (closestDropdown) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [isOpen, satirId, satirFocusCell, onClose]);
+
+  if (!isOpen || !satir || !pos) return null;
+
+  const headerStyle: React.CSSProperties = {
+    fontSize: 10.5,
+    fontWeight: 700,
+    color: '#6b7280',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  };
+
+  let title = '';
+  let body: React.ReactNode = null;
+
+  if (satirFocusCell === 'marka') {
+    title = 'Marka';
+    const markalar = referansVeriService.markalar.tumunuGetir();
+    body = (
+      <Select
+        autoFocus
+        defaultOpen
+        showSearch
+        allowClear
+        size="middle"
+        style={{ width: '100%' }}
+        value={satir.marka || undefined}
+        options={markalar.map((m) => ({ value: m, label: m }))}
+        onChange={(value) => {
+          onSatirGuncelle(satir.id, 'marka', value ?? '');
+          onEnterNext();
+        }}
+        onInputKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+        placeholder="Marka seçin veya yazın…"
+      />
+    );
+  } else if (satirFocusCell === 'urunKod') {
+    title = 'Ürün Kodu';
+    body = (
+      <UrunKodPopupBody
+        satir={satir}
+        onSatirGuncelle={onSatirGuncelle}
+        onSatiraSetUygula={onSatiraSetUygula}
+        onEnterNext={onEnterNext}
+        onClose={onClose}
+      />
+    );
+  } else if (satirFocusCell === 'aciklama') {
+    title = 'Açıklama';
+    body = (
+      <Input.TextArea
+        autoFocus
+        autoSize={{ minRows: 2, maxRows: 14 }}
+        size="middle"
+        value={satir.aciklama || ''}
+        onChange={(e) => onSatirGuncelle(satir.id, 'aciklama', e.target.value)}
+        onFocus={(e) => (e.target as HTMLTextAreaElement).select?.()}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onEnterNext();
+          }
+          if (e.key === 'Escape') onClose();
+        }}
+        placeholder="Açıklama  (Shift+Enter ile alt satır, Enter ile ilerle)"
+      />
+    );
+  } else if (satirFocusCell === 'miktar') {
+    title = 'Miktar';
+    body = (
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ ...headerStyle, marginBottom: 4 }}>Değer</div>
+          <InputNumber
+            autoFocus
+            size="middle"
+            style={{ width: '100%' }}
+            value={satir.miktar}
+            min={0}
+            decimalSeparator=","
+            onChange={(value) => onSatirGuncelle(satir.id, 'miktar', value ?? 0)}
+            onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); onEnterNext(); }
+              if (e.key === 'Escape') onClose();
+            }}
+          />
+        </div>
+        <div style={{ width: 110 }}>
+          <div style={{ ...headerStyle, marginBottom: 4 }}>Birim</div>
+          <Select
+            size="middle"
+            style={{ width: '100%' }}
+            value={satir.birim || 'Adet'}
+            onChange={(value) => onSatirGuncelle(satir.id, 'birim', value)}
+            options={UNIT_OPTIONS.map((u) => ({ value: u.value, label: u.value }))}
+            popupMatchSelectWidth={false}
+            dropdownStyle={{ minWidth: 130 }}
+          />
+        </div>
+      </div>
+    );
+    // Bu kart için title ayrı header değil; iki sütun zaten kendi etiketleriyle gelir.
+    title = '';
+  } else if (satirFocusCell === 'paraBirimi') {
+    title = 'Para Birimi';
+    const cur = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
+    body = (
+      <Select
+        autoFocus
+        defaultOpen
+        size="middle"
+        style={{ width: '100%' }}
+        value={cur}
+        onChange={(value) => {
+          onSatirGuncelle(satir.id, 'paraBirimi', value);
+          onEnterNext();
+        }}
+        options={[
+          { value: 'TRY', label: 'Türk Lirası (TL)' },
+          { value: 'EUR', label: 'Euro (EUR)' },
+          { value: 'USD', label: 'Amerikan Doları (USD)' },
+        ]}
+      />
+    );
+  } else if (satirFocusCell === 'birimFiyat') {
+    title = 'Birim Fiyat';
+    body = (
+      <InputNumber
+        autoFocus
+        size="middle"
+        style={{ width: '100%' }}
+        value={satir.birimFiyat}
+        min={0}
+        step={0.01}
+        decimalSeparator=","
+        onChange={(value) => onSatirGuncelle(satir.id, 'birimFiyat', value ?? 0)}
+        onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); onEnterNext(); }
+          if (e.key === 'Escape') onClose();
+        }}
+      />
+    );
+  } else if (satirFocusCell === 'teslimat') {
+    title = 'Teslimat';
+    const teslimSecenekleri = referansVeriService.teslimSecenekleri.tumunuGetir();
+    body = (
+      <Select
+        autoFocus
+        defaultOpen
+        showSearch
+        allowClear
+        size="middle"
+        style={{ width: '100%' }}
+        value={satir.teslimTarihi || undefined}
+        options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
+        onChange={(value) => {
+          onSatirGuncelle(satir.id, 'teslimTarihi', value ?? '');
+          onEnterNext();
+        }}
+        onInputKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+        placeholder="Teslimat seçin…"
+      />
+    );
+  }
+
+  return createPortal(
+    <div
+      ref={popupRef}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        minWidth: pos.minWidth,
+        background: '#ffffff',
+        borderRadius: 10,
+        padding: '12px 14px',
+        boxShadow: '0 14px 40px rgba(15,23,42,0.20), 0 0 0 1px rgba(15,23,42,0.08)',
+        zIndex: 2000,
+        animation: 'cell-popup-fade-in 120ms ease-out',
+      }}
+    >
+      {title && <div style={headerStyle}>{title}</div>}
+      {body}
+    </div>,
+    document.body,
+  );
+}
+
+// Ürün Kodu için autocomplete'li alt-bileşen — InlineSatirEditor içindeki
+// SatirCellEditor'ün urunKod handler'ını yeniden kullanır (suggestion paneli,
+// onaylanmamış kod uyarısı vs).
+function UrunKodPopupBody({
+  satir,
+  onSatirGuncelle,
+  onSatiraSetUygula,
+  onEnterNext,
+  onClose,
+}: {
+  satir: TeklifSatiri;
+  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  onSatiraSetUygula: (satirId: string, setId: string) => void;
+  onEnterNext: () => void;
+  onClose: () => void;
+}) {
+  // Urun listesi — popup açıkken bir kez çek
+  const [urunler, setUrunler] = useState(() => urunService.tumUrunleriGetir());
+  const [setler, setSetler] = useState(() => urunSetService.tumSetleriGetir());
+  useEffect(() => {
+    setUrunler(urunService.tumUrunleriGetir());
+    setSetler(urunSetService.tumSetleriGetir());
+  }, []);
+  const [highlight, setHighlight] = useState(0);
+  const inputRef = useRef<InputRef>(null);
+  useEffect(() => {
+    const el = inputRef.current?.input;
+    el?.focus();
+    el?.select();
+  }, []);
+
+  const q = (satir.urunKod ?? '').trim().toLowerCase();
+  const filteredUrun = (q
+    ? urunler.filter((u) =>
+        u.urunKod.toLowerCase().includes(q) ||
+        (u.aciklama ?? '').toLowerCase().includes(q),
+      )
+    : urunler).slice(0, 40);
+  const filteredSet = (q
+    ? setler.filter((s) =>
+        s.setKod.toLowerCase().includes(q) ||
+        (s.aciklama ?? '').toLowerCase().includes(q),
+      )
+    : setler).slice(0, 20);
+  const merged = [
+    ...filteredSet.map((s) => ({ kind: 'set' as const, id: s.id, kod: s.setKod, aciklama: s.aciklama, payload: s })),
+    ...filteredUrun.map((u) => ({ kind: 'urun' as const, id: u.id, kod: u.urunKod, aciklama: u.aciklama, payload: u })),
+  ].slice(0, 50);
+
+  const select = (item: typeof merged[number]) => {
+    if (item.kind === 'set') {
+      onSatirGuncelle(satir.id, 'urunKod', item.kod);
+      onSatirGuncelle(satir.id, 'aciklama', item.payload.aciklama ?? '');
+      onSatiraSetUygula(satir.id, item.payload.id);
+    } else {
+      onSatirGuncelle(satir.id, 'urunKod', item.kod);
+      onSatirGuncelle(satir.id, 'setId', undefined);
+      onSatirGuncelle(satir.id, 'aciklama', item.payload.aciklama ?? '');
+      if (item.payload.varsayilanFiyat && !satir.birimFiyat) {
+        onSatirGuncelle(satir.id, 'birimFiyat', item.payload.varsayilanFiyat);
+      }
+      if (item.payload.birim) onSatirGuncelle(satir.id, 'birim', item.payload.birim);
+    }
+    onEnterNext();
+  };
+
+  return (
+    <div>
+      <Input
+        ref={inputRef}
+        size="middle"
+        value={satir.urunKod || ''}
+        onChange={(e) => {
+          const upper = e.target.value.toLocaleUpperCase('tr-TR');
+          onSatirGuncelle(satir.id, 'urunKod', upper);
+          setHighlight(0);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((i) => Math.min(i + 1, merged.length - 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight((i) => Math.max(i - 1, 0)); }
+          else if (e.key === 'Enter') {
+            e.preventDefault();
+            const sel = merged[highlight];
+            if (sel) select(sel);
+            else onEnterNext();
+          } else if (e.key === 'Escape') onClose();
+        }}
+        placeholder="Ürün kodu / açıklama ile ara…"
+        autoCapitalize="characters"
+        style={{ textTransform: 'uppercase' }}
+      />
+      {merged.length > 0 && (
+        <div
+          style={{
+            marginTop: 8,
+            maxHeight: 240,
+            overflowY: 'auto',
+            border: '1px solid rgba(15,23,42,0.08)',
+            borderRadius: 6,
+            fontSize: 12,
+            background: '#fafbfc',
+          }}
+        >
+          {merged.map((it, i) => (
+            <div
+              key={`${it.kind}-${it.id}`}
+              onMouseDown={(e) => { e.preventDefault(); select(it); }}
+              onMouseEnter={() => setHighlight(i)}
+              style={{
+                padding: '6px 10px',
+                cursor: 'pointer',
+                background: i === highlight ? 'rgba(37,99,235,0.10)' : 'transparent',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {it.kind === 'set' && (
+                <span style={{ fontWeight: 700, color: '#7c3aed', marginRight: 6 }}>[SET]</span>
+              )}
+              <span style={{ fontWeight: 600 }}>{it.kod}</span>
+              {it.aciklama && <span style={{ color: '#6b7280', marginLeft: 6 }}>— {it.aciklama}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   return (
@@ -231,6 +670,7 @@ export default function PaginatedBelgeInlineEditor({
   onEditingAlanDegistir,
   onCariDegistir,
   onCariEPostaDegistir,
+  onCariTelefonDegistir,
   contactName,
   contactTitle,
   onContactNameDegistir,
@@ -241,6 +681,7 @@ export default function PaginatedBelgeInlineEditor({
   satirBazliIskonto,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
+  onGecerlilikSuresiDegistir,
   onSatirGuncelle,
   onSatiraSetUygula,
   onSatirSil,
@@ -261,13 +702,10 @@ export default function PaginatedBelgeInlineEditor({
     ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
     : (teklif.cari.yetkiliKisi || null);
 
-  const isMusteriEditing = !readOnly && editingAlan === 'musteri';
-  const isAnyAyarEditing = !readOnly && (editingAlan?.startsWith('ayar-') ?? false);
   const editingSatirId   = !readOnly && editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
 
   const muhatapRef = useRef<InputRef>(null);
   const notesTextareaRef = useRef<{ focus: (opts?: { cursor?: 'start' | 'end' | 'all' }) => void } | null>(null);
-  const prevMusteriEditing = useRef(false);
   const [cariSearchText, setCariSearchText] = useState(() => formatCariAdi(teklif.cari.firmaAdi));
 
   // Toggle açıldığında imleci doğrudan TextArea'ya getir. Animasyon mount
@@ -279,15 +717,6 @@ export default function PaginatedBelgeInlineEditor({
     }, 50);
     return () => window.clearTimeout(id);
   }, [teklif.notlarGosterilsin, readOnly]);
-
-  useEffect(() => {
-    const justOpened = isMusteriEditing && !prevMusteriEditing.current;
-    prevMusteriEditing.current = isMusteriEditing;
-    if (justOpened && teklif.cari.firmaAdi) {
-      const timer = setTimeout(() => muhatapRef.current?.focus(), 60);
-      return () => clearTimeout(timer);
-    }
-  }, [isMusteriEditing, teklif.cari.firmaAdi]);
 
   const [satirFocusCell, setSatirFocusCell] = useState<SatirCellField>('urunKod');
   // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
@@ -311,39 +740,71 @@ export default function PaginatedBelgeInlineEditor({
     [],
   );
 
+  // Tabloda hücreden hücreye Enter ile gezinme sırası. Set alt kalemde
+  // sadece urunKod / aciklama / miktar düzenlenebilir; satır bazlı para birimi
+  // kapalıysa paraBirimi atlanır.
+  const CELL_NAV_ORDER: SatirCellField[] = ['marka', 'urunKod', 'aciklama', 'miktar', 'paraBirimi', 'birimFiyat', 'teslimat'];
+
+  const isCellEditableForSatir = useCallback(
+    (cell: SatirCellField, satir: TeklifSatiri): boolean => {
+      if (satir.setAltKalem) {
+        return cell === 'urunKod' || cell === 'aciklama' || cell === 'miktar';
+      }
+      if (cell === 'paraBirimi') return satirBazliParaBirimi;
+      return true;
+    },
+    [satirBazliParaBirimi],
+  );
+
+  // Aktif hücreden bir sonrakine geç. Satır sonunda bir alt satıra atla;
+  // son satırın sonunda popup'ı kapat.
+  const handleEnterNext = useCallback(() => {
+    if (!editingAlan?.startsWith('satir-')) {
+      setHoverRowId(null);
+      onEditingAlanDegistir(null);
+      return;
+    }
+    const satirId = editingAlan.slice(6);
+    const satirIdx = teklif.satirlar.findIndex((s) => s.id === satirId);
+    if (satirIdx < 0) {
+      setHoverRowId(null);
+      onEditingAlanDegistir(null);
+      return;
+    }
+    const satir = teklif.satirlar[satirIdx];
+    const curIdx = CELL_NAV_ORDER.indexOf(satirFocusCell);
+    // Aynı satır içinde sonraki düzenlenebilir hücre
+    for (let i = curIdx + 1; i < CELL_NAV_ORDER.length; i++) {
+      const nx = CELL_NAV_ORDER[i];
+      if (isCellEditableForSatir(nx, satir)) {
+        setSatirFocusCell(nx);
+        return;
+      }
+    }
+    // Bir alt satıra geç (varsa)
+    const nextRow = teklif.satirlar[satirIdx + 1];
+    if (nextRow) {
+      // Alt satırın ilk düzenlenebilir hücresi
+      const firstCell = CELL_NAV_ORDER.find((c) => isCellEditableForSatir(c, nextRow)) ?? 'urunKod';
+      setSatirFocusCell(firstCell);
+      onEditingAlanDegistir(`satir-${nextRow.id}`);
+      return;
+    }
+    // Son satır sonu — popup'ı kapat
+    setHoverRowId(null);
+    onEditingAlanDegistir(null);
+  }, [editingAlan, teklif.satirlar, satirFocusCell, isCellEditableForSatir, onEditingAlanDegistir]);
+
+  // Hücreye tıklayınca aktif et (popup açar).
   const handleSatirCellClick = useCallback(
     (satir: TeklifSatiri, cell: SatirCellField) => (e: React.MouseEvent) => {
       if (readOnly) return;
       e.stopPropagation();
-
       setSatirFocusCell(cell);
       onEditingAlanDegistir(`satir-${satir.id}`);
     },
     [onEditingAlanDegistir, readOnly],
   );
-
-  const handleEnterNext = useCallback(() => {
-    setHoverRowId(null);
-    onEditingAlanDegistir(null);
-  }, [onEditingAlanDegistir]);
-
-  const handleGlobalEnter = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (readOnly || !editingAlan) return;
-    if (e.nativeEvent.isComposing || e.key !== 'Enter') return;
-    e.preventDefault();
-    e.stopPropagation();
-    setHoverRowId(null);
-    onEditingAlanDegistir(null);
-  }, [editingAlan, onEditingAlanDegistir, readOnly]);
-
-  const handleAlanClick = (alan: EditingAlan, e: React.MouseEvent) => {
-    if (readOnly) return;
-    e.stopPropagation();
-    if (alan === 'musteri' && editingAlan !== alan) {
-      setCariSearchText(formatCariAdi(teklif.cari.firmaAdi));
-    }
-    if (editingAlan !== alan) onEditingAlanDegistir(alan);
-  };
 
   const renderFirstPageHeader = () => (
     <>
@@ -397,12 +858,14 @@ export default function PaginatedBelgeInlineEditor({
               <tbody>
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>{teklif.teklifNo}</td>
+                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>{teklif.teklifNo}</td>
                 </tr>
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Tarih</td>
                   <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                    {isAnyAyarEditing ? (
+                    {readOnly ? (
+                      formatDate(teklif.tarih)
+                    ) : (
                       <DatePicker
                         size="small"
                         variant="borderless"
@@ -411,13 +874,14 @@ export default function PaginatedBelgeInlineEditor({
                         format="DD.MM.YYYY"
                         style={{ fontSize: '10.9px', padding: 0, width: 110 }}
                         allowClear={false}
+                        suffixIcon={null}
                       />
-                    ) : formatDate(teklif.tarih)}
+                    )}
                   </td>
                 </tr>
                 <tr>
                   <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}</td>
+                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}</td>
                 </tr>
               </tbody>
             </table>
@@ -436,95 +900,177 @@ export default function PaginatedBelgeInlineEditor({
             {firmaBilgi.web}
           </div>
         </div>
-        <div data-alan="musteri" onClick={(e) => handleAlanClick('musteri', e)} style={{ ...PARTY_CARD_STYLE, cursor: isMusteriEditing ? 'default' : 'pointer', background: 'transparent' }}>
+        <div data-alan="musteri" style={{ ...PARTY_CARD_STYLE, background: 'transparent' }}>
           <div style={PARTY_LABEL_STYLE}>
             Alıcı <span style={{ fontWeight: 400, opacity: 0.6 }}>/ To</span>
           </div>
-          {isMusteriEditing ? (
-            <div className="field-group">
-              <div style={PARTY_NAME_STYLE}>
-                <InlineCariAutocompleteField
-                  autoFocus={!teklif.cari.firmaAdi}
-                  style={{ width: '100%' }}
-                  value={cariSearchText}
-                  onChange={setCariSearchText}
-                  onCariSelect={(cari) => {
-                    if (cari) {
-                      setCariSearchText(formatCariAdi(cari.firmaAdi));
-                      onCariDegistir(cari);
-                      setTimeout(() => muhatapRef.current?.focus(), 50);
-                    }
-                  }}
-                  placeholder={formatCariAdi(teklif.cari.firmaAdi) || 'Firma adı veya cari kod...'}
-                  popupMinWidth={300}
-                />
-              </div>
-              <div style={PARTY_BODY_STYLE}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500, marginBottom: '1px' }}>
-                  <span style={{ whiteSpace: 'nowrap' }}>Sayın</span>
-                  <Input
-                    ref={muhatapRef}
-                    size="small"
-                    variant="borderless"
-                    style={{ flex: 1, maxWidth: 160 }}
-                    value={contactName}
-                    onChange={(e) => onContactNameDegistir(e.target.value)}
-                    placeholder="muhatap adı"
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <Select
-                    size="small"
-                    variant="borderless"
-                    suffixIcon={null}
-                    style={{ width: 72 }}
-                    value={contactTitle}
-                    onChange={onContactTitleDegistir}
-                    options={[{ value: 'BEY', label: 'Bey' }, { value: 'HANIM', label: 'Hanım' }]}
-                    popupMatchSelectWidth={false}
-                    dropdownStyle={{ minWidth: 90 }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                  {teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
-                  <Input
-                    size="small"
-                    variant="borderless"
-                    style={{ flex: 1, minWidth: 120 }}
-                    value={teklif.cari.ePosta || ''}
-                    onChange={(e) => onCariEPostaDegistir(e.target.value)}
-                    onBlur={(e) => {
-                      const next = e.target.value.trim();
-                      if (!next) onCariEPostaDegistir(DEFAULT_TEKLIF_EMAIL);
-                    }}
-                    placeholder={DEFAULT_TEKLIF_EMAIL}
-                  />
-                </div>
-                {teklif.cari.vergiNo && (
-                  <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
-                )}
-                {/* Adres ALICI bölümünden kaldırıldı (kullanıcı tercihi) */}
-              </div>
-            </div>
+
+          {/* Firma adı hücresi — kendi popup'ı */}
+          {readOnly ? (
+            <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi) || '—'}</div>
           ) : (
-            <>
-              <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
-              <div style={PARTY_BODY_STYLE}>
-                {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
-                {(teklif.cari.telefon || teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL) && (
-                  <div>
-                    {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                    {teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
-                    <span>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
-                  </div>
-                )}
-                {teklif.cari.vergiNo && (
-                  <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
-                )}
-                {/* Adres ALICI bölümünden kaldırıldı (kullanıcı tercihi) */}
+            <Popover
+              open={editingAlan === 'musteri-firma'}
+              onOpenChange={(open) => {
+                if (open) setCariSearchText(formatCariAdi(teklif.cari.firmaAdi));
+                onEditingAlanDegistir(open ? 'musteri-firma' : null);
+              }}
+              trigger={['click']}
+              placement="bottomLeft"
+              destroyTooltipOnHide
+              content={
+                <div style={{ width: 380, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Firma</div>
+                  <InlineCariAutocompleteField
+                    autoFocus
+                    style={{ width: '100%' }}
+                    value={cariSearchText}
+                    onChange={setCariSearchText}
+                    onCariSelect={(cari) => {
+                      if (cari) {
+                        setCariSearchText(formatCariAdi(cari.firmaAdi));
+                        onCariDegistir(cari);
+                        onEditingAlanDegistir('musteri-muhatap');
+                      }
+                    }}
+                    placeholder={formatCariAdi(teklif.cari.firmaAdi) || 'Firma adı veya cari kod...'}
+                    popupMinWidth={360}
+                  />
+                </div>
+              }
+            >
+              <div style={{ ...PARTY_NAME_STYLE, cursor: 'pointer' }}>
+                {formatCariAdi(teklif.cari.firmaAdi) || '—'}
               </div>
-            </>
+            </Popover>
           )}
+
+          <div style={PARTY_BODY_STYLE}>
+            {/* Muhatap satırı — kendi popup'ı */}
+            {readOnly ? (
+              muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>
+            ) : (
+              <Popover
+                open={editingAlan === 'musteri-muhatap'}
+                onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-muhatap' : null)}
+                trigger={['click']}
+                placement="bottomLeft"
+                destroyTooltipOnHide
+                content={
+                  <div style={{ width: 340, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Muhatap</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ whiteSpace: 'nowrap', fontSize: 13, color: '#444' }}>Sayın</span>
+                      <Input
+                        ref={muhatapRef}
+                        autoFocus
+                        size="middle"
+                        style={{ flex: 1 }}
+                        value={contactName}
+                        onChange={(e) => onContactNameDegistir(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); onEditingAlanDegistir(null); }
+                          if (e.key === 'Escape') onEditingAlanDegistir(null);
+                        }}
+                        placeholder="muhatap adı"
+                      />
+                      <Select
+                        size="middle"
+                        style={{ width: 100 }}
+                        value={contactTitle}
+                        onChange={onContactTitleDegistir}
+                        options={[{ value: 'BEY', label: 'Bey' }, { value: 'HANIM', label: 'Hanım' }]}
+                      />
+                    </div>
+                  </div>
+                }
+              >
+                <div style={{ fontWeight: 500, marginBottom: '1px', cursor: 'pointer' }}>
+                  {muhatapSatiri ? <>Sayın {muhatapSatiri}</> : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>Muhatap ekle…</span>}
+                </div>
+              </Popover>
+            )}
+
+            {/* Tel hücresi — kendi popup'ı */}
+            <div>
+              {readOnly ? (
+                teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>
+              ) : (
+                <Popover
+                  open={editingAlan === 'musteri-telefon'}
+                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-telefon' : null)}
+                  trigger={['click']}
+                  placement="bottomLeft"
+                  destroyTooltipOnHide
+                  content={
+                    <div style={{ width: 280, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Telefon</div>
+                      <Input
+                        autoFocus
+                        size="middle"
+                        style={{ width: '100%' }}
+                        value={teklif.cari.telefon || ''}
+                        onChange={(e) => onCariTelefonDegistir(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); onEditingAlanDegistir(null); }
+                          if (e.key === 'Escape') onEditingAlanDegistir(null);
+                        }}
+                        placeholder="0xxx xxx xx xx"
+                      />
+                    </div>
+                  }
+                >
+                  <span style={{ cursor: 'pointer' }}>
+                    Tel: {teklif.cari.telefon ? formatPhone(teklif.cari.telefon) : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>ekle…</span>}
+                  </span>
+                </Popover>
+              )}
+              {(teklif.cari.telefon || !readOnly) && <span> &nbsp;|&nbsp; </span>}
+              {/* E-posta hücresi — kendi popup'ı */}
+              {readOnly ? (
+                <span>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
+              ) : (
+                <Popover
+                  open={editingAlan === 'musteri-eposta'}
+                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-eposta' : null)}
+                  trigger={['click']}
+                  placement="bottomLeft"
+                  destroyTooltipOnHide
+                  content={
+                    <div style={{ width: 320, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>E-posta</div>
+                      <Input
+                        autoFocus
+                        size="middle"
+                        type="email"
+                        style={{ width: '100%' }}
+                        value={teklif.cari.ePosta || ''}
+                        onChange={(e) => onCariEPostaDegistir(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim();
+                          if (!next) onCariEPostaDegistir(DEFAULT_TEKLIF_EMAIL);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); onEditingAlanDegistir(null); }
+                          if (e.key === 'Escape') onEditingAlanDegistir(null);
+                        }}
+                        placeholder={DEFAULT_TEKLIF_EMAIL}
+                      />
+                    </div>
+                  }
+                >
+                  <span style={{ cursor: 'pointer' }}>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
+                </Popover>
+              )}
+            </div>
+
+            {teklif.cari.vergiNo && (
+              <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -532,21 +1078,36 @@ export default function PaginatedBelgeInlineEditor({
         const ayarAlanIds = ['ayar-paraBirimi', 'ayar-odemeVadesi', 'ayar-kdvOrani', 'ayar-kur', 'ayar-gecerlilik'] as const;
         const items = buildSettingsItems(teklif, satirBazliParaBirimi);
 
+        const paraBirimiMenuItems = [
+          { key: 'TRY', label: 'Türk Lirası (TL)' },
+          { key: 'EUR', label: 'Euro (EUR)' },
+          { key: 'USD', label: 'Amerikan Doları (USD)' },
+        ];
+        const odemeVadesiMenuItems = ['Peşin', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün']
+          .map((v) => ({ key: v, label: v }));
+        const kdvMenuItems = [
+          { key: '0', label: 'Hariç' },
+          { key: '1', label: '%1' },
+          { key: '10', label: '%10' },
+          { key: '20', label: '%20' },
+        ];
+        const gecerlilikMenuItems = ['1 Hafta', '2 Hafta', '1 Ay', '2 Ay', '3 Ay', 'Sınırsız']
+          .map((v) => ({ key: v, label: v }));
+
         return (
           <div style={SETTINGS_GRID_STYLE}>
             {items.map((item, i) => {
               const alanId = ayarAlanIds[i];
-              const isEditing = editingAlan === alanId;
-              const isReadonly = i === 3 || i === 4;
+              const isReadonly = i === 3; // sadece Döviz Kuru salt-okunur
+              const editable = !isReadonly && !readOnly;
 
-              return (
+              const cardInner = (
                 <div
                   key={alanId}
                   data-alan={alanId}
-                  onClick={(isReadonly || readOnly) ? undefined : (e) => handleAlanClick(alanId, e)}
                   style={{
                     ...SETTINGS_CARD_STYLE,
-                    cursor: (isReadonly || readOnly) ? 'default' : (isEditing ? 'default' : 'pointer'),
+                    cursor: editable ? 'pointer' : 'default',
                   }}
                 >
                   <div style={SETTINGS_LABEL_STYLE}>
@@ -554,22 +1115,32 @@ export default function PaginatedBelgeInlineEditor({
                     <span style={SETTINGS_SEP_STYLE}>/</span>
                     <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
                   </div>
-                  {isEditing ? (
-                    <div style={SETTINGS_VALUE_STYLE}>
-                      {i === 0 && (
-                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%' }} value={teklif.paraBirimi} onChange={onParaBirimiDegistir} options={[{ value: 'TRY', label: 'TL' }, { value: 'EUR', label: 'EUR' }, { value: 'USD', label: 'USD' }]} popupMatchSelectWidth={100} />
-                      )}
-                      {i === 1 && (
-                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%' }} value={teklif.odemeVadesi || '45 Gün'} onChange={onOdemeVadesiDegistir} options={['Peşin', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün'].map((v) => ({ value: v, label: v }))} popupMatchSelectWidth={100} />
-                      )}
-                      {i === 2 && (
-                        <Select size="small" variant="borderless" suffixIcon={null} style={{ width: '100%' }} value={teklif.kdvOrani} onChange={onKdvOraniDegistir} options={[{ value: 0, label: 'Hariç' }, { value: 1, label: '%1' }, { value: 10, label: '%10' }, { value: 20, label: '%20' }]} popupMatchSelectWidth={80} />
-                      )}
-                    </div>
-                  ) : (
-                    <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
-                  )}
+                  <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
                 </div>
+              );
+
+              if (!editable) return cardInner;
+
+              const menu =
+                i === 0
+                  ? { items: paraBirimiMenuItems, onClick: ({ key }: { key: string }) => onParaBirimiDegistir(key as ParaBirimi) }
+                  : i === 1
+                  ? { items: odemeVadesiMenuItems, onClick: ({ key }: { key: string }) => onOdemeVadesiDegistir(key) }
+                  : i === 2
+                  ? { items: kdvMenuItems, onClick: ({ key }: { key: string }) => onKdvOraniDegistir(Number(key)) }
+                  : { items: gecerlilikMenuItems, onClick: ({ key }: { key: string }) => onGecerlilikSuresiDegistir(key) };
+
+              return (
+                <Dropdown
+                  key={alanId}
+                  trigger={['click']}
+                  menu={menu}
+                  placement="bottom"
+                  open={editingAlan === alanId}
+                  onOpenChange={(open) => onEditingAlanDegistir(open ? alanId : null)}
+                >
+                  {cardInner}
+                </Dropdown>
               );
             })}
           </div>
@@ -684,13 +1255,10 @@ export default function PaginatedBelgeInlineEditor({
                 : renderInsertButton(idx, `insert-${satir.id}`, OFFER_TABLE_ROW_GAP_PX);
 
 
-              const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir, cell);
               const isActiveCell = (cell: SatirCellField) => isRowActive && satirFocusCell === cell;
+              // Hücre tıklaması popup'ı açar (CellEditPopup, render ağacının tepesinde tek mount).
+              const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir, cell);
               const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
-              const enterNext = (cell: SatirCellField) => () => {
-                void cell;
-                handleEnterNext();
-              };
 
               return (
                 <React.Fragment key={satir.id}>
@@ -730,137 +1298,70 @@ export default function PaginatedBelgeInlineEditor({
                         </span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('marka')} className={activeClass('marka')} style={applyCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
-                      {isActiveCell('marka') ? (
-                        <SatirCellEditor
-                          field="marka"
-                          satir={satir}
-                          paraBirimi={teklif.paraBirimi}
-                          autoFocus
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onEnterNext={enterNext('marka')}
-                        />
-                      ) : (
-                        <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
-                      )}
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="marka" onClick={cellClick('marka')} className={activeClass('marka')} style={applyCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
+                      <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
-                      {isActiveCell('urunKod') ? (
-                        <SatirCellEditor
-                          field="urunKod"
-                          satir={satir}
-                          paraBirimi={teklif.paraBirimi}
-                          autoFocus
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onSetUygula={(setId) => onSatiraSetUygula(satir.id, setId)}
-                          onEnterNext={enterNext('urunKod')}
-                        />
-                      ) : (
-                        <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
-                      )}
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="urunKod" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
+                      <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
-                      {isActiveCell('aciklama') ? (
-                        <SatirCellEditor
-                          field="aciklama"
-                          satir={satir}
-                          paraBirimi={teklif.paraBirimi}
-                          autoFocus
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onEnterNext={enterNext('aciklama')}
-                        />
-                      ) : (
-                        <span>
-                          <DescText text={satir.aciklama || '-'} />
-                        </span>
-                      )}
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="aciklama" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
+                      <span>
+                        <DescText text={satir.aciklama || '-'} />
+                      </span>
                     </RowCell>
                     <RowCell
                       idx={idx}
                       pos="mid"
                       setGroupPos={setGroupPos}
+                      data-cell-field="miktar"
                       onClick={cellClick('miktar')}
                       className={activeClass('miktar')}
-                      style={applyCellStyle({
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      })}
+                      style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}
                     >
-                      {isActiveCell('miktar') ? (
-                        <SatirCellEditor
-                          field="miktar"
-                          satir={satir}
-                          paraBirimi={teklif.paraBirimi}
-                          autoFocus
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onEnterNext={enterNext('miktar')}
-                        />
-                      ) : (
-                        satir.miktar !== 0 ? (
-                          <div style={ROW_SHELL.quantityWrap}>
-                            <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
-                            <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
-                          </div>
-                        ) : <span>-</span>
-                      )}
+                      {satir.miktar !== 0 ? (
+                        <div style={ROW_SHELL.quantityWrap}>
+                          <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
+                          <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
+                        </div>
+                      ) : <span>-</span>}
                     </RowCell>
-                    {/* Para Birimi — set alt kaleminde de aynı hücre; satirBazli'da
-                        para birimi etiketi gösterilir, değilse boş. */}
+                    {/* Para Birimi — satirBazli'da gösterilir, değilse boş. */}
                     <RowCell
                       idx={idx}
                       pos="mid"
                       setGroupPos={setGroupPos}
+                      data-cell-field="paraBirimi"
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
                       className={activeClass('paraBirimi')}
                       style={applyCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' })}
                     >
                       {satirBazliParaBirimi ? (
-                        isActiveCell('paraBirimi') ? (
-                          <SatirCellEditor
-                            field="paraBirimi"
-                            satir={satir}
-                            paraBirimi={teklif.paraBirimi}
-                            autoFocus
-                            onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                            onEnterNext={enterNext('paraBirimi')}
-                          />
-                        ) : (
-                          <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
-                        )
+                        <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
                       ) : null}
                     </RowCell>
-                    {/* Birim Fiyat — alt kalemde tıklanamaz, değer 0 → '-' gösterimi */}
+                    {/* Birim Fiyat — alt kalemde tıklanamaz */}
                     <RowCell
                       idx={idx}
                       pos="mid"
                       setGroupPos={setGroupPos}
+                      data-cell-field="birimFiyat"
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
                       className={!satir.setAltKalem ? activeClass('birimFiyat') : undefined}
                       style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
                     >
-                      {!satir.setAltKalem && isActiveCell('birimFiyat') ? (
-                        <SatirCellEditor
-                          field="birimFiyat"
-                          satir={satir}
-                          paraBirimi={teklif.paraBirimi}
-                          autoFocus
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onEnterNext={enterNext('birimFiyat')}
-                        />
-                      ) : satir.setAltKalem ? null : (
+                      {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.price}>{(() => {
                           const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                           return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
                         })()}</span>
                       )}
                     </RowCell>
-                    {/* Toplam — alt kalemde boş; aksi halde değer */}
+                    {/* Toplam — salt-okunur */}
                     <RowCell
                       idx={idx}
                       pos="mid"
                       setGroupPos={setGroupPos}
-                      onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
-                      style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
+                      style={applyCellStyle({ textAlign: 'right' })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.total}>
@@ -868,25 +1369,17 @@ export default function PaginatedBelgeInlineEditor({
                         </span>
                       )}
                     </RowCell>
-                    {/* Teslimat — alt kalemde tıklanamaz; tüm satırlar için aksiyon paneli burada */}
+                    {/* Teslimat — alt kalemde tıklanamaz; aksiyon paneli burada */}
                     <RowCell
                       idx={idx}
                       pos="last"
                       setGroupPos={setGroupPos}
+                      data-cell-field="teslimat"
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
                       className={!satir.setAltKalem ? activeClass('teslimat') : undefined}
                       style={applyCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center' })}
                     >
-                      {!satir.setAltKalem && isActiveCell('teslimat') ? (
-                        <SatirCellEditor
-                          field="teslimat"
-                          satir={satir}
-                          paraBirimi={teklif.paraBirimi}
-                          autoFocus
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onEnterNext={enterNext('teslimat')}
-                        />
-                      ) : satir.setAltKalem ? null : (
+                      {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
                       )}
                       {(satir.indirimOrani || 0) > 0 && !isRowActive && hoverRowId !== satir.id && (
@@ -964,11 +1457,12 @@ export default function PaginatedBelgeInlineEditor({
 
   const renderTotals = () =>
     !satirBazliParaBirimi ? (
-      // Çerçeve eski 56%/44% yapıda; rakamlar amountRightOffsetPx ile
-      // tablonun "Toplam" kolonu değer X'iyle birebir hizalanır.
+      // Çerçeve 56%/44% yapıda; rakamlar amountRightOffsetPx ile tablonun
+      // "Toplam" kolonu değer X'iyle birebir hizalanır. Üst ve alt boşluklar
+      // "ortalama" — tablo ile arasında ferah ama abartısız nefes payı.
       <table style={{
         width: '100%', borderCollapse: 'collapse',
-        marginTop: '6px', marginBottom: '14px',
+        marginTop: '14px', marginBottom: '0',
         tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
         printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
       } as React.CSSProperties}>
@@ -976,7 +1470,7 @@ export default function PaginatedBelgeInlineEditor({
         <tbody>
           <tr>
             <td style={{ borderTop: 'none', borderBottom: 'none' }} />
-            <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
+            <td style={{ padding: '0', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
               <TotalsCard
                 araToplam={araToplam}
                 iskontoOrani={iskontoOrani}
@@ -1074,7 +1568,6 @@ export default function PaginatedBelgeInlineEditor({
   return (
     <div
       className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}
-      onKeyDown={handleGlobalEnter}
     >
       <style>{FIELD_CSS}{`
         .belge-inline .offer-table {
@@ -1129,6 +1622,9 @@ export default function PaginatedBelgeInlineEditor({
             {page.showFullHeader && renderFirstPageHeader()}
             {page.showCompactHeader && <CompactHeaderBlock teklif={teklif} />}
             {renderTable(page)}
+            {/* Genel Toplam — her iki modda da (tek/çoklu para birimi)
+                tablonun hemen altında, sağa hizalı, Siparişi Veren'den
+                tamamen bağımsız konumda. */}
             {page.includeTotals && renderTotals()}
             {/* Notes wrapper son sayfada her zaman mount; AnimatedNotesContainer */}
             {/* açık/kapalı animasyonunu yönetir (kapanışta ~320ms mounted kalır). */}
@@ -1136,14 +1632,19 @@ export default function PaginatedBelgeInlineEditor({
             </div>
             {page.includeSignature && (
               <div style={{ marginTop: 'auto' }}>
-                <div style={SIGNATURE_SECTION_STYLE}>
-                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px' }}>
 
-                    {/* Sol: 2-satır dikey başlık */}
+                  {/* SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, sayfanın altında.
+                      Iç boşluklar ferah: title-content gap 22px, isim/tarih ↔ imza
+                      arası gap 44px; rotasyonlu etiket biraz daha büyük + tracking'li. */}
+                  <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+
+                    {/* Sol: 2-satır dikey başlık (rotasyonlu) — biraz büyütüldü */}
                     <div style={{
                       flexShrink: 0,
                       position: 'relative',
-                      width: '28px',
+                      width: '40px',
                       overflow: 'hidden',
                     }}>
                       <div style={{
@@ -1151,28 +1652,28 @@ export default function PaginatedBelgeInlineEditor({
                         top: '50%',
                         left: '50%',
                         transform: 'translate(-50%, -50%) rotate(-90deg)',
-                        width: '100px',
+                        width: '120px',
                         textAlign: 'left',
                         userSelect: 'none',
                         whiteSpace: 'nowrap',
                       }}>
                         <div style={{
-                          fontSize: '10.8px',
+                          fontSize: '12px',
                           fontWeight: 600,
                           color: C.sigPrimary,
-                          letterSpacing: '0.06em',
+                          letterSpacing: '0.10em',
                           textTransform: 'uppercase',
-                          lineHeight: 1.1,
-                          marginBottom: '4px',
+                          lineHeight: 1.2,
+                          marginBottom: '6px',
                         }}>
                           Siparişi Veren
                         </div>
                         <div style={{
-                          fontSize: '8.64px',
+                          fontSize: '9.2px',
                           fontWeight: 400,
                           color: C.sigSecondary,
-                          letterSpacing: '0.04em',
-                          lineHeight: 1.1,
+                          letterSpacing: '0.06em',
+                          lineHeight: 1.2,
                         }}>
                           Authorised Person
                         </div>
@@ -1181,8 +1682,8 @@ export default function PaginatedBelgeInlineEditor({
 
                     {/* Sağ: İçerik — isim, tarih, imza */}
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-                        <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
+                        <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45' }}>
                           <div style={{ position: 'relative', top: '16px' }}>
                             <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                             <div style={{ marginBottom: '6px', marginTop: '2px' }}>
@@ -1210,6 +1711,8 @@ export default function PaginatedBelgeInlineEditor({
                     </div>
 
                   </div>
+                  </div>
+
                 </div>
               </div>
             )}
@@ -1218,6 +1721,17 @@ export default function PaginatedBelgeInlineEditor({
           {renderPageOverlay?.(pageIdx)}
         </div>
       ))}
+      {!readOnly && (
+        <CellEditPopup
+          teklif={teklif}
+          editingAlan={editingAlan}
+          satirFocusCell={satirFocusCell}
+          onSatirGuncelle={onSatirGuncelle}
+          onSatiraSetUygula={onSatiraSetUygula}
+          onClose={() => onEditingAlanDegistir(null)}
+          onEnterNext={handleEnterNext}
+        />
+      )}
     </div>
   );
 }

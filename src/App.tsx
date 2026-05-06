@@ -145,7 +145,7 @@ function ServerErrorScreen({ msg, onRetry }: { msg: string; onRetry: () => void 
 /* ── Tema-duyarlı ana uygulama (ThemeProvider içinde) ───── */
 function ThemedApp() {
   const { isDark } = useTheme();
-  const { aktifKullanici } = useKullanici();
+  const { aktifKullanici, yukleniyor: authYukleniyor, cikisYap } = useKullanici();
   const [hazirSessionKey, setHazirSessionKey] = useState<string | null>(null);
   const [hataMsg, setHataMsg] = useState<string | null>(null);
   const antdTheme = useMemo(() => getAntdTokens(isDark), [isDark]);
@@ -160,10 +160,22 @@ function ThemedApp() {
   const hazir = hazirSessionKey === oturumAnahtari;
 
   useEffect(() => {
+    // KullaniciProvider /auth/me ile token doğrulaması bitene kadar bekle —
+    // aksi halde stale token ile /init isteği gidip 401 alırız ve login
+    // ekranına geçemeyiz.
+    if (authYukleniyor) return;
+
     let aktif = true;
-    const kullanici = userId && userRol ? { id: userId, rol: userRol } : undefined;
+    // Login değilsek /api/init zaten 401 döner; AppRouter login ekranını
+    // göstersin diye hazırlık anahtarını set edip return ediyoruz.
+    if (!userId || !userRol) {
+      setHataMsg(null);
+      setHazirSessionKey(oturumAnahtari);
+      return;
+    }
+    const kullanici = { id: userId, rol: userRol };
     // initNetworkConfig önce çalışır → API_BASE'i resolve eder; sonra
-    // initDataStore sunucudan veri çeker (offline ise localStorage snapshot'a düşer).
+    // initDataStore sunucudan veri çeker.
     initNetworkConfig()
       .then(() => initDataStore(kullanici))
       .then(() => {
@@ -173,6 +185,13 @@ function ThemedApp() {
       })
       .catch((err: unknown) => {
         if (!aktif) return;
+        const status = (err && typeof err === 'object' && 'status' in err)
+          ? (err as { status?: number }).status : 0;
+        if (status === 401) {
+          // Token geçersiz/süresi dolmuş — kullanıcıyı temizle, login ekranı çıksın.
+          cikisYap();
+          return;
+        }
         console.error('[App] Veri sunucusuna bağlanılamadı (snapshot da yok):', err);
         setHataMsg(
           'Veri sunucusuna bağlanılamadı ve yerel yedek yok.\n' +
@@ -182,7 +201,7 @@ function ThemedApp() {
     return () => {
       aktif = false;
     };
-  }, [userId, userRol, oturumAnahtari]);
+  }, [userId, userRol, oturumAnahtari, authYukleniyor, cikisYap]);
 
   // Online-only mimaride sync engine kaldırıldı. Bağlantı durumu
   // useOnlineStatus hook'undan otomatik gelir (30sn'de bir health check).

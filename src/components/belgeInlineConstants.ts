@@ -584,10 +584,17 @@ export const FIELD_CSS = `
      df-4 → 10.5px + kontrollü wrap (son çare)
    ══════════════════════════════════════════════════════════════════════ */
 .description-cell {
-  white-space: nowrap !important;
+  /* Default: tek satır. df-4 ise inline-block override ile wrap'e izin verilir. */
+  white-space: nowrap;
   overflow: visible !important;
   text-overflow: clip !important;
   line-height: 1.15 !important;
+}
+/* df-4 (wrap modu) cell üzerinde white-space: normal'i zorlar — !important ile
+   parent default'unu yener, böylece 10.5px'te bile sığmayan metin gerçekten
+   alt satıra geçer. */
+.description-cell:has(.description-text.df-4) {
+  white-space: normal !important;
 }
 .description-text {
   display: inline-block;
@@ -607,7 +614,7 @@ export const FIELD_CSS = `
   display: block;
   font-size: 10.5px;
   line-height: 1.15;
-  white-space: normal;
+  white-space: normal !important;
   overflow-wrap: anywhere;
   word-break: normal;
 }
@@ -903,10 +910,27 @@ export const FIELD_CSS = `
   font-weight: 700 !important;
   font-style: normal !important;
 }
+
+/* ─── Hücre düzenleme popup'ı (CellEditPopup) ──────────────────────────
+   Aktif hücre pastel mavi vurgu; popup'ın kendisi fade-in animasyonuyla
+   açılır. */
+.belge-inline tr[data-satir-id] td.is-active-cell {
+  background: rgba(37, 99, 235, 0.10) !important;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.45);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+@keyframes cell-popup-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 `;
 
 export type EditingAlan =
   | 'musteri'
+  | 'musteri-firma'
+  | 'musteri-muhatap'
+  | 'musteri-telefon'
+  | 'musteri-eposta'
   | 'ayarlar'
   | 'ayar-paraBirimi'
   | 'ayar-odemeVadesi'

@@ -16,6 +16,17 @@ const path = require('path');
 const http = require('http');
 
 const DIST_DIR = path.join(__dirname, '..', 'dist');
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+/**
+ * Runtime'da backend'in yazdığı klasörler — bu prefix'lerdeki istekler dist/
+ * yerine public/ klasöründen okunur. Aksi halde build sonrası yüklenen
+ * profil/logo fotoğrafları görünmez (dist/ build zamanında dondurulmuş).
+ */
+const RUNTIME_PUBLIC_PREFIXES = [
+  '/profil-fotograflari/',
+  '/cari-logolari/',
+];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -39,7 +50,16 @@ const MIME = {
 function safeResolve(rawUrl) {
   // Query string'i at, decode et, normalize et
   const urlPath = decodeURIComponent(rawUrl.split('?')[0].split('#')[0]);
-  // Path traversal guard: dist/ dışına çıkmasın
+  // Runtime upload klasörleri (profil foto / cari logo) → public/ köküne yönlendir
+  for (const prefix of RUNTIME_PUBLIC_PREFIXES) {
+    if (urlPath.startsWith(prefix)) {
+      const target = path.join(PUBLIC_DIR, urlPath);
+      const normalized = path.normalize(target);
+      if (!normalized.startsWith(PUBLIC_DIR)) return null;
+      return normalized;
+    }
+  }
+  // Diğer her şey → dist/ köküne (build çıktısı)
   const target = path.join(DIST_DIR, urlPath);
   const normalized = path.normalize(target);
   if (!normalized.startsWith(DIST_DIR)) return null;

@@ -427,49 +427,36 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
   );
 
-  // Single-currency: ÇERÇEVE eski geniş yapıda (sağda %44, kart sayfa
-  // sağına kadar uzanır). RAKAMLAR ise içeride padding-right üzerinden
-  // tablonun "Toplam" kolonu değer X'iyle aynı yerde durur.
+  // Single-currency: TotalsCard tablonun hemen altında, sağa hizalı
+  // (56%/44% colgroup), Siparişi Veren'den tamamen bağımsız.
   if (!satirBazliParaBirimi) {
-    const amountRightOffsetPx = computeTotalsAmountRightOffset(teklif.satirlar, false);
     return (
-      <div style={{ ...noBreak }}>
-        <table style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          marginTop: '4px',
-          marginBottom: '14px',
-          tableLayout: 'fixed',
-          borderLeft: 'none',
-          borderRight: 'none',
-          printColorAdjust: 'exact',
-          WebkitPrintColorAdjust: 'exact',
-          ...noBreak,
-        } as React.CSSProperties}>
-          <colgroup>
-            <col style={{ width: '56%' }} />
-            <col />
-          </colgroup>
-          <tbody>
-            <tr>
-              <td style={{ borderTop: 'none', borderBottom: 'none' }} />
-              <td style={{ padding: '8px 0 10px', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
-                <TotalsCard
-                  araToplam={araToplam}
-                  iskontoOrani={iskontoOrani}
-                  iskontoTutar={iskontoTutar}
-                  kdvOrani={kdvOrani}
-                  kdvTutar={kdvTutar}
-                  genelToplam={genelToplam}
-                  paraBirimi={teklif.paraBirimi}
-                  variant="dark"
-                  amountRightOffsetPx={amountRightOffsetPx}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <table style={{
+        width: '100%', borderCollapse: 'collapse',
+        marginTop: '14px', marginBottom: '0',
+        tableLayout: 'fixed', borderLeft: 'none', borderRight: 'none',
+        printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact', ...noBreak,
+      } as React.CSSProperties}>
+        <colgroup><col style={{ width: '56%' }} /><col /></colgroup>
+        <tbody>
+          <tr>
+            <td style={{ borderTop: 'none', borderBottom: 'none' }} />
+            <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
+              <TotalsCard
+                araToplam={araToplam}
+                iskontoOrani={iskontoOrani}
+                iskontoTutar={iskontoTutar}
+                kdvOrani={kdvOrani}
+                kdvTutar={kdvTutar}
+                genelToplam={genelToplam}
+                paraBirimi={teklif.paraBirimi}
+                variant="dark"
+                amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     );
   }
 
@@ -544,18 +531,20 @@ function NotesBlock({ teklif }: { teklif: Teklif }) {
 }
 
 function SignatureBlock() {
-  return (
-    <div style={{
-      ...SIGNATURE_SECTION_STYLE,
-      fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
-    } as React.CSSProperties}>
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+  const SF_FONT = '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif';
 
-        {/* Sol: 2-satır dikey başlık */}
+  return (
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', fontFamily: SF_FONT } as React.CSSProperties}>
+
+      {/* SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına. Ferah */}
+      <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE } as React.CSSProperties}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+
+        {/* Sol: 2-satır dikey başlık — biraz büyütüldü, tracking arttırıldı */}
         <div style={{
           flexShrink: 0,
           position: 'relative',
-          width: '28px',
+          width: '40px',
           overflow: 'hidden',
         }}>
           <div style={{
@@ -563,29 +552,29 @@ function SignatureBlock() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%) rotate(-90deg)',
-            width: '100px',
+            width: '120px',
             textAlign: 'left',
             userSelect: 'none',
             whiteSpace: 'nowrap',
-            fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
+            fontFamily: SF_FONT,
           }}>
             <div style={{
-              fontSize: '10.8px',
+              fontSize: '12px',
               fontWeight: 600,
               color: C.sigPrimary,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.10em',
               textTransform: 'uppercase',
-              lineHeight: 1.1,
-              marginBottom: '4px',
+              lineHeight: 1.2,
+              marginBottom: '6px',
             }}>
               Siparişi Veren
             </div>
             <div style={{
-              fontSize: '8.64px',
+              fontSize: '9.2px',
               fontWeight: 400,
               color: C.sigSecondary,
-              letterSpacing: '0.04em',
-              lineHeight: 1.1,
+              letterSpacing: '0.06em',
+              lineHeight: 1.2,
             }}>
               Authorised Person
             </div>
@@ -594,8 +583,8 @@ function SignatureBlock() {
 
         {/* Sağ: İçerik — isim, tarih, imza */}
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45', fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
+            <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45', fontFamily: SF_FONT }}>
               <div style={{ position: 'relative', top: '16px' }}>
                 <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 <div style={{ marginBottom: '6px', marginTop: '2px' }}>
@@ -611,7 +600,7 @@ function SignatureBlock() {
                 <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
               </div>
             </div>
-            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px', fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif' }}>
+            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px', fontFamily: SF_FONT }}>
               <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
               <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
                 <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
@@ -623,6 +612,8 @@ function SignatureBlock() {
         </div>
 
       </div>
+      </div>
+
     </div>
   );
 }
@@ -685,7 +676,11 @@ export default function TeklifPagedDocument({ teklif, totals, pages, renderPageO
           } as React.CSSProperties}
         >
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ minHeight: 0 }}>
+            <div style={{
+              minHeight: 0,
+              // Genel Toplam / İmza ile son kalem arasında tam 1 satırlık (rowHeight) garantili boşluk.
+              marginBottom: page.includeSignature ? `${LINE_ITEM_METRICS.rowHeightPx}px` : 0,
+            }}>
             {page.showFullHeader && <FullHeaderBlock teklif={teklif} />}
             {page.showCompactHeader && <CompactHeaderBlock teklif={teklif} />}
             {page.showTableHeader && (

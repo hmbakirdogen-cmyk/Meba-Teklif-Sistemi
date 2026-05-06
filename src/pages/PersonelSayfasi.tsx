@@ -285,7 +285,7 @@ export default function PersonelSayfasi() {
                 { pattern: /^[a-z0-9._-]+$/i, message: 'Sadece harf, rakam, . _ -' },
                 { min: 3, message: 'En az 3 karakter' },
               ]}
-              extra="Personel ilk girişte 123456 şifresiyle giriş yapacak ve yeni şifre belirleyecek"
+              extra="Personel ilk girişte 0000 şifresiyle giriş yapacak ve yeni şifre belirleyecek"
             >
               <Input placeholder="örn. ahmet" autoComplete="off" />
             </Form.Item>
@@ -312,7 +312,7 @@ export default function PersonelSayfasi() {
               <Select.Option value="sales">Satış Sorumlusu</Select.Option>
               {isSuperAdmin && (
                 <Select.Option value="firma_admin">
-                  Firma Yöneticisi · Elektrik Elektronik Mühendisi
+                  Firma Yöneticisi
                 </Select.Option>
               )}
             </Select>

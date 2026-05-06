@@ -271,16 +271,20 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
         className="inline-table-field"
         variant="borderless"
         size="small"
+        autoCapitalize="characters"
         style={{
           ...ROW_TEXT.code,
           background: '#fff',
           transform: 'translateZ(0)',
           backfaceVisibility: 'hidden',
           WebkitFontSmoothing: 'antialiased',
+          textTransform: 'uppercase',
         }}
         value={satir.urunKod}
         onChange={(e) => {
-          onGuncelle('urunKod', e.target.value);
+          // Ürün kodu daima büyük harf — Türkçe locale ile (i→İ, ı→I)
+          const upper = e.target.value.toLocaleUpperCase('tr-TR');
+          onGuncelle('urunKod', upper);
           setShowSuggestions(true);
           setHighlightIdx(0);
         }}

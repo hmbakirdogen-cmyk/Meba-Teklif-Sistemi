@@ -812,11 +812,8 @@ export const SETTINGS_LABEL_STYLE: CSSProperties = {
   justifyContent: 'center',
   gap: '1.5px',
   width: '100%',
-  // Tek satır: en uzun etiketler (örn. "Ödeme Vadesi / Payment Terms",
-  // "Döviz Kuru / Exchange Rate") font küçültmesiyle tek satıra sığar.
   flexWrap: 'nowrap',
   marginBottom: '3px',
-  overflow: 'hidden',
 };
 
 export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
@@ -846,9 +843,7 @@ export const SETTINGS_EN_LABEL_STYLE: CSSProperties = {
   letterSpacing: '0.01em',
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
-  flexShrink: 1,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  flexShrink: 0,
   minWidth: 0,
 };
 
@@ -858,8 +853,6 @@ export const SETTINGS_VALUE_STYLE: CSSProperties = {
   color: HEADER_SURFACE.text,
   lineHeight: 1.3,
   whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
 };
 
 export const TABLE_TITLE_STYLE: CSSProperties = {
@@ -886,7 +879,7 @@ export const TABLE_STYLE: CSSProperties = {
 };
 
 /** Bağımsız satırlar arasındaki dikey boşluk (px). Set grubu içinde uygulanmaz. */
-export const OFFER_TABLE_ROW_GAP_PX = 2;
+export const OFFER_TABLE_ROW_GAP_PX = 3;
 
 export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSProperties {
   return {
@@ -933,8 +926,8 @@ export const NOTES_BOX_STYLE: CSSProperties = {
 };
 
 export const SIGNATURE_SECTION_STYLE: CSSProperties = {
-  marginTop: '6px',
-  padding: '4px 0 8px',
+  marginTop: '18px',
+  padding: '18px 0 22px',
   ...noBreak,
 };
 
