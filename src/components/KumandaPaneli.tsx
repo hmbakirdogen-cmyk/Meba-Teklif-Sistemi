@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Tooltip } from 'antd';
+import { MessageOutlined } from '@ant-design/icons';
 import {
   PremiumEditIcon,
   PremiumImageIcon,
@@ -52,6 +53,8 @@ interface KumandaPaneliProps {
   /** Serbest çizim modu aktif mi */
   serberstCizimAktif: boolean;
   onSerberstCizimToggle: () => void;
+  /** Geri bildirim drawer'ını aç (TeklifEditor parent'ı yönetir) */
+  onGeriBildirimAc?: () => void;
 }
 
 export default function KumandaPaneli({
@@ -64,6 +67,7 @@ export default function KumandaPaneli({
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
   serberstCizimAktif, onSerberstCizimToggle,
+  onGeriBildirimAc,
 }: KumandaPaneliProps) {
   const { aktifKullanici } = useKullanici();
   const isYonetici = isYoneticiRol(aktifKullanici?.rol);
@@ -1219,7 +1223,7 @@ export default function KumandaPaneli({
 
         <section className="panel-section">
           <Tooltip
-            title={serberstCizimAktif ? 'Çizimi Kilitle (çizim kalır)' : 'Serbest Çizim — düzenle/sil için aç'}
+            title={readOnly ? 'Düzenleme modunda kullanılabilir' : (serberstCizimAktif ? 'Çizimi Kilitle (çizim kalır)' : 'Serbest Çizim — düzenle/sil için aç')}
             placement="left"
             mouseEnterDelay={1}
             color={TOOLTIP_COLOR}
@@ -1228,15 +1232,42 @@ export default function KumandaPaneli({
             <button
               type="button"
               className={`image-add button-draw ${serberstCizimAktif ? 'is-active' : ''}`}
-              onClick={onSerberstCizimToggle}
+              onClick={() => { if (!readOnly) onSerberstCizimToggle(); }}
               aria-label={serberstCizimAktif ? 'Çizimi Kilitle' : 'Serbest Çizim'}
               aria-pressed={serberstCizimAktif}
+              style={{
+                opacity: readOnly ? 0.3 : undefined,
+                cursor: readOnly ? 'not-allowed' : undefined,
+                pointerEvents: readOnly ? 'none' as const : undefined,
+              }}
             >
               <span className="button-sweep" aria-hidden="true" />
               <DrawIcon />
             </button>
           </Tooltip>
         </section>
+
+        {onGeriBildirimAc && (
+          <section className="panel-section">
+            <Tooltip
+              title="Geri Bildirim Gönder"
+              placement="left"
+              mouseEnterDelay={1}
+              color={TOOLTIP_COLOR}
+              styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
+            >
+              <button
+                type="button"
+                className="image-add"
+                onClick={onGeriBildirimAc}
+                aria-label="Geri Bildirim"
+              >
+                <span className="button-sweep" aria-hidden="true" />
+                <MessageOutlined style={{ fontSize: 16 }} />
+              </button>
+            </Tooltip>
+          </section>
+        )}
 
         <section className="panel-section">
           <SecLabel text="Satır Ayarları" />

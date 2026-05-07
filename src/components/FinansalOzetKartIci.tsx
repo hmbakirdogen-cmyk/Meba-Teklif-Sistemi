@@ -208,13 +208,13 @@ export function FinansalOzetKartIci({
         onChange={e => setDraft(e.target.value.replace(/[^\d.,]/g, ''))}
         onBlur={() => {
           const v = parseFloat(draft.replace(',', '.'));
-          if (!isNaN(v) && v > 0 && v <= 100) onCommit(Math.round(v * 100) / 100);
+          if (!isNaN(v) && v >= 0 && v <= 100) onCommit(Math.round(v * 100) / 100);
           setEditing(false);
         }}
         onKeyDown={e => {
           if (e.key === 'Enter') {
             const v = parseFloat(draft.replace(',', '.'));
-            if (!isNaN(v) && v > 0 && v <= 100) onCommit(Math.round(v * 100) / 100);
+            if (!isNaN(v) && v >= 0 && v <= 100) onCommit(Math.round(v * 100) / 100);
           }
           if (e.key === 'Enter' || e.key === 'Escape') setEditing(false);
         }}

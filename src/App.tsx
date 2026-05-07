@@ -76,19 +76,18 @@ function SoftwareSignature() {
         letterSpacing: 0.32,
         fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
         fontWeight: 600,
-        color: '#1E3A5F',
-        opacity: 0.95,
+        color: 'var(--text-secondary)',
+        opacity: 0.8,
         pointerEvents: 'none',
         userSelect: 'none',
         whiteSpace: 'nowrap',
-        padding: '4px 10px',
-        borderRadius: 6,
-        background: 'rgba(255, 255, 255, 0.42)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        textShadow:
-          '0 0 2px rgba(255, 255, 255, 0.95), 0 1px 2px rgba(255, 255, 255, 0.75)',
-        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
+        padding: 0,
+        borderRadius: 0,
+        background: 'none',
+        backdropFilter: 'none',
+        WebkitBackdropFilter: 'none',
+        textShadow: 'none',
+        boxShadow: 'none',
       }}
     >
       This software was developed by Mehmet Bakırdöğen

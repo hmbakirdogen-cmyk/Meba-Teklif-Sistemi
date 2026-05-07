@@ -32,6 +32,7 @@ import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
 import KumandaPaneli from '../components/KumandaPaneli';
+import GeriBildirimDrawer from '../components/GeriBildirimDrawer';
 import CariSecimi from '../components/CariSecimi';
 import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
@@ -67,6 +68,8 @@ export default function TeklifEditor() {
 
   // Serbest çizim modu
   const [cizimModu, setCizimModu] = useState(false);
+  // Geri bildirim drawer state — KumandaPaneli'ndeki butondan açılır.
+  const [geriBildirimAcik, setGeriBildirimAcik] = useState(false);
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
   const cizimKalinlik = useRef(3);
@@ -105,6 +108,9 @@ export default function TeklifEditor() {
     setModeKilitli(v);
     if (v) {
       setEditingAlan(null);
+      // Kilit kapatılınca serbest çizim de kilitlenir (çizimler kalır,
+      // sadece düzenleme/silme modu kapanır).
+      setCizimModu(false);
       void persistStatusByMode(true);
     }
   }, [persistStatusByMode, sahipDegil, message]);
@@ -115,6 +121,10 @@ export default function TeklifEditor() {
   const satirlar = state.satirlar;
   const satirEkle = state.satirEkle;
   const muhatapGosterildiRef = useRef(false);
+  // Yeni teklif intro akışı yalnızca BİR KEZ ilk satırı otomatik açar.
+  // Aksi halde editingAlan→null her olduğunda effect yeniden tetiklenir ve
+  // kullanıcı boş alana tıkladığında popup en son hücrede tekrar açılır.
+  const ilkSatirOtomatikAcildiRef = useRef(false);
   useEffect(() => {
     if (yeniTeklif && cari && satirlar.length === 0) {
       satirEkle();
@@ -131,13 +141,16 @@ export default function TeklifEditor() {
       satirlar.length === 1 &&
       editingAlan === null &&
       cari &&
-      !muhatapGosterildiRef.current
+      !muhatapGosterildiRef.current &&
+      !ilkSatirOtomatikAcildiRef.current
     ) {
+      ilkSatirOtomatikAcildiRef.current = true;
       setEditingAlan(`satir-${satirlar[0].id}`);
     }
     // Muhatap paneli kapatılınca (editingAlan null'a döndü) satıra geç
     if (muhatapGosterildiRef.current && editingAlan === null && satirlar.length >= 1) {
       muhatapGosterildiRef.current = false;
+      ilkSatirOtomatikAcildiRef.current = true;
       setEditingAlan(`satir-${satirlar[0].id}`);
     }
   }, [yeniTeklif, satirlar, cari, editingAlan]);
@@ -667,6 +680,7 @@ export default function TeklifEditor() {
               onCariDegistir={state.setCari}
               onCariEPostaDegistir={state.setCariEPosta}
               onCariTelefonDegistir={state.setCariTelefon}
+              onCariSehirDegistir={state.setCariSehir}
               contactName={state.contactName}
               contactTitle={state.contactTitle}
               onContactNameDegistir={state.setContactName}
@@ -771,8 +785,14 @@ export default function TeklifEditor() {
           onVisibilityDegistir={state.setVisibility}
           serberstCizimAktif={cizimModu}
           onSerberstCizimToggle={() => setCizimModu((v) => !v)}
+          onGeriBildirimAc={() => setGeriBildirimAcik(true)}
         />
       )}
+      <GeriBildirimDrawer
+        open={geriBildirimAcik}
+        onClose={() => setGeriBildirimAcik(false)}
+        initialSayfa="TeklifEditor"
+      />
     </div>
   );
 }

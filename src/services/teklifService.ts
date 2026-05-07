@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import type { Teklif } from '../types';
 import type { KullaniciRol } from '../types/kullanici';
 import { dataStore } from './dataStore';
+import { hesaplamaMotoru } from './hesaplamaMotoru';
 import { isYonetici } from '../utils/yetkiUtils';
 
 /** Defansif client-side visibility filter. Backend zaten filtreliyor olsa da
@@ -25,11 +26,22 @@ function normalizeEskiKayit(t: Teklif): Teklif {
     ...t,
     odemeVadesi: t.odemeVadesi ?? '45 Gün',
     satirBazliParaBirimi: t.satirBazliParaBirimi ?? false,
-    satirlar: (t.satirlar ?? []).map((satir) => ({
-      ...satir,
-      indirimOrani: satir.indirimOrani ?? 0,
-      paraBirimi: satir.paraBirimi ?? satirPb,
-    })),
+    // satirToplami'ni load sırasında her zaman recompute et — formül evrildiğinde
+    // veya yeni satırda 0 başlatıldığında stale değer kalmasın. Set alt kalemi
+    // birimFiyat=0 olduğu için hesap zaten 0 döner.
+    satirlar: (t.satirlar ?? []).map((satir) => {
+      const normalized = {
+        ...satir,
+        indirimOrani: satir.indirimOrani ?? 0,
+        paraBirimi: satir.paraBirimi ?? satirPb,
+      };
+      return {
+        ...normalized,
+        satirToplami: normalized.setAltKalem
+          ? 0
+          : hesaplamaMotoru.satirToplamHesapla(normalized),
+      };
+    }),
   };
 }
 

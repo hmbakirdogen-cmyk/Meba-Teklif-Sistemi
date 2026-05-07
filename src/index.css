@@ -1167,6 +1167,35 @@ button.app-btn:active,
   }
 }
 
+/* ── Modal — full dark mode (content/header/title/body/footer/mask) ─────────── */
+[data-theme="dark"] .ant-modal .ant-modal-content {
+  background: #1c2132 !important;
+  border: 1px solid #242d42 !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65) !important;
+}
+[data-theme="dark"] .ant-modal .ant-modal-header {
+  background: #1c2132 !important;
+  border-bottom: 1px solid #242d42 !important;
+}
+[data-theme="dark"] .ant-modal .ant-modal-title {
+  color: #dde4f0 !important;
+}
+[data-theme="dark"] .ant-modal .ant-modal-body {
+  color: #c8d4e8 !important;
+}
+[data-theme="dark"] .ant-modal .ant-modal-footer {
+  border-top: 1px solid #242d42 !important;
+}
+[data-theme="dark"] .ant-modal-confirm .ant-modal-confirm-title {
+  color: #dde4f0 !important;
+}
+[data-theme="dark"] .ant-modal-confirm .ant-modal-confirm-content {
+  color: #8899b5 !important;
+}
+[data-theme="dark"] .ant-modal-mask {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
 /* ── Modal close button ─────────────────────────────────────────────────────── */
 [data-theme="dark"] .ant-modal .ant-modal-close {
   color: #7a8da6 !important;
@@ -1224,4 +1253,139 @@ button.app-btn:active,
     opacity: 1;
     box-shadow: 0 0 10px rgba(255, 152, 0, 0.8);
   }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GLOBAL UI TUTARLILIK — A4 editör hover/aktif tasarımının diğer tablolara
+   ve liste'lere uygulaması. .urun-tablo özel kapsül tasarımı korunsun diye
+   :not(.urun-tablo) ile filtreleniyor; A4 belge tablosu (offer-table) zaten
+   .belge-inline scope'unda kendi kurallarını kullanıyor — etkilenmiyor.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* 1) Tablo satır hover — sol kenarda ince mavi şerit + minik tint */
+.ant-table-wrapper:not(.urun-tablo) .ant-table-tbody > tr.ant-table-row:hover > td {
+  box-shadow: inset 2.5px 0 0 rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.02) !important;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+/* 2) Aktif/seçili satır — sol kenarda kalın parlak mavi şerit + lavanta bg */
+.ant-table-wrapper:not(.urun-tablo) .ant-table-tbody > tr.ant-table-row-selected > td,
+.ant-table-wrapper:not(.urun-tablo) .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.6) !important;
+  background: rgba(237, 242, 251, 0.35) !important;
+}
+
+/* 3) Tıklanabilir tablo satırlarında cursor pointer */
+.ant-table-wrapper:not(.urun-tablo) .ant-table-tbody > tr.ant-table-row {
+  cursor: pointer;
+}
+
+/* 4) Select / AutoComplete dropdown'da kısaltma yok — uzun metinler wrap olsun */
+.ant-select-dropdown .ant-select-item-option-content {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+/* 5) Hoverable kart cursor — Antd .ant-card-hoverable zaten cursor:pointer
+      veriyor; ek olarak custom .clickable-card için. */
+.ant-card.clickable-card {
+  cursor: pointer;
+}
+
+/* ─── UrunKod suggestion paneli — light + dark ─────────────────────────────── */
+.urun-suggest-panel {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+  color: #2C2C2E;
+}
+.urun-suggest-item-active {
+  background: rgba(237, 242, 251, 0.92);
+}
+.urun-suggest-item-aciklama { color: #4A4A4E; }
+.urun-suggest-divider { border-bottom: 1px solid rgba(0,0,0,0.08); }
+
+[data-theme="dark"] .urun-suggest-panel {
+  background: #1c2132 !important;
+  border: 1px solid #2a3650 !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.6) !important;
+  color: #c8d4e8;
+}
+[data-theme="dark"] .urun-suggest-panel .urun-suggest-item:hover,
+[data-theme="dark"] .urun-suggest-panel .urun-suggest-item-active {
+  background: #1e2c42 !important;
+}
+[data-theme="dark"] .urun-suggest-panel .urun-suggest-item-aciklama {
+  color: #8899b5;
+}
+[data-theme="dark"] .urun-suggest-panel .urun-suggest-divider {
+  border-bottom: 1px solid #242d42;
+}
+
+/* ─── SatirAksiyon panel (sil/iskonto portal) — light + dark ───────────────── */
+.satir-aksiyon-panel {
+  background: rgba(250,250,248,0.96);
+  border: 0.75px solid #EDEBE8;
+  box-shadow: 0 4px 12px rgba(26,43,66,0.16), 0 0 0 1px rgba(26,43,66,0.05);
+}
+[data-theme="dark"] .satir-aksiyon-panel {
+  background: rgba(28,33,50,0.96) !important;
+  border: 0.75px solid #2a3650 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+
+/* ─── Genel popup renk uyumu ──────────────────────────────────────────────── */
+[data-theme="dark"] .ant-select-dropdown {
+  background: #1c2132 !important;
+}
+
+/* Antd Notification dark mode */
+[data-theme="dark"] .ant-notification .ant-notification-notice {
+  background: #1c2132 !important;
+  border: 1px solid #242d42 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55) !important;
+}
+[data-theme="dark"] .ant-notification .ant-notification-notice-message {
+  color: #dde4f0 !important;
+}
+[data-theme="dark"] .ant-notification .ant-notification-notice-description {
+  color: #8899b5 !important;
+}
+[data-theme="dark"] .ant-notification .ant-notification-notice-close {
+  color: #6b80a0 !important;
+}
+
+/* Geri Bildirim — admin cevabı kartı (yeşil tint, light + dark) */
+.gb-cevap-card {
+  background: rgba(52, 211, 153, 0.08);
+  border-left: 3px solid #34d399;
+  color: #14532d;
+}
+[data-theme="dark"] .gb-cevap-card {
+  background: rgba(52, 211, 153, 0.10) !important;
+  border-left: 3px solid #34d399;
+  color: #d1fae5 !important;
+}
+
+/* Floating Geri Bildirim butonu — hover scale + shadow boost */
+.geri-bildirim-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 10px 24px rgba(15, 31, 69, 0.40) !important;
+}
+
+/* Confirm modal icon renkleri dark modda canlı kalsın */
+[data-theme="dark"] .ant-modal-confirm-warning .anticon,
+[data-theme="dark"] .ant-modal-confirm-confirm .anticon {
+  color: #fbbf24 !important;
+}
+[data-theme="dark"] .ant-modal-confirm-error .anticon {
+  color: #f87171 !important;
+}
+[data-theme="dark"] .ant-modal-confirm-info .anticon {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] .ant-modal-confirm-success .anticon {
+  color: #34d399 !important;
 }

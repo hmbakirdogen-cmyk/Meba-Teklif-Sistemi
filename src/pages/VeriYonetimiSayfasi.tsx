@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import {
   App, Card, Upload, Button, Table, Alert, Typography, Input,
@@ -402,6 +402,16 @@ export default function VeriYonetimiSayfasi() {
   const [urunler, setUrunler] = useState<Urun[]>(() => urunService.tumUrunleriGetir());
   const [setler, setSetler] = useState<UrunSeti[]>(() => urunSetService.tumSetleriGetir());
 
+  // Tablo görünümleri için alfabetik sıralı türev — tr-locale aware.
+  const carilerSirali = useMemo(
+    () => [...cariler].sort((a, b) => (a.firmaAdi || '').localeCompare(b.firmaAdi || '', 'tr')),
+    [cariler],
+  );
+  const urunlerSirali = useMemo(
+    () => [...urunler].sort((a, b) => (a.urunKod || '').localeCompare(b.urunKod || '', 'tr')),
+    [urunler],
+  );
+
   function cariListesiYenile() { setCariler(cariService.tumCarileriGetir()); }
   function urunListesiYenile() { setUrunler(urunService.tumUrunleriGetir()); }
   function setListesiYenile() { setSetler(urunSetService.tumSetleriGetir()); }
@@ -624,7 +634,7 @@ export default function VeriYonetimiSayfasi() {
       )}
 
       <Table
-        dataSource={cariler}
+        dataSource={carilerSirali}
         columns={cariKolonlar}
         rowKey="id"
         size="small"
@@ -701,7 +711,7 @@ export default function VeriYonetimiSayfasi() {
       )}
 
       <Table
-        dataSource={urunler}
+        dataSource={urunlerSirali}
         columns={urunKolonlar}
         rowKey="id"
         size="small"

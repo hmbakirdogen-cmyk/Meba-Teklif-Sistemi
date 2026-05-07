@@ -87,6 +87,7 @@ interface BelgeActions {
   setCari: (cari: Cari) => void;
   setCariEPosta: (email: string) => void;
   setCariTelefon: (telefon: string) => void;
+  setCariSehir: (sehir: string) => void;
   setContactName: (name: string) => void;
   setContactTitle: (title: 'BEY' | 'HANIM') => void;
   setGecerlilikSuresi: (sure: string) => void;
@@ -216,8 +217,8 @@ export function useBelgeState(
 
   // Hesaplanan değerler
   const hesaplanan = useMemo(() => {
-    return hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani);
-  }, [satirlar, kdvOrani, iskontoOrani]);
+    return hesaplamaMotoru.genelToplamHesapla(satirlar, kdvOrani, iskontoOrani, paraBirimi);
+  }, [satirlar, kdvOrani, iskontoOrani, paraBirimi]);
 
   // ── Actions ──
 
@@ -252,6 +253,16 @@ export function useBelgeState(
     cariService.cariKaydet(yeniCari);
   }, [cari]);
 
+  const setCariSehir = useCallback((sehir: string) => {
+    if (!cari) return;
+    const yeniCari: Cari = {
+      ...cari,
+      sehir,
+    };
+    setCariState(yeniCari);
+    cariService.cariKaydet(yeniCari);
+  }, [cari]);
+
   const setContactName = useCallback((name: string) => {
     setContactNameState(name);
     if (cari) cariService.cariMuhatapGuncelle(cari.id, name.trim(), contactTitle);
@@ -272,7 +283,7 @@ export function useBelgeState(
     if (teklifNoDurumu !== 'hazir' || teklifNo === 'ERR') return;
 
     const normalizedCari = cariEpostaVarsayilanla(cari);
-    const toplamlar = hesaplamaMotoru.genelToplamHesapla(nextSatirlar, kdvOrani, iskontoOrani);
+    const toplamlar = hesaplamaMotoru.genelToplamHesapla(nextSatirlar, kdvOrani, iskontoOrani, paraBirimi);
     teklifService.teklifKaydet({
       id: teklifId,
       teklifNo,
@@ -658,6 +669,7 @@ export function useBelgeState(
     setCari,
     setCariEPosta,
     setCariTelefon,
+    setCariSehir,
     setContactName,
     setContactTitle,
     setGecerlilikSuresi,

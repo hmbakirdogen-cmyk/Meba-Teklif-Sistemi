@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown } from 'antd';
+import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import ProfilFotoModal from './components/ProfilFotoModal';
+import GeriBildirimButonu from './components/GeriBildirimButonu';
+import GeriBildirimDrawer from './components/GeriBildirimDrawer';
+import { isSuperAdmin } from './utils/yetkiUtils';
+import { useEffect } from 'react';
+import { api } from './services/apiClient';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
@@ -46,6 +52,27 @@ export default function AppLayout() {
   const isMobile   = useIsMobile(768);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profilFotoModalOpen, setProfilFotoModalOpen] = useState(false);
+  const [adminGbDrawerAcik, setAdminGbDrawerAcik] = useState(false);
+  const [okunmamisGb, setOkunmamisGb] = useState(0);
+  const adminMi = isSuperAdmin(aktifKullanici?.rol);
+
+  // Süper admin için okunmamış geri bildirim sayısı — periyodik refresh.
+  useEffect(() => {
+    if (!adminMi) return;
+    let aktif = true;
+    const yukle = async () => {
+      try {
+        const liste = await api.geriBildirimler.list();
+        if (!aktif) return;
+        setOkunmamisGb(liste.filter((g) => !g.okundu).length);
+      } catch {
+        /* sessiz */
+      }
+    };
+    void yukle();
+    const id = window.setInterval(yukle, 30000);
+    return () => { aktif = false; window.clearInterval(id); };
+  }, [adminMi, adminGbDrawerAcik]);
 
   const seciliMenu =
     location.pathname.startsWith('/analiz') ? 'analiz'
@@ -320,6 +347,21 @@ export default function AppLayout() {
           />
         </Tooltip>
 
+        {/* Süper admin: okunmamış geri bildirim çanı */}
+        {adminMi && !isMobile && (
+          <Tooltip title="Geri Bildirimler" placement="bottom">
+            <Badge count={okunmamisGb} size="small" offset={[-2, 4]}>
+              <Button
+                type="text"
+                aria-label="Geri Bildirimler"
+                onClick={() => setAdminGbDrawerAcik(true)}
+                icon={<BellOutlined style={{ fontSize: 18, color: '#ffffff' }} />}
+                style={{ background: 'transparent', border: 'none' }}
+              />
+            </Badge>
+          </Tooltip>
+        )}
+
         {/* ── USER AREA ── */}
         {aktifKullanici && !isMobile && (
           <div
@@ -570,6 +612,19 @@ export default function AppLayout() {
         open={profilFotoModalOpen}
         onClose={() => setProfilFotoModalOpen(false)}
       />
+
+      {/* Geri Bildirim floating buton — TeklifEditor sayfasında gizli
+          (KumandaPaneli içinde ayrı buton var) */}
+      {!location.pathname.startsWith('/teklif/') && <GeriBildirimButonu />}
+
+      {/* Süper admin yönetim drawer'ı — header'daki çan ikonu açar */}
+      {adminMi && (
+        <GeriBildirimDrawer
+          open={adminGbDrawerAcik}
+          onClose={() => setAdminGbDrawerAcik(false)}
+          initialSayfa="(yönetim)"
+        />
+      )}
     </Layout>
   );
 }

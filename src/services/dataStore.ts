@@ -126,11 +126,43 @@ export async function initDataStore(
     cariler:   data.cariler,
     urunler:   data.urunler,
     urunSetleri: data.urunSetleri ?? [],
-    referans:  data.referans,
+    referans:  normalizeReferans(data.referans),
     sayac:     data.sayac ?? { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 },
   };
   // Init başarılı → online state set
   syncEngine.setOnlineState(true);
+}
+
+// Server'dan gelen referans yapısı tutarsız olabilir (eski flat / yeni per-firma /
+// migration ortası). Client her zaman flat {markalar, birimler, teslimSecenekleri}
+// bekliyor — eksik veya yanlış şekildeyse boş listelerle defansif normalize et.
+function normalizeReferans(raw: unknown): Referans {
+  const empty: Referans = { markalar: [], birimler: [], teslimSecenekleri: [] };
+  if (!raw || typeof raw !== 'object') return empty;
+  const r = raw as Record<string, unknown>;
+  // Flat yapı (markalar dizisi varsa) → direkt kullan
+  if (Array.isArray(r.markalar) || Array.isArray(r.birimler) || Array.isArray(r.teslimSecenekleri)) {
+    return {
+      markalar:          Array.isArray(r.markalar)          ? r.markalar          as string[] : [],
+      birimler:          Array.isArray(r.birimler)          ? r.birimler          as string[] : [],
+      teslimSecenekleri: Array.isArray(r.teslimSecenekleri) ? r.teslimSecenekleri as string[] : [],
+    };
+  }
+  // Per-firma map (eski server yeni db.json'la karşılaştığında) — herhangi bir
+  // dolu firma referansını seç (sonra server restart edilince doğru firma gelecek).
+  for (const v of Object.values(r)) {
+    if (v && typeof v === 'object') {
+      const inner = v as Record<string, unknown>;
+      if (Array.isArray(inner.markalar) || Array.isArray(inner.birimler) || Array.isArray(inner.teslimSecenekleri)) {
+        return {
+          markalar:          Array.isArray(inner.markalar)          ? inner.markalar          as string[] : [],
+          birimler:          Array.isArray(inner.birimler)          ? inner.birimler          as string[] : [],
+          teslimSecenekleri: Array.isArray(inner.teslimSecenekleri) ? inner.teslimSecenekleri as string[] : [],
+        };
+      }
+    }
+  }
+  return empty;
 }
 
 // ── Network error handler — fire-and-forget yazımlar için ────────────────────

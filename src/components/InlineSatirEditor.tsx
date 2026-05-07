@@ -18,6 +18,7 @@ import {
   InlineTableSelectField,
 } from './InlineTableFields';
 import { UNIT_OPTIONS, ROW_SHELL, ROW_TEXT } from './InlineTableRowShared';
+import { parseLocaleNumber } from '../utils/formatters';
 import { DOCUMENT_COLORS } from '../templates/teklifDocumentShared';
 import type { SatirCellField } from './inlineSatirEditorShared';
 
@@ -70,26 +71,40 @@ export function SatirCellEditor({
 function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   const markalar = useMemo(() => referansVeriService.markalar.tumunuGetir(), []);
   return (
-    <InlineTableSelectField
-      autoFocus={autoFocus}
-      defaultOpen={autoFocus}
-      style={ROW_TEXT.brand}
-      value={satir.marka || undefined}
-      onChange={(value) => {
-        onGuncelle('marka', value);
-        onEnterNext?.();
-      }}
-      options={markalar.map((m) => ({ value: m, label: m }))}
-      placeholder="—"
-      popupMatchSelectWidth={false}
-      dropdownStyle={{ minWidth: 130 }}
-    />
+    <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
+      <InlineTableSelectField
+        autoFocus={autoFocus}
+        defaultOpen={autoFocus}
+        style={ROW_TEXT.brand}
+        value={satir.marka || undefined}
+        onChange={(value) => {
+          onGuncelle('marka', value);
+          onEnterNext?.();
+        }}
+        options={markalar.map((m) => ({ value: m, label: m }))}
+        placeholder="—"
+        popupMatchSelectWidth={false}
+        dropdownStyle={{ minWidth: 180 }}
+      />
+    </div>
   );
 }
 
+// Modül-seviyesinde son kullanılan ürün id listesi — component remount'larından
+// bağımsız, max 8 entry. Yeni seçim başa eklenir, varsa öne taşınır.
+const sonKullanilanlar: string[] = [];
+
+function pushSonKullanilan(id: string) {
+  const idx = sonKullanilanlar.indexOf(id);
+  if (idx !== -1) sonKullanilanlar.splice(idx, 1);
+  sonKullanilanlar.unshift(id);
+  if (sonKullanilanlar.length > 8) sonKullanilanlar.length = 8;
+}
+
 function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext }: CellEditorProps) {
-  const { modal } = App.useApp();
-  const urunler = useMemo(() => urunService.tumUrunleriGetir(), []);
+  const { modal, message } = App.useApp();
+  // urunler state — yeni ürün eklendiğinde suggestion panelinde hemen gözüksün.
+  const [urunler, setUrunler] = useState(() => urunService.tumUrunleriGetir());
   const setler = useMemo(() => urunSetService.tumSetleriGetir(), []);
   const inputRef = useRef<InputRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -123,7 +138,9 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
         kod: u.urunKod,
         aciklama: u.aciklama,
         payload: u,
-      }));
+        recent: false,
+      }))
+      .sort((a, b) => a.kod.localeCompare(b.kod, 'tr'));
 
     const setOnerileri = (q
       ? setler.filter((s) =>
@@ -138,7 +155,25 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
         kod: s.setKod,
         aciklama: s.aciklama,
         payload: s,
-      }));
+        recent: false,
+      }))
+      .sort((a, b) => a.kod.localeCompare(b.kod, 'tr'));
+
+    // Arama boşsa: son kullanılanları başa al, ardından geri kalan ürünler
+    // (alfabetik). Set'ler ürünlerin altında kalır (mevcut sıralama korunur).
+    if (!q && sonKullanilanlar.length > 0) {
+      const recentItems: typeof urunOnerileri = [];
+      const recentIds = new Set<string>();
+      for (const id of sonKullanilanlar) {
+        const item = urunOnerileri.find((u) => u.id === id);
+        if (item) {
+          recentItems.push({ ...item, recent: true });
+          recentIds.add(id);
+        }
+      }
+      const restUrun = urunOnerileri.filter((u) => !recentIds.has(u.id));
+      return [...recentItems, ...restUrun, ...setOnerileri].slice(0, 50);
+    }
 
     return [...setOnerileri, ...urunOnerileri].slice(0, 50);
   }, [setler, urunler, satir.urunKod]);
@@ -221,14 +256,21 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
 
     onGuncelle('setId', undefined);
     const urun = item.payload as Urun;
+    if (urun.marka) onGuncelle('marka', urun.marka);
     onGuncelle('aciklama', urun.aciklama ?? '');
     if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
     if (urun.birim) onGuncelle('birim', urun.birim);
+    pushSonKullanilan(urun.id);
     setShowSuggestions(false);
     onEnterNext?.();
   };
 
   const handleBlur = () => {
+    console.log('[UrunKod handleBlur]', {
+      yeniKod: satir.urunKod?.trim(),
+      eskiKod: initialKodRef.current?.trim(),
+      justSelected: justSelectedRef.current,
+    });
     // setTimeout: panel item'a click olabilir; blur once tetiklenirse
     // suggestion seçimi kaybolur. Kucuk bir gecikme ile sectiyse handle.
     setTimeout(() => {
@@ -242,8 +284,8 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
       const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
       if (exists) return;
       modal.confirm({
-        title: 'Yeni Ürün Kaydı',
-        content: `"${yeni}" kodu veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi?`,
+        title: 'Yeni Ürün Olarak Kaydet',
+        content: `"${yeni}" kodlu ürün veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi? Bir dahaki sefer otomatik gelecek.`,
         okText: 'Kaydet',
         cancelText: 'İptal',
         onOk: () => {
@@ -253,11 +295,15 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
             urunAdi: yeni,
             aciklama: satir.aciklama ?? '',
             kategori: '',
+            marka: satir.marka || '',
             birim: satir.birim || 'Adet',
             varsayilanFiyat: satir.birimFiyat || 0,
           };
           urunService.urunKaydet(yeniUrun);
+          // Suggestion paneli güncel listesini hemen göstersin.
+          setUrunler(urunService.tumUrunleriGetir());
           initialKodRef.current = yeni;
+          message.success(`"${yeni}" yeni ürün olarak kaydedildi. Bundan sonra otomatik öneri olarak çıkacak.`);
         },
       });
     }, 150);
@@ -274,7 +320,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
         autoCapitalize="characters"
         style={{
           ...ROW_TEXT.code,
-          background: '#fff',
+          background: 'transparent',
           transform: 'translateZ(0)',
           backfaceVisibility: 'hidden',
           WebkitFontSmoothing: 'antialiased',
@@ -297,11 +343,17 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
         onBlur={handleBlur}
         placeholder="Ürün kodu"
         onKeyDown={(e) => {
-          if (!showSuggestions || filtered.length === 0) {
-            if (e.key === 'Enter') {
-              e.preventDefault();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (showSuggestions && filtered.length > 0 && filtered[highlightIdx]) {
+              handleSelect(filtered[highlightIdx]);
+            } else {
+              setShowSuggestions(false);
               onEnterNext?.();
             }
+            return;
+          }
+          if (!showSuggestions || filtered.length === 0) {
             return;
           }
           if (e.key === 'ArrowDown') {
@@ -310,11 +362,6 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
           } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setHighlightIdx((i) => Math.max(i - 1, 0));
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            const sel = filtered[highlightIdx];
-            if (sel) handleSelect(sel);
-            else onEnterNext?.();
           } else if (e.key === 'Escape') {
             setShowSuggestions(false);
           }
@@ -322,51 +369,81 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
       />
       {showSuggestions && filtered.length > 0 && anchorRect &&
         createPortal(
+          (() => {
+            // Viewport-aware konum: alt boşluk yetersizse panel input'un üstüne açılır
+            const panelMaxH = 320;
+            const spaceBelow = window.innerHeight - anchorRect.bottom;
+            const spaceAbove = anchorRect.top;
+            const openAbove = spaceBelow < panelMaxH && spaceAbove > spaceBelow;
+            const top = openAbove
+              ? anchorRect.top - Math.min(panelMaxH, spaceAbove)
+              : anchorRect.bottom + 2;
+            // Son-kullanılan ile geri kalan arasındaki ayraç indeksi (recent biter biter)
+            const lastRecentIdx = (() => {
+              let idx = -1;
+              for (let i = 0; i < filtered.length; i++) {
+                if (filtered[i].recent) idx = i;
+                else break;
+              }
+              return idx;
+            })();
+            return (
           <div
             id="urunkod-suggest-panel"
+            className="urun-suggest-panel"
             style={{
               position: 'fixed',
               left: anchorRect.left,
-              top: anchorRect.bottom + 2,
-              minWidth: Math.max(anchorRect.width, 300),
-              maxHeight: 280,
+              top,
+              minWidth: Math.max(anchorRect.width, 360),
+              maxWidth: 500,
+              maxHeight: panelMaxH,
               overflowY: 'auto',
-              background: '#fff',
-              border: '1px solid rgba(0,0,0,0.10)',
               borderRadius: 6,
-              boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
-              zIndex: 1500,
-              fontSize: 11,
+              zIndex: 1050,
+              fontSize: 12,
             }}
           >
             {filtered.map((u, i) => (
-              <div
-                key={`${u.type}-${u.id}`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSelect(u);
-                }}
-                onMouseEnter={() => setHighlightIdx(i)}
-                style={{
-                  padding: '5px 8px',
-                  cursor: 'pointer',
-                  background: i === highlightIdx ? 'rgba(237, 242, 251, 0.92)' : 'transparent',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  color: C.textMid,
-                }}
-              >
-                {u.type === 'set' && (
-                  <span style={{ fontWeight: 700, color: '#7c3aed', marginRight: 6 }}>[SET]</span>
+              <React.Fragment key={`${u.type}-${u.id}`}>
+                <div
+                  className={`urun-suggest-item${i === highlightIdx ? ' urun-suggest-item-active' : ''}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(u);
+                  }}
+                  onMouseEnter={() => setHighlightIdx(i)}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'normal',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div>
+                    {u.type === 'set' && (
+                      <span style={{ fontWeight: 700, color: '#7c3aed', marginRight: 6 }}>[SET]</span>
+                    )}
+                    <span className="urun-suggest-item-kod" style={{ fontWeight: 700, fontSize: 12 }}>{u.kod}</span>
+                  </div>
+                  {u.aciklama && (
+                    <div className="urun-suggest-item-aciklama" style={{ fontWeight: 400, fontSize: 11, marginTop: 2 }}>
+                      {u.aciklama}
+                    </div>
+                  )}
+                </div>
+                {i === lastRecentIdx && (
+                  <div
+                    aria-hidden
+                    className="urun-suggest-divider"
+                    style={{ margin: '4px 0' }}
+                  />
                 )}
-                <span style={{ fontWeight: 600, color: C.accent }}>{u.kod}</span>
-                {u.aciklama && (
-                  <span style={{ color: C.textMid, marginLeft: 6 }}>— {u.aciklama}</span>
-                )}
-              </div>
+              </React.Fragment>
             ))}
-          </div>,
+          </div>
+            );
+          })(),
           document.body,
         )}
     </div>
@@ -374,58 +451,41 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
 }
 
 function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   // Mount anındaki açıklama — değişiklik tespit baseline
   const initialAciklamaRef = useRef(satir.aciklama);
 
   const handleBlur = () => {
+    console.log('[Aciklama handleBlur]', {
+      yeniAciklama: (satir.aciklama ?? '').trim(),
+      eskiAciklama: (initialAciklamaRef.current ?? '').trim(),
+      urunKod: (satir.urunKod ?? '').trim(),
+    });
     const yeniAciklama = (satir.aciklama ?? '').trim();
     const eski = (initialAciklamaRef.current ?? '').trim();
     if (yeniAciklama === eski) return; // değişiklik yok
     const kod = (satir.urunKod ?? '').trim();
-    if (!kod) return; // ürün kodu yoksa veritabanına kaydet anlamı yok
+    if (!kod) return; // ürün kodu yoksa sessizce çık
 
-    const urunler = urunService.tumUrunleriGetir();
-    const mevcut = urunler.find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
-
-    if (mevcut) {
-      // Var olan ürün — açıklamayı güncellemek istiyor mu?
-      if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
-        initialAciklamaRef.current = yeniAciklama;
-        return;
-      }
-      modal.confirm({
-        title: 'Açıklama Güncellensin mi?',
-        content: `"${kod}" ürününün veritabanındaki açıklaması güncellensin mi?`,
-        okText: 'Güncelle',
-        cancelText: 'İptal',
-        onOk: () => {
-          urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
-          initialAciklamaRef.current = yeniAciklama;
-        },
-      });
-    } else {
-      // Bu kodla ürün yok — yeni ürün olarak kaydedilsin mi?
-      modal.confirm({
-        title: 'Yeni Ürün Kaydı',
-        content: `"${kod}" kodu veritabanında yok. Bu açıklamayla yeni ürün olarak kaydedilsin mi?`,
-        okText: 'Kaydet',
-        cancelText: 'İptal',
-        onOk: () => {
-          const yeniUrun: Urun = {
-            id: urunService.urunIdUret(),
-            urunKod: kod,
-            urunAdi: kod,
-            aciklama: yeniAciklama,
-            kategori: '',
-            birim: satir.birim || 'Adet',
-            varsayilanFiyat: satir.birimFiyat || 0,
-          };
-          urunService.urunKaydet(yeniUrun);
-          initialAciklamaRef.current = yeniAciklama;
-        },
-      });
+    const mevcut = urunService.tumUrunleriGetir()
+      .find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+    // Açıklama editörü asla yeni ürün oluşturmaz — kod DB'de yoksa sessizce çık.
+    if (!mevcut) return;
+    if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
+      initialAciklamaRef.current = yeniAciklama;
+      return;
     }
+    modal.confirm({
+      title: 'Açıklama Güncellensin mi?',
+      content: `"${kod}" ürününün açıklaması veritabanında güncellensin mi? Bir dahaki sefer bu ürün seçildiğinde yeni açıklama otomatik gelecek.`,
+      okText: 'Güncelle',
+      cancelText: 'Hayır',
+      onOk: () => {
+        urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+        initialAciklamaRef.current = yeniAciklama;
+        message.success(`"${kod}" ürününün açıklaması güncellendi. Bir dahaki seçildiğinde yeni açıklama otomatik gelecek.`);
+      },
+    });
   };
 
   return (
@@ -453,7 +513,7 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   return (
     <div className="miktar-edit-wrap" style={ROW_SHELL.quantityWrap}>
-      <div className="miktar-edit-value-wrap" style={ROW_SHELL.quantityValueWrap}>
+      <div className="miktar-edit-value-wrap" style={{ ...ROW_SHELL.quantityValueWrap, flex: '0 0 50%' }}>
         <InlineTableNumberField
           autoFocus={autoFocus}
           className="miktar-edit-input"
@@ -470,7 +530,7 @@ function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorP
           }}
         />
       </div>
-      <div className="miktar-edit-unit-wrap" style={ROW_SHELL.quantityUnitWrap}>
+      <div className="miktar-edit-unit-wrap" style={{ ...ROW_SHELL.quantityUnitWrap, minWidth: 48, paddingLeft: 4 }}>
         <InlineTableSelectField
           className="miktar-edit-unit"
           value={satir.birim || 'Adet'}
@@ -478,7 +538,7 @@ function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorP
           options={UNIT_OPTIONS as unknown as { label: string; value: string }[]}
           style={ROW_TEXT.quantityUnit}
           popupMatchSelectWidth={false}
-          dropdownStyle={{ minWidth: 110 }}
+          dropdownStyle={{ minWidth: 140 }}
         />
       </div>
     </div>
@@ -488,23 +548,25 @@ function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorP
 function ParaBirimiEditor({ satir, paraBirimi, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, paraBirimi);
   return (
-    <InlineTableSelectField
-      autoFocus={autoFocus}
-      defaultOpen={autoFocus}
-      style={ROW_TEXT.currency}
-      value={satirPb}
-      onChange={(value) => {
-        onGuncelle('paraBirimi', value);
-        onEnterNext?.();
-      }}
-      options={[
-        { value: 'TRY', label: 'TL' },
-        { value: 'USD', label: 'USD' },
-        { value: 'EUR', label: 'EUR' },
-      ]}
-      popupMatchSelectWidth={false}
-      dropdownStyle={{ minWidth: 90 }}
-    />
+    <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
+      <InlineTableSelectField
+        autoFocus={autoFocus}
+        defaultOpen={autoFocus}
+        style={ROW_TEXT.currency}
+        value={satirPb}
+        onChange={(value) => {
+          onGuncelle('paraBirimi', value);
+          onEnterNext?.();
+        }}
+        options={[
+          { value: 'TRY', label: 'TL' },
+          { value: 'USD', label: 'USD' },
+          { value: 'EUR', label: 'EUR' },
+        ]}
+        popupMatchSelectWidth={false}
+        dropdownStyle={{ minWidth: 120 }}
+      />
+    </div>
   );
 }
 
@@ -518,7 +580,7 @@ function BirimFiyatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdi
       step={0.01}
       onChange={(value) => onGuncelle('birimFiyat', value ?? 0)}
       formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
-      parser={(value) => Number((value ?? '').replace(',', '.'))}
+      parser={(value) => parseLocaleNumber(value ?? '')}
       placeholder="0,00"
       onFocus={(e) => (e.target as HTMLInputElement).select?.()}
       onKeyDown={(e) => {
@@ -537,20 +599,22 @@ function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
     [],
   );
   return (
-    <InlineTableSelectField
-      autoFocus={autoFocus}
-      defaultOpen={autoFocus}
-      style={ROW_TEXT.delivery}
-      value={satir.teslimTarihi || undefined}
-      onChange={(value) => {
-        onGuncelle('teslimTarihi', value);
-        onEnterNext?.();
-      }}
-      options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
-      placeholder="—"
-      popupMatchSelectWidth={false}
-      dropdownStyle={{ minWidth: 150 }}
-    />
+    <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
+      <InlineTableSelectField
+        autoFocus={autoFocus}
+        defaultOpen={autoFocus}
+        style={ROW_TEXT.delivery}
+        value={satir.teslimTarihi || undefined}
+        onChange={(value) => {
+          onGuncelle('teslimTarihi', value);
+          onEnterNext?.();
+        }}
+        options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
+        placeholder="—"
+        popupMatchSelectWidth={false}
+        dropdownStyle={{ minWidth: 200 }}
+      />
+    </div>
   );
 }
 
@@ -559,16 +623,13 @@ function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
 // dikey merkez hizada belirir; sayfa kenarına çıkıp kırpılmaz.
 const portalPanelStyle: React.CSSProperties = {
   position: 'fixed',
-  zIndex: 9999,
+  zIndex: 1060,
   display: 'flex',
   alignItems: 'center',
   gap: '2px',
   padding: '2px 3px',
   height: 22,
-  background: 'rgba(250,250,248,0.96)',
-  border: `0.75px solid ${C.borderSoft}`,
   borderRadius: '5px',
-  boxShadow: '0 4px 12px rgba(26,43,66,0.16), 0 0 0 1px rgba(26,43,66,0.05)',
   whiteSpace: 'nowrap',
   backdropFilter: 'blur(10px)',
 };
@@ -662,7 +723,7 @@ export function SatirAksiyonlariPanel({
       {createPortal(
         <div
           ref={panelRef}
-          className="satir-aksiyonlari"
+          className="satir-aksiyonlari satir-aksiyon-panel"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           style={{
@@ -784,7 +845,7 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
             lineHeight: `${pos.height}px`,
             letterSpacing: '0.02em',
             pointerEvents: 'none',
-            zIndex: 9998,
+            zIndex: 1055,
             whiteSpace: 'nowrap',
             display: 'flex',
             alignItems: 'center',

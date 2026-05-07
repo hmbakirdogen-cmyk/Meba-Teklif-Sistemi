@@ -779,18 +779,109 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     if (!auth.ok) return send(res, auth.status, { error: auth.error });
     if (!canAccessFirma(auth.ctx, firmaId)) return send(res, 403, { error: 'Bu firma sayacina erisiminiz yok.' });
     if (!db.sayaclar || typeof db.sayaclar !== 'object') db.sayaclar = {};
-    if (!db.sayaclar[firmaId]) {
-      db.sayaclar[firmaId] = { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 };
-    }
-    const s = db.sayaclar[firmaId];
     const buYil = new Date().getFullYear();
     const buAy  = new Date().getMonth() + 1;
+    // Eski formatı (flat number, null, vs) defansif olarak objeye normalize et —
+    // primitive üzerinde property set silently fail eder, sayac bozulur.
+    const mevcut = db.sayaclar[firmaId];
+    if (!mevcut || typeof mevcut !== 'object' || typeof mevcut.deger !== 'number') {
+      db.sayaclar[firmaId] = { yil: buYil, ay: buAy, deger: 0 };
+    }
+    const s = db.sayaclar[firmaId];
     if (s.yil !== buYil || s.ay !== buAy) {
       s.yil = buYil; s.ay = buAy; s.deger = 0;
     }
     s.deger += 1;
     writeDB(db);
     return send(res, 200, { firmaId, yil: s.yil, ay: s.ay, deger: s.deger });
+  }
+
+  // ── GERİ BİLDİRİM (kullanıcı→süper admin mesaj kanalı) ────────────────────
+  function ensureGeriBildirimColl(db) {
+    if (!Array.isArray(db.geriBildirimler)) db.geriBildirimler = [];
+    return db.geriBildirimler;
+  }
+
+  // GET /api/geribildirim
+  async function listGeriBildirim(req, res) {
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const liste = ensureGeriBildirimColl(db);
+    const k = auth.ctx.kullanici;
+    if (k.rol === 'super_admin') {
+      return send(res, 200, liste);
+    }
+    return send(res, 200, liste.filter((g) => g.gonderen?.id === k.id));
+  }
+
+  // POST /api/geribildirim
+  async function createGeriBildirim(req, res) {
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const body = await parseBody(req);
+    const mesaj = (body?.mesaj || '').toString().trim();
+    const tur = body?.tur;
+    const sayfa = (body?.sayfa || 'bilinmeyen').toString();
+    if (!mesaj) return send(res, 400, { error: 'Mesaj boş olamaz.' });
+    if (!['hata', 'oneri', 'mesaj'].includes(tur)) {
+      return send(res, 400, { error: 'Geçersiz tür.' });
+    }
+    const k = auth.ctx.kullanici;
+    const yeni = {
+      id: 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      gonderen: { id: k.id, adSoyad: k.adSoyad },
+      tarih: new Date().toISOString(),
+      sayfa,
+      tur,
+      mesaj,
+      okundu: false,
+      cevap: null,
+      cevapTarihi: null,
+    };
+    const liste = ensureGeriBildirimColl(db);
+    liste.unshift(yeni);
+    writeDB(db);
+    return send(res, 200, yeni);
+  }
+
+  // PATCH /api/geribildirim/:id  (sadece super_admin)
+  async function updateGeriBildirim(req, res, url) {
+    const id = url.split('/')[3];
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const su = requireSuperAdmin(auth.ctx);
+    if (!su.ok) return send(res, su.status, { error: su.error });
+    const body = await parseBody(req);
+    const liste = ensureGeriBildirimColl(db);
+    const idx = liste.findIndex((g) => g.id === id);
+    if (idx < 0) return send(res, 404, { error: 'Bildirim bulunamadı.' });
+    const mevcut = liste[idx];
+    if (typeof body.okundu === 'boolean') mevcut.okundu = body.okundu;
+    if (typeof body.cevap === 'string') {
+      mevcut.cevap = body.cevap.trim() || null;
+      mevcut.cevapTarihi = mevcut.cevap ? new Date().toISOString() : null;
+    }
+    writeDB(db);
+    return send(res, 200, mevcut);
+  }
+
+  // DELETE /api/geribildirim/:id  (sadece super_admin)
+  async function deleteGeriBildirim(req, res, url) {
+    const id = url.split('/')[3];
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const su = requireSuperAdmin(auth.ctx);
+    if (!su.ok) return send(res, su.status, { error: su.error });
+    const liste = ensureGeriBildirimColl(db);
+    const idx = liste.findIndex((g) => g.id === id);
+    if (idx < 0) return send(res, 404, { error: 'Bildirim bulunamadı.' });
+    liste.splice(idx, 1);
+    writeDB(db);
+    return send(res, 200, { ok: true });
   }
 
   return {
@@ -811,6 +902,10 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     uploadCariLogo,
     deleteCariLogo,
     incrementSayac,
+    listGeriBildirim,
+    createGeriBildirim,
+    updateGeriBildirim,
+    deleteGeriBildirim,
     // expose helpers for server.cjs to use in middleware
     getAuthContext,
     requireAuth,

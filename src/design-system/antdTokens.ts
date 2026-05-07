@@ -57,6 +57,12 @@ export function getAntdTokens(isDark: boolean): ThemeConfig {
       colorWarning: BRAND.warning,
       colorError:   BRAND.danger,
       colorInfo:    BRAND.info,
+
+      // ── Z-index katmanları ─────────────────────────────────────────────────
+      // Antd default popup base: 1000. Suggestion paneli, satır aksiyon paneli,
+      // iskonto rozeti gibi custom popup'ları Antd Select/Dropdown ile aynı
+      // hizaya getirip, Modal'ı (1100) bunların üstünde tutuyoruz.
+      zIndexPopupBase: 1050,
     },
     components: {
       // ── Button ─────────────────────────────────────────────────────────────
@@ -100,6 +106,9 @@ export function getAntdTokens(isDark: boolean): ThemeConfig {
       Modal: {
         borderRadius:    12,
         colorBgElevated: C.bgSurface,
+        // Modal ve mask diğer tüm popup'ların üstünde görünsün — confirm
+        // diyalogları suggestion paneli/aksiyon paneli arkasında kalmasın.
+        zIndexPopupBase: 1100,
       },
 
       // ── Card ───────────────────────────────────────────────────────────────

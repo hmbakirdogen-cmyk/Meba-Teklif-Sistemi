@@ -5,6 +5,7 @@ export interface Cari {
   yetkiliKisi: string;
   telefon: string;
   ePosta: string;
+  sehir?: string;
   adres: string;
   vergiDairesi: string;
   vergiNo: string;

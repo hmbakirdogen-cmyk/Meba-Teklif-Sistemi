@@ -141,6 +141,12 @@ export default function PersonelSayfasi() {
     return m;
   }, [firmalar]);
 
+  // Personel listesi alfabetik sıralı (tr-locale aware) — tablo görünümü için.
+  const listeSirali = useMemo(
+    () => [...liste].sort((a, b) => (a.adSoyad || '').localeCompare(b.adSoyad || '', 'tr')),
+    [liste],
+  );
+
   const rolEtiket: Record<KullaniciRol, { color: string; label: string }> = {
     super_admin: { color: 'gold',    label: 'Süper Yönetici' },
     firma_admin: { color: 'orange',  label: 'Firma Yöneticisi' },
@@ -254,7 +260,7 @@ export default function PersonelSayfasi() {
         <Table
           rowKey="id"
           loading={yukleniyor}
-          dataSource={liste}
+          dataSource={listeSirali}
           columns={columns}
           pagination={{ pageSize: 20 }}
           size="middle"

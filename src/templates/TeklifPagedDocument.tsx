@@ -239,11 +239,13 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
           <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
           <div style={PARTY_BODY_STYLE}>
             {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
-            {(teklif.cari.telefon || teklif.cari.ePosta) && (
+            {(teklif.cari.telefon || teklif.cari.ePosta || teklif.cari.sehir) && (
               <div>
                 {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
                 {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
+                {(teklif.cari.telefon || teklif.cari.ePosta) && teklif.cari.sehir && <span> &nbsp;|&nbsp; </span>}
+                {teklif.cari.sehir && <span>{teklif.cari.sehir}</span>}
               </div>
             )}
             {teklif.cari.vergiNo && (
@@ -396,11 +398,11 @@ function TableSection({
                 <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
-                    return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
+                    return Math.abs(nihai) >= 0.005 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
                 <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
-                  {satir.setAltKalem ? '' : (satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
+                  {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
                 </td>
                 <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '-')}

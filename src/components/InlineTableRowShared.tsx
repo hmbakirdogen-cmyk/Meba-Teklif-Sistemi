@@ -191,28 +191,49 @@ export function formatBirimLabel(value?: string) {
 }
 
 // ── Birim kısaltma eşleştirmesi ───────────────────────────────────────────────
-// Depolanan tam ad ("Adet", "Metre"...) → kompakt gösterim ("Ad.", "m"...)
+// Depolanan tam ad ("Adet", "Metre"...) → kompakt gösterim ("Ad", "m"...)
+// SI / endüstriyel teklif standardı: noktasız kısaltmalar.
 const BIRIM_ABBREV: Record<string, string> = {
-  'adet':     'Ad.',
-  'takım':    'Tk.',
-  'takim':    'Tk.',
-  'metre':    'Mt.',
-  'cm':       'cm',
-  'mm':       'mm',
-  'kg':       'kg',
-  'kilogram': 'kg',
-  'gram':     'g',
-  'litre':    'L',
-  'paket':    'Pk.',
-  'kutu':     'Kt.',
-  'çift':     'Çft.',
-  'cift':     'Çft.',
-  'set':      'Set',
-  'rulo':     'R.',
+  'adet':       'Ad',
+  'takım':      'Tk',
+  'takim':      'Tk',
+  'metre':      'm',
+  'mt':         'm',
+  'cm':         'cm',
+  'santimetre': 'cm',
+  'mm':         'mm',
+  'milimetre':  'mm',
+  'metrekare':  'm²',
+  'm2':         'm²',
+  'metreküp':   'm³',
+  'm3':         'm³',
+  'kg':         'kg',
+  'kilogram':   'kg',
+  'g':          'g',
+  'gram':       'g',
+  'ton':        't',
+  'litre':      'L',
+  'mililitre':  'ml',
+  'ml':         'ml',
+  'paket':      'Pk',
+  'kutu':       'Kt',
+  'çift':       'Çf',
+  'cift':       'Çf',
+  'set':        'Set',
+  'rulo':       'Rl',
+  'top':        'Top',
+  'çuval':      'Çv',
+  'cuval':      'Çv',
+  'karton':     'Krt',
+  'düzine':     'Dz',
+  'duzine':     'Dz',
+  'saat':       'Sa',
+  'gün':        'Gün',
+  'gun':        'Gün',
 };
 
 export function formatBirimAbbrev(value?: string): string {
-  if (!value) return 'Ad.';
+  if (!value) return 'Ad';
   const key = value.trim().toLowerCase();
   return BIRIM_ABBREV[key] ?? value;
 }
@@ -220,19 +241,29 @@ export function formatBirimAbbrev(value?: string): string {
 // ── Select options (edit mode) ────────────────────────────────────────────────
 // value: depolanan tam ad, label: kompakt gösterim
 export const UNIT_OPTIONS: readonly { label: string; value: string }[] = [
-  { label: 'Ad.',  value: 'Adet'  },
-  { label: 'Tk.',  value: 'Takım' },
-  { label: 'Mt.',  value: 'Metre' },
-  { label: 'cm',   value: 'Cm'    },
-  { label: 'mm',   value: 'Mm'    },
-  { label: 'kg',   value: 'Kg'    },
-  { label: 'g',    value: 'Gram'  },
-  { label: 'L',    value: 'Litre' },
-  { label: 'Pk.',  value: 'Paket' },
-  { label: 'Kt.',  value: 'Kutu'  },
-  { label: 'Çft.', value: 'Çift'  },
-  { label: 'Set',  value: 'Set'   },
-  { label: 'R.',   value: 'Rulo'  },
+  { label: 'Ad',  value: 'Adet'      },
+  { label: 'Tk',  value: 'Takım'     },
+  { label: 'm',   value: 'Metre'     },
+  { label: 'cm',  value: 'Santimetre' },
+  { label: 'mm',  value: 'Milimetre' },
+  { label: 'm²',  value: 'Metrekare' },
+  { label: 'm³',  value: 'Metreküp'  },
+  { label: 'kg',  value: 'Kilogram'  },
+  { label: 'g',   value: 'Gram'      },
+  { label: 't',   value: 'Ton'       },
+  { label: 'L',   value: 'Litre'     },
+  { label: 'ml',  value: 'Mililitre' },
+  { label: 'Pk',  value: 'Paket'     },
+  { label: 'Kt',  value: 'Kutu'      },
+  { label: 'Çf',  value: 'Çift'      },
+  { label: 'Set', value: 'Set'       },
+  { label: 'Rl',  value: 'Rulo'      },
+  { label: 'Top', value: 'Top'       },
+  { label: 'Krt', value: 'Karton'    },
+  { label: 'Çv',  value: 'Çuval'     },
+  { label: 'Dz',  value: 'Düzine'    },
+  { label: 'Sa',  value: 'Saat'      },
+  { label: 'Gün', value: 'Gün'       },
 ] as const;
 
 export function formatParaBirimiLabel(pb: string) {

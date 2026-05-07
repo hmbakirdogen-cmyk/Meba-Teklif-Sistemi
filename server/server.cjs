@@ -970,6 +970,12 @@ const server = http.createServer(async (req, res) => {
     // Per-firma sayac (yeni)
     if (method === 'POST' && /^\/api\/sayac\/[^/]+\/increment$/.test(url))        return await authRoutes.incrementSayac(req, res, url);
 
+    // ── Geri Bildirim ──
+    if (method === 'GET'    && url === '/api/geribildirim')                        return await authRoutes.listGeriBildirim(req, res);
+    if (method === 'POST'   && url === '/api/geribildirim')                        return await authRoutes.createGeriBildirim(req, res);
+    if (method === 'PATCH'  && /^\/api\/geribildirim\/[^/]+$/.test(url))           return await authRoutes.updateGeriBildirim(req, res, url);
+    if (method === 'DELETE' && /^\/api\/geribildirim\/[^/]+$/.test(url))           return await authRoutes.deleteGeriBildirim(req, res, url);
+
     // ── GET /api/init — fetch everything at once (used by frontend on startup) ──
     // Yeni: firmaId scope (header X-Firma-Id veya ?firmaId=) — kullanicinin aktif
     // firmasinin verilerini doner. super_admin firmaId vermezse tum kayitlar doner.
@@ -986,12 +992,28 @@ const server = http.createServer(async (req, res) => {
         return arr.filter((r) => r && r.firmaId === qFirmaId);
       };
       const apply = (arr) => filterByFirma(filterLive(arr));
+      // Referans per-firma → init'te aktif firma'nın referansını gönder.
+      // Eski flat yapı gelirse migrate edip yaz; sonra istenen firma referansını seç.
+      const refs = (() => {
+        const r = db.referans;
+        const isFlat = r && typeof r === 'object' && (Array.isArray(r.markalar) || Array.isArray(r.birimler) || Array.isArray(r.teslimSecenekleri));
+        if (isFlat) {
+          const flat = { markalar: r.markalar || [], birimler: r.birimler || [], teslimSecenekleri: r.teslimSecenekleri || [] };
+          db.referans = { meba: { ...flat }, mesa: { ...flat }, elmos: { ...flat } };
+          writeDB(db);
+        } else if (!r || typeof r !== 'object') {
+          db.referans = { meba: { markalar: [], birimler: [], teslimSecenekleri: [] }, mesa: { markalar: [], birimler: [], teslimSecenekleri: [] }, elmos: { markalar: [], birimler: [], teslimSecenekleri: [] } };
+        }
+        const fid = qFirmaId || 'meba';
+        return db.referans[fid] || { markalar: [], birimler: [], teslimSecenekleri: [] };
+      })();
       const cleanDb = {
         ...db,
         teklifler:   apply(db.teklifler),
         cariler:     apply(db.cariler),
         urunler:     apply(db.urunler),
         urunSetleri: apply(db.urunSetleri),
+        referans:    refs,
         sayac:       (db.sayaclar && qFirmaId && db.sayaclar[qFirmaId]) || db.sayac || null,
       };
       // Hassas verileri (kullanici sifre hash'leri, oturumlar) gonderme
@@ -1057,14 +1079,40 @@ const server = http.createServer(async (req, res) => {
 
     // ── REFERANS ─────────────────────────────────────────────────────────────
 
+    // Referans per-firma yapı: db.referans = { meba:{markalar,...}, mesa:{...}, ... }
+    // X-Firma-Id header'ına göre ilgili firmanın referansı döner. Eski (flat) yapı
+    // gelirse bir kez migrate olur.
+    function ensureReferansPerFirma(db) {
+      const r = db.referans;
+      const isFlat = r && typeof r === 'object' && (Array.isArray(r.markalar) || Array.isArray(r.birimler) || Array.isArray(r.teslimSecenekleri));
+      if (isFlat) {
+        const flat = { markalar: r.markalar || [], birimler: r.birimler || [], teslimSecenekleri: r.teslimSecenekleri || [] };
+        db.referans = { meba: { ...flat }, mesa: { ...flat }, elmos: { ...flat } };
+      } else if (!r || typeof r !== 'object') {
+        db.referans = { meba: { markalar: [], birimler: [], teslimSecenekleri: [] }, mesa: { markalar: [], birimler: [], teslimSecenekleri: [] }, elmos: { markalar: [], birimler: [], teslimSecenekleri: [] } };
+      }
+      return db.referans;
+    }
+    function getReferansForFirma(db, firmaId) {
+      const refs = ensureReferansPerFirma(db);
+      const fid = firmaId || 'meba';
+      if (!refs[fid]) refs[fid] = { markalar: [], birimler: [], teslimSecenekleri: [] };
+      return refs[fid];
+    }
+
     if (url === '/api/referans' && method === 'GET') {
-      return send(res, 200, readDB().referans);
+      const db = readDB();
+      const ctx = parseRequestCtx(req);
+      return send(res, 200, getReferansForFirma(db, ctx.firmaId));
     }
 
     if (url === '/api/referans' && method === 'PUT') {
       const body = await parseBody(req);
       const db   = readDB();
-      db.referans = body;
+      const ctx  = parseRequestCtx(req);
+      const fid  = ctx.firmaId || 'meba';
+      ensureReferansPerFirma(db);
+      db.referans[fid] = body;
       writeDB(db);
       return send(res, 200, body);
     }
@@ -1079,12 +1127,14 @@ const server = http.createServer(async (req, res) => {
       const ctx = parseRequestCtx(req);
       const firmaId = ctx.firmaId || 'meba';
       if (!db.sayaclar || typeof db.sayaclar !== 'object') db.sayaclar = {};
-      if (!db.sayaclar[firmaId]) {
-        db.sayaclar[firmaId] = { yil: new Date().getFullYear(), ay: new Date().getMonth() + 1, deger: 0 };
-      }
-      const s = db.sayaclar[firmaId];
       const buYil = new Date().getFullYear();
       const buAy  = new Date().getMonth() + 1;
+      // Eski formatı (flat number, null, vs) defansif olarak objeye normalize et.
+      const mevcut = db.sayaclar[firmaId];
+      if (!mevcut || typeof mevcut !== 'object' || typeof mevcut.deger !== 'number') {
+        db.sayaclar[firmaId] = { yil: buYil, ay: buAy, deger: 0 };
+      }
+      const s = db.sayaclar[firmaId];
       if (s.yil !== buYil || s.ay !== buAy) {
         s.yil = buYil; s.ay = buAy; s.deger = 0;
       }

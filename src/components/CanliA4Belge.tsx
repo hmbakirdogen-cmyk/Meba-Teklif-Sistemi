@@ -18,6 +18,7 @@ interface CanliA4BelgeProps {
   onCariDegistir: (cari: Cari) => void;
   onCariEPostaDegistir: (email: string) => void;
   onCariTelefonDegistir: (telefon: string) => void;
+  onCariSehirDegistir: (sehir: string) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
@@ -65,6 +66,7 @@ export default function CanliA4Belge({
   onCariDegistir,
   onCariEPostaDegistir,
   onCariTelefonDegistir,
+  onCariSehirDegistir,
   contactName,
   contactTitle,
   onContactNameDegistir,
@@ -246,6 +248,7 @@ export default function CanliA4Belge({
             onCariDegistir={onCariDegistir}
             onCariEPostaDegistir={onCariEPostaDegistir}
             onCariTelefonDegistir={onCariTelefonDegistir}
+            onCariSehirDegistir={onCariSehirDegistir}
             contactName={contactName}
             contactTitle={contactTitle}
             onContactNameDegistir={onContactNameDegistir}

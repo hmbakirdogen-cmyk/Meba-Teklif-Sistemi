@@ -27,12 +27,13 @@ export function InlineCariAutocompleteField({
   className,
   style,
   popupClassName = 'belge-inline-cari-dropdown',
-  popupMinWidth = 320,
+  popupMinWidth = 420,
   onChange,
   onCariSelect,
 }: InlineCariAutocompleteFieldProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
+  const [openAbove, setOpenAbove] = useState(false);
   const cariler = useMemo(() => cariService.tumCarileriGetir(), []);
 
   const filteredOptions = useMemo(() => {
@@ -45,32 +46,18 @@ export function InlineCariAutocompleteField({
         })
       : cariler.slice(0, 24);
 
+    source.sort((a, b) => a.firmaAdi.localeCompare(b.firmaAdi, 'tr'));
+
     return source.slice(0, 24).map((cari) => ({
       value: cari.id,
       label: (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 6,
-            minWidth: 0,
-            fontFamily: 'inherit',
-            fontSize: 'inherit',
-            lineHeight: 'inherit',
-          }}
-        >
-          <span
-            style={{
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              font: 'inherit',
-              letterSpacing: 'inherit',
-            }}
-          >
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 12, whiteSpace: 'normal' }}>
             {formatCariAdi(cari.firmaAdi)}
-          </span>
+          </div>
+          <div style={{ fontSize: 10, color: '#888', marginTop: 1 }}>
+            {cari.cariKod}{cari.adres ? ` — ${cari.adres}` : ''}
+          </div>
         </div>
       ),
       cari,
@@ -87,6 +74,13 @@ export function InlineCariAutocompleteField({
     return () => window.clearTimeout(timer);
   }, [autoFocus]);
 
+  // Viewport pozisyonu — focused değiştiğinde dropdown'u yukarı/aşağı aç.
+  useEffect(() => {
+    if (!focused) return;
+    const rect = rootRef.current?.getBoundingClientRect();
+    setOpenAbove(rect ? rect.bottom > window.innerHeight * 0.65 : false);
+  }, [focused]);
+
   return (
     <div ref={rootRef} className={className} style={style}>
       <AutoComplete
@@ -99,6 +93,7 @@ export function InlineCariAutocompleteField({
         popupMatchSelectWidth={false}
         dropdownStyle={{ minWidth: popupMinWidth }}
         popupClassName={popupClassName}
+        placement={openAbove ? 'topLeft' : 'bottomLeft'}
         placeholder={placeholder}
         defaultActiveFirstOption
         onFocus={() => setFocused(true)}

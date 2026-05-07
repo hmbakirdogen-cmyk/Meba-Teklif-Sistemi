@@ -911,17 +911,78 @@ export const FIELD_CSS = `
   font-style: normal !important;
 }
 
-/* ─── Hücre düzenleme popup'ı (CellEditPopup) ──────────────────────────
-   Aktif hücre pastel mavi vurgu; popup'ın kendisi fade-in animasyonuyla
-   açılır. */
-.belge-inline tr[data-satir-id] td.is-active-cell {
-  background: rgba(37, 99, 235, 0.10) !important;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.45);
-  transition: background 120ms ease, box-shadow 120ms ease;
-}
 @keyframes cell-popup-fade-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TIKLAMA ALANI + HOVER/AKTİF EFEKTLERİ — editör hücreleri (PDF/template
+   etkilenmez):
+   - Padding artırıldı: CSS variable .belge-inline scope'unda override
+   - Tüm td yüzeyi tıklanabilir, user-select: none → çift-tık seçimi yok
+   - Cursor: tıklanabilir td'lerde pointer, aktifte text, sub-item'da default
+   - Hover (aktif olmayan): sol kenarda 2.5px ince mavi şerit + çok hafif
+     tint + içerik metni brightness(0.85) ile koyulaşır
+   - Aktif: sol kenarda 3px parlak mavi şerit + soluk lavanta arka plan
+   - readOnly + sub-item: hiç efekt yok
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .offer-table {
+  --line-cell-padding-y: 5px;
+  --line-cell-padding-x: 6px;
+}
+
+/* Aktif hücre — sol kenarda kalın parlak mavi şerit, soluk lavanta bg */
+.belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
+  box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.6);
+  background: rgba(237, 242, 251, 0.35);
+  transition: box-shadow 120ms ease, background 120ms ease;
+}
+
+/* Hover — sadece aktif olmayanda, sol kenarda ince mavi çizgi + minik tint */
+.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) {
+  box-shadow: inset 2.5px 0 0 rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.025);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) span,
+.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) div {
+  filter: brightness(0.85);
+  transition: filter 0.15s ease;
+}
+
+/* Sub-item ve readOnly — hiç efekt olmasın */
+.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"]:hover,
+.belge-inline .offer-table tbody tr[data-satir-id] > td.no-click:hover {
+  box-shadow: none !important;
+  background: transparent !important;
+  cursor: default !important;
+}
+.belge-readonly .offer-table tbody tr[data-satir-id] > td:hover {
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* Cursor */
+.belge-inline .offer-table tbody tr[data-satir-id] > td {
+  cursor: pointer !important;
+  user-select: none;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
+  cursor: text !important;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"] {
+  cursor: default !important;
+}
+
+/* ── A4 hücre hover/aktif efektleri — dark mode override ───────────────────── */
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) {
+  box-shadow: inset 2.5px 0 0 rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.04);
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
+  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.7);
+  background: rgba(59, 130, 246, 0.08);
 }
 `;
 
@@ -931,6 +992,7 @@ export type EditingAlan =
   | 'musteri-muhatap'
   | 'musteri-telefon'
   | 'musteri-eposta'
+  | 'musteri-sehir'
   | 'ayarlar'
   | 'ayar-paraBirimi'
   | 'ayar-odemeVadesi'

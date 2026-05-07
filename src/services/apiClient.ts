@@ -195,6 +195,22 @@ async function post<T>(path: string, body: unknown, timeoutMs?: number): Promise
   }
 }
 
+// ── Geri Bildirim type ────────────────────────────────────────────────────────
+
+export type GeriBildirimTur = 'hata' | 'oneri' | 'mesaj';
+
+export interface GeriBildirim {
+  id: string;
+  gonderen: { id: string; adSoyad: string };
+  tarih: string;
+  sayfa: string;
+  tur: GeriBildirimTur;
+  mesaj: string;
+  okundu: boolean;
+  cevap: string | null;
+  cevapTarihi?: string | null;
+}
+
 // ── Referans type ─────────────────────────────────────────────────────────────
 
 export interface Referans {
@@ -277,6 +293,14 @@ export const api = {
     increment: ()                       => post<Sayac>('/sayac/increment', {}),
     /** Yeni: explicit firmaId ile. */
     incrementFor: (firmaId: string)     => post<Sayac & { firmaId: string }>(`/sayac/${firmaId}/increment`, {}),
+  },
+
+  // ── Geri Bildirim (kullanıcı → süper admin mesaj kanalı) ──────────────────
+  geriBildirimler: {
+    list:    ()                                                                  => get<GeriBildirim[]>('/geribildirim'),
+    create:  (data: { mesaj: string; tur: GeriBildirimTur; sayfa: string })      => post<GeriBildirim>('/geribildirim', data),
+    update:  (id: string, p: { okundu?: boolean; cevap?: string })               => patch<GeriBildirim>(`/geribildirim/${id}`, p),
+    sil:     (id: string)                                                        => del(`/geribildirim/${id}`),
   },
 
   // ── Auth ────────────────────────────────────────────────────────────────────

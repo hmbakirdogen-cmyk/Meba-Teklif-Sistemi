@@ -1,10 +1,10 @@
-﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Select, Input, DatePicker, Dropdown, Popover, InputNumber } from 'antd';
+import { Select, Input, DatePicker, Dropdown, Popover, InputNumber, App } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Teklif, Cari, TeklifSatiri, ParaBirimi } from '../types';
+import type { Teklif, Cari, TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
 import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
@@ -89,6 +89,7 @@ interface PaginatedBelgeInlineEditorProps {
   onCariDegistir: (cari: Cari) => void;
   onCariEPostaDegistir: (email: string) => void;
   onCariTelefonDegistir: (telefon: string) => void;
+  onCariSehirDegistir: (sehir: string) => void;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   onContactNameDegistir: (name: string) => void;
@@ -240,7 +241,6 @@ function CellEditPopup({
   onSatirGuncelle,
   onSatiraSetUygula,
   onClose,
-  onEnterNext,
 }: {
   teklif: Teklif;
   editingAlan: EditingAlan;
@@ -248,7 +248,6 @@ function CellEditPopup({
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onClose: () => void;
-  onEnterNext: () => void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
@@ -296,38 +295,53 @@ function CellEditPopup({
     };
   }, [isOpen, satirId, satirFocusCell, W]);
 
+  // Escape / Dışarı tıklama callback'lerini ref'te tut → listener her render'da
+  // yeniden bağlanmasın, latest closure'a sahip olsun.
+  const stateRef = useRef({ satirId, satirFocusCell, onClose });
+  stateRef.current = { satirId, satirFocusCell, onClose };
+
   // Escape ile kapat
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        stateRef.current.onClose();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
-  // Dışarı tıklayınca kapat (aktif hücre + Antd dropdown portal'ları hariç)
+  // Dışarı tıklayınca kapat. mousedown yerine click kullanıyoruz: cellClick
+  // handler'ı mousedown→click sırasında çalışır; biz aktif hücre toggle'ını
+  // cellClick'te (handleSatirCellClick) hallediyoruz, burada ek "outside"
+  // davranışı sadece popup/active-cell/dropdown DIŞINA tıklanırsa kapatma.
   useEffect(() => {
-    if (!isOpen || !satirId) return;
-    const onDocMouseDown = (e: MouseEvent) => {
+    if (!isOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const { satirId: sid, satirFocusCell: scell, onClose: oc } = stateRef.current;
+      if (!sid) return;
       const target = e.target as Node;
       if (popupRef.current?.contains(target)) return;
       const activeCell = document.querySelector(
-        `tr[data-satir-id="${CSS.escape(satirId)}"] td[data-cell-field="${satirFocusCell}"]`,
+        `tr[data-satir-id="${CSS.escape(sid)}"] td[data-cell-field="${scell}"]`,
       );
       if (activeCell?.contains(target)) return;
-      // Antd dropdown'ları (Select, DatePicker vs.) document.body'ye portal'lanır.
+      // Başka bir hücreye tıklanmışsa → kendi cellClick handler'ı zaten yeni
+      // popup'ı açacak; biz sadece editingAlan'ı geçici olarak kapatıyoruz,
+      // ardından handleSatirCellClick yeni hücreyi set ediyor.
+      const otherCell = (target as Element)?.closest?.('td[data-cell-field]');
+      if (otherCell) return; // cellClick handler kendi yapsın
+      // Antd dropdown'ları
       const closestDropdown =
         (target as Element)?.closest?.('.ant-select-dropdown, .ant-picker-dropdown, .ant-popover, .ant-dropdown');
       if (closestDropdown) return;
-      onClose();
+      oc();
     };
-    document.addEventListener('mousedown', onDocMouseDown);
-    return () => document.removeEventListener('mousedown', onDocMouseDown);
-  }, [isOpen, satirId, satirFocusCell, onClose]);
+    document.addEventListener('click', onDocClick, true);
+    return () => document.removeEventListener('click', onDocClick, true);
+  }, [isOpen]);
 
   if (!isOpen || !satir || !pos) return null;
 
@@ -358,10 +372,11 @@ function CellEditPopup({
         options={markalar.map((m) => ({ value: m, label: m }))}
         onChange={(value) => {
           onSatirGuncelle(satir.id, 'marka', value ?? '');
-          onEnterNext();
+          onClose();
         }}
         onInputKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
         placeholder="Marka seçin veya yazın…"
+        getPopupContainer={() => popupRef.current ?? document.body}
       />
     );
   } else if (satirFocusCell === 'urunKod') {
@@ -371,29 +386,16 @@ function CellEditPopup({
         satir={satir}
         onSatirGuncelle={onSatirGuncelle}
         onSatiraSetUygula={onSatiraSetUygula}
-        onEnterNext={onEnterNext}
         onClose={onClose}
       />
     );
   } else if (satirFocusCell === 'aciklama') {
     title = 'Açıklama';
     body = (
-      <Input.TextArea
-        autoFocus
-        autoSize={{ minRows: 2, maxRows: 14 }}
-        size="middle"
-        value={satir.aciklama || ''}
-        onChange={(e) => onSatirGuncelle(satir.id, 'aciklama', e.target.value)}
-        onFocus={(e) => (e.target as HTMLTextAreaElement).select?.()}
-        onKeyDown={(e) => {
-          if (e.nativeEvent.isComposing) return;
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            onEnterNext();
-          }
-          if (e.key === 'Escape') onClose();
-        }}
-        placeholder="Açıklama  (Shift+Enter ile alt satır, Enter ile ilerle)"
+      <AciklamaPopupBody
+        satir={satir}
+        onSatirGuncelle={onSatirGuncelle}
+        onClose={onClose}
       />
     );
   } else if (satirFocusCell === 'miktar') {
@@ -412,7 +414,7 @@ function CellEditPopup({
             onChange={(value) => onSatirGuncelle(satir.id, 'miktar', value ?? 0)}
             onFocus={(e) => (e.target as HTMLInputElement).select?.()}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); onEnterNext(); }
+              if (e.key === 'Enter') { e.preventDefault(); onClose(); }
               if (e.key === 'Escape') onClose();
             }}
           />
@@ -427,6 +429,7 @@ function CellEditPopup({
             options={UNIT_OPTIONS.map((u) => ({ value: u.value, label: u.value }))}
             popupMatchSelectWidth={false}
             dropdownStyle={{ minWidth: 130 }}
+            getPopupContainer={() => popupRef.current ?? document.body}
           />
         </div>
       </div>
@@ -445,13 +448,14 @@ function CellEditPopup({
         value={cur}
         onChange={(value) => {
           onSatirGuncelle(satir.id, 'paraBirimi', value);
-          onEnterNext();
+          onClose();
         }}
         options={[
           { value: 'TRY', label: 'Türk Lirası (TL)' },
           { value: 'EUR', label: 'Euro (EUR)' },
           { value: 'USD', label: 'Amerikan Doları (USD)' },
         ]}
+        getPopupContainer={() => popupRef.current ?? document.body}
       />
     );
   } else if (satirFocusCell === 'birimFiyat') {
@@ -468,7 +472,7 @@ function CellEditPopup({
         onChange={(value) => onSatirGuncelle(satir.id, 'birimFiyat', value ?? 0)}
         onFocus={(e) => (e.target as HTMLInputElement).select?.()}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); onEnterNext(); }
+          if (e.key === 'Enter') { e.preventDefault(); onClose(); }
           if (e.key === 'Escape') onClose();
         }}
       />
@@ -488,10 +492,11 @@ function CellEditPopup({
         options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
         onChange={(value) => {
           onSatirGuncelle(satir.id, 'teslimTarihi', value ?? '');
-          onEnterNext();
+          onClose();
         }}
         onInputKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
         placeholder="Teslimat seçin…"
+        getPopupContainer={() => popupRef.current ?? document.body}
       />
     );
   }
@@ -528,15 +533,14 @@ function UrunKodPopupBody({
   satir,
   onSatirGuncelle,
   onSatiraSetUygula,
-  onEnterNext,
   onClose,
 }: {
   satir: TeklifSatiri;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
-  onEnterNext: () => void;
   onClose: () => void;
 }) {
+  const { modal, message } = App.useApp();
   // Urun listesi — popup açıkken bir kez çek
   const [urunler, setUrunler] = useState(() => urunService.tumUrunleriGetir());
   const [setler, setSetler] = useState(() => urunSetService.tumSetleriGetir());
@@ -546,6 +550,9 @@ function UrunKodPopupBody({
   }, []);
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<InputRef>(null);
+  // "Yeni ürün?" sorgusu için baseline + suggestion'dan seçim flag'i
+  const initialKodRef = useRef(satir.urunKod);
+  const justSelectedRef = useRef(false);
   useEffect(() => {
     const el = inputRef.current?.input;
     el?.focus();
@@ -571,6 +578,8 @@ function UrunKodPopupBody({
   ].slice(0, 50);
 
   const select = (item: typeof merged[number]) => {
+    justSelectedRef.current = true;
+    initialKodRef.current = item.kod;
     if (item.kind === 'set') {
       onSatirGuncelle(satir.id, 'urunKod', item.kod);
       onSatirGuncelle(satir.id, 'aciklama', item.payload.aciklama ?? '');
@@ -584,7 +593,48 @@ function UrunKodPopupBody({
       }
       if (item.payload.birim) onSatirGuncelle(satir.id, 'birim', item.payload.birim);
     }
-    onEnterNext();
+    onClose();
+  };
+
+  // Yeni kod kontrolü → soru → onay → kayıt + toast. Hem onBlur hem Enter
+  // handler'ından çağrılıyor (Enter'da popup hemen unmount olduğu için onBlur
+  // her zaman fire etmeyebiliyor).
+  const promptYeniUrun = () => {
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
+    const yeni = satir.urunKod?.trim();
+    if (!yeni) return;
+    if (yeni === (initialKodRef.current ?? '').trim()) return;
+    const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
+    if (exists) return;
+    modal.confirm({
+      title: 'Yeni Ürün Olarak Kaydet',
+      content: `"${yeni}" kodlu ürün veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi? Bir dahaki sefer otomatik gelecek.`,
+      okText: 'Kaydet',
+      cancelText: 'İptal',
+      onOk: () => {
+        const yeniUrun: Urun = {
+          id: urunService.urunIdUret(),
+          urunKod: yeni,
+          urunAdi: yeni,
+          aciklama: satir.aciklama ?? '',
+          kategori: '',
+          marka: satir.marka || '',
+          birim: satir.birim || 'Adet',
+          varsayilanFiyat: satir.birimFiyat || 0,
+        };
+        urunService.urunKaydet(yeniUrun);
+        setUrunler(urunService.tumUrunleriGetir());
+        initialKodRef.current = yeni;
+        message.success(`"${yeni}" yeni ürün olarak kaydedildi. Bundan sonra otomatik öneri olarak çıkacak.`);
+      },
+    });
+  };
+
+  const handleBlur = () => {
+    setTimeout(promptYeniUrun, 150);
   };
 
   return (
@@ -598,14 +648,36 @@ function UrunKodPopupBody({
           onSatirGuncelle(satir.id, 'urunKod', upper);
           setHighlight(0);
         }}
+        onBlur={handleBlur}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((i) => Math.min(i + 1, merged.length - 1)); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight((i) => Math.max(i - 1, 0)); }
           else if (e.key === 'Enter') {
             e.preventDefault();
-            const sel = merged[highlight];
-            if (sel) select(sel);
-            else onEnterNext();
+            const yeniKod = (satir.urunKod ?? '').trim();
+            // Önce: input'taki kod DB'de tam eşleşiyor mu? (suggestion'daki
+            // substring match'lerle karıştırma)
+            const exactMatch = yeniKod
+              ? urunler.find((u) => u.urunKod.toLowerCase() === yeniKod.toLowerCase())
+              : null;
+            if (exactMatch) {
+              select({
+                kind: 'urun',
+                id: exactMatch.id,
+                kod: exactMatch.urunKod,
+                aciklama: exactMatch.aciklama,
+                payload: exactMatch,
+              });
+            } else if (highlight > 0 && merged[highlight]) {
+              // User ArrowDown ile suggestion'a indi → onu seç
+              select(merged[highlight]);
+            } else if (yeniKod) {
+              // Yeni kod, exact match yok, navigate de yapmadı → soru sor
+              promptYeniUrun();
+              onClose();
+            } else {
+              onClose();
+            }
           } else if (e.key === 'Escape') onClose();
         }}
         placeholder="Ürün kodu / açıklama ile ara…"
@@ -651,6 +723,72 @@ function UrunKodPopupBody({
   );
 }
 
+// Açıklama düzenleme popup body'si — input blur olunca, eğer kod DB'de varsa
+// "Veritabanı açıklamasını güncellemek ister misin?" sorusu sorulur. Kod yoksa
+// veya değişiklik yoksa sessizce çıkar.
+function AciklamaPopupBody({
+  satir,
+  onSatirGuncelle,
+  onClose,
+}: {
+  satir: TeklifSatiri;
+  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
+  onClose: () => void;
+}) {
+  const { modal, message } = App.useApp();
+  const initialAciklamaRef = useRef(satir.aciklama);
+
+  const promptAciklamaGuncelle = () => {
+    const yeniAciklama = (satir.aciklama ?? '').trim();
+    const eski = (initialAciklamaRef.current ?? '').trim();
+    if (yeniAciklama === eski) return;
+    const kod = (satir.urunKod ?? '').trim();
+    if (!kod) return;
+    const mevcut = urunService.tumUrunleriGetir()
+      .find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+    // Açıklama editörü asla yeni ürün oluşturmaz — kod DB'de yoksa sessizce çık.
+    if (!mevcut) return;
+    if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
+      initialAciklamaRef.current = yeniAciklama;
+      return;
+    }
+    modal.confirm({
+      title: 'Açıklama Güncellensin mi?',
+      content: `"${kod}" ürününün açıklaması veritabanında güncellensin mi? Bir dahaki sefer bu ürün seçildiğinde yeni açıklama otomatik gelecek.`,
+      okText: 'Güncelle',
+      cancelText: 'Hayır',
+      onOk: () => {
+        urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+        initialAciklamaRef.current = yeniAciklama;
+        message.success(`"${kod}" ürününün açıklaması güncellendi. Bir dahaki seçildiğinde yeni açıklama otomatik gelecek.`);
+      },
+    });
+  };
+
+  return (
+    <Input.TextArea
+      autoFocus
+      autoSize={{ minRows: 2, maxRows: 14 }}
+      size="middle"
+      value={satir.aciklama || ''}
+      onChange={(e) => onSatirGuncelle(satir.id, 'aciklama', e.target.value)}
+      onFocus={(e) => (e.target as HTMLTextAreaElement).select?.()}
+      onBlur={promptAciklamaGuncelle}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return;
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          // Önce soru sor (modal açılır), sonra popup'ı kapat.
+          promptAciklamaGuncelle();
+          onClose();
+        }
+        if (e.key === 'Escape') onClose();
+      }}
+      placeholder="Açıklama  (Shift+Enter ile alt satır, Enter ile kapat)"
+    />
+  );
+}
+
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   return (
@@ -671,6 +809,7 @@ export default function PaginatedBelgeInlineEditor({
   onCariDegistir,
   onCariEPostaDegistir,
   onCariTelefonDegistir,
+  onCariSehirDegistir,
   contactName,
   contactTitle,
   onContactNameDegistir,
@@ -718,6 +857,18 @@ export default function PaginatedBelgeInlineEditor({
     return () => window.clearTimeout(id);
   }, [teklif.notlarGosterilsin, readOnly]);
 
+  // Müşteri muhatap popover açıldığında focus'u robust şekilde input'a getir —
+  // Antd Popover destroyTooltipOnHide ile mount/transition cycle'ı yarış
+  // yaratabiliyor; autoFocus prop yetersiz kaldığında 150ms sonra ek focus
+  // çağrısıyla yedekle.
+  useEffect(() => {
+    if (editingAlan !== 'musteri-muhatap' || readOnly) return;
+    const id = window.setTimeout(() => {
+      muhatapRef.current?.focus();
+    }, 150);
+    return () => window.clearTimeout(id);
+  }, [editingAlan, readOnly]);
+
   const [satirFocusCell, setSatirFocusCell] = useState<SatirCellField>('urunKod');
   // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
   // gözüksün diye (active panel ile aynı pozisyonda).
@@ -740,71 +891,129 @@ export default function PaginatedBelgeInlineEditor({
     [],
   );
 
-  // Tabloda hücreden hücreye Enter ile gezinme sırası. Set alt kalemde
-  // sadece urunKod / aciklama / miktar düzenlenebilir; satır bazlı para birimi
-  // kapalıysa paraBirimi atlanır.
-  const CELL_NAV_ORDER: SatirCellField[] = ['marka', 'urunKod', 'aciklama', 'miktar', 'paraBirimi', 'birimFiyat', 'teslimat'];
-
-  const isCellEditableForSatir = useCallback(
-    (cell: SatirCellField, satir: TeklifSatiri): boolean => {
-      if (satir.setAltKalem) {
-        return cell === 'urunKod' || cell === 'aciklama' || cell === 'miktar';
-      }
-      if (cell === 'paraBirimi') return satirBazliParaBirimi;
-      return true;
-    },
-    [satirBazliParaBirimi],
-  );
-
-  // Aktif hücreden bir sonrakine geç. Satır sonunda bir alt satıra atla;
-  // son satırın sonunda popup'ı kapat.
-  const handleEnterNext = useCallback(() => {
-    if (!editingAlan?.startsWith('satir-')) {
-      setHoverRowId(null);
-      onEditingAlanDegistir(null);
-      return;
-    }
-    const satirId = editingAlan.slice(6);
-    const satirIdx = teklif.satirlar.findIndex((s) => s.id === satirId);
-    if (satirIdx < 0) {
-      setHoverRowId(null);
-      onEditingAlanDegistir(null);
-      return;
-    }
-    const satir = teklif.satirlar[satirIdx];
-    const curIdx = CELL_NAV_ORDER.indexOf(satirFocusCell);
-    // Aynı satır içinde sonraki düzenlenebilir hücre
-    for (let i = curIdx + 1; i < CELL_NAV_ORDER.length; i++) {
-      const nx = CELL_NAV_ORDER[i];
-      if (isCellEditableForSatir(nx, satir)) {
-        setSatirFocusCell(nx);
-        return;
-      }
-    }
-    // Bir alt satıra geç (varsa)
-    const nextRow = teklif.satirlar[satirIdx + 1];
-    if (nextRow) {
-      // Alt satırın ilk düzenlenebilir hücresi
-      const firstCell = CELL_NAV_ORDER.find((c) => isCellEditableForSatir(c, nextRow)) ?? 'urunKod';
-      setSatirFocusCell(firstCell);
-      onEditingAlanDegistir(`satir-${nextRow.id}`);
-      return;
-    }
-    // Son satır sonu — popup'ı kapat
-    setHoverRowId(null);
-    onEditingAlanDegistir(null);
-  }, [editingAlan, teklif.satirlar, satirFocusCell, isCellEditableForSatir, onEditingAlanDegistir]);
-
-  // Hücreye tıklayınca aktif et (popup açar).
+  // Hücreye tıklayınca aktif et (popup açar). Aktif hücreye tekrar tıklanınca
+  // toggle ile kapatır → kullanıcı popup'ı aynı hücreye basarak da kapatabilir.
   const handleSatirCellClick = useCallback(
     (satir: TeklifSatiri, cell: SatirCellField) => (e: React.MouseEvent) => {
       if (readOnly) return;
       e.stopPropagation();
+      const isSameActive =
+        editingAlan === `satir-${satir.id}` && satirFocusCell === cell;
+      if (isSameActive) {
+        onEditingAlanDegistir(null);
+        return;
+      }
       setSatirFocusCell(cell);
       onEditingAlanDegistir(`satir-${satir.id}`);
     },
-    [onEditingAlanDegistir, readOnly],
+    [editingAlan, satirFocusCell, onEditingAlanDegistir, readOnly],
   );
+
+  // ─── Tab tuşu ile hücreler arası gezinme ──────────────────────────────
+  // Sıra satirBazliParaBirimi'ye göre değişir; sub-item'da paraBirimi ve
+  // birimFiyat tıklanamaz → atlanır.
+  const CELL_ORDER = useMemo<SatirCellField[]>(
+    () => satirBazliParaBirimi
+      ? ['marka', 'urunKod', 'aciklama', 'miktar', 'paraBirimi', 'birimFiyat', 'teslimat']
+      : ['marka', 'urunKod', 'aciklama', 'miktar', 'birimFiyat', 'teslimat'],
+    [satirBazliParaBirimi],
+  );
+
+  const isCellEditable = useCallback(
+    (satir: TeklifSatiri, cell: SatirCellField) => {
+      if (satir.setAltKalem && (cell === 'birimFiyat' || cell === 'paraBirimi' || cell === 'teslimat')) return false;
+      return true;
+    },
+    [],
+  );
+
+  const findEditableCellIdx = useCallback(
+    (satir: TeklifSatiri, startIdx: number, direction: 1 | -1): number => {
+      let idx = startIdx;
+      while (idx >= 0 && idx < CELL_ORDER.length) {
+        if (isCellEditable(satir, CELL_ORDER[idx])) return idx;
+        idx += direction;
+      }
+      return -1;
+    },
+    [CELL_ORDER, isCellEditable],
+  );
+
+  const handleTab = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (readOnly || !editingAlan || !editingAlan.startsWith('satir-')) return;
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const currentSatirId = editingAlan.slice(6);
+    const satirIndex = teklif.satirlar.findIndex((s) => s.id === currentSatirId);
+    if (satirIndex === -1) return;
+
+    const currentSatir = teklif.satirlar[satirIndex];
+    const currentCellIndex = CELL_ORDER.indexOf(satirFocusCell);
+    const isShift = e.shiftKey;
+
+    if (!isShift) {
+      // Tab ileri
+      const nextIdx = findEditableCellIdx(currentSatir, currentCellIndex + 1, 1);
+      if (nextIdx >= 0) {
+        setSatirFocusCell(CELL_ORDER[nextIdx]);
+        return;
+      }
+      // Aynı satırda kalmadı → sonraki satıra geç
+      if (satirIndex < teklif.satirlar.length - 1) {
+        const nextSatir = teklif.satirlar[satirIndex + 1];
+        const firstIdx = findEditableCellIdx(nextSatir, 0, 1);
+        setSatirFocusCell(CELL_ORDER[firstIdx >= 0 ? firstIdx : 0]);
+        onEditingAlanDegistir(`satir-${nextSatir.id}`);
+      } else {
+        // Son satırın son hücresi → yeni satır ekle (focus useEffect ile gelir)
+        tabAddedRowRef.current = true;
+        onSatirEkle();
+      }
+    } else {
+      // Shift+Tab geri
+      const prevIdx = findEditableCellIdx(currentSatir, currentCellIndex - 1, -1);
+      if (prevIdx >= 0) {
+        setSatirFocusCell(CELL_ORDER[prevIdx]);
+        return;
+      }
+      if (satirIndex > 0) {
+        const prevSatir = teklif.satirlar[satirIndex - 1];
+        const lastIdx = findEditableCellIdx(prevSatir, CELL_ORDER.length - 1, -1);
+        setSatirFocusCell(CELL_ORDER[lastIdx >= 0 ? lastIdx : 0]);
+        onEditingAlanDegistir(`satir-${prevSatir.id}`);
+      }
+      // İlk satırın ilk hücresinde Shift+Tab → bir şey yapma
+    }
+  }, [readOnly, editingAlan, teklif.satirlar, satirFocusCell, CELL_ORDER, findEditableCellIdx, onEditingAlanDegistir, onSatirEkle]);
+
+  // Tab → "Son hücrede yeni satır" akışında, eklenen satırın ilk düzenlenebilir
+  // hücresine otomatik odaklan. Sadece Tab tetiklediğinde devreye girer; diğer
+  // satır eklemeleri (cari seçilince intro satırı, manuel "Satır ekle"
+  // butonu, vb.) bu effect'i etkilemez — yani cari seçilir seçilmez marka
+  // popup'ı açılmaz, satirFocusCell initial 'urunKod' olarak kalır.
+  const tabAddedRowRef = useRef(false);
+  const prevSatirCountRef = useRef(teklif.satirlar.length);
+  useEffect(() => {
+    const prevCount = prevSatirCountRef.current;
+    const newCount = teklif.satirlar.length;
+    prevSatirCountRef.current = newCount;
+    if (!tabAddedRowRef.current) return;
+    if (newCount > prevCount && newCount > 0) {
+      tabAddedRowRef.current = false;
+      const yeniSatir = teklif.satirlar[newCount - 1];
+      const firstIdx = findEditableCellIdx(yeniSatir, 0, 1);
+      // 50ms gecikme: yeni satır DOM'a render edilene kadar bekle, sonra focus.
+      const id = window.setTimeout(() => {
+        setSatirFocusCell(CELL_ORDER[firstIdx >= 0 ? firstIdx : 0]);
+        onEditingAlanDegistir(`satir-${yeniSatir.id}`);
+      }, 50);
+      return () => window.clearTimeout(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teklif.satirlar.length]);
+
 
   const renderFirstPageHeader = () => (
     <>
@@ -970,7 +1179,10 @@ export default function PaginatedBelgeInlineEditor({
                         onChange={(e) => onContactNameDegistir(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); onEditingAlanDegistir(null); }
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onEditingAlanDegistir(null);
+                          }
                           if (e.key === 'Escape') onEditingAlanDegistir(null);
                         }}
                         placeholder="muhatap adı"
@@ -1014,7 +1226,10 @@ export default function PaginatedBelgeInlineEditor({
                         onChange={(e) => onCariTelefonDegistir(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); onEditingAlanDegistir(null); }
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onEditingAlanDegistir(null);
+                          }
                           if (e.key === 'Escape') onEditingAlanDegistir(null);
                         }}
                         placeholder="0xxx xxx xx xx"
@@ -1054,7 +1269,11 @@ export default function PaginatedBelgeInlineEditor({
                           if (!next) onCariEPostaDegistir(DEFAULT_TEKLIF_EMAIL);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); onEditingAlanDegistir(null); }
+                          if (e.key === 'Enter') {
+                            // Müşteri zincirinin sonu — kapat
+                            e.preventDefault();
+                            onEditingAlanDegistir(null);
+                          }
                           if (e.key === 'Escape') onEditingAlanDegistir(null);
                         }}
                         placeholder={DEFAULT_TEKLIF_EMAIL}
@@ -1063,6 +1282,45 @@ export default function PaginatedBelgeInlineEditor({
                   }
                 >
                   <span style={{ cursor: 'pointer' }}>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
+                </Popover>
+              )}
+
+              {/* Şehir hücresi — kendi popup'ı, e-posta sonrası */}
+              <span> &nbsp;|&nbsp; </span>
+              {readOnly ? (
+                teklif.cari.sehir && <span>{teklif.cari.sehir}</span>
+              ) : (
+                <Popover
+                  open={editingAlan === 'musteri-sehir'}
+                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-sehir' : null)}
+                  trigger={['click']}
+                  placement="bottomLeft"
+                  destroyTooltipOnHide
+                  content={
+                    <div style={{ width: 260, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Şehir</div>
+                      <Input
+                        autoFocus
+                        size="middle"
+                        style={{ width: '100%' }}
+                        value={teklif.cari.sehir || ''}
+                        onChange={(e) => onCariSehirDegistir(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onEditingAlanDegistir(null);
+                          }
+                          if (e.key === 'Escape') onEditingAlanDegistir(null);
+                        }}
+                        placeholder="şehir"
+                      />
+                    </div>
+                  }
+                >
+                  <span style={{ cursor: 'pointer' }}>
+                    {teklif.cari.sehir || <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>şehir ekle…</span>}
+                  </span>
                 </Popover>
               )}
             </div>
@@ -1083,15 +1341,26 @@ export default function PaginatedBelgeInlineEditor({
           { key: 'EUR', label: 'Euro (EUR)' },
           { key: 'USD', label: 'Amerikan Doları (USD)' },
         ];
-        const odemeVadesiMenuItems = ['Peşin', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün']
-          .map((v) => ({ key: v, label: v }));
+        const odemeVadesiMenuItems = [
+          'Peşin',
+          'Mal mukabili',
+          '%50 sipariş + %50 sevk',
+          '%30 sipariş + %70 sevk',
+          'Akreditifli',
+          '15 Gün',
+          '30 Gün',
+          '45 Gün',
+          '60 Gün',
+          '90 Gün',
+          '120 Gün',
+        ].map((v) => ({ key: v, label: v }));
         const kdvMenuItems = [
           { key: '0', label: 'Hariç' },
           { key: '1', label: '%1' },
           { key: '10', label: '%10' },
           { key: '20', label: '%20' },
         ];
-        const gecerlilikMenuItems = ['1 Hafta', '2 Hafta', '1 Ay', '2 Ay', '3 Ay', 'Sınırsız']
+        const gecerlilikMenuItems = ['7 Gün', '15 Gün', '1 Hafta', '2 Hafta', '1 Ay', '2 Ay', '3 Ay', '6 Ay', 'Sınırsız']
           .map((v) => ({ key: v, label: v }));
 
         return (
@@ -1332,7 +1601,7 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="paraBirimi"
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
-                      className={activeClass('paraBirimi')}
+                      className={`${activeClass('paraBirimi') ?? ''} ${satirBazliParaBirimi ? '' : 'no-click'}`.trim() || undefined}
                       style={applyCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' })}
                     >
                       {satirBazliParaBirimi ? (
@@ -1346,13 +1615,13 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="birimFiyat"
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
-                      className={!satir.setAltKalem ? activeClass('birimFiyat') : undefined}
+                      className={satir.setAltKalem ? 'no-click' : (activeClass('birimFiyat') || undefined)}
                       style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.price}>{(() => {
                           const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
-                          return nihai !== 0 ? formatDisplayNumber(nihai, 2, 2) : '-';
+                          return Math.abs(nihai) >= 0.005 ? formatDisplayNumber(nihai, 2, 2) : '-';
                         })()}</span>
                       )}
                     </RowCell>
@@ -1376,7 +1645,7 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="teslimat"
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
-                      className={!satir.setAltKalem ? activeClass('teslimat') : undefined}
+                      className={satir.setAltKalem ? 'no-click' : (activeClass('teslimat') || undefined)}
                       style={applyCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center' })}
                     >
                       {satir.setAltKalem ? null : (
@@ -1568,6 +1837,7 @@ export default function PaginatedBelgeInlineEditor({
   return (
     <div
       className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}
+      onKeyDown={handleTab}
     >
       <style>{FIELD_CSS}{`
         .belge-inline .offer-table {
@@ -1729,7 +1999,6 @@ export default function PaginatedBelgeInlineEditor({
           onSatirGuncelle={onSatirGuncelle}
           onSatiraSetUygula={onSatiraSetUygula}
           onClose={() => onEditingAlanDegistir(null)}
-          onEnterNext={handleEnterNext}
         />
       )}
     </div>

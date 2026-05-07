@@ -15,17 +15,24 @@ export type ParaBirimiToplamlari = Record<DesteklenenSatirParaBirimi, number>;
 
 const SATIR_PARA_BIRIMLERI: DesteklenenSatirParaBirimi[] = ['TRY', 'EUR', 'USD'];
 
+// Kuruş hassasiyetinde yuvarlama — IEEE-754 noise (örn. 0.1+0.2=0.30000…04)
+// kümülatif hatalara dönüşmesin diye her ara toplamı 2 ondalığa sabitliyoruz.
+function kurusYuvarla(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function teklifToplamlariniHesapla(params: {
   araToplam: number;
   kdvOrani: number;
   iskontoOrani: number;
 }): TeklifToplam {
   const { araToplam, kdvOrani, iskontoOrani } = params;
-  const iskontoTutar = araToplam * (iskontoOrani / 100);
-  const iskontoSonrasiToplam = araToplam - iskontoTutar;
-  const kdvTutar = iskontoSonrasiToplam * (kdvOrani / 100);
-  const genelToplam = iskontoSonrasiToplam + kdvTutar;
-  return { araToplam, iskontoOrani, iskontoTutar, iskontoSonrasiToplam, kdvOrani, kdvTutar, genelToplam };
+  const araToplamY = kurusYuvarla(araToplam);
+  const iskontoTutar = kurusYuvarla(araToplamY * (iskontoOrani / 100));
+  const iskontoSonrasiToplam = kurusYuvarla(araToplamY - iskontoTutar);
+  const kdvTutar = kurusYuvarla(iskontoSonrasiToplam * (kdvOrani / 100));
+  const genelToplam = kurusYuvarla(iskontoSonrasiToplam + kdvTutar);
+  return { araToplam: araToplamY, iskontoOrani, iskontoTutar, iskontoSonrasiToplam, kdvOrani, kdvTutar, genelToplam };
 }
 
 function desteklenenSatirParaBirimi(pb?: string): DesteklenenSatirParaBirimi | null {
@@ -45,8 +52,11 @@ function satirParaBirimiGetir(
 }
 
 function satirToplamHesapla(satir: Omit<TeklifSatiri, 'satirToplami'>): number {
+  // Set alt kalemi → fiyat satırı yok; toplama girmez.
+  if (satir.setAltKalem) return 0;
   const brutFiyat = satir.miktar * satir.birimFiyat;
-  return brutFiyat - brutFiyat * ((satir.indirimOrani ?? 0) / 100);
+  const sonrasi = brutFiyat - brutFiyat * ((satir.indirimOrani ?? 0) / 100);
+  return kurusYuvarla(sonrasi);
 }
 
 function paraBirimineGoreToplamlar(
@@ -56,10 +66,16 @@ function paraBirimineGoreToplamlar(
   const toplamlar: ParaBirimiToplamlari = { TRY: 0, EUR: 0, USD: 0 };
 
   for (const satir of satirlar) {
+    if (satir.setAltKalem) continue; // Defansif: alt kalem birimFiyat'ı 0 olsa bile döngüye girmesin.
     const pb = satirParaBirimiGetir(satir, teklifParaBirimi);
-    toplamlar[pb] += satir.satirToplami;
+    // satir.satirToplami stale olabilir (eski kayıt). Hep taze hesap kullan.
+    toplamlar[pb] += satirToplamHesapla(satir);
   }
 
+  // Her bucket'ı kuruşa yuvarla — biriken IEEE-754 hatalarını sil.
+  toplamlar.TRY = kurusYuvarla(toplamlar.TRY);
+  toplamlar.EUR = kurusYuvarla(toplamlar.EUR);
+  toplamlar.USD = kurusYuvarla(toplamlar.USD);
   return toplamlar;
 }
 
@@ -67,11 +83,23 @@ function genelToplamHesapla(
   satirlar: TeklifSatiri[],
   kdvOrani = 0,
   iskontoOrani = 0,
+  teklifParaBirimi?: string,
 ): TeklifToplam & { toplamIndirim: number } {
   let araToplam = 0;
   let toplamIndirim = 0;
 
+  // Belge para biriminde olan satırların toplamını al — çoklu para biriminde
+  // farklı kur'daki satırlar tek bir araToplam'a karışmasın.
+  const belgePb = teklifParaBirimi
+    ? desteklenenSatirParaBirimi(teklifParaBirimi) ?? 'TRY'
+    : null;
+
   for (const satir of satirlar) {
+    if (satir.setAltKalem) continue; // Set alt kalemi toplama girmez.
+    if (belgePb) {
+      const sPb = satirParaBirimiGetir(satir, teklifParaBirimi);
+      if (sPb !== belgePb) continue; // Farklı para birimindeki satırlar bu bucket'a girmez.
+    }
     const brut = satir.miktar * satir.birimFiyat;
     const indirim = brut * ((satir.indirimOrani ?? 0) / 100);
     araToplam += brut - indirim;
@@ -80,7 +108,7 @@ function genelToplamHesapla(
 
   return {
     ...teklifToplamlariniHesapla({ araToplam, kdvOrani, iskontoOrani }),
-    toplamIndirim,
+    toplamIndirim: kurusYuvarla(toplamIndirim),
   };
 }
 

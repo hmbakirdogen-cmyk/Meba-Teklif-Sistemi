@@ -90,7 +90,7 @@ export default function IlkGirisModal() {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
+      position: 'fixed', inset: 0, zIndex: 2000,
       background: 'rgba(5,8,18,0.85)',
       backdropFilter: 'blur(8px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',

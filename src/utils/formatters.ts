@@ -153,8 +153,8 @@ export function sanitizeMultilineText(text: string): string {
 
 export function parseNumber(val: string | number | null | undefined): number {
   if (val === null || val === undefined || val === '') return 0;
-  const n = Number(String(val).replace(',', '.'));
-  return isNaN(n) ? 0 : n;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  return parseLocaleNumber(val);
 }
 
 export function formatDate(dateStr: string): string {
