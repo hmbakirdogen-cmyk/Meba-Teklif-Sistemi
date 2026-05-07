@@ -11,7 +11,7 @@ import { api } from './services/apiClient';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
-  CheckOutlined, BarChartOutlined, DownloadOutlined, HistoryOutlined,
+  CheckOutlined, BarChartOutlined, DownloadOutlined, HistoryOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
@@ -22,6 +22,7 @@ import { useColors } from './hooks/useColors';
 import { useIsMobile } from './hooks/useIsMobile';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { buttonClassNames } from './styles/buttonStyles';
+import { getAdaptiveLogoPlacement } from './styles/logoStyles';
 import { SyncStatusBar } from './components/SyncStatusBar';
 
 const { Header, Content } = Layout;
@@ -30,17 +31,6 @@ const HEADER_H     = 56;
 const HEADER_PAD_X = 24;
 const SECTION_GAP  = 32;
 const USER_INNER_GAP = 12;
-
-// Header logosu (152x40, 3.8:1 oran) icin firma-bazli scale override.
-// db.json'daki global logoScale degerleri kare LogoContainer icin tunelendi;
-// genis header kutusunda ELMOS (1.50:1) ve MESA (1.63:1) yeterince
-// dolduramiyordu — MEBA (2.95:1) gibi gozlenir kapsama icin override.
-const HEADER_LOGO_SCALE: Record<string, number> = {
-  meba: 1.0,
-  elmos: 2.0,
-  mesa: 1.85,
-};
-
 export default function AppLayout() {
   const navigate   = useNavigate();
   const location   = useLocation();
@@ -128,6 +118,12 @@ export default function AppLayout() {
       label: 'Malzeme Geçmişi',
       onClick: () => navigate_('/malzeme-gecmisi'),
     },
+    {
+      key: 'referans-veriler',
+      icon: <SettingOutlined />,
+      label: 'Referans Veriler',
+      onClick: () => navigate_('/referans-veriler'),
+    },
     ...(isAdminLike ? [
       {
         key: 'analiz',
@@ -183,44 +179,26 @@ export default function AppLayout() {
       >
         {/* ── LOGO + FIRMA SWITCHER ── */}
         {(() => {
-          // Header'a ozgu scale: per-firma override map'inden veya legacy logoScale
-          const headerScale = aktifFirma
-            ? (HEADER_LOGO_SCALE[aktifFirma.id] ?? aktifFirma.logoScale ?? 1)
-            : 1;
+          const activeLogoPath = aktifFirma?.logoPath || '/logo-meba.png';
+          const activeLogoPlacement = getAdaptiveLogoPlacement({
+            firmaId: aktifFirma?.id,
+            logoPath: activeLogoPath,
+            surface: 'navbar',
+            objectPosition: 'center',
+          });
           const logoBlock = (
             <>
-              <div style={{
-                height: HEADER_H - 8,
-                width: 160,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#fff',
-                borderRadius: 10,
-                padding: '4px 10px',
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-              }}>
+              <div style={activeLogoPlacement.slotStyle}>
                 <img
-                  src={aktifFirma?.logoPath || '/logo-meba.png'}
+                  src={activeLogoPath}
                   alt={aktifFirma?.kisaAd || 'Logo'}
                   draggable={false}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    display: 'block',
-                    imageRendering: 'auto',
-                    WebkitBackfaceVisibility: 'hidden',
-                    backfaceVisibility: 'hidden',
-                    transform: `scale(${headerScale}) translateZ(0)`,
-                    transformOrigin: 'center',
-                  }}
+                  style={activeLogoPlacement.imageStyle}
                 />
               </div>
               {aktifFirma && !isMobile && (
                 <div style={{
-                  marginLeft: 12, fontSize: 10, color: 'rgba(170,190,220,0.55)',
+                  marginLeft: activeLogoPlacement.labelGapPx, fontSize: 10, color: 'rgba(170,190,220,0.55)',
                   letterSpacing: 1.2, textTransform: 'uppercase' as const,
                   fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6,
                 }}>
@@ -258,37 +236,46 @@ export default function AppLayout() {
                   items: sortedFirmalar.map((f) => ({
                     key: f.id,
                     label: (
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        minWidth: 180,
-                      }}>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: 6,
-                          background: '#fff', padding: 2,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>
-                          <img
-                            src={f.logoPath}
-                            alt={f.kisaAd}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                          />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                      (() => {
+                        const switcherLogo = getAdaptiveLogoPlacement({
+                          firmaId: f.id,
+                          logoPath: f.logoPath,
+                          surface: 'navbar-switcher',
+                          objectPosition: 'left center',
+                        });
+                        return (
                           <div style={{
-                            fontSize: 13, fontWeight: 600,
-                            color: f.id === aktifFirma?.id ? f.renkVurgu : undefined,
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            minWidth: 180,
                           }}>
-                            {f.kisaAd}
+                            <div style={{
+                              ...switcherLogo.slotStyle,
+                              borderRadius: 6,
+                              background: 'transparent',
+                            }}>
+                              <img
+                                src={f.logoPath}
+                                alt={f.kisaAd}
+                                style={switcherLogo.imageStyle}
+                              />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{
+                                fontSize: 13, fontWeight: 600,
+                                color: f.id === aktifFirma?.id ? f.renkVurgu : undefined,
+                              }}>
+                                {f.kisaAd}
+                              </div>
+                              <div style={{ fontSize: 10, color: 'rgba(120,140,170,0.85)' }}>
+                                {f.ad}
+                              </div>
+                            </div>
+                            {f.id === aktifFirma?.id && (
+                              <CheckOutlined style={{ color: f.renkVurgu, fontSize: 12 }} />
+                            )}
                           </div>
-                          <div style={{ fontSize: 10, color: 'rgba(120,140,170,0.85)' }}>
-                            {f.ad}
-                          </div>
-                        </div>
-                        {f.id === aktifFirma?.id && (
-                          <CheckOutlined style={{ color: f.renkVurgu, fontSize: 12 }} />
-                        )}
-                      </div>
+                        );
+                      })()
                     ),
                   })),
                 }}
@@ -560,14 +547,23 @@ export default function AppLayout() {
                           }}
                         >
                           <div style={{
-                            width: 22, height: 22, borderRadius: 4,
-                            background: '#fff', padding: 1,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            flexShrink: 0,
+                            ...getAdaptiveLogoPlacement({
+                              firmaId: f.id,
+                              logoPath: f.logoPath,
+                              surface: 'navbar-switcher',
+                              objectPosition: 'left center',
+                            }).slotStyle,
+                            borderRadius: 4,
+                            background: 'transparent',
                           }}>
-                            <img src={f.logoPath} alt="" style={{
-                              width: '100%', height: '100%', objectFit: 'contain',
-                            }} />
+                            <img src={f.logoPath} alt="" style={
+                              getAdaptiveLogoPlacement({
+                                firmaId: f.id,
+                                logoPath: f.logoPath,
+                                surface: 'navbar-switcher',
+                                objectPosition: 'left center',
+                              }).imageStyle
+                            } />
                           </div>
                           <span style={{ flex: 1 }}>{f.kisaAd}</span>
                           {aktif && <CheckOutlined style={{ fontSize: 11 }} />}

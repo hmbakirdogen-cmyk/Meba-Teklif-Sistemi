@@ -1,23 +1,22 @@
 ﻿import React from 'react';
 import type { Teklif } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatMarka, formatAdres, formatAdSoyad } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
+import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
 import { TotalsCard } from '../components/TotalsCard';
 import {
   ACIKLAMA_OVERFLOW,
   CELL_PAD,
   URUN_KOD_OVERFLOW,
-  DOCUMENT_BRAND,
+  createDocumentBrand,
   DOCUMENT_COLORS,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
-  HIGH_QUALITY_IMAGE_RENDERING,
   LINE_ITEM_METRICS,
-  LOGO_OPT_H,
-  LOGO_OPT_W,
+  getFullHeaderLayoutStyles,
   noBreak,
   NOTES_BOX_STYLE,
   OFFER_TABLE_ROW_GAP_PX,
@@ -33,13 +32,20 @@ import {
   computeSetSubitemIndex,
   renderSetSubitemNumber,
   SET_SUBITEM_NUMBER_STYLE,
-  SETTINGS_GRID_STYLE,
+  getSettingsGridStyle,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
   SETTINGS_TR_LABEL_STYLE,
   SETTINGS_SEP_STYLE,
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
+  SIGNATURE_BLOCK_ROW_STYLE,
+  SIGNATURE_CONTENT_ROW_STYLE,
+  SIGNATURE_FIELD_STYLE,
+  SIGNATURE_FIELDS_GRID_STYLE,
+  SIGNATURE_FIELDS_HOST_STYLE,
+  SIGNATURE_LABEL_STYLE,
+  SIGNATURE_LINE_STYLE,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_STYLE,
@@ -47,6 +53,8 @@ import {
   TableColgroup,
   computeTotalsAmountRightOffset,
   buildSettingsItems,
+  getOfferTableSeparatorClass,
+  getOfferTableSeparatorStyle,
   getTableHeadCellStyle,
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
@@ -54,7 +62,6 @@ import {
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
-const BRAND = DOCUMENT_BRAND;
 
 interface TeklifSablonuProps {
   teklif: Teklif;
@@ -68,12 +75,12 @@ interface TeklifSablonuProps {
  */
 export function KompaktAntet({ teklif }: { teklif: Teklif }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
-  // S: optH = LOGO_OPT_H × S ≈ metin bloğu yüksekliği
-  // Metin bloğu: 3 satır (10.4px×1.25 + 9px×1.3 × 2) + 2×gap(2px) ≈ 40.4px
-  // LOGO_OPT_H (FILE_HEIGHT=128) ≈ 84.58px → S = 40.4 / 84.58 ≈ 0.478
-  const S = 0.478;
-  const optW   = LOGO_OPT_W       * S;
-  const optH   = LOGO_OPT_H       * S;
+  const compactLogo = getAdaptiveLogoPlacement({
+    firmaId: firmaBilgi.id,
+    logoPath: firmaBilgi.logoPath,
+    surface: 'a4-compact',
+    objectPosition: 'left center',
+  });
 
   return (
     <div style={{
@@ -92,28 +99,11 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
         paddingBottom: '3.5mm',
         borderBottom: `1.5px solid ${C.panelStrong}`,
       }}>
-        {/* Mini logo — herhangi bir aspect ratio'ya uyumlu (objectFit: contain) */}
-        <div style={{
-          width: `${optW}px`,
-          height: `${optH}px`,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-        }}>
+        <div style={compactLogo.slotStyle}>
           <img
             src={firmaBilgi.logoPath}
             alt={firmaBilgi.kisaAd}
-            style={{
-              width:  '100%',
-              height: '100%',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-              display: 'block',
-              imageRendering:          HIGH_QUALITY_IMAGE_RENDERING,
-              printColorAdjust:        'exact',
-              WebkitPrintColorAdjust:  'exact',
-            }}
+            style={compactLogo.imageStyle}
           />
         </div>
         {/* Firma bilgileri — aktif teklifin firmaId'sinden */}
@@ -123,12 +113,9 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
           </span>
           {firmaBilgi.adres && (
             <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-              {firmaBilgi.adres}
+              {formatAdres(firmaBilgi.adres)}
             </span>
           )}
-          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            {[firmaBilgi.telefon && `Tel: ${firmaBilgi.telefon}`, firmaBilgi.eposta, firmaBilgi.web].filter(Boolean).join(' · ')}
-          </span>
         </div>
         {/* Teklif no + tarih */}
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -147,6 +134,14 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
 
 export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
+  const BRAND = createDocumentBrand(firmaBilgi.renkBirincil);
+  const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
+  const fullLogo = getAdaptiveLogoPlacement({
+    firmaId: firmaBilgi.id,
+    logoPath: firmaBilgi.logoPath,
+    surface: 'a4-full',
+    objectPosition: 'left center',
+  });
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
@@ -201,102 +196,53 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <div style={{ flex: 1 }}>
 
       {/* ══ HEADER ══════════════════════════════════════════════ */}
-      {/* Referans: LOGO_OPT_H — logonun gerçek görsel yüksekliği.  */}
       {/* alignItems:'stretch' → 3 sütun da bu yüksekliğe gerilir.  */}
       {/* Sütun 2: space-between → isim üst / adres alt sınıra oturur*/}
       {/* Sütun 3: space-between → badge üst / tablo alt sınıra oturur*/}
-      <div style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        width: '100%',
-        height: `${LOGO_OPT_H}px`,
-        marginBottom: '10px',
-        ...noBreak,
-      }}>
+      <div style={fullHeaderLayout.rootStyle}>
 
-        {/* ── Sütun 1: Logo ──────────────────────────────────────── */}
-        {/* objectFit: contain — herhangi bir firma logosuna uyumlu. */}
-        {/* Logo kendi en/boy oranında, container içinde sola yaslı. */}
-        <div style={{
-          flex: '0 0 37%',
-          maxWidth: '37%',
-          paddingRight: '8px',
-          boxSizing: 'border-box',
-          lineHeight: 0,
-        }}>
-          <div style={{
-            width: `${LOGO_OPT_W}px`,
-            height: `${LOGO_OPT_H}px`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-          }}>
+        {/* ── Sütun 1: Logo — sadece genişlik sabitlenir, yükseklik doğal orana bırakılır */}
+        <div style={fullHeaderLayout.logoColumnStyle}>
+          <div style={fullLogo.slotStyle}>
             <img
               src={firmaBilgi.logoPath}
               alt={firmaBilgi.kisaAd}
-              style={{
-                width:  '100%',
-                height: '100%',
-                objectFit: 'contain',
-                objectPosition: 'left center',
-                display: 'block',
-                imageRendering:         HIGH_QUALITY_IMAGE_RENDERING,
-                printColorAdjust:       'exact',
-                WebkitPrintColorAdjust: 'exact',
-              }}
+              style={fullLogo.imageStyle}
             />
           </div>
         </div>
 
-        {/* ── Sütun 2: Firma bilgileri (firma profilinden) ─────────── */}
-        <div style={{
-          flex: '0 0 31%',
-          maxWidth: '31%',
-          paddingRight: '10px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{ fontWeight: 800, fontSize: '11.5px', color: C.navy, lineHeight: '1.25', letterSpacing: '-0.012em' }}>
+        {/* ── Sütun 2: Gönderen firma bilgileri — telefon hariç ─────── */}
+        <div style={fullHeaderLayout.companyColumnStyle}>
+          <div style={{ fontWeight: 700, fontSize: '11px', color: C.navy, lineHeight: '1.3', letterSpacing: '-0.01em' }}>
             {firmaBilgi.ad}
           </div>
           {firmaBilgi.adres && (
-            <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
-              {firmaBilgi.adres}
+            <div style={{ fontSize: '8.8px', lineHeight: '1.35', color: C.textMuted, letterSpacing: '0.01em', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              {formatAdres(firmaBilgi.adres)}
+            </div>
+          )}
+          {firmaBilgi.vergiNo && (
+            <div style={{ fontSize: '8.5px', lineHeight: '1.35', color: C.textMuted, letterSpacing: '0.02em' }}>
+              VKN: {formatVKN(firmaBilgi.vergiNo)}{firmaBilgi.vergiDairesi && <span> &nbsp;—&nbsp; {firmaBilgi.vergiDairesi} V.D.</span>}
             </div>
           )}
         </div>
+
+        {fullHeaderLayout.separatorStyle && <div aria-hidden="true" style={fullHeaderLayout.separatorStyle} />}
 
         {/* ── Sütun 3: Teklif bilgi bloğu ────────────────────────── */}
         {/* 202px anchor: badge üstte (logo üst), tablo altta (logo   */}
         {/* alt). space-between her ikisini sınırlara sabitler.        */}
         {/* 32% × ~718px = 229px > 202px ✓                           */}
-        <div style={{
-          flex: '0 0 32%',
-          maxWidth: '32%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{
-            width: '202px',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            // overflow: visible → descender'lı harflerin (ğ/ç/y/p/g) alt
-            // yarısı LOGO_OPT_H'a sıkışıp kırpılmasın.
-            overflow: 'visible',
-            boxSizing: 'border-box',
-          }}>
+        <div style={fullHeaderLayout.quoteColumnStyle}>
+          <div style={fullHeaderLayout.quotePanelStyle}>
             {/* TEKLİF başlık etiketi — logo üst sınırına oturur */}
             <div style={{
               background: BRAND.gradient,
               printColorAdjust: 'exact',
               WebkitPrintColorAdjust: 'exact',
-              padding: '5px 14px 6px',
+              padding: '4px 12px 5px',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -306,42 +252,47 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               border: `1px solid ${BRAND.border}`,
               boxShadow: BRAND.shadowSm,
             }}>
-              <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '0.8px', color: BRAND.text }}>
+              <span style={{ fontWeight: 700, fontSize: '14.5px', letterSpacing: '0.8px', color: BRAND.text }}>
                 TEKLİF
               </span>
-              <span style={{ fontSize: '10.4px', color: BRAND.textSub, letterSpacing: '0.02em' }}>
+              <span style={{ fontSize: '9.5px', color: BRAND.textSub, letterSpacing: '0.02em' }}>
                 / Quotation
               </span>
+              {teklif.revizyonNo && teklif.revizyonNo > 0 && (
+                <span style={{ fontSize: '9px', fontWeight: 600, color: BRAND.textSub, marginLeft: '6px' }}>
+                  Rev.{String(teklif.revizyonNo).padStart(2, '0')}
+                </span>
+              )}
             </div>
             {/* Teklif meta tablosu — logo alt sınırına oturur         */}
             {/* Hiyerarşi: Teklif No (güçlü) > Tarih (orta) > Hazırlayan (sade) */}
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '42%' }} />
-                <col style={{ width: '58%' }} />
+                <col style={{ width: '38%' }} />
+                <col style={{ width: '62%' }} />
               </colgroup>
               <tbody>
                 {/* lineHeight 1.3 → descender'lı harfler (ğ/y/p/g/ç) için
                      yeterli alt nefes payı; html2canvas yakalamasında alt
                      yarısı kırpılmaz. */}
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Teklif No</td>
+                  <td style={{ fontSize: '11.5px', fontWeight: 700, color: C.navy, padding: '2px 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {teklif.teklifNo}
                   </td>
                 </tr>
                 {/* ── Tarih — secondary ── */}
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Tarih</td>
-                  <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Tarih</td>
+                  <td style={{ fontSize: '10.2px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
                     {formatDate(teklif.tarih)}
                   </td>
                 </tr>
                 {/* ── Hazırlayan — tertiary ── */}
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Hazırlayan</td>
+                  <td style={{ fontSize: '9.5px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {teklif.hazirlayanAdSoyad ? formatAdSoyad(teklif.hazirlayanAdSoyad) : firmaBilgi.kisaAd}
                   </td>
                 </tr>
               </tbody>
@@ -359,11 +310,15 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span>
           </div>
           <div style={PARTY_NAME_STYLE}>
-            {firmaBilgi.kisaAd}{firmaBilgi.kisaAd === 'MEBA Mekanik' ? ' Ltd. Şti.' : ''}
+            {firmaBilgi.ad}
           </div>
           <div style={PARTY_BODY_STYLE}>
-            {firmaBilgi.telefon ? <>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}<br /></> : null}
-            {firmaBilgi.web}
+            {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
+            {firmaBilgi.iban && (
+              <div style={{ fontSize: '9.5px', color: C.textMuted, letterSpacing: '0.02em', marginTop: '2px' }}>
+                IBAN: {firmaBilgi.iban}
+              </div>
+            )}
           </div>
         </div>
         {/* Alıcı */}
@@ -378,24 +333,24 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             {muhatapSatiri && (
               <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>
             )}
-            {(teklif.cari.telefon || teklif.cari.ePosta || teklif.cari.sehir) && (
+            {teklif.cari.adres && (
+              <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                {formatAdres(teklif.cari.adres)}
+              </div>
+            )}
+            {(teklif.cari.sehir || teklif.cari.telefon || teklif.cari.ePosta) && (
               <div>
+                {teklif.cari.sehir && <span>{formatSehir(teklif.cari.sehir)}</span>}
+                {teklif.cari.sehir && teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
+                {(teklif.cari.sehir || teklif.cari.telefon) && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
-                {(teklif.cari.telefon || teklif.cari.ePosta) && teklif.cari.sehir && <span> &nbsp;|&nbsp; </span>}
-                {teklif.cari.sehir && <span>{teklif.cari.sehir}</span>}
               </div>
             )}
             {teklif.cari.vergiNo && (
               <div>
-                VKN: {teklif.cari.vergiNo}
+                VKN: {formatVKN(teklif.cari.vergiNo)}
                 {teklif.cari.vergiDairesi && <span> &nbsp;—&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}
-              </div>
-            )}
-            {teklif.cari.adres && (
-              <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                {teklif.cari.adres}
               </div>
             )}
           </div>
@@ -403,18 +358,23 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       </div>
 
       {/* ══ ÖDEME / PARA / KDV / KUR ════════════════════════════ */}
-      <div data-alan="ayarlar" style={SETTINGS_GRID_STYLE}>
-        {buildSettingsItems(teklif, satirBazliParaBirimi).map((item, i) => (
-          <div key={i} style={SETTINGS_CARD_STYLE}>
-            <div style={SETTINGS_LABEL_STYLE}>
-              <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
-              <span style={SETTINGS_SEP_STYLE}>/</span>
-              <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
-            </div>
-            <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
+      {(() => {
+        const settingsItems = buildSettingsItems(teklif, satirBazliParaBirimi);
+        return (
+          <div data-alan="ayarlar" style={getSettingsGridStyle(settingsItems.length)}>
+            {settingsItems.map((item, i) => (
+              <div key={i} style={SETTINGS_CARD_STYLE}>
+                <div style={SETTINGS_LABEL_STYLE}>
+                  <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+                  <span style={SETTINGS_SEP_STYLE}>/</span>
+                  <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
+                </div>
+                <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* ══ TEKLİF KALEMLERİ TABLOSU ════════════════════════════ */}
       <div style={TABLE_TITLE_STYLE}>
@@ -427,21 +387,22 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         <thead id="pdf-thead">
           <tr>
             {[
-              { label: '#',           sub: '',            align: 'center' as const },
-              { label: 'Marka',       sub: 'Brand',       align: 'center' as const },
-              { label: 'Ürün Kodu',   sub: 'Item No',     align: 'left'   as const },
-              { label: 'Açıklama',    sub: 'Description', align: 'left'   as const },
-              { label: 'Miktar',      sub: 'Qty',         align: 'left'   as const },
+              { key: 'no' as const, label: '#',           sub: '',            align: 'center' as const },
+              { key: 'marka' as const, label: 'Marka',       sub: 'Brand',       align: 'center' as const },
+              { key: 'urunKod' as const, label: 'Ürün Kodu',   sub: 'Item No',     align: 'left'   as const },
+              { key: 'aciklama' as const, label: 'Açıklama',    sub: 'Description', align: 'left'   as const },
+              { key: 'miktar' as const, label: 'Miktar',      sub: 'Qty',         align: 'left'   as const },
               satirBazliParaBirimi
-                ? { label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
-                : { label: '',            sub: '',         align: 'center' as const },
-              { label: 'Birim Fiyat', sub: 'Unit Price',  align: 'right'  as const },
-              { label: 'Toplam',      sub: 'Total',       align: 'right'  as const },
-              { label: 'Teslimat',    sub: 'Delivery',    align: 'center' as const },
+                ? { key: 'paraBirimi' as const, label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                : { key: 'paraBirimi' as const, label: '',            sub: '',         align: 'center' as const },
+              { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit Price',  align: 'right'  as const },
+              { key: 'toplam' as const, label: 'Toplam',      sub: 'Total',       align: 'right'  as const },
+              { key: 'teslimat' as const, label: 'Teslimat',    sub: 'Delivery',    align: 'center' as const },
             ].map((col, i) => (
               <th
                 key={i}
-                style={getTableHeadCellStyle(col.align)}
+                className={getOfferTableSeparatorClass(col.key)}
+                style={getTableHeadCellStyle(col.align, col.key)}
               >
                 {col.label}
                 {col.sub && (
@@ -498,19 +459,20 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   )}
                 </td>
                 {/* Marka */}
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('marka')} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
                   fontSize: '11px',
                   color: TABLE_TEXT.helper,
                   whiteSpace: 'nowrap',
+                  ...getOfferTableSeparatorStyle('marka'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
-                  {satir.marka || '—'}
+                  {satir.marka ? formatMarka(satir.marka) : '—'}
                 </td>
                 {/* Ürün Kodu — tek satır, içerik kadar geniş, kesilmez */}
-                <td className="product-code-cell" style={applyCellStyle({
+                <td className={`product-code-cell ${getOfferTableSeparatorClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({
                   padding: CELL_PAD,
                   fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`,
                   fontWeight: 600,
@@ -518,29 +480,32 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   verticalAlign: 'middle',
                   letterSpacing: '-0.1px',
                   ...URUN_KOD_OVERFLOW,
+                  ...getOfferTableSeparatorStyle('urunKod'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.urunKod || '—'}
                 </td>
                 {/* Açıklama — kalan tüm alan; kesilmez, önce tek satır, sığmazsa 2 satır */}
-                <td className="description-cell" style={applyCellStyle({
+                <td className={`description-cell ${getOfferTableSeparatorClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({
                   padding: CELL_PAD,
                   fontWeight: 400,
                   color: TABLE_TEXT.description,
                   verticalAlign: 'middle',
                   ...ACIKLAMA_OVERFLOW,
+                  ...getOfferTableSeparatorStyle('aciklama'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
                 {/* Miktar */}
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('miktar')} style={applyCellStyle({
                   padding: CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11px',
                   color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
+                  ...getOfferTableSeparatorStyle('miktar'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.miktar !== 0 ? (
@@ -555,7 +520,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   ) : '—'}
                 </td>
                 {/* Para Birimi (boş hücre değilse satirBazli'da etiket) */}
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('paraBirimi')} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -564,12 +529,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   fontWeight: 700,
                   letterSpacing: '0.03em',
+                  ...getOfferTableSeparatorStyle('paraBirimi'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
                 {/* Birim Fiyat — alt kalem için boş, aksi halde değer */}
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('birimFiyat')} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -577,6 +543,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
+                  ...getOfferTableSeparatorStyle('birimFiyat'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.setAltKalem ? '' : (() => {
@@ -585,7 +552,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   })()}
                 </td>
                 {/* Toplam — alt kalem için boş */}
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('toplam')} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -594,12 +561,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
+                  ...getOfferTableSeparatorStyle('toplam'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '—')}
                 </td>
                 {/* Teslimat — son hücre, çerçevenin sağ kenarı */}
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('teslimat')} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -607,6 +575,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   color: TABLE_TEXT.passive,
                   whiteSpace: 'nowrap',
                   lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
+                  ...getOfferTableSeparatorStyle('teslimat'),
                   ...rcCell('last', idx, undefined, setGroupPos),
                 })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '—')}
@@ -761,24 +730,24 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       <div id="pdf-bottom-block">
 
         {/* ── SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına ── */}
-        <div id="pdf-signature-block" style={{ display: 'flex', alignItems: 'stretch', gap: '14px' }}>
+        <div id="pdf-signature-block" style={SIGNATURE_BLOCK_ROW_STYLE}>
 
-          {/* SİPARİŞİ VEREN — sayfa genişliğinin %70'i, ferah iç boşluk */}
-          <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+          {/* SİPARİŞİ VEREN — sayfa genişliğinin %100'ü, 3 sütun (İsim+Tarih | Kaşe | İmza) */}
+          <div style={{ flex: '0 0 100%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
+          <div style={SIGNATURE_CONTENT_ROW_STYLE}>
 
             {/* Sol: 2-satır dikey başlık — biraz büyük, daha ferah tracking */}
             <div style={{
               flexShrink: 0,
-              position: 'relative',
-              width: '40px',
-              overflow: 'hidden',
+              width: '56px',
+              minHeight: '74px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
             }}>
               <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%) rotate(-90deg)',
+                transform: 'rotate(-90deg)',
                 width: '120px',
                 textAlign: 'left',
                 userSelect: 'none',
@@ -807,30 +776,34 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               </div>
             </div>
 
-            {/* Sağ: İçerik — isim, tarih, imza */}
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
-                <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45' }}>
-                  <div style={{ marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
-                    <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+            {/* Sağ: İçerik — isim+tarih | imza & kaşe */}
+            <div style={SIGNATURE_FIELDS_HOST_STYLE}>
+              <div style={SIGNATURE_FIELDS_GRID_STYLE}>
+                <div style={{ ...SIGNATURE_FIELD_STYLE, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ ...SIGNATURE_FIELD_STYLE, width: '100%', maxWidth: '100%' }}>
+                    <div style={SIGNATURE_LINE_STYLE} />
+                    <div style={SIGNATURE_LABEL_STYLE}>
+                      <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                      <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                      <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+                    </div>
                   </div>
-                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px', marginBottom: '12px' }} />
-                  <div style={{ marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
-                    <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+                  <div style={{ ...SIGNATURE_FIELD_STYLE, width: '100%', maxWidth: '100%' }}>
+                    <div style={SIGNATURE_LINE_STYLE} />
+                    <div style={SIGNATURE_LABEL_STYLE}>
+                      <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
+                      <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                      <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+                    </div>
                   </div>
-                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 </div>
-                <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '0' }}>
-                  <div style={{ marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                <div style={{ ...SIGNATURE_FIELD_STYLE, width: '48mm', maxWidth: '48mm' }}>
+                  <div style={{ ...SIGNATURE_LINE_STYLE, width: '48mm', maxWidth: '48mm' }} />
+                  <div style={SIGNATURE_LABEL_STYLE}>
+                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza & Kaşe</span>
                     <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature & Stamp</span>
                   </div>
-                  <div style={{ borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 </div>
               </div>
             </div>
@@ -842,9 +815,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
         {/* ── FOOTER (navy şerit) ── */}
         <div id="pdf-page-footer" style={FOOTER_BAR_STYLE}>
-          <div>{[firmaBilgi.kisaAd, firmaBilgi.eposta].filter(Boolean).join(' | ')}</div>
+          <div>{firmaBilgi.ad}</div>
+          <div style={{ fontSize: '8px', opacity: 0.7, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+            Sayfa 1 / 1
+          </div>
           <div>
-            Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)}{firmaBilgi.web ? ` | ${firmaBilgi.web}` : ''}
+            Teklif No: {teklif.teklifNo} &nbsp;|&nbsp; {formatDate(teklif.tarih)}
           </div>
         </div>
 

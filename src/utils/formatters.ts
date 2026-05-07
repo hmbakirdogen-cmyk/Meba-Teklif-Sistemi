@@ -1,3 +1,5 @@
+import { formatPhone } from './phone';
+
 const PARA_BIRIMI_SEMBOL: Record<string, string> = {
   TRY: '₺',
   EUR: '€',
@@ -105,16 +107,124 @@ export function splitUnvanWithParen(text: string): { ana: string; paren: string 
   };
 }
 
+/**
+ * formatCariAdi — firma adını tutarlı görsel formata çevirir.
+ *
+ * Kurallar:
+ *   - Tüm kelimeler title case (ilk harf BÜYÜK, kalan küçük, tr-TR locale)
+ *   - Nokta içeren kelimeler (A.Ş., LTD., SAN., TİC.) → tamamı BÜYÜK
+ *   - 3 harf veya kısa tamamen alfabetik kelimeler → BÜYÜK (istisna: ve/da/de/ya/ki)
+ *
+ * Örnekler:
+ *   "ÖZLER nalburiye san. tic. a.ş." → "Özler Nalburiye SAN. TİC. A.Ş."
+ *   "abc firması"                    → "ABC Firması"
+ *   "bilgi ve iletişim"              → "Bilgi ve İletişim"
+ */
+const CARI_ADI_LOWER_KELIMELER = new Set(['ve', 'da', 'de', 'ya', 'ki', 'mı', 'mi', 'mu', 'mü']);
+
+function titleCaseWord(w: string): string {
+  if (!w) return w;
+  const lower = w.toLocaleLowerCase('tr-TR');
+  const first = lower.charAt(0) === 'i' ? 'İ' : lower.charAt(0).toLocaleUpperCase('tr-TR');
+  return first + lower.slice(1);
+}
+
 export function formatCariAdi(adi: string): string {
   const trimmed = adi.trim().replace(/\s+/g, ' ');
   if (!trimmed) return trimmed;
-  return trimmed.split(' ').map((word, idx) => {
+  return trimmed.split(' ').map((word) => {
     if (!word) return word;
-    if (idx === 0) return word.toLocaleUpperCase('tr-TR');
     const lower = word.toLocaleLowerCase('tr-TR');
-    const first = lower[0] === 'i' ? 'İ' : lower[0].toLocaleUpperCase('tr-TR');
-    return first + lower.slice(1);
+    if (CARI_ADI_LOWER_KELIMELER.has(lower)) return lower;
+    if (word.includes('.')) return word.toLocaleUpperCase('tr-TR');
+    if (word.length <= 3 && /^[a-zçğıöşüâîûA-ZÇĞİÖŞÜÂÎÛ]+$/.test(word)) {
+      return word.toLocaleUpperCase('tr-TR');
+    }
+    return titleCaseWord(word);
   }).join(' ');
+}
+
+/** formatSehir — şehir adını title case'e çevirir. */
+export function formatSehir(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  return trimmed.split(' ').map(titleCaseWord).join(' ');
+}
+
+/** formatVKN — VKN/TCKN için boşluklu görüntü formatı. */
+export function formatVKN(vkn: string): string {
+  if (!vkn) return '';
+  const digits = vkn.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+  }
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 11)}`;
+  }
+  return vkn.trim();
+}
+
+/** formatMarka — marka adı her zaman BÜYÜK HARF. */
+export function formatMarka(val: string): string {
+  if (!val) return '';
+  return val.trim().toLocaleUpperCase('tr-TR');
+}
+
+/**
+ * formatFirmaUnvan — firma yasal ünvanında nokta içeren kısaltmaları
+ * BÜYÜK HARF'e çevirir (Türk ticari standardı):
+ *   "MEBA Pnömatik Hidrolik ... San. Tic. Ltd. Şti." →
+ *   "MEBA Pnömatik Hidrolik ... SAN. TİC. LTD. ŞTİ."
+ *
+ * Düzgün isimler (MEBA, MESA, ELMOS, "Pnömatik" vb.) korunur.
+ */
+export function formatFirmaUnvan(ad: string): string {
+  if (!ad) return '';
+  return ad.replace(/\b(\w{2,4})\./g, (match) => match.toLocaleUpperCase('tr-TR'));
+}
+
+/**
+ * formatAdres — adres metnini görsel formata çevirir.
+ *   - Title Case ana kural
+ *   - Bilinen kısaltmalar (OSB, MAH., BLV., CAD., SOK., NO:, KAT:, D:) → BÜYÜK
+ *   - Sayı içeren kelimeler olduğu gibi (12., No:30 vb. — kısaltma prefix'i varsa
+ *     o BÜYÜK yapılır: "no:30" → "NO:30")
+ *   - " / " sonrası → tamamen BÜYÜK HARF (genellikle şehir)
+ */
+const ADRES_KISALTMALAR = new Set([
+  'osb', 'mh', 'mah', 'blv', 'bulv', 'cd', 'cad', 'sk', 'sok',
+  'mh.', 'mah.', 'blv.', 'bulv.', 'cd.', 'cad.', 'sk.', 'sok.',
+  'no:', 'kat:', 'd:',
+]);
+
+function formatAdresWord(w: string): string {
+  if (!w) return w;
+  const lower = w.toLocaleLowerCase('tr-TR');
+  if (ADRES_KISALTMALAR.has(lower)) return w.toLocaleUpperCase('tr-TR');
+  for (const abbr of ADRES_KISALTMALAR) {
+    if (lower.startsWith(abbr)) {
+      return w.slice(0, abbr.length).toLocaleUpperCase('tr-TR') + w.slice(abbr.length);
+    }
+  }
+  if (/\d/.test(w)) return w;
+  return titleCaseWord(w);
+}
+
+export function formatAdres(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  const sep = ' / ';
+  const lastSep = trimmed.lastIndexOf(sep);
+  if (lastSep !== -1) {
+    const before = trimmed.slice(0, lastSep);
+    const after  = trimmed.slice(lastSep + sep.length);
+    const beforeFmt = before.split(' ').map(formatAdresWord).join(' ');
+    const afterFmt  = after.toLocaleUpperCase('tr-TR');
+    return `${beforeFmt} / ${afterFmt}`;
+  }
+  return trimmed.split(' ').map(formatAdresWord).join(' ');
 }
 
 export function formatTitleCaseTr(text: string): string {
@@ -210,4 +320,56 @@ export function formatEditableNumber(val: number, maxDec = 2): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: maxDec,
   });
+}
+
+/**
+ * formatDisplayText — popup/modal/form inputlarında metin formatı standardı.
+ * Kullanıcı yazarken (live=true) ve kaydederken (live=false) tutarlı format sağlar.
+ *
+ * Türler:
+ * - 'cari_adi': Firma adı (ilk kelime BÜYÜK, sonraki title case)
+ * - 'person_name': Kişi adı (her kelime title case)
+ * - 'product_code': Ürün kodu (BÜYÜK + normalize)
+ * - 'email': E-posta (küçük harf)
+ * - 'category': Kategori (title case)
+ * - 'unit': Birim (title case)
+ * - 'description': Açıklama (title case)
+ * - 'address': Adres (formatAdres kuralı)
+ * - 'text': Genel metin (title case)
+ * - 'currency': Para birimi (BÜYÜK)
+ * - 'vergi_no': Vergi no (olduğu gibi trim)
+ * - 'phone': Telefon (formatPhone)
+ *
+ * @param value Input değeri
+ * @param type Format tipi
+ * @param live Kullanıcı yazıyor (true) vs. kaydediliyor (false)
+ */
+export function formatDisplayText(value: string, type: string, live = true): string {
+  if (!value) return '';
+
+  switch (type) {
+    case 'cari_adi':
+      return formatCariAdi(value);
+    case 'person_name':
+      return formatUnvan(value, live);
+    case 'product_code':
+      return normalizeProductCode(value);
+    case 'email':
+      return normalizeEmail(value);
+    case 'category':
+    case 'unit':
+    case 'description':
+    case 'text':
+      return formatTitleCaseTr(value);
+    case 'address':
+      return formatAdres(value);
+    case 'currency':
+      return value.trim().toLocaleUpperCase('tr-TR');
+    case 'vergi_no':
+      return value.trim();
+    case 'phone':
+      return formatPhone(value);
+    default:
+      return value;
+  }
 }

@@ -24,11 +24,12 @@ import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, Te
 import type { KullaniciRol } from '../types/kullanici';
 import dayjs from 'dayjs';
 
-const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
-
 function cariEpostaVarsayilanla(cari: Cari): Cari {
+  // Cari'nin gerçek ePostası boşsa olduğu gibi bırak — fallback YAPMA.
+  // Önceki davranış (info@mebamekanik.com fallback) alıcı kartında MEBA'nın
+  // e-postasının görünmesine yol açıyordu.
   const email = (cari.ePosta ?? '').trim();
-  return { ...cari, ePosta: email || DEFAULT_TEKLIF_EMAIL };
+  return { ...cari, ePosta: email };
 }
 
 
@@ -54,6 +55,7 @@ export interface BelgeState {
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
   gecerlilikSuresi: string;
+  dovizKuru: string;
   olusturmaTarihi: string;
   hazirlayanKullaniciId?: string;
   /** Mevcut teklifin orijinal sahibi — yeni teklifte undefined. Sahiplik kontrolü için kullanılır. */
@@ -91,6 +93,7 @@ interface BelgeActions {
   setContactName: (name: string) => void;
   setContactTitle: (title: 'BEY' | 'HANIM') => void;
   setGecerlilikSuresi: (sure: string) => void;
+  setDovizKuru: (kur: string) => void;
 
   // Satırlar
   setSatirlar: (satirlar: TeklifSatiri[]) => void;
@@ -179,6 +182,7 @@ export function useBelgeState(
   const [contactName, setContactNameState] = useState(mevcut?.contactName ?? '');
   const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
   const [gecerlilikSuresi, setGecerlilikSuresiState] = useState<string>(mevcut?.gecerlilikSuresi ?? '1 Hafta');
+  const [dovizKuru, setDovizKuruState] = useState<string>(mevcut?.dovizKuru ?? 'TCMB Fatura');
   const [olusturmaTarihi] = useState(mevcut?.olusturmaTarihi ?? dayjs().toISOString());
   const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
   const [status, setStatus] = useState<TeklifStatus>(mevcut?.status ?? 'taslak');
@@ -277,6 +281,10 @@ export function useBelgeState(
     setGecerlilikSuresiState(sure);
   }, []);
 
+  const setDovizKuru = useCallback((kur: string) => {
+    setDovizKuruState(kur);
+  }, []);
+
   const satirDegisimiAnlikKaydet = useCallback((nextSatirlar: TeklifSatiri[]) => {
     if (!cari) return;
     if (nextSatirlar.length === 0) return;
@@ -311,6 +319,7 @@ export function useBelgeState(
       hazirlayanRol: kullanici?.rol,
       hazirlayanUnvan: kullanici?.unvan,
       gecerlilikSuresi,
+      dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
@@ -337,6 +346,7 @@ export function useBelgeState(
     contactName,
     contactTitle,
     gecerlilikSuresi,
+    dovizKuru,
     gorseller,
     visibility,
   ]);
@@ -543,13 +553,14 @@ export function useBelgeState(
       hazirlayanRol: kullanici?.rol,
       hazirlayanUnvan: kullanici?.unvan,
       gecerlilikSuresi,
+      dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
       status,
       visibility,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, gecerlilikSuresi, gorseller, status, visibility]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, gecerlilikSuresi, dovizKuru, gorseller, status, visibility]);
 
   /**
    * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
@@ -622,7 +633,7 @@ export function useBelgeState(
     cari, satirlar, paraBirimi, satirBazliParaBirimi, satirBazliIskonto,
     kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin,
     contactName, contactTitle,
-    tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility,
+    tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility, dovizKuru,
   ]);
 
   return {
@@ -645,6 +656,7 @@ export function useBelgeState(
     contactName,
     contactTitle,
     gecerlilikSuresi,
+    dovizKuru,
     olusturmaTarihi,
     hazirlayanKullaniciId: kullanici?.id,
     teklifSahibiId: teklifSahibiIdRef.current,
@@ -673,6 +685,7 @@ export function useBelgeState(
     setContactName,
     setContactTitle,
     setGecerlilikSuresi,
+    setDovizKuru,
     setSatirlar,
     satirEkle,
     satirArayaEkle,

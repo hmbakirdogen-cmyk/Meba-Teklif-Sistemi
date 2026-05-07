@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Tabs, Avatar, Tag } from 'antd';
+import { Card, Form, Input, Button, message, Tabs, Tag } from 'antd';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
 import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
 import { LogoContainer } from '../components/LogoContainer';
+import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 import { isSuperAdmin as isSuperAdminFn } from '../utils/yetkiUtils';
 
 export default function FirmaProfilSayfasi() {
@@ -24,12 +25,27 @@ export default function FirmaProfilSayfasi() {
   const tabs = isSuperAdmin
     ? firmalar.map((f) => ({
         key: f.id,
-        label: (
-          <span>
-            <Avatar src={f.logoPath} size="small" style={{ marginRight: 8, background: '#fff' }} />
-            {f.kisaAd}
-          </span>
-        ),
+        label: (() => {
+          const inlineLogo = getAdaptiveLogoPlacement({
+            firmaId: f.id,
+            logoPath: f.logoPath,
+            surface: 'inline-tab',
+            objectPosition: 'left center',
+          });
+
+          return (
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span style={{ ...inlineLogo.slotStyle, marginRight: 8 }}>
+                <img
+                  src={f.logoPath}
+                  alt={f.kisaAd}
+                  style={inlineLogo.imageStyle}
+                />
+              </span>
+              {f.kisaAd}
+            </span>
+          );
+        })(),
         children: firma?.id === f.id ? <FirmaForm firma={firma} onSave={async (patch) => {
           const r = await firmaGuncelle(firma.id, patch);
           if (r.ok) { message.success('Firma profili güncellendi'); await refresh(); }

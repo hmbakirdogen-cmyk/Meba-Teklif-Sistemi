@@ -12,7 +12,7 @@
  *
  * Çalıştırma şartları:
  *   - Server kapalı olmalı (db.json.lock çakışmasını önlemek için)
- *   - meba_cariler.XLSX projenin kökünde olmalı
+ *   - meba_cariler.XLSX dosyası data/meba/ altında olmalı
  *
  * Kullanım:
  *   node scripts/dev-only/migrations/import-meba-cariler.cjs
@@ -29,7 +29,7 @@ const xlsx = require('xlsx');
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const DB_PATH = path.join(ROOT, 'server', 'db.json');
-const XLSX_PATH = path.join(ROOT, 'meba_cariler.XLSX');
+const XLSX_PATH = path.join(ROOT, 'data', 'meba', 'meba_cariler.XLSX');
 const BACKUP_DIR = path.join(ROOT, 'server', 'backups');
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ function adresOlustur(adres1, adres2, sehir) {
 
 // ── Validation ──────────────────────────────────────────────────────────────
 if (!fs.existsSync(XLSX_PATH)) {
-  console.error('[migration] HATA: meba_cariler.XLSX projenin kökünde bulunamadı:', XLSX_PATH);
+  console.error('[migration] HATA: meba_cariler.XLSX bulunamadı:', XLSX_PATH);
   process.exit(1);
 }
 if (!fs.existsSync(DB_PATH)) {

@@ -1,24 +1,23 @@
 ﻿import React from 'react';
 import type { Teklif } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatMarka, formatAdres, formatAdSoyad } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
+import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
 import { TotalsCard } from '../components/TotalsCard';
 import type { TeklifPagePlan } from '../services/documentPagination';
 import {
   ACIKLAMA_OVERFLOW,
   CELL_PAD,
-  DOCUMENT_BRAND,
+  createDocumentBrand,
   DOCUMENT_COLORS,
   DOCUMENT_PAGE,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
-  HIGH_QUALITY_IMAGE_RENDERING,
   LINE_ITEM_METRICS,
-  LOGO_OPT_H,
-  LOGO_OPT_W,
+  getFullHeaderLayoutStyles,
   NOTES_BOX_STYLE,
   OFFER_TABLE_ROW_GAP_PX,
   PARA_BIRIMI_ETIKETI,
@@ -29,11 +28,18 @@ import {
   PARTY_NAME_STYLE,
   SETTINGS_CARD_STYLE,
   SETTINGS_EN_LABEL_STYLE,
-  SETTINGS_GRID_STYLE,
+  getSettingsGridStyle,
   SETTINGS_LABEL_STYLE,
   SETTINGS_SEP_STYLE,
   SETTINGS_TR_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
+  SIGNATURE_BLOCK_ROW_STYLE,
+  SIGNATURE_CONTENT_ROW_STYLE,
+  SIGNATURE_FIELD_STYLE,
+  SIGNATURE_FIELDS_GRID_STYLE,
+  SIGNATURE_FIELDS_HOST_STYLE,
+  SIGNATURE_LABEL_STYLE,
+  SIGNATURE_LINE_STYLE,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_STYLE,
@@ -42,6 +48,8 @@ import {
   computeTotalsAmountRightOffset,
   URUN_KOD_OVERFLOW,
   buildSettingsItems,
+  getOfferTableSeparatorClass,
+  getOfferTableSeparatorStyle,
   getTableHeadCellStyle,
   noBreak,
   rcCell,
@@ -56,7 +64,6 @@ import {
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
-const BRAND = DOCUMENT_BRAND;
 
 interface TeklifPagedDocumentProps {
   teklif: Teklif;
@@ -67,9 +74,12 @@ interface TeklifPagedDocumentProps {
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
-  const S = 0.478;
-  const optW = LOGO_OPT_W * S;
-  const optH = LOGO_OPT_H * S;
+  const compactLogo = getAdaptiveLogoPlacement({
+    firmaId: firmaBilgi.id,
+    logoPath: firmaBilgi.logoPath,
+    surface: 'a4-compact',
+    objectPosition: 'left center',
+  });
 
   return (
     <div style={{ marginBottom: 10 }}>
@@ -80,27 +90,11 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
         paddingBottom: '3.5mm',
         borderBottom: `1.5px solid ${C.panelStrong}`,
       }}>
-        <div style={{
-          width: `${optW}px`,
-          height: `${optH}px`,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-        }}>
+        <div style={compactLogo.slotStyle}>
           <img
             src={firmaBilgi.logoPath}
             alt={firmaBilgi.kisaAd}
-            style={{
-              width:  '100%',
-              height: '100%',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-              display: 'block',
-              imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
-              printColorAdjust: 'exact',
-              WebkitPrintColorAdjust: 'exact',
-            }}
+            style={compactLogo.imageStyle}
           />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -109,12 +103,9 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
           </span>
           {firmaBilgi.adres && (
             <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-              {firmaBilgi.adres}
+              {formatAdres(firmaBilgi.adres)}
             </span>
           )}
-          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            {[firmaBilgi.telefon && `Tel: ${firmaBilgi.telefon}`, firmaBilgi.eposta, firmaBilgi.web].filter(Boolean).join(' | ')}
-          </span>
         </div>
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
           <div style={{ fontSize: '10.4px', fontWeight: 700, color: C.navy, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
@@ -131,61 +122,53 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
 
 function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
+  const BRAND = createDocumentBrand(firmaBilgi.renkBirincil);
+  const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
+  const fullLogo = getAdaptiveLogoPlacement({
+    firmaId: firmaBilgi.id,
+    logoPath: firmaBilgi.logoPath,
+    surface: 'a4-full',
+    objectPosition: 'left center',
+  });
   const muhatapSatiri = teklif.contactName?.trim()
     ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
     : (teklif.cari.yetkiliKisi || null);
 
   return (
     <>
-      <div style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        width: '100%',
-        height: `${LOGO_OPT_H}px`,
-        marginBottom: '10px',
-        ...noBreak,
-      }}>
-        <div style={{ flex: '0 0 37%', maxWidth: '37%', paddingRight: '8px', boxSizing: 'border-box', lineHeight: 0 }}>
-          <div style={{
-            width: `${LOGO_OPT_W}px`,
-            height: `${LOGO_OPT_H}px`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-          }}>
+      <div style={fullHeaderLayout.rootStyle}>
+        <div style={fullHeaderLayout.logoColumnStyle}>
+          <div style={fullLogo.slotStyle}>
             <img
               src={firmaBilgi.logoPath}
               alt={firmaBilgi.kisaAd}
-              style={{
-                width:  '100%',
-                height: '100%',
-                objectFit: 'contain',
-                objectPosition: 'left center',
-                display: 'block',
-                imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
-                printColorAdjust: 'exact',
-                WebkitPrintColorAdjust: 'exact',
-              }}
+              style={fullLogo.imageStyle}
             />
           </div>
         </div>
-        <div style={{ flex: '0 0 31%', maxWidth: '31%', paddingRight: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
-          <div style={{ fontWeight: 800, fontSize: '11.5px', color: C.navy, lineHeight: '1.25', letterSpacing: '-0.012em' }}>
+        <div style={fullHeaderLayout.companyColumnStyle}>
+          <div style={{ fontWeight: 700, fontSize: '11px', color: C.navy, lineHeight: '1.3', letterSpacing: '-0.01em' }}>
             {firmaBilgi.ad}
           </div>
           {firmaBilgi.adres && (
-            <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
-              {firmaBilgi.adres}
+            <div style={{ fontSize: '8.8px', lineHeight: '1.35', color: C.textMuted, letterSpacing: '0.01em', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              {formatAdres(firmaBilgi.adres)}
+            </div>
+          )}
+          {firmaBilgi.vergiNo && (
+            <div style={{ fontSize: '8.5px', lineHeight: '1.35', color: C.textMuted, letterSpacing: '0.02em' }}>
+              VKN: {formatVKN(firmaBilgi.vergiNo)}{firmaBilgi.vergiDairesi && <span> &nbsp;—&nbsp; {firmaBilgi.vergiDairesi} V.D.</span>}
             </div>
           )}
         </div>
-        <div style={{ flex: '0 0 32%', maxWidth: '32%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', boxSizing: 'border-box' }}>
-          <div style={{ width: '202px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'visible', boxSizing: 'border-box' }}>
+        {fullHeaderLayout.separatorStyle && <div aria-hidden="true" style={fullHeaderLayout.separatorStyle} />}
+        <div style={fullHeaderLayout.quoteColumnStyle}>
+          <div style={fullHeaderLayout.quotePanelStyle}>
             <div style={{
               background: BRAND.gradient,
               printColorAdjust: 'exact',
               WebkitPrintColorAdjust: 'exact',
-              padding: '5px 14px 6px',
+              padding: '4px 12px 5px',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -195,28 +178,33 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
               border: `1px solid ${BRAND.border}`,
               boxShadow: BRAND.shadowSm,
             }}>
-              <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '0.8px', color: BRAND.text }}>TEKLİF</span>
-              <span style={{ fontSize: '10.4px', color: BRAND.textSub, letterSpacing: '0.02em' }}>/ Quotation</span>
+              <span style={{ fontWeight: 700, fontSize: '14.5px', letterSpacing: '0.8px', color: BRAND.text }}>TEKLİF</span>
+              <span style={{ fontSize: '9.5px', color: BRAND.textSub, letterSpacing: '0.02em' }}>/ Quotation</span>
+              {teklif.revizyonNo && teklif.revizyonNo > 0 && (
+                <span style={{ fontSize: '9px', fontWeight: 600, color: BRAND.textSub, marginLeft: '6px' }}>
+                  Rev.{String(teklif.revizyonNo).padStart(2, '0')}
+                </span>
+              )}
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
-              <colgroup><col style={{ width: '42%' }} /><col style={{ width: '58%' }} /></colgroup>
+              <colgroup><col style={{ width: '38%' }} /><col style={{ width: '62%' }} /></colgroup>
               <tbody>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Teklif No</td>
+                  <td style={{ fontSize: '11.5px', fontWeight: 700, color: C.navy, padding: '2px 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {teklif.teklifNo}
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Tarih</td>
-                  <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Tarih</td>
+                  <td style={{ fontSize: '10.2px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
                     {formatDate(teklif.tarih)}
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Hazırlayan</td>
+                  <td style={{ fontSize: '9.5px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {teklif.hazirlayanAdSoyad ? formatAdSoyad(teklif.hazirlayanAdSoyad) : firmaBilgi.kisaAd}
                   </td>
                 </tr>
               </tbody>
@@ -228,10 +216,14 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
       <div style={PARTY_GRID_STYLE}>
         <div style={PARTY_CARD_STYLE}>
           <div style={PARTY_LABEL_STYLE}>Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span></div>
-          <div style={PARTY_NAME_STYLE}>{firmaBilgi.kisaAd}{firmaBilgi.kisaAd === 'MEBA Mekanik' ? ' Ltd. Şti.' : ''}</div>
+          <div style={PARTY_NAME_STYLE}>{firmaBilgi.ad}</div>
           <div style={PARTY_BODY_STYLE}>
-            {firmaBilgi.telefon ? <>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}<br /></> : null}
-            {firmaBilgi.web}
+            {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
+            {firmaBilgi.iban && (
+              <div style={{ fontSize: '9.5px', color: C.textMuted, letterSpacing: '0.02em', marginTop: '2px' }}>
+                IBAN: {firmaBilgi.iban}
+              </div>
+            )}
           </div>
         </div>
         <div style={PARTY_CARD_STYLE}>
@@ -239,42 +231,47 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
           <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
           <div style={PARTY_BODY_STYLE}>
             {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
-            {(teklif.cari.telefon || teklif.cari.ePosta || teklif.cari.sehir) && (
+            {teklif.cari.adres && (
+              <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                {formatAdres(teklif.cari.adres)}
+              </div>
+            )}
+            {(teklif.cari.sehir || teklif.cari.telefon || teklif.cari.ePosta) && (
               <div>
+                {teklif.cari.sehir && <span>{formatSehir(teklif.cari.sehir)}</span>}
+                {teklif.cari.sehir && teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                {teklif.cari.telefon && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
+                {(teklif.cari.sehir || teklif.cari.telefon) && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
-                {(teklif.cari.telefon || teklif.cari.ePosta) && teklif.cari.sehir && <span> &nbsp;|&nbsp; </span>}
-                {teklif.cari.sehir && <span>{teklif.cari.sehir}</span>}
               </div>
             )}
             {teklif.cari.vergiNo && (
               <div>
-                VKN: {teklif.cari.vergiNo}
-                {teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}
-              </div>
-            )}
-            {teklif.cari.adres && (
-              <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                {teklif.cari.adres}
+                VKN: {formatVKN(teklif.cari.vergiNo)}
+                {teklif.cari.vergiDairesi && <span> &nbsp;—&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div style={SETTINGS_GRID_STYLE}>
-        {buildSettingsItems(teklif, teklif.satirBazliParaBirimi ?? false).map((item, i) => (
-          <div key={i} style={SETTINGS_CARD_STYLE}>
-            <div style={SETTINGS_LABEL_STYLE}>
-              <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
-              <span style={SETTINGS_SEP_STYLE}>/</span>
-              <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
-            </div>
-            <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
+      {(() => {
+        const items = buildSettingsItems(teklif, teklif.satirBazliParaBirimi ?? false);
+        return (
+          <div style={getSettingsGridStyle(items.length)}>
+            {items.map((item, i) => (
+              <div key={i} style={SETTINGS_CARD_STYLE}>
+                <div style={SETTINGS_LABEL_STYLE}>
+                  <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
+                  <span style={SETTINGS_SEP_STYLE}>/</span>
+                  <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
+                </div>
+                <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        );
+      })()}
     </>
   );
 }
@@ -307,19 +304,19 @@ function TableSection({
         <thead>
           <tr>
             {[
-              { label: '#', sub: '', align: 'center' as const },
-              { label: 'Marka', sub: 'Brand', align: 'center' as const },
-              { label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
-              { label: 'Açıklama', sub: 'Description', align: 'left' as const },
-              { label: 'Miktar', sub: 'Qty', align: 'left' as const },
+              { key: 'no' as const, label: '#', sub: '', align: 'center' as const },
+              { key: 'marka' as const, label: 'Marka', sub: 'Brand', align: 'center' as const },
+              { key: 'urunKod' as const, label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
+              { key: 'aciklama' as const, label: 'Açıklama', sub: 'Description', align: 'left' as const },
+              { key: 'miktar' as const, label: 'Miktar', sub: 'Qty', align: 'left' as const },
               satirBazliParaBirimi
-                ? { label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
-                : { label: '',            sub: '',         align: 'center' as const },
-              { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
-              { label: 'Toplam', sub: 'Total', align: 'right' as const },
-              { label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
+                ? { key: 'paraBirimi' as const, label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                : { key: 'paraBirimi' as const, label: '',            sub: '',         align: 'center' as const },
+              { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
+              { key: 'toplam' as const, label: 'Toplam', sub: 'Total', align: 'right' as const },
+              { key: 'teslimat' as const, label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
             ].map((col, i) => (
-              <th key={i} style={getTableHeadCellStyle(col.align)}>
+              <th key={i} className={getOfferTableSeparatorClass(col.key)} style={getTableHeadCellStyle(col.align, col.key)}>
                 {col.label}
                 {col.sub && (
                   <span style={{ ...TABLE_HEAD_SUBLABEL_STYLE, textAlign: col.align }}>
@@ -363,22 +360,23 @@ function TableSection({
                     String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')
                   )}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', ...rcCell('mid', idx, undefined, setGroupPos) })}>
-                  {satir.marka || '-'}
+                <td className={getOfferTableSeparatorClass('marka')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', ...getOfferTableSeparatorStyle('marka'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                  {satir.marka ? formatMarka(satir.marka) : '-'}
                 </td>
-                <td className="product-code-cell" style={applyCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: TABLE_TEXT.code, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={`product-code-cell ${getOfferTableSeparatorClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ padding: CELL_PAD, fontSize: `${LINE_ITEM_METRICS.codeFontSizePx}px`, fontWeight: 600, color: TABLE_TEXT.code, verticalAlign: 'middle', letterSpacing: '-0.1px', ...URUN_KOD_OVERFLOW, ...getOfferTableSeparatorStyle('urunKod'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.urunKod || '-'}
                 </td>
-                <td className="description-cell" style={applyCellStyle({ padding: CELL_PAD, fontWeight: 400, color: TABLE_TEXT.description, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={`description-cell ${getOfferTableSeparatorClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ padding: CELL_PAD, fontWeight: 400, color: TABLE_TEXT.description, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...getOfferTableSeparatorStyle('aciklama'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   <DescText text={satir.aciklama ?? ''} />
                 </td>
-                <td style={applyCellStyle({
+                <td className={getOfferTableSeparatorClass('miktar')} style={applyCellStyle({
                   padding: CELL_PAD,
                   verticalAlign: 'middle',
                   fontSize: '11px',
                   color: TABLE_TEXT.numeric,
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
+                  ...getOfferTableSeparatorStyle('miktar'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.miktar !== 0 ? (
@@ -392,19 +390,19 @@ function TableSection({
                     </div>
                   ) : '-'}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={getOfferTableSeparatorClass('paraBirimi')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...getOfferTableSeparatorStyle('paraBirimi'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={getOfferTableSeparatorClass('birimFiyat')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('birimFiyat'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return Math.abs(nihai) >= 0.005 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={getOfferTableSeparatorClass('toplam')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('toplam'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
                 </td>
-                <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...rcCell('last', idx, undefined, setGroupPos) })}>
+                <td className={getOfferTableSeparatorClass('teslimat')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...getOfferTableSeparatorStyle('teslimat'), ...rcCell('last', idx, undefined, setGroupPos) })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '-')}
                 </td>
               </tr>
@@ -536,24 +534,24 @@ function SignatureBlock() {
   const SF_FONT = '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', fontFamily: SF_FONT } as React.CSSProperties}>
+    <div style={{ ...SIGNATURE_BLOCK_ROW_STYLE, fontFamily: SF_FONT } as React.CSSProperties}>
 
-      {/* SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına. Ferah */}
-      <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE } as React.CSSProperties}>
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+      {/* SİPARİŞİ VEREN bloğu — tam genişlik, 3 sütunlu (İsim+Tarih | Kaşe | İmza) */}
+      <div style={{ flex: '0 0 100%', minWidth: 0, ...SIGNATURE_SECTION_STYLE } as React.CSSProperties}>
+      <div style={SIGNATURE_CONTENT_ROW_STYLE}>
 
         {/* Sol: 2-satır dikey başlık — biraz büyütüldü, tracking arttırıldı */}
         <div style={{
           flexShrink: 0,
-          position: 'relative',
-          width: '40px',
-          overflow: 'hidden',
+          width: '56px',
+          minHeight: '74px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'visible',
         }}>
           <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%) rotate(-90deg)',
+            transform: 'rotate(-90deg)',
             width: '120px',
             textAlign: 'left',
             userSelect: 'none',
@@ -583,31 +581,33 @@ function SignatureBlock() {
           </div>
         </div>
 
-        {/* Sağ: İçerik — isim, tarih, imza */}
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
-            <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45', fontFamily: SF_FONT }}>
-              <div style={{ position: 'relative', top: '16px' }}>
-                <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                <div style={{ marginBottom: '6px', marginTop: '2px' }}>
+        {/* Sağ: İçerik — isim+tarih | imza & kaşe */}
+        <div style={SIGNATURE_FIELDS_HOST_STYLE}>
+          <div style={SIGNATURE_FIELDS_GRID_STYLE}>
+            <div style={{ ...SIGNATURE_FIELD_STYLE, fontFamily: SF_FONT, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ ...SIGNATURE_FIELD_STYLE, width: '100%', maxWidth: '100%', fontFamily: SF_FONT }}>
+                <div style={SIGNATURE_LINE_STYLE} />
+                <div style={SIGNATURE_LABEL_STYLE}>
                   <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
                   <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                   <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
                 </div>
               </div>
-              <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-              <div style={{ marginTop: '2px' }}>
-                <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
-                <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+              <div style={{ ...SIGNATURE_FIELD_STYLE, width: '100%', maxWidth: '100%', fontFamily: SF_FONT }}>
+                <div style={SIGNATURE_LINE_STYLE} />
+                <div style={SIGNATURE_LABEL_STYLE}>
+                  <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
+                  <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                  <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+                </div>
               </div>
             </div>
-            <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px', fontFamily: SF_FONT }}>
-              <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-              <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
-                <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+            <div style={{ ...SIGNATURE_FIELD_STYLE, width: '48mm', maxWidth: '48mm', fontFamily: SF_FONT }}>
+              <div style={{ ...SIGNATURE_LINE_STYLE, width: '48mm', maxWidth: '48mm' }} />
+              <div style={SIGNATURE_LABEL_STYLE}>
+                <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza & Kaşe</span>
                 <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature & Stamp</span>
               </div>
             </div>
           </div>
@@ -624,9 +624,11 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   return (
     <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
-      <div>{[firmaBilgi.kisaAd, firmaBilgi.eposta].filter(Boolean).join(' | ')}</div>
+      <div>{firmaBilgi.ad}</div>
+      <div style={{ fontSize: '8px', opacity: 0.7, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        Sayfa {pageNumber} / {totalPages}
+      </div>
       <div>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
-      <div style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>Sayfa {pageNumber} / {totalPages}</div>
     </div>
   );
 }

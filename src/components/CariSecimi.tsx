@@ -6,10 +6,9 @@ import type { Cari } from '../types';
 import {
   normalizeProductCode,
   cleanTextInput,
-  normalizeEmail,
   formatCariAdi,
+  formatDisplayText,
 } from '../utils/formatters';
-import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
 
@@ -195,41 +194,28 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
         cancelText="İptal"
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
-          <Form.Item name="cariKod" label="Cari Kod" rules={[{ required: true, message: 'Cari kod zorunlu' }]}>
-            <Input
-              placeholder="Örn: C-001"
-              onBlur={() => form.setFieldValue('cariKod', normalizeProductCode(form.getFieldValue('cariKod') || ''))}
-            />
+          <Form.Item name="cariKod" label="Cari Kod" rules={[{ required: true, message: 'Cari kod zorunlu' }]} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'product_code')}>
+            <Input placeholder="Örn: C-001" />
           </Form.Item>
-          <Form.Item name="firmaAdi" label="Firma Adı" rules={[{ required: true, message: 'Firma adı zorunlu' }]}>
-            <Input
-              onBlur={() => form.setFieldValue('firmaAdi', cleanTextInput(form.getFieldValue('firmaAdi') || ''))}
-            />
-          </Form.Item>
-          <Form.Item name="yetkiliKisi" label="Yetkili Kişi">
-            <Input
-              onBlur={() => form.setFieldValue('yetkiliKisi', cleanTextInput(form.getFieldValue('yetkiliKisi') || ''))}
-            />
-          </Form.Item>
-          <Form.Item name="telefon" label="Telefon">
-            <Input
-              placeholder="(05xx) xxx xx xx"
-              onBlur={() => form.setFieldValue('telefon', formatPhone(form.getFieldValue('telefon') || ''))}
-            />
-          </Form.Item>
-          <Form.Item name="ePosta" label="E-Posta">
-            <Input
-              placeholder="ornek@firma.com"
-              onBlur={() => form.setFieldValue('ePosta', normalizeEmail(form.getFieldValue('ePosta') || ''))}
-            />
-          </Form.Item>
-          <Form.Item name="adres" label="Adres">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="vergiDairesi" label="Vergi Dairesi">
+          <Form.Item name="firmaAdi" label="Firma Adı" rules={[{ required: true, message: 'Firma adı zorunlu' }]} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'cari_adi')}>
             <Input />
           </Form.Item>
-          <Form.Item name="vergiNo" label="Vergi No">
+          <Form.Item name="yetkiliKisi" label="Yetkili Kişi" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'person_name')}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="telefon" label="Telefon" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'phone')}>
+            <Input placeholder="(05xx) xxx xx xx" />
+          </Form.Item>
+          <Form.Item name="ePosta" label="E-Posta" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'email')}>
+            <Input placeholder="ornek@firma.com" />
+          </Form.Item>
+          <Form.Item name="adres" label="Adres" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'address')}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="vergiDairesi" label="Vergi Dairesi" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'text')}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="vergiNo" label="Vergi No" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'vergi_no')}>
             <Input />
           </Form.Item>
         </Form>

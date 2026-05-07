@@ -54,6 +54,7 @@ export interface Teklif {
   odemeVadesi: string;
   teslimSuresi?: string;
   gecerlilikSuresi?: string;
+  dovizKuru?: string;
   notlar: string;
   /** Not alanının A4 görünümünde ve PDF'te görünür olup olmadığı. Varsayılan
    *  davranış: kayıtta tanımlı değilse, mevcut bir not metni varsa true,

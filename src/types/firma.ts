@@ -15,6 +15,7 @@ export interface Firma {
   vergiNo: string;
   telefon: string;
   eposta: string;
+  web?: string;
   iban: string;
   pdfKlasorAdi: string;
   teklifPrefix: string;

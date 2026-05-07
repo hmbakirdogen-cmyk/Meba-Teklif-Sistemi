@@ -1,17 +1,13 @@
 import type { CSSProperties } from 'react';
 import type { Firma } from '../types/firma';
+import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 
 /**
  * LogoContainer — uygulamadaki tüm firma logoları için tek standart görsel
- * çerçeve. Width / height / padding / border-radius / background renk
- * sabittir; logo görseli kutu içinde hem yatay hem dikey ortalanır.
- *
- * Tüm sayfalarda (splash, giriş ekranı firma seçimi, firma profili) bu
- * component üzerinden çağrıldığında logo arka beyaz zemin ölçüleri birebir
- * aynı görünür.
+ * çerçeve. Container hizalamayı yapar; logo görselinin kendisi doğal oranında
+ * kalır ve hiçbir görsel efekt almaz.
  */
 
-/** Logo arka beyaz zeminin ortak ölçüleri (sabit referans). */
 const LOGO_CONTAINER_LAYOUT = {
   width: 184,
   height: 120,
@@ -20,7 +16,6 @@ const LOGO_CONTAINER_LAYOUT = {
   background: '#ffffff',
 } as const;
 
-/** Logo arka zeminin ortak stili — inline kullanım için. */
 const LOGO_CONTAINER_STYLE: CSSProperties = {
   width: LOGO_CONTAINER_LAYOUT.width,
   height: LOGO_CONTAINER_LAYOUT.height,
@@ -35,21 +30,14 @@ const LOGO_CONTAINER_STYLE: CSSProperties = {
   flexShrink: 0,
 };
 
-/** Logo görseli için ortak stil — kutu içinde tam ortalı, taşmaz, sıkışmaz. */
-function logoImageStyle(firma: Firma, extraFilter?: string): CSSProperties {
-  return {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain',
+function logoImageStyle(firma: Firma, imgFilter?: string): CSSProperties {
+  void imgFilter;
+  return getAdaptiveLogoPlacement({
+    firmaId: firma.id,
+    logoPath: firma.logoPath,
+    surface: 'card',
     objectPosition: 'center',
-    imageRendering: 'auto',
-    WebkitBackfaceVisibility: 'hidden',
-    backfaceVisibility: 'hidden',
-    transform: `scale(${firma.logoScale ?? 1}) translateZ(0)`,
-    transformOrigin: 'center',
-    filter: extraFilter ?? 'drop-shadow(0 1px 2px rgba(0,0,0,0.10))',
-    transition: 'filter 0.25s ease, transform 0.25s ease',
-  };
+  }).imageStyle;
 }
 
 interface LogoContainerProps {
@@ -60,19 +48,24 @@ interface LogoContainerProps {
   style?: CSSProperties;
 }
 
-/**
- * LogoContainer — tüm sayfalarda çağrılan ortak logo wrapper component'i.
- * Width / height / padding / borderRadius / background sabittir.
- */
 export function LogoContainer({ firma, imgFilter, style }: LogoContainerProps) {
+  const adaptiveLogo = getAdaptiveLogoPlacement({
+    firmaId: firma.id,
+    logoPath: firma.logoPath,
+    surface: 'card',
+    objectPosition: 'center',
+  });
+
   return (
     <div style={{ ...LOGO_CONTAINER_STYLE, ...style }}>
-      <img
-        src={firma.logoPath}
-        alt={firma.kisaAd}
-        draggable={false}
-        style={logoImageStyle(firma, imgFilter)}
-      />
+      <div style={adaptiveLogo.slotStyle}>
+        <img
+          src={firma.logoPath}
+          alt={firma.kisaAd}
+          draggable={false}
+          style={logoImageStyle(firma, imgFilter)}
+        />
+      </div>
     </div>
   );
 }

@@ -25,7 +25,7 @@ import { urunSetService } from '../services/urunSetService';
 import type { Cari, Urun, UrunSeti } from '../types';
 import {
   normalizeProductCode, cleanTextInput, normalizeEmail,
-  formatCariAdi,
+  formatCariAdi, formatDisplayText,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
 import { buttonClassNames } from '../styles/buttonStyles';
@@ -95,37 +95,37 @@ function CariModal({
             </Form.Item>
           </Col>
           <Col span={16}>
-            <Form.Item name="firmaAdi" label="Firma Adı" rules={[{ required: true, message: 'Zorunlu' }]}>
+            <Form.Item name="firmaAdi" label="Firma Adı" rules={[{ required: true, message: 'Zorunlu' }]} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'cari_adi')}>
               <Input />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item name="yetkiliKisi" label="Yetkili Kişi">
+            <Form.Item name="yetkiliKisi" label="Yetkili Kişi" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'person_name')}>
               <Input />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="telefon" label="Telefon">
+            <Form.Item name="telefon" label="Telefon" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'phone')}>
               <Input placeholder="(05xx) xxx xx xx" />
             </Form.Item>
           </Col>
         </Row>
-        <Form.Item name="ePosta" label="E-Posta">
+        <Form.Item name="ePosta" label="E-Posta" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'email')}>
           <Input placeholder="ornek@firma.com" />
         </Form.Item>
-        <Form.Item name="adres" label="Adres">
+        <Form.Item name="adres" label="Adres" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'address')}>
           <Input.TextArea rows={2} />
         </Form.Item>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item name="vergiDairesi" label="Vergi Dairesi">
+            <Form.Item name="vergiDairesi" label="Vergi Dairesi" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'text')}>
               <Input />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="vergiNo" label="Vergi No">
+            <Form.Item name="vergiNo" label="Vergi No" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'vergi_no')}>
               <Input />
             </Form.Item>
           </Col>
@@ -193,23 +193,23 @@ function UrunModal({
               name="urunKod"
               label="Ürün Kodu"
               rules={[{ required: true, message: 'Zorunlu' }]}
-              getValueFromEvent={(e) => (e?.target?.value ?? '').toLocaleUpperCase('tr-TR')}
+              getValueFromEvent={(e) => formatDisplayText(e?.target?.value ?? '', 'product_code')}
             >
               <Input placeholder="CP96SDB80-200" autoCapitalize="characters" style={{ textTransform: 'uppercase' }} />
             </Form.Item>
           </Col>
         </Row>
-        <Form.Item name="aciklama" label="Açıklama" rules={[{ required: true, message: 'Zorunlu' }]}>
+        <Form.Item name="aciklama" label="Açıklama" rules={[{ required: true, message: 'Zorunlu' }]} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'description')}>
           <Input.TextArea rows={2} />
         </Form.Item>
         <Row gutter={12}>
           <Col span={10}>
-            <Form.Item name="kategori" label="Kategori">
+            <Form.Item name="kategori" label="Kategori" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'category')}>
               <Input placeholder="Silindir, Valf…" />
             </Form.Item>
           </Col>
           <Col span={7}>
-            <Form.Item name="birim" label="Birim">
+            <Form.Item name="birim" label="Birim" getValueFromEvent={(e) => formatDisplayText(e.target.value, 'unit')}>
               <Input placeholder="Adet" />
             </Form.Item>
           </Col>
@@ -316,12 +316,12 @@ function UrunSetModal({
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
         <Row gutter={12}>
           <Col span={10}>
-            <Form.Item name="setKod" label="Set Kodu" rules={[{ required: true, message: 'Zorunlu' }]}>
+            <Form.Item name="setKod" label="Set Kodu" rules={[{ required: true, message: 'Zorunlu' }]} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'product_code')}>
               <Input placeholder="SET-001" />
             </Form.Item>
           </Col>
           <Col span={14}>
-            <Form.Item name="aciklama" label="Set Açıklaması" rules={[{ required: true, message: 'Zorunlu' }]}>
+            <Form.Item name="aciklama" label="Set Açıklaması" rules={[{ required: true, message: 'Zorunlu' }]} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'description')}>
               <Input placeholder="Örn: Pano Montaj Seti" />
             </Form.Item>
           </Col>
@@ -341,13 +341,13 @@ function UrunSetModal({
                       label="Alt Ürün Kodu"
                       rules={[{ required: true, message: 'Zorunlu' }]}
                       style={{ marginBottom: 0 }}
-                      getValueFromEvent={(e) => (e?.target?.value ?? '').toLocaleUpperCase('tr-TR')}
+                      getValueFromEvent={(e) => formatDisplayText(e?.target?.value ?? '', 'product_code')}
                     >
                       <Input
                         autoCapitalize="characters"
                         style={{ textTransform: 'uppercase' }}
                         onBlur={(e) => {
-                          const kod = normalizeProductCode(e.target.value ?? '');
+                          const kod = formatDisplayText(e.target.value ?? '', 'product_code');
                           const aciklama = koddanAciklamaGetir(kod);
                           form.setFieldValue(['kalemler', field.name, 'urunKod'], kod);
                           if (aciklama) form.setFieldValue(['kalemler', field.name, 'aciklama'], aciklama);
@@ -356,7 +356,7 @@ function UrunSetModal({
                     </Form.Item>
                   </Col>
                   <Col span={10}>
-                    <Form.Item {...field} name={[field.name, 'aciklama']} label="Açıklama" style={{ marginBottom: 0 }}>
+                    <Form.Item {...field} name={[field.name, 'aciklama']} label="Açıklama" style={{ marginBottom: 0 }} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'description')}>
                       <Input />
                     </Form.Item>
                   </Col>
@@ -366,7 +366,7 @@ function UrunSetModal({
                     </Form.Item>
                   </Col>
                   <Col span={2}>
-                    <Form.Item {...field} name={[field.name, 'birim']} label="Birim" style={{ marginBottom: 0 }}>
+                    <Form.Item {...field} name={[field.name, 'birim']} label="Birim" style={{ marginBottom: 0 }} getValueFromEvent={(e) => formatDisplayText(e.target.value, 'unit')}>
                       <Input placeholder="Adet" />
                     </Form.Item>
                   </Col>

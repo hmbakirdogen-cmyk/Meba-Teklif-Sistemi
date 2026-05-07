@@ -159,10 +159,10 @@ export function RowResizerLayer({
         const handleL = noRect
           ? (noRect.left - layerRect.left) / scale
           : (r.left - layerRect.left) / scale;
-        // Görünen çizgi uzunluğu = (Marka inner width) × 1.5; Marka
-        // hücresinin merkezinde kalır, sağ-sol komşu kolonlara taşar.
+        // Görünen çizgi uzunluğu = (Marka inner width) × 1.2; Marka
+        // hücresinin merkezinde kalır, sağ-sol komşu kolonlara hafif taşar.
         const baseW = Math.max(markaW - INSET_PX * 2, 24);
-        const lineW = baseW * 1.5;
+        const lineW = baseW * 1.2;
         const overflow = (lineW - markaW) / 2;
         const lineL = noW - overflow;
         next.push({
@@ -316,9 +316,9 @@ export function RowResizerLayer({
             touchAction: 'none',
           }}
         >
-          {/* Görünen mavi hat — Marka hücresinin altında. 3px yükseklikli
-              dikdörtgen + border-radius: 50% → matematiksel elipse:
-              uçlar geometrik olarak 0px'e iner, orta tam yükseklikte. */}
+          {/* Görünen mavi hat — Marka hücresinin altında. İnce + elit:
+              1.5px yükseklik, uçları transparan'a doğru fade eden gradient,
+              hafif glow. Çizgi sadece hover'da reveal olur. */}
           <div
             className="row-resize-handle-line"
             style={{
@@ -326,9 +326,9 @@ export function RowResizerLayer({
               left: `${r.lineLeft}px`,
               width: `${r.lineWidth}px`,
               bottom: 0,
-              height: '3px',
-              background: 'rgba(74,144,226,0.95)',
-              borderRadius: '50%',
+              height: '1.5px',
+              background: 'linear-gradient(90deg, rgba(74,144,226,0) 0%, rgba(74,144,226,0.85) 25%, rgba(74,144,226,0.85) 75%, rgba(74,144,226,0) 100%)',
+              borderRadius: '999px',
               opacity: 0,             // Auto-hide: hover'da CSS opacity 1 reveal
               transition: 'opacity 160ms ease',
               pointerEvents: 'none',

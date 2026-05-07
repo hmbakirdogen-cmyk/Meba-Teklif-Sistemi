@@ -44,7 +44,12 @@ function listeServisi(alan: Alan) {
 }
 
 export const referansVeriService = {
-  markalar:          listeServisi('markalar'),
-  birimler:          listeServisi('birimler'),
-  teslimSecenekleri: listeServisi('teslimSecenekleri'),
+  markalar:               listeServisi('markalar'),
+  birimler:               listeServisi('birimler'),
+  teslimSecenekleri:      listeServisi('teslimSecenekleri'),
+  odemeVadesiSecenekleri: listeServisi('odemeVadesiSecenekleri'),
+  kdvOranlari:            listeServisi('kdvOranlari'),
+  gecerlilikSecenekleri:  listeServisi('gecerlilikSecenekleri'),
+  paraBirimleri:          listeServisi('paraBirimleri'),
+  dovizKuruSecenekleri:   listeServisi('dovizKuruSecenekleri'),
 };

@@ -1,6 +1,7 @@
 import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
 import type { Teklif } from '../types';
+import { formatFirmaUnvan } from '../utils/formatters';
 
 /**
  * Bir teklif kaydına bakarak gösterilmesi gereken firma profilini döner.
@@ -25,12 +26,15 @@ export function useTeklifFirma(teklif: Teklif | null | undefined): Firma | null 
 export function useTeklifFirmaBilgileri(teklif: Teklif | null | undefined) {
   const firma = useTeklifFirma(teklif);
 
-  // Fallback (firma null ise) — eski MEBA değerleri
+  // Fallback (firma null ise) — MEBA değerleri (DB ile uyumlu kisaAd)
+  const FALLBACK_AD = 'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.';
   const FALLBACK = {
+    id: 'meba',
     logoPath: '/logo-meba.png',
     logoScale: 1,
-    kisaAd: 'MEBA Mekanik',
-    ad: 'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
+    renkBirincil: '#1A2B42',
+    kisaAd: 'MEBA',
+    ad: formatFirmaUnvan(FALLBACK_AD),
     adres: 'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
     telefon: '0352 502 07 80',
     eposta: 'info@mebamekanik.com',
@@ -41,17 +45,25 @@ export function useTeklifFirmaBilgileri(teklif: Teklif | null | undefined) {
   };
 
   if (!firma) return FALLBACK;
+
+  const epostaDomainWeb = firma.eposta && firma.eposta.includes('@')
+    ? `www.${firma.eposta.split('@')[1]}`
+    : '';
+
   return {
+    id: firma.id,
     logoPath: firma.logoPath || FALLBACK.logoPath,
-    logoScale: firma.logoScale ?? 1,
+    logoScale: typeof firma.logoScale === 'number' && Number.isFinite(firma.logoScale) ? firma.logoScale : FALLBACK.logoScale,
+    renkBirincil: firma.renkBirincil || FALLBACK.renkBirincil,
     kisaAd: firma.kisaAd || FALLBACK.kisaAd,
-    ad: firma.ad || FALLBACK.ad,
+    ad: formatFirmaUnvan(firma.ad || FALLBACK_AD),
     adres: firma.adres || (firma.id === 'meba' ? FALLBACK.adres : ''),
     telefon: firma.telefon || (firma.id === 'meba' ? FALLBACK.telefon : ''),
     eposta: firma.eposta || (firma.id === 'meba' ? FALLBACK.eposta : ''),
-    web: firma.eposta ? firma.eposta.replace(/^[^@]+@/, 'www.') : (firma.id === 'meba' ? FALLBACK.web : ''),
+    web: firma.web || epostaDomainWeb || (firma.id === 'meba' ? FALLBACK.web : ''),
     iban: firma.iban || '',
     vergiDairesi: firma.vergiDairesi || '',
     vergiNo: firma.vergiNo || '',
   };
 }
+

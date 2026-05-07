@@ -692,6 +692,7 @@ export default function TeklifEditor() {
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onGecerlilikSuresiDegistir={state.setGecerlilikSuresi}
+              onDovizKuruDegistir={state.setDovizKuru}
               onSatirGuncelle={state.satirGuncelle}
               onSatiraSetUygula={state.satiraSetUygula}
               onSatirSil={state.satirSil}

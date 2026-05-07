@@ -932,11 +932,25 @@ export const FIELD_CSS = `
   --line-cell-padding-x: 6px;
 }
 
+.belge-inline .offer-table thead th.optical-separator-col,
+.belge-inline .offer-table tbody td.optical-separator-col {
+  --offer-col-separator: rgba(26, 43, 66, 0.072);
+}
+.belge-inline .offer-table thead th.optical-separator-col {
+  --offer-col-separator: rgba(26, 43, 66, 0.088);
+}
+.belge-inline .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
+  --offer-col-separator: rgba(26, 43, 66, 0.118);
+}
+
 /* Aktif hücre — sol kenarda kalın parlak mavi şerit, soluk lavanta bg */
 .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
   box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.6);
   background: rgba(237, 242, 251, 0.35);
   transition: box-shadow 120ms ease, background 120ms ease;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
+  --offer-col-separator: rgba(26, 43, 66, 0.13);
 }
 
 /* Hover — sadece aktif olmayanda, sol kenarda ince mavi çizgi + minik tint */
@@ -944,6 +958,9 @@ export const FIELD_CSS = `
   box-shadow: inset 2.5px 0 0 rgba(37, 99, 235, 0.35);
   background: rgba(37, 99, 235, 0.025);
   transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
+  --offer-col-separator: rgba(26, 43, 66, 0.105);
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) span,
 .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) div {
@@ -980,9 +997,22 @@ export const FIELD_CSS = `
   box-shadow: inset 2.5px 0 0 rgba(59, 130, 246, 0.4);
   background: rgba(59, 130, 246, 0.04);
 }
+[data-theme="dark"] .belge-inline .offer-table thead th.optical-separator-col,
+[data-theme="dark"] .belge-inline .offer-table tbody td.optical-separator-col {
+  --offer-col-separator: rgba(203, 213, 225, 0.115);
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
+  --offer-col-separator: rgba(241, 245, 249, 0.16);
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
+  --offer-col-separator: rgba(226, 232, 240, 0.16);
+}
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
   box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.7);
   background: rgba(59, 130, 246, 0.08);
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
+  --offer-col-separator: rgba(241, 245, 249, 0.19);
 }
 `;
 

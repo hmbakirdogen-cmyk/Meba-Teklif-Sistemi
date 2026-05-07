@@ -6,12 +6,13 @@ import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi } from '../utils/formatters';
+import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatMarka, formatAdres, formatAdSoyad } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
 import { urunSetService } from '../services/urunSetService';
 import { formatPhone } from '../utils/phone';
+import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { TotalsCard } from './TotalsCard';
 import { RowResizerLayer } from './RowResizerLayer';
@@ -31,12 +32,10 @@ import {
   DOCUMENT_PAGE,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
-  LOGO_OPT_H,
-  LOGO_OPT_W,
+  getFullHeaderLayoutStyles,
   LINE_ITEM_CSS_VARS,
   OFFER_TABLE_COLUMN_COUNT,
   OFFER_TABLE_ROW_GAP_PX,
-  HIGH_QUALITY_IMAGE_RENDERING,
   noBreak,
   NOTES_BOX_STYLE,
   PARTY_BODY_STYLE,
@@ -45,19 +44,28 @@ import {
   PARTY_LABEL_STYLE,
   PARTY_NAME_STYLE,
   ROW_CARD,
-  SETTINGS_GRID_STYLE,
+  getSettingsGridStyle,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
   SETTINGS_TR_LABEL_STYLE,
   SETTINGS_SEP_STYLE,
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
+  SIGNATURE_BLOCK_ROW_STYLE,
+  SIGNATURE_CONTENT_ROW_STYLE,
+  SIGNATURE_FIELD_STYLE,
+  SIGNATURE_FIELDS_GRID_STYLE,
+  SIGNATURE_FIELDS_HOST_STYLE,
+  SIGNATURE_LABEL_STYLE,
+  SIGNATURE_LINE_STYLE,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_TITLE_STYLE,
   TableColgroup,
   computeTotalsAmountRightOffset,
   buildSettingsItems,
+  getOfferTableSeparatorClass,
+  getOfferTableSeparatorStyle,
   getTableHeadCellStyle,
   computeSetGroupPos,
   computeMainItemIndex,
@@ -76,7 +84,6 @@ import type { TeklifPagePlan } from '../services/documentPagination';
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
 const PAGE_GAP_PX = 24;
-const DEFAULT_TEKLIF_EMAIL = 'info@mebamekanik.com';
 
 export type { EditingAlan } from './belgeInlineConstants';
 
@@ -101,6 +108,7 @@ interface PaginatedBelgeInlineEditorProps {
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onGecerlilikSuresiDegistir: (sure: string) => void;
+  onDovizKuruDegistir: (kur: string) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onSatirSil: (id: string) => void;
@@ -114,9 +122,12 @@ interface PaginatedBelgeInlineEditorProps {
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
-  const S = 0.478;
-  const optW = LOGO_OPT_W * S;
-  const optH = LOGO_OPT_H * S;
+  const compactLogo = getAdaptiveLogoPlacement({
+    firmaId: firmaBilgi.id,
+    logoPath: firmaBilgi.logoPath,
+    surface: 'a4-compact',
+    objectPosition: 'left center',
+  });
 
   return (
     <div style={{ marginBottom: 10 }}>
@@ -127,27 +138,11 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
         paddingBottom: '3.5mm',
         borderBottom: `1.5px solid ${C.panelStrong}`,
       }}>
-        <div style={{
-          width: `${optW}px`,
-          height: `${optH}px`,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-        }}>
+        <div style={compactLogo.slotStyle}>
           <img
             src={firmaBilgi.logoPath}
             alt={firmaBilgi.kisaAd}
-            style={{
-              width:  '100%',
-              height: '100%',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-              display: 'block',
-              imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
-              printColorAdjust: 'exact',
-              WebkitPrintColorAdjust: 'exact',
-            }}
+            style={compactLogo.imageStyle}
           />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -156,12 +151,9 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
           </span>
           {firmaBilgi.adres && (
             <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-              {firmaBilgi.adres}
+              {formatAdres(firmaBilgi.adres)}
             </span>
           )}
-          <span style={{ fontSize: '9px', color: C.textSoft, lineHeight: 1.3 }}>
-            {[firmaBilgi.telefon && `Tel: ${firmaBilgi.telefon}`, firmaBilgi.eposta, firmaBilgi.web].filter(Boolean).join(' | ')}
-          </span>
         </div>
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
           <div style={{ fontSize: '10.4px', fontWeight: 700, color: C.navy, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
@@ -793,9 +785,11 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   return (
     <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
-      <div>{[firmaBilgi.kisaAd, firmaBilgi.eposta].filter(Boolean).join(' | ')}</div>
+      <div>{firmaBilgi.ad}</div>
+      <div style={{ fontSize: '8px', opacity: 0.7, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        Sayfa {pageNumber} / {totalPages}
+      </div>
       <div>Teklif No: {teklif.teklifNo} | {formatDate(teklif.tarih)}</div>
-      <div style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>Sayfa {pageNumber} / {totalPages}</div>
     </div>
   );
 }
@@ -821,6 +815,7 @@ export default function PaginatedBelgeInlineEditor({
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onGecerlilikSuresiDegistir,
+  onDovizKuruDegistir,
   onSatirGuncelle,
   onSatiraSetUygula,
   onSatirSil,
@@ -877,6 +872,13 @@ export default function PaginatedBelgeInlineEditor({
   // tekrar tıklanırsa çıkarılır. Görsel inceleme/işaretleme amaçlı, kalıcı
   // değil — teklif state'ine yazılmaz.
   const [markedRowIds, setMarkedRowIds] = useState<Set<string>>(() => new Set());
+  const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
+  const fullLogo = getAdaptiveLogoPlacement({
+    firmaId: firmaBilgi.id,
+    logoPath: firmaBilgi.logoPath,
+    surface: 'a4-full',
+    objectPosition: 'left center',
+  });
 
   const toggleRowMark = useCallback(
     (satirId: string) => (e: React.MouseEvent) => {
@@ -890,6 +892,29 @@ export default function PaginatedBelgeInlineEditor({
     },
     [],
   );
+
+  function getMarkedCellStyle(
+    marked: boolean,
+    role: 'first' | 'mid' | 'last',
+    isActive = false,
+    isSetGroup = false,
+  ): React.CSSProperties {
+    if (!marked) return {};
+    if (isActive) return {};
+
+    const tint = isSetGroup
+      ? 'inset 0 0 0 999px rgba(255,255,255,0.055)'
+      : 'inset 0 0 0 999px rgba(26,43,66,0.030)';
+    const topLine = 'inset 0 1px 0 rgba(26,43,66,0.100)';
+    const bottomLine = 'inset 0 -1px 0 rgba(26,43,66,0.085)';
+    const leftAccent = role === 'first'
+      ? 'inset 3px 0 0 rgba(26,43,66,0.34)'
+      : null;
+
+    return {
+      boxShadow: [leftAccent, topLine, bottomLine, tint].filter(Boolean).join(', '),
+    };
+  }
 
   // Hücreye tıklayınca aktif et (popup açar). Aktif hücreye tekrar tıklanınca
   // toggle ile kapatır → kullanıcı popup'ı aynı hücreye basarak da kapatabilir.
@@ -1017,61 +1042,55 @@ export default function PaginatedBelgeInlineEditor({
 
   const renderFirstPageHeader = () => (
     <>
-      <div style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        width: '100%',
-        height: `${LOGO_OPT_H}px`,
-        marginBottom: '10px',
-        ...noBreak,
-      }}>
-        <div style={{ flex: '0 0 37%', maxWidth: '37%', paddingRight: '8px', boxSizing: 'border-box', lineHeight: 0 }}>
-          <div style={{
-            width: `${LOGO_OPT_W}px`,
-            height: `${LOGO_OPT_H}px`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-          }}>
+      <div style={fullHeaderLayout.rootStyle}>
+        <div style={fullHeaderLayout.logoColumnStyle}>
+          <div style={fullLogo.slotStyle}>
             <img src={firmaBilgi.logoPath} alt={firmaBilgi.kisaAd} style={{
-              width: '100%', height: '100%',
-              objectFit: 'contain', objectPosition: 'left center',
-              display: 'block',
-              imageRendering: HIGH_QUALITY_IMAGE_RENDERING,
-              printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
+              ...fullLogo.imageStyle,
             }} />
           </div>
         </div>
-        <div style={{ flex: '0 0 31%', maxWidth: '31%', paddingRight: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
-          <div style={{ fontWeight: 800, fontSize: '11.5px', color: C.navy, lineHeight: '1.25', letterSpacing: '-0.012em' }}>
+        <div style={fullHeaderLayout.companyColumnStyle}>
+          <div style={{ fontWeight: 700, fontSize: '11px', color: C.navy, lineHeight: '1.3', letterSpacing: '-0.01em' }}>
             {firmaBilgi.ad}
           </div>
           {firmaBilgi.adres && (
-            <div style={{ fontSize: '9.2px', lineHeight: '1.35', color: C.textSoft, letterSpacing: '0.01em' }}>
-              {firmaBilgi.adres}
+            <div style={{ fontSize: '8.8px', lineHeight: '1.35', color: C.textMuted, letterSpacing: '0.01em', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              {formatAdres(firmaBilgi.adres)}
+            </div>
+          )}
+          {firmaBilgi.vergiNo && (
+            <div style={{ fontSize: '8.5px', lineHeight: '1.35', color: C.textMuted, letterSpacing: '0.02em' }}>
+              VKN: {formatVKN(firmaBilgi.vergiNo)}{firmaBilgi.vergiDairesi && <span> &nbsp;—&nbsp; {firmaBilgi.vergiDairesi} V.D.</span>}
             </div>
           )}
         </div>
-        <div style={{ flex: '0 0 32%', maxWidth: '32%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', boxSizing: 'border-box' }}>
-          <div style={{ width: '202px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'visible', boxSizing: 'border-box' }}>
+        {fullHeaderLayout.separatorStyle && <div aria-hidden="true" style={fullHeaderLayout.separatorStyle} />}
+        <div style={fullHeaderLayout.quoteColumnStyle}>
+          <div style={fullHeaderLayout.quotePanelStyle}>
             <div style={{
               background: BRAND.gradient, printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact',
-              padding: '5px 14px 6px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px',
+              padding: '4px 12px 5px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px',
               lineHeight: 1.2, borderRadius: '9px', border: `1px solid ${BRAND.border}`, boxShadow: BRAND.shadowSm,
             }}>
-              <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '0.8px', color: BRAND.text }}>TEKLİF</span>
-              <span style={{ fontSize: '10.4px', color: BRAND.textSub, letterSpacing: '0.02em' }}>/ Quotation</span>
+              <span style={{ fontWeight: 700, fontSize: '14.5px', letterSpacing: '0.8px', color: BRAND.text }}>TEKLİF</span>
+              <span style={{ fontSize: '9.5px', color: BRAND.textSub, letterSpacing: '0.02em' }}>/ Quotation</span>
+              {teklif.revizyonNo && teklif.revizyonNo > 0 && (
+                <span style={{ fontSize: '9px', fontWeight: 600, color: BRAND.textSub, marginLeft: '6px' }}>
+                  Rev.{String(teklif.revizyonNo).padStart(2, '0')}
+                </span>
+              )}
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
-              <colgroup><col style={{ width: '42%' }} /><col style={{ width: '58%' }} /></colgroup>
+              <colgroup><col style={{ width: '38%' }} /><col style={{ width: '62%' }} /></colgroup>
               <tbody>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Teklif No</td>
-                  <td style={{ fontSize: '12.1px', fontWeight: 800, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>{teklif.teklifNo}</td>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Teklif No</td>
+                  <td style={{ fontSize: '11.5px', fontWeight: 700, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>{teklif.teklifNo}</td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Tarih</td>
-                  <td style={{ fontSize: '10.9px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Tarih</td>
+                  <td style={{ fontSize: '10.2px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                     {readOnly ? (
                       formatDate(teklif.tarih)
                     ) : (
@@ -1081,7 +1100,7 @@ export default function PaginatedBelgeInlineEditor({
                         value={dayjs(teklif.tarih)}
                         onChange={(d) => d && onTarihDegistir(d.format('YYYY-MM-DD'))}
                         format="DD.MM.YYYY"
-                        style={{ fontSize: '10.9px', padding: 0, width: 110 }}
+                        style={{ fontSize: '10.2px', padding: 0, width: 110 }}
                         allowClear={false}
                         suffixIcon={null}
                       />
@@ -1089,8 +1108,8 @@ export default function PaginatedBelgeInlineEditor({
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ fontSize: '9.2px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.04em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '10px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{teklif.hazirlayanAdSoyad || firmaBilgi.kisaAd}</td>
+                  <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Hazırlayan</td>
+                  <td style={{ fontSize: '9.5px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{teklif.hazirlayanAdSoyad ? formatAdSoyad(teklif.hazirlayanAdSoyad) : firmaBilgi.kisaAd}</td>
                 </tr>
               </tbody>
             </table>
@@ -1105,8 +1124,12 @@ export default function PaginatedBelgeInlineEditor({
           </div>
           <div style={PARTY_NAME_STYLE}>{firmaBilgi.ad}</div>
           <div style={PARTY_BODY_STYLE}>
-            {firmaBilgi.telefon ? <>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}<br /></> : null}
-            {firmaBilgi.web}
+            {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
+            {firmaBilgi.iban && (
+              <div style={{ fontSize: '9.5px', color: C.textMuted, letterSpacing: '0.02em', marginTop: '2px' }}>
+                IBAN: {firmaBilgi.iban}
+              </div>
+            )}
           </div>
         </div>
         <div data-alan="musteri" style={{ ...PARTY_CARD_STYLE, background: 'transparent' }}>
@@ -1204,8 +1227,58 @@ export default function PaginatedBelgeInlineEditor({
               </Popover>
             )}
 
-            {/* Tel hücresi — kendi popup'ı */}
+            {/* Adres — read-only render, muhatap altında */}
+            {teklif.cari.adres && (
+              <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                {formatAdres(teklif.cari.adres)}
+              </div>
+            )}
+
+            {/* Şehir | Tel | E-posta satırı */}
             <div>
+              {/* Şehir hücresi — kendi popup'ı */}
+              {readOnly ? (
+                teklif.cari.sehir && <span>{formatSehir(teklif.cari.sehir)}</span>
+              ) : (
+                <Popover
+                  open={editingAlan === 'musteri-sehir'}
+                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-sehir' : null)}
+                  trigger={['click']}
+                  placement="bottomLeft"
+                  destroyTooltipOnHide
+                  content={
+                    <div style={{ width: 260, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Şehir</div>
+                      <Input
+                        autoFocus
+                        size="middle"
+                        style={{ width: '100%' }}
+                        value={teklif.cari.sehir || ''}
+                        onChange={(e) => onCariSehirDegistir(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={(e) => {
+                          const f = formatSehir(e.target.value);
+                          if (f !== e.target.value) onCariSehirDegistir(f);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onEditingAlanDegistir(null);
+                          }
+                          if (e.key === 'Escape') onEditingAlanDegistir(null);
+                        }}
+                        placeholder="şehir"
+                      />
+                    </div>
+                  }
+                >
+                  <span style={{ cursor: 'pointer' }}>
+                    {teklif.cari.sehir || <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>şehir ekle…</span>}
+                  </span>
+                </Popover>
+              )}
+              {(teklif.cari.sehir || !readOnly) && <span> &nbsp;|&nbsp; </span>}
+              {/* Tel hücresi — kendi popup'ı */}
               {readOnly ? (
                 teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>
               ) : (
@@ -1225,6 +1298,10 @@ export default function PaginatedBelgeInlineEditor({
                         value={teklif.cari.telefon || ''}
                         onChange={(e) => onCariTelefonDegistir(e.target.value)}
                         onFocus={(e) => e.target.select()}
+                        onBlur={(e) => {
+                          const f = formatPhone(e.target.value);
+                          if (f !== e.target.value) onCariTelefonDegistir(f);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -1242,10 +1319,11 @@ export default function PaginatedBelgeInlineEditor({
                   </span>
                 </Popover>
               )}
-              {(teklif.cari.telefon || !readOnly) && <span> &nbsp;|&nbsp; </span>}
-              {/* E-posta hücresi — kendi popup'ı */}
+
+              {/* E-posta hücresi — kendi popup'ı, tel sonrası */}
+              {((teklif.cari.sehir || teklif.cari.telefon) && (teklif.cari.ePosta || !readOnly)) && <span> &nbsp;|&nbsp; </span>}
               {readOnly ? (
-                <span>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
+                teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>
               ) : (
                 <Popover
                   open={editingAlan === 'musteri-eposta'}
@@ -1262,11 +1340,11 @@ export default function PaginatedBelgeInlineEditor({
                         type="email"
                         style={{ width: '100%' }}
                         value={teklif.cari.ePosta || ''}
-                        onChange={(e) => onCariEPostaDegistir(e.target.value)}
+                        onChange={(e) => onCariEPostaDegistir(e.target.value.toLowerCase())}
                         onFocus={(e) => e.target.select()}
                         onBlur={(e) => {
                           const next = e.target.value.trim();
-                          if (!next) onCariEPostaDegistir(DEFAULT_TEKLIF_EMAIL);
+                          if (next !== e.target.value) onCariEPostaDegistir(next);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -1276,99 +1354,40 @@ export default function PaginatedBelgeInlineEditor({
                           }
                           if (e.key === 'Escape') onEditingAlanDegistir(null);
                         }}
-                        placeholder={DEFAULT_TEKLIF_EMAIL}
-                      />
-                    </div>
-                  }
-                >
-                  <span style={{ cursor: 'pointer' }}>{teklif.cari.ePosta || DEFAULT_TEKLIF_EMAIL}</span>
-                </Popover>
-              )}
-
-              {/* Şehir hücresi — kendi popup'ı, e-posta sonrası */}
-              <span> &nbsp;|&nbsp; </span>
-              {readOnly ? (
-                teklif.cari.sehir && <span>{teklif.cari.sehir}</span>
-              ) : (
-                <Popover
-                  open={editingAlan === 'musteri-sehir'}
-                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-sehir' : null)}
-                  trigger={['click']}
-                  placement="bottomLeft"
-                  destroyTooltipOnHide
-                  content={
-                    <div style={{ width: 260, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Şehir</div>
-                      <Input
-                        autoFocus
-                        size="middle"
-                        style={{ width: '100%' }}
-                        value={teklif.cari.sehir || ''}
-                        onChange={(e) => onCariSehirDegistir(e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            onEditingAlanDegistir(null);
-                          }
-                          if (e.key === 'Escape') onEditingAlanDegistir(null);
-                        }}
-                        placeholder="şehir"
+                        placeholder="ornek@firma.com"
                       />
                     </div>
                   }
                 >
                   <span style={{ cursor: 'pointer' }}>
-                    {teklif.cari.sehir || <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>şehir ekle…</span>}
+                    {teklif.cari.ePosta || <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>e-posta ekle…</span>}
                   </span>
                 </Popover>
               )}
             </div>
 
             {teklif.cari.vergiNo && (
-              <div>VKN: {teklif.cari.vergiNo}{teklif.cari.vergiDairesi && <span> &nbsp;-&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
+              <div>VKN: {formatVKN(teklif.cari.vergiNo)}{teklif.cari.vergiDairesi && <span> &nbsp;—&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
             )}
           </div>
         </div>
       </div>
 
       {(() => {
-        const ayarAlanIds = ['ayar-paraBirimi', 'ayar-odemeVadesi', 'ayar-kdvOrani', 'ayar-kur', 'ayar-gecerlilik'] as const;
         const items = buildSettingsItems(teklif, satirBazliParaBirimi);
 
-        const paraBirimiMenuItems = [
-          { key: 'TRY', label: 'Türk Lirası (TL)' },
-          { key: 'EUR', label: 'Euro (EUR)' },
-          { key: 'USD', label: 'Amerikan Doları (USD)' },
-        ];
-        const odemeVadesiMenuItems = [
-          'Peşin',
-          'Mal mukabili',
-          '%50 sipariş + %50 sevk',
-          '%30 sipariş + %70 sevk',
-          'Akreditifli',
-          '15 Gün',
-          '30 Gün',
-          '45 Gün',
-          '60 Gün',
-          '90 Gün',
-          '120 Gün',
-        ].map((v) => ({ key: v, label: v }));
-        const kdvMenuItems = [
-          { key: '0', label: 'Hariç' },
-          { key: '1', label: '%1' },
-          { key: '10', label: '%10' },
-          { key: '20', label: '%20' },
-        ];
-        const gecerlilikMenuItems = ['7 Gün', '15 Gün', '1 Hafta', '2 Hafta', '1 Ay', '2 Ay', '3 Ay', '6 Ay', 'Sınırsız']
-          .map((v) => ({ key: v, label: v }));
+        const PB_LABEL: Record<string, string> = { TRY: 'Türk Lirası (TL)', EUR: 'Euro (EUR)', USD: 'Amerikan Doları (USD)' };
+        const paraBirimiMenuItems = referansVeriService.paraBirimleri.tumunuGetir().map(pb => ({ key: pb, label: PB_LABEL[pb] || pb }));
+        const odemeVadesiMenuItems = referansVeriService.odemeVadesiSecenekleri.tumunuGetir().map((v) => ({ key: v, label: v }));
+        const kdvMenuItems = referansVeriService.kdvOranlari.tumunuGetir().map((v) => ({ key: v, label: v === '0' ? 'Hariç' : `%${v}` }));
+        const gecerlilikMenuItems = referansVeriService.gecerlilikSecenekleri.tumunuGetir().map((v) => ({ key: v, label: v }));
+        const dovizKuruMenuItems = referansVeriService.dovizKuruSecenekleri.tumunuGetir().map((v) => ({ key: v, label: v }));
 
         return (
-          <div style={SETTINGS_GRID_STYLE}>
-            {items.map((item, i) => {
-              const alanId = ayarAlanIds[i];
-              const isReadonly = i === 3; // sadece Döviz Kuru salt-okunur
-              const editable = !isReadonly && !readOnly;
+          <div style={getSettingsGridStyle(items.length)}>
+            {items.map((item) => {
+              const alanId = `ayar-${item.id}` as EditingAlan;
+              const editable = !readOnly;
 
               const cardInner = (
                 <div
@@ -1390,14 +1409,26 @@ export default function PaginatedBelgeInlineEditor({
 
               if (!editable) return cardInner;
 
-              const menu =
-                i === 0
-                  ? { items: paraBirimiMenuItems, onClick: ({ key }: { key: string }) => onParaBirimiDegistir(key as ParaBirimi) }
-                  : i === 1
-                  ? { items: odemeVadesiMenuItems, onClick: ({ key }: { key: string }) => onOdemeVadesiDegistir(key) }
-                  : i === 2
-                  ? { items: kdvMenuItems, onClick: ({ key }: { key: string }) => onKdvOraniDegistir(Number(key)) }
-                  : { items: gecerlilikMenuItems, onClick: ({ key }: { key: string }) => onGecerlilikSuresiDegistir(key) };
+              let menu;
+              switch (item.id) {
+                case 'paraBirimi':
+                  menu = { items: paraBirimiMenuItems, onClick: ({ key }: { key: string }) => onParaBirimiDegistir(key as ParaBirimi) };
+                  break;
+                case 'odemeVadesi':
+                  menu = { items: odemeVadesiMenuItems, onClick: ({ key }: { key: string }) => onOdemeVadesiDegistir(key) };
+                  break;
+                case 'kdvOrani':
+                  menu = { items: kdvMenuItems, onClick: ({ key }: { key: string }) => onKdvOraniDegistir(Number(key)) };
+                  break;
+                case 'gecerlilik':
+                  menu = { items: gecerlilikMenuItems, onClick: ({ key }: { key: string }) => onGecerlilikSuresiDegistir(key) };
+                  break;
+                case 'kur':
+                  menu = { items: dovizKuruMenuItems, onClick: ({ key }: { key: string }) => onDovizKuruDegistir(key) };
+                  break;
+                default:
+                  return cardInner;
+              }
 
               return (
                 <Dropdown
@@ -1440,19 +1471,19 @@ export default function PaginatedBelgeInlineEditor({
           <thead>
             <tr>
               {[
-                { label: '#', sub: '', align: 'center' as const },
-                { label: 'Marka', sub: 'Brand', align: 'center' as const },
-                { label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
-                { label: 'Açıklama', sub: 'Description', align: 'left' as const },
-                { label: 'Miktar', sub: 'Qty', align: 'center' as const },
+                { key: 'no' as const, label: '#', sub: '', align: 'center' as const },
+                { key: 'marka' as const, label: 'Marka', sub: 'Brand', align: 'center' as const },
+                { key: 'urunKod' as const, label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
+                { key: 'aciklama' as const, label: 'Açıklama', sub: 'Description', align: 'left' as const },
+                { key: 'miktar' as const, label: 'Miktar', sub: 'Qty', align: 'center' as const },
                 satirBazliParaBirimi
-                  ? { label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
-                  : { label: '', sub: '', align: 'center' as const },
-                { label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
-                { label: 'Toplam', sub: 'Total', align: 'right' as const },
-                { label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
+                  ? { key: 'paraBirimi' as const, label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                  : { key: 'paraBirimi' as const, label: '', sub: '', align: 'center' as const },
+                { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
+                { key: 'toplam' as const, label: 'Toplam', sub: 'Total', align: 'right' as const },
+                { key: 'teslimat' as const, label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
               ].map((col, i) => (
-                <th key={i} style={getTableHeadCellStyle(col.align)}>
+                <th key={i} className={getOfferTableSeparatorClass(col.key)} style={getTableHeadCellStyle(col.align, col.key)}>
                   {col.label}
                   {col.sub && <span style={{ ...TABLE_HEAD_SUBLABEL_STYLE, textAlign: col.align }}>{col.sub}</span>}
                 </th>
@@ -1472,10 +1503,7 @@ export default function PaginatedBelgeInlineEditor({
               const colCount = OFFER_TABLE_COLUMN_COUNT;
               const isMarked = markedRowIds.has(satir.id);
 
-              const applyCellStyle = (style: React.CSSProperties): React.CSSProperties =>
-                isMarked
-                  ? { ...style, background: 'rgba(0, 0, 0, 0.06)' }
-                  : style;
+              const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
 
               const isLastRow = idx === teklif.satirlar.length - 1;
               const isFirstRow = idx === 0;
@@ -1490,7 +1518,10 @@ export default function PaginatedBelgeInlineEditor({
                     <div
                       className="satir-araya-ekle-hit"
                       style={{
-                        position: 'absolute', left: 0, right: 0, top: -7, height: 14,
+                        // Sadece ortadaki %30'lık bölgede aktif — kullanıcı
+                        // satırın orta kısmına gelince "Araya ekle" belirir,
+                        // satırın geneline gelmek butonu tetiklemez.
+                        position: 'absolute', left: '35%', right: '35%', top: -7, height: 14,
                         cursor: 'default', zIndex: 24,
                         // Parent .satir-araya-ekle-zone pointer-events:none →
                         // hit area icin override; ancak resize handle'in
@@ -1534,6 +1565,7 @@ export default function PaginatedBelgeInlineEditor({
                   {insertAbove}
                   <tr
                     data-satir-id={satir.id}
+                    data-marked={isMarked ? 'true' : undefined}
                     onMouseEnter={() => setHoverRowId(satir.id)}
                     onMouseLeave={() => setHoverRowId((curr) => (curr === satir.id ? null : curr))}
                     style={{
@@ -1547,7 +1579,10 @@ export default function PaginatedBelgeInlineEditor({
                       idx={idx}
                       pos="first"
                       setGroupPos={setGroupPos}
-                      style={applyCellStyle({ ...ROW_TEXT.no })}
+                      style={applyCellStyle({
+                        ...ROW_TEXT.no,
+                        ...getMarkedCellStyle(isMarked, 'first', false, setGroupPos !== null),
+                      })}
                     >
                       {satir.setAltKalem ? (
                         <span
@@ -1567,13 +1602,13 @@ export default function PaginatedBelgeInlineEditor({
                         </span>
                       )}
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="marka" onClick={cellClick('marka')} className={activeClass('marka')} style={applyCellStyle({ cursor: 'pointer', textAlign: 'center' })}>
-                      <span style={ROW_TEXT.brand}>{satir.marka || '-'}</span>
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="marka" onClick={cellClick('marka')} className={`${getOfferTableSeparatorClass('marka') ?? ''} ${activeClass('marka') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'center', ...getOfferTableSeparatorStyle('marka'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('marka'), setGroupPos !== null) })}>
+                      <span style={ROW_TEXT.brand}>{satir.marka ? formatMarka(satir.marka) : '-'}</span>
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="urunKod" onClick={cellClick('urunKod')} className={`product-code-cell ${activeClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="urunKod" onClick={cellClick('urunKod')} className={`product-code-cell ${getOfferTableSeparatorClass('urunKod') ?? ''} ${activeClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left', ...getOfferTableSeparatorStyle('urunKod'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('urunKod'), setGroupPos !== null) })}>
                       <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
                     </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="aciklama" onClick={cellClick('aciklama')} className={`description-cell ${activeClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}>
+                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="aciklama" onClick={cellClick('aciklama')} className={`description-cell ${getOfferTableSeparatorClass('aciklama') ?? ''} ${activeClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left', ...getOfferTableSeparatorStyle('aciklama'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('aciklama'), setGroupPos !== null) })}>
                       <span>
                         <DescText text={satir.aciklama || '-'} />
                       </span>
@@ -1584,8 +1619,8 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="miktar"
                       onClick={cellClick('miktar')}
-                      className={activeClass('miktar')}
-                      style={applyCellStyle({ cursor: 'pointer', textAlign: 'left' })}
+                      className={`${getOfferTableSeparatorClass('miktar') ?? ''} ${activeClass('miktar') ?? ''}`.trim()}
+                      style={applyCellStyle({ cursor: 'pointer', textAlign: 'left', ...getOfferTableSeparatorStyle('miktar'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('miktar'), setGroupPos !== null) })}
                     >
                       {satir.miktar !== 0 ? (
                         <div style={ROW_SHELL.quantityWrap}>
@@ -1601,8 +1636,8 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="paraBirimi"
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
-                      className={`${activeClass('paraBirimi') ?? ''} ${satirBazliParaBirimi ? '' : 'no-click'}`.trim() || undefined}
-                      style={applyCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center' })}
+                      className={`${getOfferTableSeparatorClass('paraBirimi') ?? ''} ${activeClass('paraBirimi') ?? ''} ${satirBazliParaBirimi ? '' : 'no-click'}`.trim() || undefined}
+                      style={applyCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center', ...getOfferTableSeparatorStyle('paraBirimi'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('paraBirimi'), setGroupPos !== null) })}
                     >
                       {satirBazliParaBirimi ? (
                         <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
@@ -1615,8 +1650,8 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="birimFiyat"
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
-                      className={satir.setAltKalem ? 'no-click' : (activeClass('birimFiyat') || undefined)}
-                      style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right' })}
+                      className={satir.setAltKalem ? `${getOfferTableSeparatorClass('birimFiyat') ?? ''} no-click`.trim() : `${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${activeClass('birimFiyat') ?? ''}`.trim()}
+                      style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right', ...getOfferTableSeparatorStyle('birimFiyat'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('birimFiyat'), setGroupPos !== null) })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.price}>{(() => {
@@ -1630,7 +1665,8 @@ export default function PaginatedBelgeInlineEditor({
                       idx={idx}
                       pos="mid"
                       setGroupPos={setGroupPos}
-                      style={applyCellStyle({ textAlign: 'right' })}
+                      className={getOfferTableSeparatorClass('toplam')}
+                      style={applyCellStyle({ textAlign: 'right', ...getOfferTableSeparatorStyle('toplam'), ...getMarkedCellStyle(isMarked, 'mid', false, setGroupPos !== null) })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.total}>
@@ -1645,8 +1681,8 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={setGroupPos}
                       data-cell-field="teslimat"
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
-                      className={satir.setAltKalem ? 'no-click' : (activeClass('teslimat') || undefined)}
-                      style={applyCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center' })}
+                      className={satir.setAltKalem ? `${getOfferTableSeparatorClass('teslimat') ?? ''} no-click`.trim() : `${getOfferTableSeparatorClass('teslimat') ?? ''} ${activeClass('teslimat') ?? ''}`.trim()}
+                      style={applyCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center', ...getOfferTableSeparatorStyle('teslimat'), ...getMarkedCellStyle(isMarked, 'last', isActiveCell('teslimat'), setGroupPos !== null) })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
@@ -1902,20 +1938,18 @@ export default function PaginatedBelgeInlineEditor({
             </div>
             {page.includeSignature && (
               <div style={{ marginTop: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px' }}>
+                <div style={SIGNATURE_BLOCK_ROW_STYLE}>
 
-                  {/* SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, sayfanın altında.
-                      Iç boşluklar ferah: title-content gap 22px, isim/tarih ↔ imza
-                      arası gap 44px; rotasyonlu etiket biraz daha büyük + tracking'li. */}
-                  <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
-                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+                  {/* SİPARİŞİ VEREN bloğu — tam genişlik, 3 sütun (İsim+Tarih | Kaşe | İmza) */}
+                  <div style={{ flex: '0 0 100%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
+                  <div style={SIGNATURE_CONTENT_ROW_STYLE}>
 
                     {/* Sol: 2-satır dikey başlık (rotasyonlu) — biraz büyütüldü */}
                     <div style={{
                       flexShrink: 0,
                       position: 'relative',
-                      width: '40px',
-                      overflow: 'hidden',
+                      width: '52px',
+                      overflow: 'visible',
                     }}>
                       <div style={{
                         position: 'absolute',
@@ -1950,32 +1984,32 @@ export default function PaginatedBelgeInlineEditor({
                       </div>
                     </div>
 
-                    {/* Sağ: İçerik — isim, tarih, imza */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
-                        <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45' }}>
-                          <div style={{ position: 'relative', top: '16px' }}>
-                            <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                            <div style={{ marginBottom: '6px', marginTop: '2px' }}>
-                              <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
-                              <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                              <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
-                            </div>
+                    {/* Sağ: İçerik — isim+tarih | imza & kaşe */}
+                    <div style={SIGNATURE_FIELDS_HOST_STYLE}>
+                      <div style={SIGNATURE_FIELDS_GRID_STYLE}>
+                        <div style={SIGNATURE_FIELD_STYLE}>
+                          <div style={SIGNATURE_LABEL_STYLE}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                            <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
                           </div>
-                          <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                          <div style={{ marginTop: '2px' }}>
+                          <div style={SIGNATURE_LINE_STYLE} />
+                        </div>
+                        <div style={SIGNATURE_FIELD_STYLE}>
+                          <div style={SIGNATURE_LABEL_STYLE}>
                             <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
                             <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                             <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
                           </div>
+                          <div style={SIGNATURE_LINE_STYLE} />
                         </div>
-                        <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px' }}>
-                          <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                          <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
-                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                        <div style={SIGNATURE_FIELD_STYLE}>
+                          <div style={SIGNATURE_LABEL_STYLE}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza & Kaşe</span>
                             <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature & Stamp</span>
                           </div>
+                          <div style={SIGNATURE_LINE_STYLE} />
                         </div>
                       </div>
                     </div>

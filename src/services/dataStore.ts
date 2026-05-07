@@ -61,6 +61,11 @@ const VARSAYILAN_REFERANS: Referans = {
   markalar: ['SMC', 'Maxtor', 'SICK', 'Danfoss', 'WINMAN'],
   birimler: ['Adet', 'Takım', 'Metre', 'Cm', 'Mm', 'Kg', 'Litre', 'Paket', 'Kutu', 'Set', 'Rulo'],
   teslimSecenekleri: ['2-3 Gün', '5-7 Gün', '10 Gün', '1-2 Hafta', '2-3 Hafta', '4-6 Hafta', 'Stok', 'Sipariş Üzerine'],
+  odemeVadesiSecenekleri: ['Peşin', 'Mal mukabili', '%50 sipariş + %50 sevk', '15 Gün', '30 Gün', '45 Gün', '60 Gün', '90 Gün'],
+  kdvOranlari: ['0', '1', '10', '20'],
+  gecerlilikSecenekleri: ['7 Gün', '15 Gün', '1 Hafta', '2 Hafta', '1 Ay', '2 Ay', '3 Ay', '6 Ay', 'Sınırsız'],
+  paraBirimleri: ['TRY', 'EUR', 'USD'],
+  dovizKuruSecenekleri: ['TCMB Fatura', 'TCMB Döviz Alış', 'TCMB Döviz Satış', 'TCMB Efektif Alış', 'TCMB Efektif Satış', 'Serbest Kur'],
 };
 
 let store: Store = {
@@ -137,15 +142,20 @@ export async function initDataStore(
 // migration ortası). Client her zaman flat {markalar, birimler, teslimSecenekleri}
 // bekliyor — eksik veya yanlış şekildeyse boş listelerle defansif normalize et.
 function normalizeReferans(raw: unknown): Referans {
-  const empty: Referans = { markalar: [], birimler: [], teslimSecenekleri: [] };
+  const empty: Referans = { markalar: [], birimler: [], teslimSecenekleri: [], odemeVadesiSecenekleri: [], kdvOranlari: [], gecerlilikSecenekleri: [], paraBirimleri: [], dovizKuruSecenekleri: [] };
   if (!raw || typeof raw !== 'object') return empty;
   const r = raw as Record<string, unknown>;
   // Flat yapı (markalar dizisi varsa) → direkt kullan
   if (Array.isArray(r.markalar) || Array.isArray(r.birimler) || Array.isArray(r.teslimSecenekleri)) {
     return {
-      markalar:          Array.isArray(r.markalar)          ? r.markalar          as string[] : [],
-      birimler:          Array.isArray(r.birimler)          ? r.birimler          as string[] : [],
-      teslimSecenekleri: Array.isArray(r.teslimSecenekleri) ? r.teslimSecenekleri as string[] : [],
+      markalar:                  Array.isArray(r.markalar)                  ? r.markalar                  as string[] : [],
+      birimler:                  Array.isArray(r.birimler)                  ? r.birimler                  as string[] : [],
+      teslimSecenekleri:         Array.isArray(r.teslimSecenekleri)         ? r.teslimSecenekleri         as string[] : [],
+      odemeVadesiSecenekleri:    Array.isArray(r.odemeVadesiSecenekleri)    ? r.odemeVadesiSecenekleri    as string[] : [],
+      kdvOranlari:               Array.isArray(r.kdvOranlari)               ? r.kdvOranlari               as string[] : [],
+      gecerlilikSecenekleri:     Array.isArray(r.gecerlilikSecenekleri)     ? r.gecerlilikSecenekleri     as string[] : [],
+      paraBirimleri:             Array.isArray(r.paraBirimleri)             ? r.paraBirimleri             as string[] : [],
+      dovizKuruSecenekleri:      Array.isArray(r.dovizKuruSecenekleri)      ? r.dovizKuruSecenekleri      as string[] : [],
     };
   }
   // Per-firma map (eski server yeni db.json'la karşılaştığında) — herhangi bir
@@ -155,9 +165,14 @@ function normalizeReferans(raw: unknown): Referans {
       const inner = v as Record<string, unknown>;
       if (Array.isArray(inner.markalar) || Array.isArray(inner.birimler) || Array.isArray(inner.teslimSecenekleri)) {
         return {
-          markalar:          Array.isArray(inner.markalar)          ? inner.markalar          as string[] : [],
-          birimler:          Array.isArray(inner.birimler)          ? inner.birimler          as string[] : [],
-          teslimSecenekleri: Array.isArray(inner.teslimSecenekleri) ? inner.teslimSecenekleri as string[] : [],
+          markalar:                  Array.isArray(inner.markalar)                  ? inner.markalar                  as string[] : [],
+          birimler:                  Array.isArray(inner.birimler)                  ? inner.birimler                  as string[] : [],
+          teslimSecenekleri:         Array.isArray(inner.teslimSecenekleri)         ? inner.teslimSecenekleri         as string[] : [],
+          odemeVadesiSecenekleri:    Array.isArray(inner.odemeVadesiSecenekleri)    ? inner.odemeVadesiSecenekleri    as string[] : [],
+          kdvOranlari:               Array.isArray(inner.kdvOranlari)               ? inner.kdvOranlari               as string[] : [],
+          gecerlilikSecenekleri:     Array.isArray(inner.gecerlilikSecenekleri)     ? inner.gecerlilikSecenekleri     as string[] : [],
+          paraBirimleri:             Array.isArray(inner.paraBirimleri)             ? inner.paraBirimleri             as string[] : [],
+          dovizKuruSecenekleri:      Array.isArray(inner.dovizKuruSecenekleri)      ? inner.dovizKuruSecenekleri      as string[] : [],
         };
       }
     }

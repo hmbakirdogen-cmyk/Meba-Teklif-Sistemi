@@ -217,6 +217,11 @@ export interface Referans {
   markalar: string[];
   birimler: string[];
   teslimSecenekleri: string[];
+  odemeVadesiSecenekleri: string[];
+  kdvOranlari: string[];
+  gecerlilikSecenekleri: string[];
+  paraBirimleri: string[];
+  dovizKuruSecenekleri: string[];
 }
 
 export interface Sayac {

@@ -17,7 +17,7 @@
  *
  * Çalıştırma şartları:
  *   - Server kapalı olmalı (db.json.lock çakışmasını önlemek için)
- *   - mesa_cariler.xls ve mesa_ürünler.xls projenin kökünde olmalı
+ *   - mesa_cariler.xls ve mesa_ürünler.xls dosyaları data/mesa/ altında olmalı
  *
  * Backup: server/backups/db-pre-mesa-import-{ISO}.json
  */
@@ -28,8 +28,8 @@ const xlsx = require('xlsx');
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const DB_PATH = path.join(ROOT, 'server', 'db.json');
-const CARILER_XLS = path.join(ROOT, 'mesa_cariler.xls');
-const URUNLER_XLS = path.join(ROOT, 'mesa_ürünler.xls');
+const CARILER_XLS = path.join(ROOT, 'data', 'mesa', 'mesa_cariler.xls');
+const URUNLER_XLS = path.join(ROOT, 'data', 'mesa', 'mesa_ürünler.xls');
 const BACKUP_DIR = path.join(ROOT, 'server', 'backups');
 
 const FIRMA_ID = 'mesa';

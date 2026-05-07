@@ -43,17 +43,13 @@ export const FIRMA_KART_LOGO_BOX_STYLE: CSSProperties = {
 };
 
 /** Logo görseli için ortak stil — her iki ekranda birebir aynı. */
-export function firmaLogoImgStyle(firma: Firma, extraFilter?: string): CSSProperties {
+export function firmaLogoImgStyle(_firma: Firma, extraFilter?: string): CSSProperties {
   return {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
     imageRendering: 'auto',
-    WebkitBackfaceVisibility: 'hidden',
-    backfaceVisibility: 'hidden',
-    transform: `scale(${firma.logoScale ?? 1}) translateZ(0)`,
-    transformOrigin: 'center',
     filter: extraFilter ?? 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))',
-    transition: 'filter 0.25s ease, transform 0.25s ease',
+    transition: 'filter 0.25s ease',
   };
 }

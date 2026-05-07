@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Teklif } from '../types';
+import { getOfferHeaderLayoutProfile } from '../styles/logoStyles';
 
 // ── Manyetik sembol yardımcıları ─────────────────────────────────────────────
 
@@ -109,18 +110,6 @@ export function mmToPx(mm: number): number {
 
 export const HIGH_QUALITY_IMAGE_RENDERING = 'high-quality' as unknown as CSSProperties['imageRendering'];
 
-/** Logo görüntü kalitesini en üst seviyeye çıkaran ortak CSS özellikleri.
- *  - imageRendering: 'auto' → modern tarayıcılarda lanczos/bicubic interpolasyon
- *  - backfaceVisibility: hidden → kenarlarda subpixel artifact'leri önler
- *  - willChange: transform → GPU compositing
- *  Not: transform değeri inline atanır (scale uygulamak için). */
-export const LOGO_QUALITY_STYLE: CSSProperties = {
-  imageRendering: 'auto',
-  WebkitBackfaceVisibility: 'hidden',
-  backfaceVisibility: 'hidden',
-  willChange: 'transform',
-};
-
 export const PARA_BIRIMI_ETIKETI: Record<string, string> = {
   TRY: 'TL',
   EUR: 'EUR',
@@ -146,6 +135,127 @@ export const DOCUMENT_BRAND = {
   textLabel: 'rgba(255,255,255,0.58)',
   separator: 'rgba(255,255,255,0.15)',
 } as const;
+
+function clampByte(v: number): number {
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
+function isHexColor(value: string | undefined): value is string {
+  if (!value) return false;
+  return /^#(?:[0-9a-fA-F]{6})$/.test(value.trim());
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const cleaned = hex.replace('#', '');
+  return {
+    r: Number.parseInt(cleaned.slice(0, 2), 16),
+    g: Number.parseInt(cleaned.slice(2, 4), 16),
+    b: Number.parseInt(cleaned.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const rr = clampByte(r).toString(16).padStart(2, '0');
+  const gg = clampByte(g).toString(16).padStart(2, '0');
+  const bb = clampByte(b).toString(16).padStart(2, '0');
+  return `#${rr}${gg}${bb}`;
+}
+
+function mixHex(base: string, target: string, ratio: number): string {
+  const a = hexToRgb(base);
+  const b = hexToRgb(target);
+  const t = Math.max(0, Math.min(1, ratio));
+  return rgbToHex(
+    a.r + (b.r - a.r) * t,
+    a.g + (b.g - a.g) * t,
+    a.b + (b.b - a.b) * t,
+  );
+}
+
+/**
+ * Firma birincil renginden güvenli, baskı dostu antet paleti üretir.
+ * Geçersiz renk gelirse kurumsal varsayılan palette kalır.
+ */
+export function createDocumentBrand(primaryColor?: string) {
+  if (!isHexColor(primaryColor)) return DOCUMENT_BRAND;
+  const base = primaryColor.trim();
+  return {
+    ...DOCUMENT_BRAND,
+    gradient: base,
+    border: mixHex(base, '#000000', 0.14),
+    shadow: `0 2px 8px rgba(${hexToRgb(base).r},${hexToRgb(base).g},${hexToRgb(base).b},0.18)`,
+    shadowSm: `0 1px 4px rgba(${hexToRgb(base).r},${hexToRgb(base).g},${hexToRgb(base).b},0.14)`,
+  };
+}
+
+export const HEADER_LAYOUT = {
+  headerMarginBottomPx: 10,
+} as const;
+
+interface FullHeaderLayoutStyles {
+  rootStyle: CSSProperties;
+  logoColumnStyle: CSSProperties;
+  companyColumnStyle: CSSProperties;
+  separatorStyle: CSSProperties | null;
+  quoteColumnStyle: CSSProperties;
+  quotePanelStyle: CSSProperties;
+}
+
+export function getFullHeaderLayoutStyles(firmaId?: string): FullHeaderLayoutStyles {
+  const layout = getOfferHeaderLayoutProfile(firmaId);
+
+  return {
+    rootStyle: {
+      display: 'grid',
+      gridTemplateColumns: `${layout.logoColumnWidthPx}px minmax(0, 1fr) ${layout.showSeparator ? `${layout.separatorWidthPx}px` : '0px'} ${layout.quotePanelWidthPx}px`,
+      columnGap: `${layout.columnGapPx}px`,
+      alignItems: 'stretch',
+      width: '100%',
+      minHeight: `${LOGO_OPT_H}px`,
+      marginBottom: `${HEADER_LAYOUT.headerMarginBottomPx}px`,
+      ...noBreak,
+    },
+    logoColumnStyle: {
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      boxSizing: 'border-box',
+      lineHeight: 0,
+    },
+    companyColumnStyle: {
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: `${layout.companyContentGapPx}px`,
+      boxSizing: 'border-box',
+    },
+    separatorStyle: layout.showSeparator ? {
+      width: `${layout.separatorWidthPx}px`,
+      alignSelf: 'stretch',
+      marginTop: `${layout.separatorInsetPx}px`,
+      marginBottom: `${layout.separatorInsetPx}px`,
+      background: HEADER_SURFACE.separator,
+      borderRadius: '999px',
+    } : null,
+    quoteColumnStyle: {
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'stretch',
+      boxSizing: 'border-box',
+    },
+    quotePanelStyle: {
+      width: '100%',
+      height: `${LOGO_OPT_H}px`,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      overflow: 'visible',
+      boxSizing: 'border-box',
+    },
+  };
+}
 
 // ── Header yüzeyi (üst kartlar + genel toplam — tablo başlığı ile aynı) ────
 // Tablo thead satırı ile birebir aynı görsel dil. Tüm bu yüzeyler tek kaynak.
@@ -419,8 +529,8 @@ export const LINE_ITEM_METRICS = {
   // Satır: 11px × 1.15 line-height ≈ 12.65px metin + 2×3px padding = ~18.65px.
   // Min height 20px bu içeriği rahatça kapsar, gereksiz baş/ayak boşluğu yok.
   rowHeightPx: 20,
-  cellPaddingYpx: 3,
-  cellPaddingXpx: 4,
+  cellPaddingYpx: 4,
+  cellPaddingXpx: 6,
   editorHeightPx: 17,
   baseFontSizePx: 11,
   codeFontSizePx: 10.5,
@@ -690,20 +800,11 @@ export function rcCell(
   };
 }
 
-export const LOGO = {
-  PNG_AR: 1858 / 846,
-  OPT_TOP_FRAC: 87 / 846,
-  OPT_BOT_FRAC: 646 / 846,
-  OPT_LEFT_FRAC: 82 / 1858,
-  OPT_RIGHT_FRAC: 1738 / 1858,
-  FILE_HEIGHT: 128,
-} as const;
-
-export const LOGO_FILE_W = LOGO.FILE_HEIGHT * LOGO.PNG_AR;
-export const LOGO_OPT_H = LOGO.FILE_HEIGHT * (LOGO.OPT_BOT_FRAC - LOGO.OPT_TOP_FRAC);
-export const LOGO_OPT_W = LOGO_FILE_W * (LOGO.OPT_RIGHT_FRAC - LOGO.OPT_LEFT_FRAC);
-export const LOGO_OPT_TOP = -(LOGO.FILE_HEIGHT * LOGO.OPT_TOP_FRAC);
-export const LOGO_OPT_LEFT = -(LOGO_FILE_W * LOGO.OPT_LEFT_FRAC);
+// A4 belge header'ındaki logo render boyutu. Logolar şeffaf PNG ve önceden
+// kırpılmıştır; container içine objectFit: contain ile sığar.
+//   ~18mm yükseklik × ~53mm max genişlik (profesyonel A4 antetbaşı standardı)
+export const LOGO_OPT_H = 68;
+export const LOGO_OPT_W = 200;
 
 export const DOCUMENT_ROOT_STYLE: CSSProperties = {
   width: `${DOCUMENT_PAGE.widthMm}mm`,
@@ -759,8 +860,8 @@ export const PARTY_LABEL_STYLE: CSSProperties = {
 };
 
 export const PARTY_NAME_STYLE: CSSProperties = {
-  fontWeight: 700,
-  fontSize: '12.5px',
+  fontWeight: 600,
+  fontSize: '11px',
   color: DOCUMENT_COLORS.navy,
   marginBottom: '3px',
   lineHeight: 1.35,
@@ -768,8 +869,8 @@ export const PARTY_NAME_STYLE: CSSProperties = {
 };
 
 export const PARTY_BODY_STYLE: CSSProperties = {
-  fontSize: '11.2px',
-  lineHeight: 1.52,
+  fontSize: '10.5px',
+  lineHeight: 1.4,
   color: DOCUMENT_COLORS.textMid,
   wordBreak: 'break-word',
   overflowWrap: 'break-word',
@@ -784,10 +885,19 @@ export const SETTINGS_GRID_STYLE: CSSProperties = {
   ...noBreak,
 };
 
+/** Settings grid stilini sütun sayısına göre dinamik üretir.
+ *  TRY tekliflerinde Döviz Kuru kartı atlandığında 4, eklenirse 6 sütun. */
+export function getSettingsGridStyle(itemCount: number): CSSProperties {
+  return {
+    ...SETTINGS_GRID_STYLE,
+    gridTemplateColumns: `repeat(${Math.max(1, itemCount)}, minmax(0, 1fr))`,
+  };
+}
+
 export const SETTINGS_CARD_STYLE: CSSProperties = {
-  padding: '9px 6px',
+  padding: '7px 6px',
   textAlign: 'center',
-  minHeight: 52,
+  minHeight: 44,
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
@@ -881,7 +991,60 @@ export const TABLE_STYLE: CSSProperties = {
 /** Bağımsız satırlar arasındaki dikey boşluk (px). Set grubu içinde uygulanmaz. */
 export const OFFER_TABLE_ROW_GAP_PX = 3;
 
-export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSProperties {
+export type OfferTableColumnKey =
+  | 'no'
+  | 'marka'
+  | 'urunKod'
+  | 'aciklama'
+  | 'miktar'
+  | 'paraBirimi'
+  | 'birimFiyat'
+  | 'toplam'
+  | 'teslimat';
+
+const OPTICAL_SEPARATOR_COLUMNS = new Set<OfferTableColumnKey>([
+  'marka',
+  'urunKod',
+  'aciklama',
+  'miktar',
+  'paraBirimi',
+  'birimFiyat',
+  'toplam',
+  'teslimat',
+]);
+
+const OPTICAL_SEPARATOR_COLOR = {
+  head: 'rgba(26,43,66,0.088)',
+  body: 'rgba(26,43,66,0.072)',
+} as const;
+
+export function getOfferTableSeparatorClass(columnKey: OfferTableColumnKey): string | undefined {
+  return OPTICAL_SEPARATOR_COLUMNS.has(columnKey) ? 'optical-separator-col' : undefined;
+}
+
+export function getOfferTableSeparatorStyle(
+  columnKey: OfferTableColumnKey,
+  surface: 'head' | 'body' = 'body',
+): CSSProperties {
+  if (!OPTICAL_SEPARATOR_COLUMNS.has(columnKey)) return {};
+
+  const topInset = surface === 'head' ? '18%' : '12%';
+  const bottomInset = surface === 'head' ? '82%' : '88%';
+  const fallbackColor = OPTICAL_SEPARATOR_COLOR[surface];
+
+  return {
+    position: 'relative',
+    backgroundImage: `linear-gradient(to bottom, transparent ${topInset}, var(--offer-col-separator, ${fallbackColor}) ${topInset}, var(--offer-col-separator, ${fallbackColor}) ${bottomInset}, transparent ${bottomInset})`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'left center',
+    backgroundSize: '1px 100%',
+  };
+}
+
+export function getTableHeadCellStyle(
+  align: CSSProperties['textAlign'],
+  columnKey?: OfferTableColumnKey,
+): CSSProperties {
   return {
     padding: CELL_PAD,
     textAlign: align,
@@ -898,6 +1061,7 @@ export function getTableHeadCellStyle(align: CSSProperties['textAlign']): CSSPro
     borderRadius: 0,
     lineHeight: 1.28,
     whiteSpace: 'nowrap',
+    ...(columnKey ? getOfferTableSeparatorStyle(columnKey, 'head') : null),
   };
 }
 
@@ -914,7 +1078,7 @@ export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
 export const NOTES_BOX_STYLE: CSSProperties = {
   fontSize: '10.5px',
   marginBottom: '6px',
-  padding: '5px 10px',
+  padding: '8px 12px',
   border: `0.75px solid ${DOCUMENT_COLORS.border}`,
   borderRadius: '4px',
   lineHeight: 1.45,
@@ -927,8 +1091,56 @@ export const NOTES_BOX_STYLE: CSSProperties = {
 
 export const SIGNATURE_SECTION_STYLE: CSSProperties = {
   marginTop: '18px',
-  padding: '18px 0 22px',
+  padding: '16px 0 16px',
   ...noBreak,
+};
+
+export const SIGNATURE_BLOCK_ROW_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'stretch',
+  gap: '14px',
+};
+
+export const SIGNATURE_CONTENT_ROW_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '18px',
+};
+
+export const SIGNATURE_FIELDS_HOST_STYLE: CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  justifyContent: 'flex-start',
+};
+
+export const SIGNATURE_FIELDS_GRID_STYLE: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '40mm 48mm',
+  columnGap: '18px',
+  alignItems: 'start',
+  justifyItems: 'start',
+  width: 'fit-content',
+  maxWidth: '100%',
+};
+
+export const SIGNATURE_FIELD_STYLE: CSSProperties = {
+  width: '40mm',
+  maxWidth: '40mm',
+  fontSize: '11px',
+  lineHeight: 1.45,
+};
+
+export const SIGNATURE_LABEL_STYLE: CSSProperties = {
+  marginTop: '6px',
+  marginBottom: 0,
+  lineHeight: 1.25,
+};
+
+export const SIGNATURE_LINE_STYLE: CSSProperties = {
+  width: '40mm',
+  maxWidth: '40mm',
+  height: '22px',
+  borderBottom: `1px solid ${DOCUMENT_COLORS.sigBorder}`,
 };
 
 // Footer — düz koyu (#0F172A), gradyan yok
@@ -949,26 +1161,73 @@ export const FOOTER_BAR_STYLE: CSSProperties = {
   WebkitPrintColorAdjust: 'exact',
 };
 
-export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean) {
+/** Geçerlilik süresinden bitiş tarihini hesapla.
+ *  "1 Hafta", "30 Gün", "2 Ay" gibi ifadeleri parse edip teklif tarihi
+ *  üzerinden gerçek bitiş tarihini DD.MM.YYYY formatında döner.
+ *  "Sınırsız" / parse edilemeyen değerler olduğu gibi döner. */
+function hesaplaGecerlilikBitis(tarihStr: string, sure: string): string {
+  if (!sure) return '—';
+  const sureLower = sure.toLocaleLowerCase('tr-TR');
+  if (sureLower.includes('sınırsız') || sureLower.includes('limitsiz')) return 'Sınırsız';
+
+  const tarih = new Date(tarihStr);
+  if (isNaN(tarih.getTime())) return sure;
+
+  const match = sureLower.match(/(\d+)\s*(g[üu]n|hafta|ay|month|week|day)/);
+  if (!match) return sure;
+  const n = parseInt(match[1], 10);
+  const unit = match[2];
+  if (unit.startsWith('g') || unit === 'day') tarih.setDate(tarih.getDate() + n);
+  else if (unit === 'hafta' || unit === 'week') tarih.setDate(tarih.getDate() + n * 7);
+  else if (unit === 'ay' || unit === 'month') tarih.setMonth(tarih.getMonth() + n);
+
+  const dd = String(tarih.getDate()).padStart(2, '0');
+  const mm = String(tarih.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${tarih.getFullYear()}`;
+}
+
+export type SettingsItemId =
+  | 'paraBirimi' | 'odemeVadesi' | 'kdvOrani' | 'kur' | 'gecerlilik';
+
+export interface SettingsItem {
+  id: SettingsItemId;
+  tr: string;
+  en: string;
+  value: string;
+}
+
+export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean): SettingsItem[] {
   const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
 
-  return [
+  const items: SettingsItem[] = [
     {
+      id: 'paraBirimi',
       tr: 'Para Birimi',
       en: 'Currency',
       value: satirBazliParaBirimi
         ? 'Satır Bazlı'
         : (sembol !== teklif.paraBirimi ? `${teklif.paraBirimi} (${sembol})` : teklif.paraBirimi),
     },
-    { tr: 'Ödeme Vadesi', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
+    { id: 'odemeVadesi', tr: 'Ödeme Vadesi', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
     {
+      id: 'kdvOrani',
       tr: 'KDV Oranı',
       en: 'VAT Rate',
       value: satirBazliParaBirimi ? 'Satır Bazlı' : (teklif.kdvOrani > 0 ? `%${teklif.kdvOrani}` : 'Hariç'),
     },
-    { tr: 'Döviz Kuru', en: 'Exchange Rate', value: 'TCMB Fatura' },
-    { tr: 'Geçerlilik', en: 'Validity', value: teklif.gecerlilikSuresi ?? '1 Hafta' },
   ];
+
+  // TRY tekliflerinde Döviz Kuru kartı gösterilmez
+  if (teklif.paraBirimi !== 'TRY') {
+    items.push({ id: 'kur', tr: 'Döviz Kuru', en: 'Exchange Rate', value: teklif.dovizKuru || 'TCMB Fatura' });
+  }
+
+  items.push({
+    id: 'gecerlilik',
+    tr: 'Geçerlilik',
+    en: 'Validity',
+    value: hesaplaGecerlilikBitis(teklif.tarih, teklif.gecerlilikSuresi ?? '1 Hafta'),
+  });
+
+  return items;
 }
-
-
