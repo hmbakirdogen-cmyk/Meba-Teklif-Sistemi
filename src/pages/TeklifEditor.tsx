@@ -784,18 +784,140 @@ export default function TeklifEditor() {
           ) : (
             <div style={{
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               minHeight: 'calc(100vh - 160px)',
-              gap: 16,
-              color: C.textFaint,
+              padding: '24px 16px',
+              boxSizing: 'border-box',
             }}>
-              <div style={{ fontSize: 48, opacity: 0.3 }}>📄</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Müşteri seçerek başlayın</div>
-              <div style={{ fontSize: 13 }}>Bir müşteri seçtiğinizde belge otomatik oluşacak.</div>
-              <div style={{ marginTop: 8, width: '100%', maxWidth: 520 }}>
-                <CariSecimi value={null} onChange={state.setCari} />
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: 560,
+                  padding: '40px 36px 32px',
+                  borderRadius: 20,
+                  // Glass / soft gradient: kurumsal ve sade
+                  background: `linear-gradient(180deg, ${C.bgElevated || C.bgSurface} 0%, ${C.bgSurface} 100%)`,
+                  border: `1px solid ${C.border}`,
+                  boxShadow: '0 20px 60px -24px rgba(15, 23, 42, 0.35), 0 4px 16px -8px rgba(15, 23, 42, 0.18)',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Hafif glow — üstte */}
+                <div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: -120,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 360,
+                    height: 240,
+                    background: 'radial-gradient(closest-side, rgba(30,58,95,0.18), transparent 70%)',
+                    filter: 'blur(8px)',
+                    pointerEvents: 'none',
+                  }}
+                />
+
+                {/* İkon — kurumsal, küçük ama etkili */}
+                <div
+                  style={{
+                    position: 'relative',
+                    width: 64,
+                    height: 64,
+                    margin: '0 auto 20px',
+                    borderRadius: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'linear-gradient(135deg, #1E3A5F 0%, #2C5282 100%)',
+                    boxShadow: '0 10px 24px -10px rgba(30, 58, 95, 0.55), inset 0 1px 0 rgba(255,255,255,0.12)',
+                  }}
+                >
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <circle cx="12" cy="14" r="2.4" />
+                    <path d="M8 19c0-2 1.8-3.4 4-3.4S16 17 16 19" />
+                  </svg>
+                </div>
+
+                <h2
+                  style={{
+                    margin: 0,
+                    textAlign: 'center',
+                    fontSize: 22,
+                    fontWeight: 600,
+                    letterSpacing: -0.2,
+                    color: C.textPrimary,
+                  }}
+                >
+                  Müşteri Seçerek Başlayın
+                </h2>
+                <p
+                  style={{
+                    margin: '10px auto 24px',
+                    textAlign: 'center',
+                    maxWidth: 420,
+                    fontSize: 13.5,
+                    lineHeight: 1.6,
+                    color: C.textSecondary || C.textFaint,
+                  }}
+                >
+                  Teklif hazırlamak için önce müşteri seçin. Müşteri bilgileri seçildiğinde
+                  teklif formu otomatik olarak hazırlanacaktır.
+                </p>
+
+                {/* Ana aksiyon — mevcut CariSecimi (search + yeni cari ekle) */}
+                <div style={{ position: 'relative' }}>
+                  <CariSecimi value={null} onChange={state.setCari} />
+                </div>
+
+                {/* İkincil bilgi — zarif chip'ler */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    justifyContent: 'center',
+                    marginTop: 24,
+                  }}
+                >
+                  {[
+                    'Müşteri bilgileri otomatik doldurulur',
+                    'Teklif numarası korunur',
+                    'Ürün satırları sonra eklenir',
+                  ].map((metin) => (
+                    <span
+                      key={metin}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '6px 12px',
+                        fontSize: 11.5,
+                        fontWeight: 500,
+                        color: C.textSecondary || C.textFaint,
+                        background: C.bgSurface,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 999,
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: '50%',
+                          background: '#2C5282',
+                          flexShrink: 0,
+                        }}
+                      />
+                      {metin}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}
