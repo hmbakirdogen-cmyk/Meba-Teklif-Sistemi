@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '../config';
+import { getSessionToken, getActiveFirmaId } from './apiClient';
 import type { Teklif } from '../types';
 
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
@@ -238,9 +239,15 @@ export async function teklifDisaAktar(
   const pdfBase64 = await blobToBase64(blob);
 
   try {
+    // Auth middleware X-Session-Token + X-Firma-Id ister; aksi halde 401.
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = getSessionToken();
+    const firmaId = getActiveFirmaId();
+    if (token) headers['X-Session-Token'] = token;
+    if (firmaId) headers['X-Firma-Id'] = firmaId;
     const response = await fetch(`${APP_CONFIG.API_BASE}/teklif/disa-aktar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ teklif, pdfBase64, hedef }),
     });
 
