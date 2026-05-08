@@ -4,8 +4,12 @@
 
 import { dataStore } from './dataStore';
 import type { Referans } from './apiClient';
+import type { Firma } from '../types';
 
-export const VARSAYILAN_MARKA = 'SMC';
+/** Firma varsayılanlarından marka değerini döner; yoksa global fallback 'SMC'. */
+export function getVarsayilanMarka(firmaVarsayilanlar?: Firma['varsayilanlar']): string {
+  return firmaVarsayilanlar?.marka ?? 'SMC';
+}
 
 type Alan = keyof Omit<Referans, never>;
 

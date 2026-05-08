@@ -19,4 +19,17 @@ export interface Firma {
   iban: string;
   pdfKlasorAdi: string;
   teklifPrefix: string;
+  /** Firma bazlı yeni teklif varsayılanları. Yeni teklif oluşturulurken
+   *  hücreler bu değerlerle doldurulur; mevcut tekliflerde değer kaydın
+   *  kendisinden gelir, varsayılan ezilmez. */
+  varsayilanlar?: {
+    paraBirimi?: string;
+    kdvOrani?: number;
+    iskontoOrani?: number;
+    odemeVadesi?: string;
+    gecerlilikSuresi?: string;
+    marka?: string;
+    birim?: string;
+    teslimTarihi?: string;
+  };
 }

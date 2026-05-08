@@ -24,13 +24,12 @@ import jsPDF from 'jspdf';
 const EMAIL_MAX_BYTES = 1024 * 1024;
 
 /**
- * Aktif ekran/cihaz pixel oranına göre html2canvas scale değeri.
- * 1× ekran → 3, 2× retina → 6, 3× → 9 (üst sınır 9). Daha yüksek scale =
- * daha keskin metin ve ince çizgi, ama bellek/CPU lineer artar.
+ * Sabit html2canvas scale = 3 (~288 DPI A4). 300+ DPI insan gözü için ayırt
+ * edilemez seviyede; retina'da eski dpr×3 (=6) → 32 MP/sayfa lüzumsuzdu.
+ * Düz 3 ile ~8 MP/sayfa, ~4× hız kazancı, kalite kaybı yok.
  */
 function getOptimalScale(): number {
-  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-  return Math.min(9, Math.max(3, Math.ceil(dpr * 3)));
+  return 3;
 }
 
 /**
@@ -56,40 +55,23 @@ type JpegAttempt = {
   compression: 'NONE' | 'FAST' | 'MEDIUM';
 };
 
-/** E-posta için JPEG fallback zinciri — yüksek kaliteden başlayarak iner. */
-const EMAIL_JPEG_ATTEMPTS: JpegAttempt[] = [
-  { quality: 0.95, downscale: 1.0,  compression: 'MEDIUM' },
-  { quality: 0.92, downscale: 0.95, compression: 'MEDIUM' },
-  { quality: 0.88, downscale: 0.90, compression: 'FAST' },
-  { quality: 0.85, downscale: 0.86, compression: 'FAST' },
-];
-
 /**
  * html2canvas'ın oluşturduğu DOM kopyasında ekrandaki kalite ipuçlarını
  * çoğaltır: print-color-adjust, font kerning/smoothing, geometric text
  * rendering. Logo gibi <img>'lerde imageRendering 'auto' (lanczos) korunur.
  */
 function applyCloneQualityFixes(clonedEl: HTMLElement): void {
-  if (clonedEl.style) {
-    clonedEl.style.setProperty('-webkit-print-color-adjust', 'exact');
-    clonedEl.style.printColorAdjust = 'exact';
-    clonedEl.style.setProperty('color-adjust', 'exact');
-  }
-
-  const allElements = clonedEl.querySelectorAll<HTMLElement>('*');
-  allElements.forEach((el) => {
-    const computed = window.getComputedStyle(el);
-    const ff = computed.fontFamily;
-    if (ff && ff !== 'serif') {
-      el.style.fontFamily = ff;
-    }
-    el.style.textRendering = 'geometricPrecision';
-    el.style.setProperty('-webkit-font-smoothing', 'antialiased');
-    el.style.setProperty('-moz-osx-font-smoothing', 'grayscale');
-    el.style.fontKerning = 'normal';
-    el.style.setProperty('font-feature-settings', '"kern" 1');
-  });
-
+  // Bu özellikler CSS inheritance ile root'tan child'lara geçer; tek seferde
+  // root'a uygulamak yeterli. Eski querySelectorAll('*') + getComputedStyle
+  // loop'u büyük belgelerde n× DOM walk darboğazı yaratıyordu.
+  clonedEl.style.setProperty('-webkit-print-color-adjust', 'exact');
+  clonedEl.style.printColorAdjust = 'exact';
+  clonedEl.style.setProperty('color-adjust', 'exact');
+  clonedEl.style.textRendering = 'geometricPrecision';
+  clonedEl.style.setProperty('-webkit-font-smoothing', 'antialiased');
+  clonedEl.style.setProperty('-moz-osx-font-smoothing', 'grayscale');
+  clonedEl.style.fontKerning = 'normal';
+  clonedEl.style.setProperty('font-feature-settings', '"kern" 1');
   clonedEl.style.overflow = 'visible';
 
   const images = clonedEl.querySelectorAll<HTMLElement>('img');
@@ -215,7 +197,7 @@ export async function buildPdf(
 ): Promise<{ pdf: jsPDF; pageImages: string[] }> {
   const canvases = await renderPageCanvases(pagedRootEl);
   const pageImages = canvases.map(encodeCanvasToPng);
-  const pdf = buildPdfFromImages(pageImages, 'PNG', 'NONE');
+  const pdf = buildPdfFromImages(pageImages, 'PNG', 'FAST');
   return { pdf, pageImages };
 }
 
@@ -229,41 +211,27 @@ export async function buildEmailPdf(
 ): Promise<{ pdf: jsPDF; pageImages: string[] }> {
   const canvases = await renderPageCanvases(pagedRootEl);
 
-  // 1) PNG denemesi (lossless)
-  const pngImages = canvases.map(encodeCanvasToPng);
-  const pngPdf = buildPdfFromImages(pngImages, 'PNG', 'NONE');
-  const pngBytes = (pngPdf.output('arraybuffer') as ArrayBuffer).byteLength;
-  if (pngBytes <= EMAIL_MAX_BYTES) {
-    return { pdf: pngPdf, pageImages: pngImages };
-  }
+  // E-posta PDF'i pratikte hep > 1 MB (PNG olarak); önce PNG denemesi 2× boş
+  // iş yapıyordu. Direkt JPEG 0.92'den başla; cap'e sığanı döndür.
+  const attempts: JpegAttempt[] = [
+    { quality: 0.92, downscale: 1.0,  compression: 'FAST' },
+    { quality: 0.88, downscale: 0.95, compression: 'FAST' },
+    { quality: 0.85, downscale: 0.90, compression: 'FAST' },
+  ];
 
-  // 2) JPEG zinciri — en yüksek kaliteden başla, cap'e sığan ilkini döndür
   let bestPdf: jsPDF | null = null;
   let bestImages: string[] = [];
   let bestBytes = Number.POSITIVE_INFINITY;
 
-  for (const attempt of EMAIL_JPEG_ATTEMPTS) {
+  for (const attempt of attempts) {
     const pageImages = canvases.map((c) => encodeCanvasToJpeg(c, attempt.quality, attempt.downscale));
     const pdf = buildPdfFromImages(pageImages, 'JPEG', attempt.compression);
     const bytes = (pdf.output('arraybuffer') as ArrayBuffer).byteLength;
-
-    if (bytes < bestBytes) {
-      bestBytes = bytes;
-      bestPdf = pdf;
-      bestImages = pageImages;
-    }
-
-    if (bytes <= EMAIL_MAX_BYTES) {
-      return { pdf, pageImages };
-    }
+    if (bytes < bestBytes) { bestBytes = bytes; bestPdf = pdf; bestImages = pageImages; }
+    if (bytes <= EMAIL_MAX_BYTES) return { pdf, pageImages };
   }
 
-  // 3) Hâlâ büyükse en küçük çıktıyı döndür (zincir bittiği için en agresif sıkıştırılmış)
-  if (bestPdf && bestImages.length > 0) {
-    return { pdf: bestPdf, pageImages: bestImages };
-  }
-  // Teorik fallback — buraya düşmemeli
-  return { pdf: pngPdf, pageImages: pngImages };
+  return { pdf: bestPdf!, pageImages: bestImages };
 }
 
 /** Yazdırma için her sayfanın PNG data URL'ini döndürür. */

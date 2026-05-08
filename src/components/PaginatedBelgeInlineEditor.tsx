@@ -1996,14 +1996,14 @@ export default function PaginatedBelgeInlineEditor({
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
                         <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
                           <div style={{ position: 'relative', top: '16px' }}>
-                            <div style={{ marginRight: '1.3cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                            <div style={{ marginRight: '0.6cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                             <div style={{ marginBottom: '6px', marginTop: '2px' }}>
                               <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
                               <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                               <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
                             </div>
                           </div>
-                          <div style={{ marginRight: '1.3cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                          <div style={{ marginRight: '0.6cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                           <div style={{ marginTop: '2px' }}>
                             <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
                             <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
@@ -2011,11 +2011,11 @@ export default function PaginatedBelgeInlineEditor({
                           </div>
                         </div>
                         <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px' }}>
-                          <div style={{ width: '115px', marginLeft: '-1.3cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                          <div style={{ marginTop: '2px', marginLeft: '-1.3cm' }}>
-                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                          <div style={{ width: '170px', marginLeft: '-0.6cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                          <div style={{ marginTop: '2px', marginLeft: '-0.6cm' }}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza / Kaşe</span>
                             <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature / Stamp</span>
                           </div>
                         </div>
                       </div>

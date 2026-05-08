@@ -68,9 +68,9 @@ const RASTER_IMAGE_RENDERING = 'high-quality' as unknown as CSSProperties['image
 const DEFAULT_SURFACE_PRESETS: Record<AdaptiveLogoSurface, LogoSurfacePreset> = {
   navbar: {
     slotWidth: 156,
-    slotHeight: 42,
-    maxWidth: 142,
-    maxHeight: 28,
+    slotHeight: 44,
+    maxWidth: 140,
+    maxHeight: 32,
     slotBackground: 'rgba(255,255,255,0.98)',
     slotBorder: '1px solid rgba(207,225,255,0.16)',
     slotBorderRadius: 10,
@@ -81,14 +81,14 @@ const DEFAULT_SURFACE_PRESETS: Record<AdaptiveLogoSurface, LogoSurfacePreset> = 
     objectPosition: 'center',
     paddingLeft: 10,
     paddingRight: 10,
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingTop: 6,
+    paddingBottom: 6,
     labelGapPx: 12,
   },
   'navbar-switcher': {
     slotWidth: 56,
     slotHeight: 28,
-    maxWidth: 46,
+    maxWidth: 48,
     maxHeight: 20,
     slotBackground: 'rgba(255,255,255,0.98)',
     slotBorder: '1px solid rgba(148,163,184,0.18)',
@@ -112,9 +112,9 @@ const DEFAULT_SURFACE_PRESETS: Record<AdaptiveLogoSurface, LogoSurfacePreset> = 
     objectPosition: 'left center',
   },
   'a4-compact': {
-    slotWidth: 92,
-    slotHeight: 33,
-    maxWidth: 84,
+    slotWidth: 96,
+    slotHeight: 35,
+    maxWidth: 86,
     maxHeight: 29,
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -123,16 +123,16 @@ const DEFAULT_SURFACE_PRESETS: Record<AdaptiveLogoSurface, LogoSurfacePreset> = 
   card: {
     slotWidth: '100%',
     slotHeight: '100%',
-    maxWidth: '84%',
-    maxHeight: '62%',
+    maxWidth: '86%',
+    maxHeight: '52%',
     alignItems: 'center',
     justifyContent: 'center',
     objectPosition: 'center',
   },
   'inline-tab': {
-    slotWidth: 46,
-    slotHeight: 18,
-    maxWidth: 42,
+    slotWidth: 48,
+    slotHeight: 20,
+    maxWidth: 44,
     maxHeight: 16,
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -149,118 +149,9 @@ const DEFAULT_OFFER_HEADER_LAYOUT: OfferHeaderLayoutPreset = {
   showSeparator: true,
 };
 
-const SURFACE_OVERRIDES: Record<string, Partial<Record<AdaptiveLogoSurface, Partial<LogoSurfacePreset>>>> = {
-  meba: {
-    navbar: {
-      maxWidth: 144,
-      maxHeight: 23,
-      labelGapPx: 13,
-    },
-    'navbar-switcher': {
-      maxWidth: 45,
-      maxHeight: 14,
-    },
-    'a4-full': {
-      maxWidth: 168,
-      maxHeight: 43,
-    },
-    'a4-compact': {
-      maxWidth: 86,
-      maxHeight: 21,
-    },
-    card: {
-      maxWidth: '86%',
-      maxHeight: '46%',
-    },
-    'inline-tab': {
-      maxWidth: 40,
-      maxHeight: 12,
-    },
-  },
-  mesa: {
-    navbar: {
-      maxWidth: 132,
-      maxHeight: 36,
-      labelGapPx: 12,
-      offsetY: -1,
-    },
-    'navbar-switcher': {
-      maxWidth: 40,
-      maxHeight: 22,
-      offsetY: -1,
-    },
-    'a4-full': {
-      maxWidth: 140,
-      maxHeight: 64,
-      offsetY: -1,
-    },
-    'a4-compact': {
-      maxWidth: 74,
-      maxHeight: 32,
-      offsetY: -1,
-    },
-    card: {
-      maxWidth: '82%',
-      maxHeight: '76%',
-      offsetY: -1,
-    },
-    'inline-tab': {
-      maxWidth: 40,
-      maxHeight: 19,
-      offsetY: -1,
-    },
-  },
-  elmos: {
-    navbar: {
-      maxWidth: 128,
-      maxHeight: 36,
-      labelGapPx: 12,
-      offsetY: -1,
-    },
-    'navbar-switcher': {
-      maxWidth: 39,
-      maxHeight: 22,
-      offsetY: -1,
-    },
-    'a4-full': {
-      maxWidth: 136,
-      maxHeight: 64,
-      offsetY: -1,
-    },
-    'a4-compact': {
-      maxWidth: 72,
-      maxHeight: 32,
-      offsetY: -1,
-    },
-    card: {
-      maxWidth: '80%',
-      maxHeight: '75%',
-      offsetY: -1,
-    },
-    'inline-tab': {
-      maxWidth: 39,
-      maxHeight: 18,
-      offsetY: -1,
-    },
-  },
-};
+const SURFACE_OVERRIDES: Record<string, Partial<Record<AdaptiveLogoSurface, Partial<LogoSurfacePreset>>>> = {};
 
-const OFFER_HEADER_OVERRIDES: Record<string, Partial<OfferHeaderLayoutPreset>> = {
-  meba: {
-    columnGapPx: 14,
-    companyContentGapPx: 4,
-  },
-  mesa: {
-    columnGapPx: 14,
-    separatorInsetPx: 6,
-    companyContentGapPx: 4,
-  },
-  elmos: {
-    columnGapPx: 14,
-    separatorInsetPx: 6,
-    companyContentGapPx: 4,
-  },
-};
+const OFFER_HEADER_OVERRIDES: Record<string, Partial<OfferHeaderLayoutPreset>> = {};
 
 function toCssSize(value: SizeValue): string {
   return typeof value === 'number' ? `${value}px` : value;

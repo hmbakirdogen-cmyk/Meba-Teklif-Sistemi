@@ -10,7 +10,6 @@ import { useFirma } from '../context/useFirma';
 import type { Kullanici, KullaniciRol } from '../types/kullanici';
 import { formatAdSoyad, formatUnvan } from '../utils/formatters';
 import {
-  isSuperAdmin as isSuperAdminFn,
   isYonetici,
   tumFirmalaraErisir as tumFirmalaraErisirFn,
 } from '../utils/yetkiUtils';
@@ -21,6 +20,8 @@ interface FormValues {
   unvan: string;
   rol: KullaniciRol;
   firmaId?: string;
+  telefon?: string;
+  dahili?: string;
 }
 
 export default function PersonelSayfasi() {
@@ -32,10 +33,11 @@ export default function PersonelSayfasi() {
   const [duzenlenen, setDuzenlenen] = useState<Kullanici | null>(null);
   const [form] = Form.useForm<FormValues>();
 
-  const isSuperAdmin = isSuperAdminFn(aktifKullanici?.rol);
-  // firma_admin de personel yönetimi yapabilir (yöneticiler hariç).
+  // firma_admin'in uygulama içi yetkileri super_admin ile eşit. Yalnızca
+  // super_admin hesaplarının yönetimi (düzenle/sil/şifre sıfırla) ve süper
+  // yönetici rolünde personel oluşturma istisnadır — onlar inline
+  // aktifKullanici?.rol === 'super_admin' kontrolü ile korunur.
   const isAdmin = isYonetici(aktifKullanici?.rol);
-  // firma_admin (yönetim kurulu) tüm firmalara erişir → firma seçici göstermesi gerek.
   const tumFirmalaraErisir = tumFirmalaraErisirFn(aktifKullanici?.rol);
 
   const fetchListe = useCallback(async () => {
@@ -70,6 +72,8 @@ export default function PersonelSayfasi() {
       unvan: k.unvan,
       rol: k.rol,
       firmaId: k.firmaId || undefined,
+      telefon: k.telefon || '',
+      dahili: k.dahili || '',
     });
     setModalOpen(true);
   }
@@ -84,6 +88,8 @@ export default function PersonelSayfasi() {
           adSoyad: normalizedAdSoyad,
           unvan: normalizedUnvan,
           rol: values.rol,
+          telefon: (values.telefon ?? '').trim(),
+          dahili: (values.dahili ?? '').trim(),
         });
         message.success('Personel güncellendi');
       } else {
@@ -93,6 +99,8 @@ export default function PersonelSayfasi() {
           unvan: normalizedUnvan,
           rol: values.rol,
           firmaId: tumFirmalaraErisir ? values.firmaId : aktifKullanici?.firmaId || undefined,
+          telefon: (values.telefon ?? '').trim(),
+          dahili: (values.dahili ?? '').trim(),
         });
         message.success(`Personel eklendi. Varsayılan şifre: ${r.varsayilanSifre}`);
       }
@@ -178,6 +186,21 @@ export default function PersonelSayfasi() {
       render: (v: string) => v ? formatUnvan(v) : <span style={{ color: '#cbd5e1' }}>—</span>,
     },
     {
+      title: 'Telefon',
+      key: 'telefon',
+      render: (_: unknown, k: Kullanici) => {
+        const tel = k.telefon;
+        const dah = k.dahili;
+        if (!tel && !dah) return <span style={{ color: '#cbd5e1' }}>—</span>;
+        return (
+          <div style={{ fontSize: 12 }}>
+            {tel && <div>{tel}</div>}
+            {dah && <div style={{ color: '#94a3b8', fontSize: 11 }}>Dahili: {dah}</div>}
+          </div>
+        );
+      },
+    },
+    {
       title: 'Rol',
       dataIndex: 'rol',
       key: 'rol',
@@ -205,9 +228,9 @@ export default function PersonelSayfasi() {
       key: 'actions',
       align: 'right' as const,
       render: (_: unknown, k: Kullanici) => {
-        // firma_admin (super değil) başka yöneticileri düzenleyemez/silemez/sıfırlayamaz
-        const targetIsYonetici = ['firma_admin', 'super_admin'].includes(k.rol);
-        const yoneticiKilidi = !isSuperAdmin && targetIsYonetici;
+        // Yalnızca super_admin hesabı korunur — onu sadece super_admin yönetebilir.
+        const targetIsSuperAdmin = k.rol === 'super_admin';
+        const yoneticiKilidi = aktifKullanici?.rol !== 'super_admin' && targetIsSuperAdmin;
         return (
           <Space size="small">
             <Button size="small" icon={<EditOutlined />} disabled={yoneticiKilidi} onClick={() => duzenle(k)}>Düzenle</Button>
@@ -244,10 +267,8 @@ export default function PersonelSayfasi() {
             <div>
               <div style={{ fontSize: 18, fontWeight: 700 }}>Personel Yönetimi</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 400 }}>
-                {isSuperAdmin
+                {isAdmin
                   ? 'Tüm firmalardaki personeli ve yöneticileri yönetin'
-                  : isAdmin
-                  ? 'Tüm firmalardaki personeli (mühendis/satış) yönetin'
                   : 'Firmanıza ait personeli ekleyip düzenleyin'}
               </div>
             </div>
@@ -312,11 +333,17 @@ export default function PersonelSayfasi() {
           >
             <Input placeholder="Ünvan" autoComplete="off" />
           </Form.Item>
+          <Form.Item name="telefon" label="Telefon">
+            <Input placeholder="0XXX XXX XX XX" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="dahili" label="Dahili">
+            <Input placeholder="Dahili numara" autoComplete="off" />
+          </Form.Item>
           <Form.Item name="rol" label="Rol" rules={[{ required: true }]}>
             <Select>
               <Select.Option value="engineer">Mühendis</Select.Option>
               <Select.Option value="sales">Satış Sorumlusu</Select.Option>
-              {isSuperAdmin && (
+              {isAdmin && (
                 <Select.Option value="firma_admin">
                   Firma Yöneticisi
                 </Select.Option>

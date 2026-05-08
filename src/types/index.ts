@@ -7,3 +7,4 @@ export type { ImageItem } from './imageItem';
 export type { Kullanici, KullaniciRol } from './kullanici';
 export { KULLANICILAR, ROL_ETIKET } from './kullanici';
 export type { Firma } from './firma';
+export type { Bildirim } from './bildirim';

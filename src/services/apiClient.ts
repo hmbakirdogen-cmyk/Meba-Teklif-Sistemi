@@ -8,7 +8,7 @@
  * UI'nın takılmasını engeller.
  */
 
-import type { Teklif, Cari, Urun, UrunSeti, Kullanici, Firma } from '../types';
+import type { Teklif, Cari, Urun, UrunSeti, Kullanici, Firma, Bildirim } from '../types';
 import { APP_CONFIG } from '../config';
 
 const BASE = APP_CONFIG.API_BASE;
@@ -308,6 +308,13 @@ export const api = {
     sil:     (id: string)                                                        => del(`/geribildirim/${id}`),
   },
 
+  // ── Bildirimler (atama / teklif olayları → her kullanıcı kendi listesi) ──
+  bildirimler: {
+    list:           ()                                  => get<Bildirim[]>('/bildirimler'),
+    okundu:         (id: string)                        => patch<Bildirim>(`/bildirimler/${id}`, { okundu: true }),
+    tumunuOkunduYap: ()                                 => post<{ ok: boolean; degisen: number }>('/bildirimler/toplu-okundu', {}),
+  },
+
   // ── Auth ────────────────────────────────────────────────────────────────────
   auth: {
     login: (kullaniciAdi: string, sifre: string, secilenFirmaId?: string | null, beniHatirla = false) =>
@@ -344,13 +351,15 @@ export const api = {
         firmaId: string | null;
         profilFotoUrl: string | null;
         initials: string;
+        telefon: string | null;
+        dahili: string | null;
       }>>(`/firma/${firmaId}/personel`),
   },
 
   // ── Kullanicilar ────────────────────────────────────────────────────────────
   kullanicilar: {
     list:    ()                                                   => get<Kullanici[]>('/kullanicilar'),
-    create:  (payload: { kullaniciAdi: string; adSoyad: string; unvan?: string; rol?: string; firmaId?: string }) =>
+    create:  (payload: { kullaniciAdi: string; adSoyad: string; unvan?: string; rol?: string; firmaId?: string; telefon?: string; dahili?: string }) =>
       post<{ kullanici: Kullanici; varsayilanSifre: string }>('/kullanicilar', payload),
     update:  (id: string, patchBody: Partial<Kullanici>)          => patch<Kullanici>(`/kullanicilar/${id}`, patchBody),
     sifirla: (id: string)                                         => post<{ ok: boolean; varsayilanSifre: string }>(`/kullanicilar/${id}/sifre-sifirla`, {}),

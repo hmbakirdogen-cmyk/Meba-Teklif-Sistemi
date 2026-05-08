@@ -49,7 +49,7 @@ export function firmaLogoImgStyle(_firma: Firma, extraFilter?: string): CSSPrope
     height: '100%',
     objectFit: 'contain',
     imageRendering: 'auto',
-    filter: extraFilter ?? 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))',
+    filter: extraFilter ?? 'none',
     transition: 'filter 0.25s ease',
   };
 }

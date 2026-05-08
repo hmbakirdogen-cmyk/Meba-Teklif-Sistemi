@@ -72,6 +72,9 @@ export interface Teklif {
   hazirlayanUnvan?: string;
   contactName?: string;
   contactTitle?: 'BEY' | 'HANIM';
+  /** Teklif ile ilgilenen/takip eden kişi — kendi firmasından seçilir. */
+  ilgiliKisiId?: string;
+  ilgiliKisiAdSoyad?: string;
   gorseller?: ImageItem[];
   /** Otomatik kayıt durumu — taslak / kaydedildi / gonderildi */
   status?: TeklifStatus;

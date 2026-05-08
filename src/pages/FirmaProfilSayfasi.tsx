@@ -1,28 +1,29 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Tabs, Tag } from 'antd';
+import { Card, Form, Input, Button, message, Tabs, Tag, Select, InputNumber, Divider } from 'antd';
+import { referansVeriService } from '../services/referansVeriService';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Firma } from '../types/firma';
 import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
 import { LogoContainer } from '../components/LogoContainer';
 import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
-import { isSuperAdmin as isSuperAdminFn } from '../utils/yetkiUtils';
+import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 
 export default function FirmaProfilSayfasi() {
   const { aktifKullanici } = useKullanici();
   const { firmalar, firmaGuncelle, refresh } = useFirma();
-  const isSuperAdmin = isSuperAdminFn(aktifKullanici?.rol);
+  const isAdmin = isYoneticiRol(aktifKullanici?.rol);
 
   const [activeFirmaId, setActiveFirmaId] = useState<string>(() => {
-    if (isSuperAdmin) return firmalar[0]?.id || 'meba';
+    if (isAdmin) return firmalar[0]?.id || 'meba';
     return aktifKullanici?.firmaId || '';
   });
 
-  const fallbackFirmaId = isSuperAdmin ? firmalar[0]?.id || '' : aktifKullanici?.firmaId || '';
+  const fallbackFirmaId = isAdmin ? firmalar[0]?.id || '' : aktifKullanici?.firmaId || '';
   const safeActiveFirmaId = firmalar.some((f) => f.id === activeFirmaId) ? activeFirmaId : fallbackFirmaId;
   const firma = firmalar.find((f) => f.id === safeActiveFirmaId) || null;
 
-  const tabs = isSuperAdmin
+  const tabs = isAdmin
     ? firmalar.map((f) => ({
         key: f.id,
         label: (() => {
@@ -61,14 +62,14 @@ export default function FirmaProfilSayfasi() {
           <div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Firma Profili</div>
             <div style={{ fontSize: 12, color: '#64748b', fontWeight: 400 }}>
-              {isSuperAdmin
+              {isAdmin
                 ? 'Firma bilgilerini düzenleyin (PDF teklif şablonunda kullanılır)'
                 : `${firma?.ad || ''} firma profili`}
             </div>
           </div>
         }
       >
-        {isSuperAdmin
+        {isAdmin
           ? <Tabs activeKey={safeActiveFirmaId} onChange={setActiveFirmaId} items={tabs} />
           : firma
             ? <FirmaForm firma={firma} onSave={async (patch) => {
@@ -156,6 +157,70 @@ function FirmaForm({ firma, onSave }: { firma: Firma; onSave: (patch: Partial<Fi
           <Form.Item name="iban" label="IBAN">
             <Input placeholder="TR..." />
           </Form.Item>
+
+          <Divider style={{ margin: '12px 0 16px' }}>Teklif Varsayılanları</Divider>
+          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>
+            Yeni teklif oluşturulurken bu firma için ön-doldurulan değerler. Cariye ait son teklif ayarları varsa onlar önceliklidir.
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <Form.Item name={['varsayilanlar', 'paraBirimi']} label="Para Birimi" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                placeholder="EUR"
+                options={referansVeriService.paraBirimleri.tumunuGetir().map((p) => ({ value: p, label: p }))}
+              />
+            </Form.Item>
+            <Form.Item name={['varsayilanlar', 'kdvOrani']} label="KDV Oranı (%)" style={{ flex: 1 }}>
+              <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="0" />
+            </Form.Item>
+            <Form.Item name={['varsayilanlar', 'iskontoOrani']} label="İskonto (%)" style={{ flex: 1 }}>
+              <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="0" />
+            </Form.Item>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <Form.Item name={['varsayilanlar', 'odemeVadesi']} label="Ödeme Vadesi" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                placeholder="45 Gün"
+                options={referansVeriService.odemeVadesiSecenekleri.tumunuGetir().map((v) => ({ value: v, label: v }))}
+              />
+            </Form.Item>
+            <Form.Item name={['varsayilanlar', 'gecerlilikSuresi']} label="Geçerlilik Süresi" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                placeholder="1 Hafta"
+                options={referansVeriService.gecerlilikSecenekleri.tumunuGetir().map((v) => ({ value: v, label: v }))}
+              />
+            </Form.Item>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <Form.Item name={['varsayilanlar', 'marka']} label="Marka" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                showSearch
+                placeholder="SMC / MUHTELİF / —"
+                options={referansVeriService.markalar.tumunuGetir().map((m) => ({ value: m, label: m }))}
+              />
+            </Form.Item>
+            <Form.Item name={['varsayilanlar', 'birim']} label="Birim" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                placeholder="Adet"
+                options={referansVeriService.birimler.tumunuGetir().map((b) => ({ value: b, label: b }))}
+              />
+            </Form.Item>
+            <Form.Item name={['varsayilanlar', 'teslimTarihi']} label="Teslim Süresi" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                placeholder="2-3 Gün"
+                options={referansVeriService.teslimSecenekleri.tumunuGetir().map((t) => ({ value: t, label: t }))}
+              />
+            </Form.Item>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="primary" htmlType="submit" loading={yukleniyor}>
               Kaydet

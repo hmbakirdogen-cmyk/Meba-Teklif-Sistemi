@@ -3,8 +3,11 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import ProfilFotoModal from './components/ProfilFotoModal';
+import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
+import BildirimDrawer from './components/BildirimDrawer';
+import { bildirimService } from './services/bildirimService';
 import { isSuperAdmin } from './utils/yetkiUtils';
 import { useEffect } from 'react';
 import { api } from './services/apiClient';
@@ -12,6 +15,7 @@ import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
   CheckOutlined, BarChartOutlined, DownloadOutlined, HistoryOutlined, SettingOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
@@ -42,8 +46,11 @@ export default function AppLayout() {
   const isMobile   = useIsMobile(768);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profilFotoModalOpen, setProfilFotoModalOpen] = useState(false);
+  const [profilDuzenleOpen, setProfilDuzenleOpen] = useState(false);
   const [adminGbDrawerAcik, setAdminGbDrawerAcik] = useState(false);
   const [okunmamisGb, setOkunmamisGb] = useState(0);
+  const [bildirimDrawerAcik, setBildirimDrawerAcik] = useState(false);
+  const [okunmamisBildirim, setOkunmamisBildirim] = useState(0);
   const adminMi = isSuperAdmin(aktifKullanici?.rol);
 
   // Süper admin için okunmamış geri bildirim sayısı — periyodik refresh.
@@ -63,6 +70,24 @@ export default function AppLayout() {
     const id = window.setInterval(yukle, 30000);
     return () => { aktif = false; window.clearInterval(id); };
   }, [adminMi, adminGbDrawerAcik]);
+
+  // Tum kullanicilar icin okunmamis bildirim sayisi (atama/teklif olaylari).
+  useEffect(() => {
+    if (!aktifKullanici) return;
+    let aktif = true;
+    const yukle = async () => {
+      try {
+        const liste = await bildirimService.bildirimlerGetir();
+        if (!aktif) return;
+        setOkunmamisBildirim(bildirimService.okunmamisSayisi(liste));
+      } catch {
+        /* sessiz */
+      }
+    };
+    void yukle();
+    const id = window.setInterval(yukle, 30000);
+    return () => { aktif = false; window.clearInterval(id); };
+  }, [aktifKullanici, bildirimDrawerAcik]);
 
   const seciliMenu =
     location.pathname.startsWith('/analiz') ? 'analiz'
@@ -334,6 +359,21 @@ export default function AppLayout() {
           />
         </Tooltip>
 
+        {/* Tum kullanicilar: atama bildirimleri cani */}
+        {!isMobile && aktifKullanici && (
+          <Tooltip title="Bildirimler" placement="bottom">
+            <Badge count={okunmamisBildirim} size="small" offset={[-2, 4]}>
+              <Button
+                type="text"
+                aria-label="Bildirimler"
+                onClick={() => setBildirimDrawerAcik(true)}
+                icon={<BellOutlined style={{ fontSize: 18, color: '#ffffff' }} />}
+                style={{ background: 'transparent', border: 'none' }}
+              />
+            </Badge>
+          </Tooltip>
+        )}
+
         {/* Süper admin: okunmamış geri bildirim çanı */}
         {adminMi && !isMobile && (
           <Tooltip title="Geri Bildirimler" placement="bottom">
@@ -342,7 +382,7 @@ export default function AppLayout() {
                 type="text"
                 aria-label="Geri Bildirimler"
                 onClick={() => setAdminGbDrawerAcik(true)}
-                icon={<BellOutlined style={{ fontSize: 18, color: '#ffffff' }} />}
+                icon={<BellOutlined style={{ fontSize: 18, color: '#fbbf24' }} />}
                 style={{ background: 'transparent', border: 'none' }}
               />
             </Badge>
@@ -448,6 +488,18 @@ export default function AppLayout() {
                 </Button>
               </Tooltip>
             )}
+
+            {/* Profilim — kendi profilini duzenle (her rol icin) */}
+            <Tooltip title="Profilim">
+              <Button
+                type="text"
+                icon={<UserOutlined />}
+                onClick={() => setProfilDuzenleOpen(true)}
+                size="small"
+                className={buttonClassNames.iconGhostSmall}
+                style={{ color: 'rgba(148,163,184,0.8)' }}
+              />
+            </Tooltip>
 
             {/* Çıkış */}
             <Tooltip title="Çıkış Yap">
@@ -586,6 +638,16 @@ export default function AppLayout() {
               {isDark ? 'Aydınlık Mod' : 'Koyu Mod'}
             </Button>
             <Button
+              block
+              size="small"
+              icon={<UserOutlined />}
+              onClick={() => { setDrawerOpen(false); setProfilDuzenleOpen(true); }}
+              className={buttonClassNames.secondarySmall}
+              style={{ marginBottom: 8 }}
+            >
+              Profilim
+            </Button>
+            <Button
               danger
               size="small"
               icon={<LogoutOutlined />}
@@ -609,6 +671,12 @@ export default function AppLayout() {
         onClose={() => setProfilFotoModalOpen(false)}
       />
 
+      {/* Profil duzenleme modal'i — her rol icin Profilim butonu */}
+      <ProfilDuzenleModal
+        open={profilDuzenleOpen}
+        onClose={() => setProfilDuzenleOpen(false)}
+      />
+
       {/* Geri Bildirim floating buton — TeklifEditor sayfasında gizli
           (KumandaPaneli içinde ayrı buton var) */}
       {!location.pathname.startsWith('/teklif/') && <GeriBildirimButonu />}
@@ -619,6 +687,15 @@ export default function AppLayout() {
           open={adminGbDrawerAcik}
           onClose={() => setAdminGbDrawerAcik(false)}
           initialSayfa="(yönetim)"
+        />
+      )}
+
+      {/* Bildirim drawer'i — tum kullanicilar icin atama/teklif olaylari */}
+      {aktifKullanici && (
+        <BildirimDrawer
+          open={bildirimDrawerAcik}
+          onClose={() => setBildirimDrawerAcik(false)}
+          onListeDegisti={(liste) => setOkunmamisBildirim(bildirimService.okunmamisSayisi(liste))}
         />
       )}
     </Layout>

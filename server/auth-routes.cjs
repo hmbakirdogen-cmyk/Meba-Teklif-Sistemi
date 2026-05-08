@@ -156,7 +156,11 @@ function canAccessFirma(ctx, firmaId) {
 function sanitizeUser(u) {
   if (!u) return null;
   const { sifreHash, ...rest } = u;
-  return rest;
+  return {
+    ...rest,
+    telefon: u.telefon || '',
+    dahili: u.dahili || '',
+  };
 }
 
 function sanitizeFirma(f) { return f; }
@@ -468,21 +472,21 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     return send(res, 200, sanitizeFirma(f));
   }
 
-  // PATCH /api/firma/:id — Firma profili düzenleme: yalnızca super_admin.
+  // PATCH /api/firma/:id — Firma profili düzenleme: super_admin + firma_admin.
   async function updateFirma(req, res, url) {
     const id = url.split('/')[3];
     const db = readDB();
     const auth = requireAuth(db, req);
     if (!auth.ok) return send(res, auth.status, { error: auth.error });
-    const superCheck = requireSuperAdmin(auth.ctx);
-    if (!superCheck.ok) return send(res, superCheck.status, { error: superCheck.error });
+    const adminCheck = requireAdmin(auth.ctx);
+    if (!adminCheck.ok) return send(res, adminCheck.status, { error: adminCheck.error });
     if (!canAccessFirma(auth.ctx, id)) return send(res, 403, { error: 'Bu firmayi duzenleyemezsiniz.' });
     const f = (db.firmalar || []).find((x) => x.id === id);
     if (!f) return send(res, 404, { error: 'Firma bulunamadi.' });
     const body = await parseBody(req);
     const izinli = ['ad', 'kisaAd', 'slogan', 'logoPath', 'renkBirincil', 'renkVurgu',
                     'adres', 'vergiDairesi', 'vergiNo', 'telefon', 'eposta', 'iban',
-                    'pdfKlasorAdi', 'teklifPrefix'];
+                    'pdfKlasorAdi', 'teklifPrefix', 'varsayilanlar'];
     for (const alan of izinli) {
       if (alan in body) f[alan] = body[alan];
     }
@@ -531,6 +535,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
         firmaId: u.firmaId || null,
         profilFotoUrl: u.profilFotoUrl || null,
         initials: u.initials || uretInitials(u.adSoyad),
+        telefon: u.telefon || '',
+        dahili: u.dahili || '',
       }))
       .sort((a, b) => {
         const wa = ROL_AGIRLIK[a.rol] ?? 9;
@@ -562,8 +568,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
   }
 
   // POST /api/kullanicilar — firma_admin/super_admin personel ekleyebilir;
-  //   firma_admin/super_admin gibi yönetici rolündeki yeni kullanıcıyı
-  //   sadece super_admin ekleyebilir.
+  //   firma_admin rolündeki yeni kullanıcıyı her iki yönetici de ekleyebilir;
+  //   super_admin rolündeki yeni kullanıcıyı sadece super_admin ekleyebilir.
   async function createKullanici(req, res) {
     const db = readDB();
     const auth = requireAuth(db, req);
@@ -575,10 +581,9 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const kullaniciAdi = String(body.kullaniciAdi || '').trim().toLocaleLowerCase('tr-TR');
     const unvan        = String(body.unvan || '').trim();
     const rol          = ['firma_admin', 'engineer', 'sales'].includes(body.rol) ? body.rol : 'engineer';
-    // Yönetici rolünde kullanıcı oluşturma sadece super_admin'e açık
-    const yoneticiRolleri = ['firma_admin', 'super_admin'];
-    if (yoneticiRolleri.includes(rol) && auth.ctx.kullanici.rol !== 'super_admin') {
-      return send(res, 403, { error: 'Yönetici rolünde kullanıcı oluşturmak için Süper Yönetici yetkisi gereklidir.' });
+    // super_admin rolünde kullanıcı oluşturma sadece super_admin'e açık
+    if (rol === 'super_admin' && auth.ctx.kullanici.rol !== 'super_admin') {
+      return send(res, 403, { error: 'Süper Yönetici rolünde kullanıcı oluşturmak için Süper Yönetici yetkisi gereklidir.' });
     }
     if (!adSoyad || !kullaniciAdi) {
       return send(res, 400, { error: 'Ad Soyad ve kullanici adi zorunlu.' });
@@ -603,6 +608,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
       initials: uretInitials(adSoyad),
       rol,
       firmaId,
+      telefon: String(body.telefon || '').trim(),
+      dahili: String(body.dahili || '').trim(),
       aktifMi: true,
       mustChangePassword: true,
       olusturmaTarihi: new Date().toISOString(),
@@ -626,21 +633,21 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const isSelf = target.id === auth.ctx.kullanici.id;
     const meRol = auth.ctx.kullanici.rol;
     // super_admin tüm kullanıcıları düzenler.
-    // firma_admin: personel (engineer/sales) düzenleyebilir; başka yöneticiyi
-    // (firma_admin/super_admin) düzenleyemez.
-    const targetIsYonetici = ['firma_admin', 'super_admin'].includes(target.rol);
+    // firma_admin: personel + diğer firma_admin'leri düzenleyebilir; super_admin
+    // hesabını düzenleyemez.
+    const targetIsSuperAdmin = target.rol === 'super_admin';
     let canEdit = false;
     if (isSelf) canEdit = true;
     else if (meRol === 'super_admin') canEdit = true;
-    else if (meRol === 'firma_admin' && !targetIsYonetici) canEdit = true;
+    else if (meRol === 'firma_admin' && !targetIsSuperAdmin) canEdit = true;
     if (!canEdit) return send(res, 403, { error: 'Bu kullaniciyi guncelleyemezsiniz.' });
     const isAdmin = !isSelf && canEdit;
     const body = await parseBody(req);
     // Self update: sadece adSoyad/unvan/initials
     // Admin update: yukaridakilere ek olarak rol/aktifMi (kendi firma kapsam icinde)
     const izinli = isAdmin
-      ? ['adSoyad', 'unvan', 'initials', 'rol', 'aktifMi']
-      : ['adSoyad', 'unvan', 'initials'];
+      ? ['adSoyad', 'unvan', 'initials', 'rol', 'aktifMi', 'telefon', 'dahili']
+      : ['adSoyad', 'unvan', 'initials', 'telefon', 'dahili'];
     for (const alan of izinli) {
       if (alan in body) target[alan] = body[alan];
     }
@@ -654,7 +661,7 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
 
   // POST /api/kullanicilar/:id/sifre-sifirla
   //   super_admin: tüm kullanıcılar
-  //   admin: sadece personel (engineer/sales)
+  //   firma_admin: personel + diğer firma_admin'ler (super_admin hariç)
   async function resetKullaniciSifre(req, res, url) {
     const id = url.split('/')[3];
     const db = readDB();
@@ -665,9 +672,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const target = (db.kullanicilar || []).find((u) => u.id === id);
     if (!target) return send(res, 404, { error: 'Kullanici bulunamadi.' });
     const meRol = auth.ctx.kullanici.rol;
-    const targetIsYonetici = ['firma_admin', 'super_admin'].includes(target.rol);
-    if (meRol !== 'super_admin' && targetIsYonetici) {
-      return send(res, 403, { error: 'Yöneticilerin şifresini sıfırlamak için Süper Yönetici yetkisi gereklidir.' });
+    if (meRol !== 'super_admin' && target.rol === 'super_admin') {
+      return send(res, 403, { error: 'Süper Yöneticinin şifresini sıfırlamak için Süper Yönetici yetkisi gereklidir.' });
     }
     target.sifreHash = hashPassword(VARSAYILAN_SIFRE);
     target.mustChangePassword = true;
@@ -683,7 +689,8 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
 
   // DELETE /api/kullanicilar/:id (soft delete)
   //   super_admin: tüm kullanıcılar
-  //   firma_admin: sadece personel (engineer/sales) — başka yöneticiyi silemez
+  //   firma_admin: personel + diğer firma_admin'ler (super_admin hariç) — tüm
+  //   firma kapsamında.
   async function deleteKullanici(req, res, url) {
     const id = url.split('/')[3];
     const db = readDB();
@@ -694,14 +701,13 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     const target = (db.kullanicilar || []).find((u) => u.id === id);
     if (!target) return send(res, 404, { error: 'Kullanici bulunamadi.' });
     const meRol = auth.ctx.kullanici.rol;
-    const targetIsYonetici = ['firma_admin', 'super_admin'].includes(target.rol);
-    if (meRol !== 'super_admin' && targetIsYonetici) {
-      return send(res, 403, { error: 'Yöneticileri silmek için Süper Yönetici yetkisi gereklidir.' });
+    if (meRol !== 'super_admin' && target.rol === 'super_admin') {
+      return send(res, 403, { error: 'Süper Yöneticiyi silmek için Süper Yönetici yetkisi gereklidir.' });
     }
     if (target.id === auth.ctx.kullanici.id) {
       return send(res, 400, { error: 'Kendi hesabinizi silemezsiniz.' });
     }
-    if (auth.ctx.kullanici.rol !== 'super_admin' && target.firmaId !== auth.ctx.kullanici.firmaId) {
+    if (!['super_admin', 'firma_admin'].includes(auth.ctx.kullanici.rol) && target.firmaId !== auth.ctx.kullanici.firmaId) {
       return send(res, 403, { error: 'Bu kullaniciyi silemezsiniz.' });
     }
     target.aktifMi = false;
@@ -884,6 +890,62 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     return send(res, 200, { ok: true });
   }
 
+  // ── BİLDİRİMLER (atama/teklif olayları → her kullanıcı kendi
+  //    bildirim listesini gorur) ────────────────────────────────────────
+  function ensureBildirimColl(db) {
+    if (!Array.isArray(db.bildirimler)) db.bildirimler = [];
+    return db.bildirimler;
+  }
+
+  // GET /api/bildirimler — sadece kendi bildirimleri (yeni → eski).
+  async function listBildirimler(req, res) {
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const me = auth.ctx.kullanici;
+    const liste = ensureBildirimColl(db)
+      .filter((b) => b.hedefKullaniciId === me.id)
+      .sort((a, b) => (b.tarih || '').localeCompare(a.tarih || ''));
+    return send(res, 200, liste);
+  }
+
+  // PATCH /api/bildirimler/:id — sadece kendi bildirimini guncelleyebilir.
+  async function updateBildirim(req, res, url) {
+    const id = url.split('/')[3];
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const me = auth.ctx.kullanici;
+    const body = await parseBody(req);
+    const liste = ensureBildirimColl(db);
+    const mevcut = liste.find((b) => b.id === id);
+    if (!mevcut) return send(res, 404, { error: 'Bildirim bulunamadı.' });
+    if (mevcut.hedefKullaniciId !== me.id) {
+      return send(res, 403, { error: 'Bu bildirimi guncelleme yetkiniz yok.' });
+    }
+    if (typeof body.okundu === 'boolean') mevcut.okundu = body.okundu;
+    writeDB(db);
+    return send(res, 200, mevcut);
+  }
+
+  // POST /api/bildirimler/toplu-okundu — kendi tum bildirimlerini okundu yap.
+  async function bildirimleriToplukundu(req, res) {
+    const db = readDB();
+    const auth = requireAuth(db, req);
+    if (!auth.ok) return send(res, auth.status, { error: auth.error });
+    const me = auth.ctx.kullanici;
+    const liste = ensureBildirimColl(db);
+    let degisen = 0;
+    for (const b of liste) {
+      if (b.hedefKullaniciId === me.id && !b.okundu) {
+        b.okundu = true;
+        degisen++;
+      }
+    }
+    writeDB(db);
+    return send(res, 200, { ok: true, degisen });
+  }
+
   return {
     login,
     logout,
@@ -906,6 +968,9 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     createGeriBildirim,
     updateGeriBildirim,
     deleteGeriBildirim,
+    listBildirimler,
+    updateBildirim,
+    bildirimleriToplukundu,
     // expose helpers for server.cjs to use in middleware
     getAuthContext,
     requireAuth,

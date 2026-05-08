@@ -163,15 +163,15 @@ interface CustomerFolder {
   topHazirlayanIds: string[];
   /** Klasördeki tekliflerin durum dağılımı — aktivite şeridi rengi için */
   durumDist: Record<TeklifDurum, number>;
-  /** 3+ gündür gönderildi durumda kalan ve sonucu girilmemiş teklif sayısı —
+  /** 2+ gündür gönderildi durumda kalan ve sonucu girilmemiş teklif sayısı —
    *  klasör kartında lamba uyarısı için. */
-  ucGunDurumsuzSayi: number;
+  ikiGunDurumsuzSayi: number;
 }
 
 function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): CustomerFolder[] {
   const map = new Map<string, CustomerFolder>();
 
-  const ucGunEsigi = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  const ikiGunEsigi = Date.now() - 2 * 24 * 60 * 60 * 1000;
 
   for (const t of teklifler) {
     const key = klasorAdiUret(t.cari.firmaAdi);
@@ -183,7 +183,7 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
         sonTarih: t.tarih,
         topHazirlayanIds: [],
         durumDist: { taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, reddedildi: 0, iptal: 0 },
-        ucGunDurumsuzSayi: 0,
+        ikiGunDurumsuzSayi: 0,
       });
     }
     const folder = map.get(key)!;
@@ -192,13 +192,13 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
     if (t.durum && folder.durumDist[t.durum] !== undefined) {
       folder.durumDist[t.durum] += 1;
     }
-    // 3+ gün gönderildi durumda kalan teklifler — sonuç bekliyor.
+    // 2+ gün gönderildi durumda kalan teklifler — sonuç bekliyor.
     // NOT: guncellemeTarihi her cache değişikliğinde güncellenir (yanıltıcı);
     // teklifin asıl yazılma tarihi olarak olusturmaTarihi/tarih kullanılır.
     if (t.durum === 'gonderildi') {
       const ts = new Date(t.olusturmaTarihi || t.tarih).getTime();
-      if (Number.isFinite(ts) && ts <= ucGunEsigi) {
-        folder.ucGunDurumsuzSayi += 1;
+      if (Number.isFinite(ts) && ts <= ikiGunEsigi) {
+        folder.ikiGunDurumsuzSayi += 1;
       }
     }
   }
@@ -246,7 +246,7 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
 
 // ─── Filtre tipi ─────────────────────────────────────────────────────────────
 
-type Filtre = 'benim' | 'tumu' | 'aktiflik';
+type Filtre = 'benim' | 'tumu' | 'aktiflik' | 'atanan';
 type Gorunum = 'klasorler' | 'detay';
 type Siralama = 'alfabe' | 'aktiflik' | 'teklifSayisi';
 type GorunumModu = 'grid' | 'liste';
@@ -273,7 +273,8 @@ export default function TeklifListesi() {
   const [aramaMetni, setAramaMetni] = useState('');
   const [aktifFiltre, setAktifFiltre] = useState<Filtre>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('teklif_filtre') : null;
-    return saved === 'tumu' ? 'tumu' : 'benim';
+    if (saved === 'tumu' || saved === 'atanan' || saved === 'aktiflik') return saved;
+    return 'benim';
   });
   const [siralama, setSiralama] = useState<Siralama>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('teklif_siralama') : null;
@@ -392,6 +393,7 @@ export default function TeklifListesi() {
   // ── Tab bazlı filtreleme ─────────────────────────────────────────────────────
   const tabFiltreli = useMemo(() => {
     if (aktifFiltre === 'benim') return teklifler.filter((t) => t.hazirlayanKullaniciId === benimId);
+    if (aktifFiltre === 'atanan') return teklifler.filter((t) => t.ilgiliKisiId === benimId);
     return teklifler;
   }, [teklifler, aktifFiltre, benimId]);
 
@@ -434,6 +436,7 @@ export default function TeklifListesi() {
   }, [tabFiltreli, seciliKlasor, aramaMetni]);
 
   const benimSayisi   = useMemo(() => teklifler.filter((t) => t.hazirlayanKullaniciId === benimId).length, [teklifler, benimId]);
+  const atananSayisi  = useMemo(() => teklifler.filter((t) => t.ilgiliKisiId === benimId).length, [teklifler, benimId]);
 
   // ── Yönetici özeti — yalnızca super_admin/firma_admin için ───────────────
   const isAdmin = useMemo(() => isYonetici(aktifKullanici?.rol), [aktifKullanici]);
@@ -448,6 +451,7 @@ export default function TeklifListesi() {
   const sekmeler: Array<{ key: Filtre; label: string; count: number }> = [
     { key: 'aktiflik', label: 'Son aktivite',      count: teklifler.length },
     { key: 'benim',    label: 'Benim Tekliflerim', count: benimSayisi },
+    { key: 'atanan',   label: 'Bana Atanan',       count: atananSayisi },
     { key: 'tumu',     label: 'Tüm Teklifler',     count: teklifler.length },
   ];
 
@@ -1434,7 +1438,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
   const { isDark } = useTheme();
   const [hover, setHover] = useState(false);
 
-  // Gösterge lambası — gönderilmiş ve 3+ gün eski mi?
+  // Gösterge lambası — gönderilmiş ve 2+ gün eski mi?
   const hasOverdueOffers = useMemo(() => {
     const bugun = new Date();
     return klasor.teklifler.some((t) => {
@@ -1443,7 +1447,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
       if (!tarih) return false;
       const teklifTarihi = new Date(tarih);
       const gunFarki = Math.floor((bugun.getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
-      return gunFarki >= 3;
+      return gunFarki >= 2;
     });
   }, [klasor.teklifler]);
 
@@ -1481,7 +1485,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
         overflow: 'visible',
       }}
     >
-      {/* Gösterge lambası — gönderilmiş 3+ gün eski mi? */}
+      {/* Gösterge lambası — gönderilmiş 2+ gün eski mi? */}
       {hasOverdueOffers && (
         <div
           style={{
@@ -1745,7 +1749,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
   const { isDark } = useTheme();
   const [hover, setHover] = useState(false);
 
-  // Pulse kontrolü — gönderilmiş ve 3+ gün eski teklifler var mı?
+  // Pulse kontrolü — gönderilmiş ve 2+ gün eski teklifler var mı?
   const hasOverdueOffers = useMemo(() => {
     const bugun = new Date();
     return klasor.teklifler.some((t) => {
@@ -1754,7 +1758,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       if (!tarih) return false;
       const teklifTarihi = new Date(tarih);
       const gunFarki = Math.floor((bugun.getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
-      return gunFarki >= 3;
+      return gunFarki >= 2;
     });
   }, [klasor.teklifler]);
 
@@ -1805,7 +1809,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* Gösterge lambası — gönderilmiş 3+ gün eski teklifler varsa */}
+      {/* Gösterge lambası — gönderilmiş 2+ gün eski teklifler varsa */}
       {hasOverdueOffers && (
         <div
           style={{
@@ -2220,11 +2224,11 @@ function DurumSonucCell({
     { key: 'iptal',      label: <DurumMenuLabel durum="iptal"      hint="Sebep girilir" />,      onClick: () => onSonucHizli('iptal') },
   ];
 
-  // 3+ gündür gönderildi durumda kalan teklif → "Sonuç gir" butonunun yanında
+  // 2+ gündür gönderildi durumda kalan teklif → "Sonuç gir" butonunun yanında
   // belli belirsiz yanıp sönen amber dot (kullanıcının "müsait bir yer" tarifi)
   const olusTs = new Date(teklif.olusturmaTarihi || teklif.tarih).getTime();
   const gunFark = Number.isFinite(olusTs) ? Math.floor((Date.now() - olusTs) / (24 * 3600 * 1000)) : 0;
-  const yanitBekleniyor = isGonderildi && gunFark >= 3;
+  const yanitBekleniyor = isGonderildi && gunFark >= 2;
 
   // (Önceden burada "✎ Revize" rozeti durum sütununa eklenmişti — kullanıcı
   // tercihiyle kaldırıldı. Revize bilgisi artık teklif numarasındaki '-RevN'
@@ -2439,14 +2443,14 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
     (isDark ? DURUM_CFG_DARK.taslak : DURUM_CFG.taslak);
   const silinebilir = !(['onaylandi', 'reddedildi', 'iptal'] as TeklifDurum[]).includes(teklif.durum);
 
-  // Gösterge lambası — gönderilmiş ve 3+ gün eski mi?
+  // Gösterge lambası — gönderilmiş ve 2+ gün eski mi?
   const hasOverdueOffers = useMemo(() => {
     if (teklif.durum !== 'gonderildi') return false;
     const tarih = teklif.guncellemeTarihi || teklif.tarih;
     if (!tarih) return false;
     const teklifTarihi = new Date(tarih);
     const gunFarki = Math.floor((new Date().getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
-    return gunFarki >= 3;
+    return gunFarki >= 2;
   }, [teklif.durum, teklif.guncellemeTarihi, teklif.tarih]);
 
 
@@ -2479,7 +2483,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
         position: 'relative',
       }}
     >
-      {/* Gösterge lambası — gönderilmiş 3+ gün eski mi? */}
+      {/* Gösterge lambası — gönderilmiş 2+ gün eski mi? */}
       {hasOverdueOffers && (
         <div
           style={{
@@ -2543,6 +2547,13 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
                 <span aria-label="Gizli teklif" style={{
                   fontSize: 10, color: '#5b6e85', cursor: 'help', lineHeight: 1,
                 }}>🔒</span>
+              </Tooltip>
+            )}
+            {teklif.ilgiliKisiAdSoyad && (
+              <Tooltip title={`İlgili: ${teklif.ilgiliKisiAdSoyad}`} mouseEnterDelay={0.3}>
+                <span aria-label="İlgili kişi atandı" style={{
+                  fontSize: 10, color: '#0ea5e9', cursor: 'help', lineHeight: 1,
+                }}>👤</span>
               </Tooltip>
             )}
           </div>

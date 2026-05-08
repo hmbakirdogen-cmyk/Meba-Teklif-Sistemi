@@ -256,10 +256,12 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
 
     onGuncelle('setId', undefined);
     const urun = item.payload as Urun;
-    if (urun.marka) onGuncelle('marka', urun.marka);
     onGuncelle('aciklama', urun.aciklama ?? '');
+    // Akıllı doldurma: ürün katalog değerleri yalnızca BOŞ hücreleri doldurur,
+    // kullanıcının daha önce girdiği değer ezilmez.
+    if (urun.marka && !(satir.marka || '').trim()) onGuncelle('marka', urun.marka);
     if (urun.varsayilanFiyat && !satir.birimFiyat) onGuncelle('birimFiyat', urun.varsayilanFiyat);
-    if (urun.birim) onGuncelle('birim', urun.birim);
+    if (urun.birim && !(satir.birim || '').trim()) onGuncelle('birim', urun.birim);
     pushSonKullanilan(urun.id);
     setShowSuggestions(false);
     onEnterNext?.();

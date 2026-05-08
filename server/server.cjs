@@ -815,6 +815,8 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
         }
       }
 
+      const oncekiIlgiliKisiId = idx >= 0 ? (arr[idx].ilgiliKisiId || null) : null;
+
       if (idx >= 0) {
         arr[idx] = bumpRecord(arr[idx], body, ctx);
       } else {
@@ -822,8 +824,35 @@ function crudRoutes(collectionKey, { insertMethod = 'push', firmaIdScoped = fals
         if (insertMethod === 'unshift') arr.unshift(fresh);
         else arr.push(fresh);
       }
-      writeDB(db);
       const final = arr[idx >= 0 ? idx : (insertMethod === 'unshift' ? 0 : arr.length - 1)];
+
+      // Teklif upsert sonrasi atama bildirimi: ilgiliKisiId yeni atandiysa
+      // veya degistiyse ve hazirlayandan farkli ise kayit ac.
+      if (collectionKey === 'teklifler') {
+        const yeniIlgili = final.ilgiliKisiId || null;
+        const hazirlayan = final.hazirlayanKullaniciId || null;
+        if (yeniIlgili && yeniIlgili !== oncekiIlgiliKisiId && yeniIlgili !== hazirlayan) {
+          if (!Array.isArray(db.bildirimler)) db.bildirimler = [];
+          const kaynakAdSoyad = (() => {
+            const me = (db.kullanicilar || []).find((u) => u.id === ctx.userId);
+            return me?.adSoyad || '';
+          })();
+          db.bildirimler.unshift({
+            id: 'b-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+            hedefKullaniciId: yeniIlgili,
+            kaynakKullaniciId: ctx.userId || hazirlayan || '',
+            kaynakKullaniciAdSoyad: kaynakAdSoyad,
+            teklifId: final.id,
+            teklifNo: final.teklifNo || '',
+            cariAdi: (final.cari && final.cari.firmaAdi) || '',
+            tur: 'ilgili_atandi',
+            okundu: false,
+            tarih: new Date().toISOString(),
+          });
+        }
+      }
+
+      writeDB(db);
       return send(res, 200, final);
     },
 
@@ -975,6 +1004,11 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST'   && url === '/api/geribildirim')                        return await authRoutes.createGeriBildirim(req, res);
     if (method === 'PATCH'  && /^\/api\/geribildirim\/[^/]+$/.test(url))           return await authRoutes.updateGeriBildirim(req, res, url);
     if (method === 'DELETE' && /^\/api\/geribildirim\/[^/]+$/.test(url))           return await authRoutes.deleteGeriBildirim(req, res, url);
+
+    // Bildirimler (atama/teklif olayları — her kullanıcı kendi listesini gorur)
+    if (method === 'GET'    && url === '/api/bildirimler')                          return await authRoutes.listBildirimler(req, res);
+    if (method === 'POST'   && url === '/api/bildirimler/toplu-okundu')             return await authRoutes.bildirimleriToplukundu(req, res);
+    if (method === 'PATCH'  && /^\/api\/bildirimler\/[^/]+$/.test(url))             return await authRoutes.updateBildirim(req, res, url);
 
     // ── GET /api/init — fetch everything at once (used by frontend on startup) ──
     // Yeni: firmaId scope (header X-Firma-Id veya ?firmaId=) — kullanicinin aktif

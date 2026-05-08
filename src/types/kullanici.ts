@@ -31,6 +31,8 @@ export interface Kullanici {
   firmaId?: string | null;
   gosterilenFirmalar?: string[];
   profilFotoUrl?: string;
+  telefon?: string;
+  dahili?: string;
   mustChangePassword?: boolean;
   olusturmaTarihi?: string;
   olusturanKullaniciId?: string;
