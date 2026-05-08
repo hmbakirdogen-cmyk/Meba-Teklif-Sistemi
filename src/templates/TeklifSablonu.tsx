@@ -57,6 +57,9 @@ import {
   buildSettingsItems,
   getOfferTableSeparatorClass,
   getOfferTableSeparatorStyle,
+  getSetAltKalemEmptyCellStyle,
+  getSetAltKalemFrameCloseStyle,
+  getSetStepClass,
   getTableHeadCellStyle,
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
@@ -536,15 +539,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   letterSpacing: '0.03em',
                   ...getOfferTableSeparatorStyle('paraBirimi'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
-                  ...(satir.setAltKalem ? {
-                    borderRight: '0.9px solid #BFBFBF',
-                    ...(setGroupPos === 'bottom' ? { borderBottomRightRadius: '8px' } : {}),
-                  } : {}),
+                  ...getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos === 'bottom'),
                 })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
                 {/* Birim Fiyat — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
-                <td className={`${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${satir.setAltKalem ? 'set-altkalem-empty' : (setGroupPos === 'top' ? 'set-parent-step' : '')}`.trim() || undefined} style={applyCellStyle({
+                <td className={`${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -554,7 +554,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('birimFiyat'),
                   ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos),
-                  ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                  ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                 })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
@@ -562,7 +562,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   })()}
                 </td>
                 {/* Toplam — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
-                <td className={`${getOfferTableSeparatorClass('toplam') ?? ''} ${satir.setAltKalem ? 'set-altkalem-empty' : (setGroupPos === 'top' ? 'set-parent-step' : '')}`.trim() || undefined} style={applyCellStyle({
+                <td className={`${getOfferTableSeparatorClass('toplam') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'right',
                   verticalAlign: 'middle',
@@ -573,12 +573,12 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('toplam'),
                   ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos),
-                  ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                  ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                 })}>
                   {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '—')}
                 </td>
                 {/* Teslimat — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
-                <td className={`${getOfferTableSeparatorClass('teslimat') ?? ''} ${satir.setAltKalem ? 'set-altkalem-empty' : (setGroupPos === 'top' ? 'set-parent-step' : '')}`.trim() || undefined} style={applyCellStyle({
+                <td className={`${getOfferTableSeparatorClass('teslimat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({
                   padding: CELL_PAD,
                   textAlign: 'center',
                   verticalAlign: 'middle',
@@ -588,7 +588,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
                   ...getOfferTableSeparatorStyle('teslimat'),
                   ...rcCell('last', idx, undefined, satir.setAltKalem ? null : setGroupPos),
-                  ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                  ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                 })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '—')}
                 </td>

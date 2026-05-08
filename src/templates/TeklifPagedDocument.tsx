@@ -51,6 +51,9 @@ import {
   buildSettingsItems,
   getOfferTableSeparatorClass,
   getOfferTableSeparatorStyle,
+  getSetAltKalemEmptyCellStyle,
+  getSetAltKalemFrameCloseStyle,
+  getSetStepClass,
   getTableHeadCellStyle,
   noBreak,
   rcCell,
@@ -391,19 +394,19 @@ function TableSection({
                     </div>
                   ) : '-'}
                 </td>
-                <td className={getOfferTableSeparatorClass('paraBirimi')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...getOfferTableSeparatorStyle('paraBirimi'), ...rcCell('mid', idx, undefined, setGroupPos), ...(satir.setAltKalem ? { borderRight: '0.9px solid #BFBFBF', ...(setGroupPos === 'bottom' ? { borderBottomRightRadius: '8px' } : {}) } : {}) })}>
+                <td className={getOfferTableSeparatorClass('paraBirimi')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...getOfferTableSeparatorStyle('paraBirimi'), ...rcCell('mid', idx, undefined, setGroupPos), ...getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos === 'bottom') })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
-                <td className={`${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${satir.setAltKalem ? 'set-altkalem-empty' : (setGroupPos === 'top' ? 'set-parent-step' : '')}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('birimFiyat'), ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}) })}>
+                <td className={`${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('birimFiyat'), ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...getSetAltKalemEmptyCellStyle(satir.setAltKalem) })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return Math.abs(nihai) >= 0.005 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
-                <td className={`${getOfferTableSeparatorClass('toplam') ?? ''} ${satir.setAltKalem ? 'set-altkalem-empty' : (setGroupPos === 'top' ? 'set-parent-step' : '')}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('toplam'), ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}) })}>
+                <td className={`${getOfferTableSeparatorClass('toplam') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('toplam'), ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...getSetAltKalemEmptyCellStyle(satir.setAltKalem) })}>
                   {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
                 </td>
-                <td className={`${getOfferTableSeparatorClass('teslimat') ?? ''} ${satir.setAltKalem ? 'set-altkalem-empty' : (setGroupPos === 'top' ? 'set-parent-step' : '')}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...getOfferTableSeparatorStyle('teslimat'), ...rcCell('last', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}) })}>
+                <td className={`${getOfferTableSeparatorClass('teslimat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...getOfferTableSeparatorStyle('teslimat'), ...rcCell('last', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...getSetAltKalemEmptyCellStyle(satir.setAltKalem) })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '-')}
                 </td>
               </tr>

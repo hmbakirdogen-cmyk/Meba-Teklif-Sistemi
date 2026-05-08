@@ -4,6 +4,8 @@
  * Belge tasarım sabitleri teklifDocumentShared.tsx'ten import edilir.
  */
 
+import { OPTICAL_SEPARATOR_COLOR } from '../templates/offerSeparatorTokens';
+
 export const FIELD = {
   activeOutline: '1px solid rgba(37, 99, 235, 0.18)',
   activeBg:      'rgba(237, 242, 251, 0.45)',
@@ -934,13 +936,13 @@ export const FIELD_CSS = `
 
 .belge-inline .offer-table thead th.optical-separator-col,
 .belge-inline .offer-table tbody td.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.072);
+  --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.body};
 }
 .belge-inline .offer-table thead th.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.088);
+  --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.head};
 }
 .belge-inline .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.118);
+  --offer-col-separator: rgba(26, 43, 66, 0.15);
 }
 
 /* Aktif hücre — sol kenarda kalın parlak mavi şerit, soluk lavanta bg */
@@ -950,7 +952,7 @@ export const FIELD_CSS = `
   transition: box-shadow 120ms ease, background 120ms ease;
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
-  --offer-col-separator: rgba(26, 43, 66, 0.13);
+  --offer-col-separator: rgba(26, 43, 66, 0.16);
 }
 
 /* Hover — sadece aktif olmayanda, sol kenarda ince mavi çizgi + minik tint */
@@ -960,7 +962,7 @@ export const FIELD_CSS = `
   transition: box-shadow 0.15s ease, background 0.15s ease;
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
-  --offer-col-separator: rgba(26, 43, 66, 0.105);
+  --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.head};
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) span,
 .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) div {
@@ -999,20 +1001,92 @@ export const FIELD_CSS = `
 }
 [data-theme="dark"] .belge-inline .offer-table thead th.optical-separator-col,
 [data-theme="dark"] .belge-inline .offer-table tbody td.optical-separator-col {
-  --offer-col-separator: rgba(203, 213, 225, 0.115);
+  --offer-col-separator: rgba(203, 213, 225, 0.16);
 }
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
-  --offer-col-separator: rgba(241, 245, 249, 0.16);
+  --offer-col-separator: rgba(241, 245, 249, 0.20);
 }
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
-  --offer-col-separator: rgba(226, 232, 240, 0.16);
+  --offer-col-separator: rgba(226, 232, 240, 0.20);
 }
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
   box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.7);
   background: rgba(59, 130, 246, 0.08);
 }
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
-  --offer-col-separator: rgba(241, 245, 249, 0.19);
+  --offer-col-separator: rgba(241, 245, 249, 0.24);
+}
+
+/* ── İşaretli satır — tek düz arka plan (zebra override) + bookmark tab ──
+ *  background-color kullan: shorthand 'background' background-image'i ezerdi →
+ *  optical-separator-col hücrelerindeki dikey çizgi (linear-gradient) yok olur.
+ *  Color-only override ile çizgiler korunur. */
+.belge-inline .offer-table tbody tr[data-marked="true"] > td {
+  background-color: #E4E9F1 !important;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.belge-inline .offer-table tbody tr[data-marked="true"] > td:first-child {
+  position: relative;
+}
+.belge-inline .offer-table tbody tr[data-marked="true"] > td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3.5px;
+  height: 55%;
+  min-height: 14px;
+  max-height: 24px;
+  background-color: rgba(26, 43, 66, 0.38);
+  border-radius: 2px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* İşaretli satır aktif hücre ile çakışma — aktif hücre kendi stilini korusun */
+.belge-inline .offer-table tbody tr[data-marked="true"] > td.is-active-cell {
+  background-color: rgba(237, 242, 251, 0.35) !important;
+}
+
+/* Dark mode */
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-marked="true"] > td {
+  background-color: rgba(26, 43, 66, 0.25) !important;
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-marked="true"] > td:first-child::before {
+  background-color: rgba(148, 163, 184, 0.50);
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-marked="true"] > td.is-active-cell {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* ── Set alt kalem "boş hücre" — birimFiyat/toplam/teslimat ──
+ *  Marked row kuralı (#E4E9F1 !important) bu hücreleri de ezerdi → !important ile
+ *  override ediyoruz: arka plan, border, gölge, sütun ayraç gradient'i hepsi
+ *  bypass. paraBirimi sütunundaki sağ kenar set frame'ini kapatır. */
+.belge-inline .offer-table tbody td.set-altkalem-empty {
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+[data-theme="dark"] .belge-inline .offer-table tbody td.set-altkalem-empty {
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Set parent "merdiven basamağı" — birimFiyat/toplam/teslimat alt kenarı ──
+ *  rcCell setGroupPos==='top' iken hideBottomEdge=true verir (borderBottom:none).
+ *  Parent'ın sağ-3 sütununda alt kenarda step çizgisi gerek → !important ile
+ *  rcCell'in inline borderBottom:none'unu garanti ezer. */
+.belge-inline .offer-table tbody td.set-parent-step {
+  border-bottom: 0.9px solid #BFBFBF !important;
+}
+[data-theme="dark"] .belge-inline .offer-table tbody td.set-parent-step {
+  border-bottom: 0.9px solid rgba(148, 163, 184, 0.50) !important;
 }
 `;
 
@@ -1023,6 +1097,7 @@ export type EditingAlan =
   | 'musteri-telefon'
   | 'musteri-eposta'
   | 'musteri-sehir'
+  | 'ilgili-kisi'
   | 'ayarlar'
   | 'ayar-paraBirimi'
   | 'ayar-odemeVadesi'

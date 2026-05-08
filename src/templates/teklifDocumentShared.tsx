@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Teklif } from '../types';
 import { getOfferHeaderLayoutProfile } from '../styles/logoStyles';
+import { OPTICAL_SEPARATOR_COLOR, OPTICAL_SEPARATOR_FADE } from './offerSeparatorTokens';
 
 // ── Manyetik sembol yardımcıları ─────────────────────────────────────────────
 
@@ -1059,11 +1060,6 @@ const OPTICAL_SEPARATOR_COLUMNS = new Set<OfferTableColumnKey>([
   'teslimat',
 ]);
 
-const OPTICAL_SEPARATOR_COLOR = {
-  head: 'rgba(26,43,66,0.13)',
-  body: 'rgba(26,43,66,0.10)',
-} as const;
-
 export function getOfferTableSeparatorClass(columnKey: OfferTableColumnKey): string | undefined {
   return OPTICAL_SEPARATOR_COLUMNS.has(columnKey) ? 'optical-separator-col' : undefined;
 }
@@ -1074,8 +1070,7 @@ export function getOfferTableSeparatorStyle(
 ): CSSProperties {
   if (!OPTICAL_SEPARATOR_COLUMNS.has(columnKey)) return {};
 
-  const topInset = surface === 'head' ? '12%' : '6%';
-  const bottomInset = surface === 'head' ? '88%' : '94%';
+  const { topInset, bottomInset } = OPTICAL_SEPARATOR_FADE[surface];
   const fallbackColor = OPTICAL_SEPARATOR_COLOR[surface];
 
   return {
@@ -1085,6 +1080,38 @@ export function getOfferTableSeparatorStyle(
     backgroundPosition: 'left center',
     backgroundSize: '1px 100%',
   };
+}
+
+export const SET_ALT_KALEM_EMPTY_CELL_STYLE: CSSProperties = Object.freeze({
+  background: 'none',
+  border: 'none',
+  boxShadow: 'none',
+});
+
+export const SET_ALT_KALEM_FRAME_CLOSE_STYLE: CSSProperties = Object.freeze({
+  borderRight: '0.9px solid #BFBFBF',
+});
+
+export const SET_ALT_KALEM_FRAME_CLOSE_BOTTOM_STYLE: CSSProperties = Object.freeze({
+  borderRight: '0.9px solid #BFBFBF',
+  borderBottomRightRadius: '8px',
+});
+
+export function getSetAltKalemEmptyCellStyle(isSetAltKalem?: boolean): CSSProperties {
+  return isSetAltKalem ? SET_ALT_KALEM_EMPTY_CELL_STYLE : {};
+}
+
+export function getSetAltKalemFrameCloseStyle(
+  isSetAltKalem: boolean | undefined,
+  isBottom: boolean,
+): CSSProperties {
+  if (!isSetAltKalem) return {};
+  return isBottom ? SET_ALT_KALEM_FRAME_CLOSE_BOTTOM_STYLE : SET_ALT_KALEM_FRAME_CLOSE_STYLE;
+}
+
+export function getSetStepClass(isSetAltKalem: boolean | undefined, setGroupPos: 'top' | 'middle' | 'bottom' | null): string {
+  if (isSetAltKalem) return 'set-altkalem-empty';
+  return setGroupPos === 'top' ? 'set-parent-step' : '';
 }
 
 export function getTableHeadCellStyle(

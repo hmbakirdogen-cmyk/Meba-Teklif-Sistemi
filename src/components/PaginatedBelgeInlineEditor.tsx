@@ -66,6 +66,9 @@ import {
   buildSettingsItems,
   getOfferTableSeparatorClass,
   getOfferTableSeparatorStyle,
+  getSetAltKalemEmptyCellStyle,
+  getSetAltKalemFrameCloseStyle,
+  getSetStepClass,
   getTableHeadCellStyle,
   computeSetGroupPos,
   computeMainItemIndex,
@@ -80,6 +83,12 @@ import {
 } from './InlineSatirEditor';
 import { buildSatirCellNavOrder, type SatirCellField } from './inlineSatirEditorShared';
 import type { TeklifPagePlan } from '../services/documentPagination';
+import {
+  computeCellPopupPosition,
+  findSatirCellElement,
+  getMarkedCellStyle,
+  useMarkedRows,
+} from './paginatedBelgeInlineHelpers';
 
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
@@ -258,21 +267,16 @@ function CellEditPopup({
       return;
     }
     const compute = () => {
-      const sel = `tr[data-satir-id="${CSS.escape(satirId)}"] td[data-cell-field="${satirFocusCell}"]`;
-      const cell = document.querySelector(sel) as HTMLElement | null;
+      const cell = findSatirCellElement(satirId, satirFocusCell);
       if (!cell) return;
       const rect = cell.getBoundingClientRect();
       const popupH = popupRef.current?.offsetHeight ?? 100;
-      const GAP = 6;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const placeBelow = spaceBelow >= popupH + 16 || spaceBelow > spaceAbove;
-      const top = placeBelow
-        ? rect.bottom + GAP
-        : Math.max(8, rect.top - popupH - GAP);
-      const maxLeft = window.innerWidth - W - 12;
-      const left = Math.max(8, Math.min(rect.left, maxLeft));
-      setPos({ top, left, minWidth: Math.max(W, rect.width) });
+      setPos(computeCellPopupPosition({
+        cellRect: rect,
+        popupHeight: popupH,
+        popupWidth: W,
+        minWidth: rect.width,
+      }));
     };
     compute();
     // İçerik açıldıktan sonra popupH değişmiş olabilir → bir frame sonra yeniden ölç.
@@ -318,9 +322,7 @@ function CellEditPopup({
       if (!sid) return;
       const target = e.target as Node;
       if (popupRef.current?.contains(target)) return;
-      const activeCell = document.querySelector(
-        `tr[data-satir-id="${CSS.escape(sid)}"] td[data-cell-field="${scell}"]`,
-      );
+      const activeCell = findSatirCellElement(sid, scell);
       if (activeCell?.contains(target)) return;
       // Başka bir hücreye tıklanmışsa → kendi cellClick handler'ı zaten yeni
       // popup'ı açacak; biz sadece editingAlan'ı geçici olarak kapatıyoruz,
@@ -873,10 +875,9 @@ export default function PaginatedBelgeInlineEditor({
   // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
   // gözüksün diye (active panel ile aynı pozisyonda).
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
-  // Satır başındaki numaraya tıklanınca o satırın id'si bu set'e eklenir;
-  // tekrar tıklanırsa çıkarılır. Görsel inceleme/işaretleme amaçlı, kalıcı
-  // değil — teklif state'ine yazılmaz.
-  const [markedRowIds, setMarkedRowIds] = useState<Set<string>>(() => new Set());
+  // Satır başındaki numaraya tıklanınca satır işaretlenir; durum teklif
+  // state'ine yazılmaz, sadece editör görsel işaretidir.
+  const { markedRowIds, toggleRowMark } = useMarkedRows();
   const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
   const fullLogo = getAdaptiveLogoPlacement({
     firmaId: firmaBilgi.id,
@@ -884,36 +885,6 @@ export default function PaginatedBelgeInlineEditor({
     surface: 'a4-full',
     objectPosition: 'left center',
   });
-
-  const toggleRowMark = useCallback(
-    (satirId: string) => (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setMarkedRowIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(satirId)) next.delete(satirId);
-        else next.add(satirId);
-        return next;
-      });
-    },
-    [],
-  );
-
-  // İşaretli satır görsel stilini CSS dosyası yönetir:
-  // belgeInlineConstants.ts içindeki `.offer-table tr[data-marked="true"]`
-  // selektörü td background ve bookmark ::before çiziyor. Bu fonksiyon
-  // imza uyumu için boş döner — call site'lar dokunulmadan kaldı.
-  function getMarkedCellStyle(
-    _marked: boolean,
-    _role: 'first' | 'mid' | 'last',
-    _isActive = false,
-    _isSetGroup = false,
-  ): React.CSSProperties {
-    void _marked;
-    void _role;
-    void _isActive;
-    void _isSetGroup;
-    return {};
-  }
 
   // Hücreye tıklayınca aktif et (popup açar). Aktif hücreye tekrar tıklanınca
   // toggle ile kapatır → kullanıcı popup'ı aynı hücreye basarak da kapatabilir.
@@ -1035,6 +1006,33 @@ export default function PaginatedBelgeInlineEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teklif.satirlar.length]);
+
+  const handleMuhatapKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onEditingAlanDegistir('musteri-telefon');
+      return;
+    }
+    if (e.key === 'Escape') onEditingAlanDegistir(null);
+  }, [onEditingAlanDegistir]);
+
+  const handleTelefonKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onEditingAlanDegistir('musteri-eposta');
+      return;
+    }
+    if (e.key === 'Escape') onEditingAlanDegistir(null);
+  }, [onEditingAlanDegistir]);
+
+  const handleEpostaKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onEditingAlanDegistir(null);
+      return;
+    }
+    if (e.key === 'Escape') onEditingAlanDegistir(null);
+  }, [onEditingAlanDegistir]);
 
 
   const renderFirstPageHeader = () => (
@@ -1198,13 +1196,7 @@ export default function PaginatedBelgeInlineEditor({
                         value={contactName}
                         onChange={(e) => onContactNameDegistir(e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            onEditingAlanDegistir('musteri-telefon');
-                          }
-                          if (e.key === 'Escape') onEditingAlanDegistir(null);
-                        }}
+                        onKeyDown={handleMuhatapKeyDown}
                         placeholder="muhatap adı"
                       />
                       <Select
@@ -1299,13 +1291,7 @@ export default function PaginatedBelgeInlineEditor({
                           const f = formatPhone(e.target.value);
                           if (f !== e.target.value) onCariTelefonDegistir(f);
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            onEditingAlanDegistir('musteri-eposta');
-                          }
-                          if (e.key === 'Escape') onEditingAlanDegistir(null);
-                        }}
+                        onKeyDown={handleTelefonKeyDown}
                         placeholder="0xxx xxx xx xx"
                       />
                     </div>
@@ -1343,14 +1329,7 @@ export default function PaginatedBelgeInlineEditor({
                           const next = e.target.value.trim();
                           if (next !== e.target.value) onCariEPostaDegistir(next);
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            // Müşteri zincirinin sonu — kapat
-                            e.preventDefault();
-                            onEditingAlanDegistir(null);
-                          }
-                          if (e.key === 'Escape') onEditingAlanDegistir(null);
-                        }}
+                        onKeyDown={handleEpostaKeyDown}
                         placeholder="ornek@firma.com"
                       />
                     </div>
@@ -1642,10 +1621,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'center',
                         ...getOfferTableSeparatorStyle('paraBirimi'),
                         ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('paraBirimi'), setGroupPos !== null),
-                        ...(satir.setAltKalem ? {
-                          borderRight: '0.9px solid #BFBFBF',
-                          ...(setGroupPos === 'bottom' ? { borderBottomRightRadius: '8px' } : {}),
-                        } : {}),
+                        ...getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos === 'bottom'),
                       })}
                     >
                       {satirBazliParaBirimi ? (
@@ -1661,8 +1637,8 @@ export default function PaginatedBelgeInlineEditor({
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
                       className={(() => {
                         const base = getOfferTableSeparatorClass('birimFiyat') ?? '';
-                        if (satir.setAltKalem) return `${base} no-click set-altkalem-empty`.trim();
-                        const step = (setGroupPos === 'top') ? 'set-parent-step' : '';
+                        const step = getSetStepClass(satir.setAltKalem, setGroupPos);
+                        if (satir.setAltKalem) return `${base} no-click ${step}`.trim();
                         return `${base} ${activeClass('birimFiyat') ?? ''} ${step}`.trim();
                       })()}
                       style={applyCellStyle({
@@ -1670,7 +1646,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'right',
                         ...getOfferTableSeparatorStyle('birimFiyat'),
                         ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('birimFiyat'), setGroupPos !== null),
-                        ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                        ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                       })}
                     >
                       {satir.setAltKalem ? null : (
@@ -1687,15 +1663,15 @@ export default function PaginatedBelgeInlineEditor({
                       setGroupPos={satir.setAltKalem ? null : setGroupPos}
                       className={(() => {
                         const base = getOfferTableSeparatorClass('toplam') ?? '';
-                        if (satir.setAltKalem) return `${base} set-altkalem-empty`.trim();
-                        const step = (setGroupPos === 'top') ? 'set-parent-step' : '';
+                        const step = getSetStepClass(satir.setAltKalem, setGroupPos);
+                        if (satir.setAltKalem) return `${base} ${step}`.trim();
                         return `${base} ${step}`.trim() || undefined;
                       })()}
                       style={applyCellStyle({
                         textAlign: 'right',
                         ...getOfferTableSeparatorStyle('toplam'),
                         ...getMarkedCellStyle(isMarked, 'mid', false, setGroupPos !== null),
-                        ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                        ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                       })}
                     >
                       {satir.setAltKalem ? null : (
@@ -1713,8 +1689,8 @@ export default function PaginatedBelgeInlineEditor({
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
                       className={(() => {
                         const base = getOfferTableSeparatorClass('teslimat') ?? '';
-                        if (satir.setAltKalem) return `${base} no-click set-altkalem-empty`.trim();
-                        const step = (setGroupPos === 'top') ? 'set-parent-step' : '';
+                        const step = getSetStepClass(satir.setAltKalem, setGroupPos);
+                        if (satir.setAltKalem) return `${base} no-click ${step}`.trim();
                         return `${base} ${activeClass('teslimat') ?? ''} ${step}`.trim();
                       })()}
                       style={applyCellStyle({
@@ -1723,7 +1699,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'center',
                         ...getOfferTableSeparatorStyle('teslimat'),
                         ...getMarkedCellStyle(isMarked, 'last', isActiveCell('teslimat'), setGroupPos !== null),
-                        ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                        ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                       })}
                     >
                       {satir.setAltKalem ? null : (
