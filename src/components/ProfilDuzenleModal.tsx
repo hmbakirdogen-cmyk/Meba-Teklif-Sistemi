@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Modal, Form, Input, message, Divider, Button, Alert } from 'antd';
-import { LockOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, message, Divider, Button, Alert, Space, Tag, Tooltip } from 'antd';
+import { LockOutlined, FolderOpenOutlined, FolderOutlined, SwapOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
+import { usePDFKayit } from '../hooks/usePDFKayit';
 import { formatAdSoyad, formatUnvan } from '../utils/formatters';
 
 interface Props {
@@ -31,12 +32,37 @@ interface SifreFormValues {
  */
 export default function ProfilDuzenleModal({ open, onClose }: Props) {
   const { aktifKullanici, refreshKullanici, sifreDegistir } = useKullanici();
+  const pdfKayit = usePDFKayit();
   const [form] = Form.useForm<FormValues>();
   const [sifreForm] = Form.useForm<SifreFormValues>();
   const [yukleniyor, setYukleniyor] = useState(false);
   const [sifreYukleniyor, setSifreYukleniyor] = useState(false);
+  const [klasorYukleniyor, setKlasorYukleniyor] = useState(false);
 
   const sifreUyari = Boolean(aktifKullanici?.mustChangePassword);
+
+  async function klasorSec() {
+    setKlasorYukleniyor(true);
+    try {
+      const r = await pdfKayit.klasorSec();
+      if (r.ok) {
+        message.success(`PDF kayıt konumu seçildi: ${r.path}`);
+      } else if (r.iptal) {
+        message.info('Klasör seçimi iptal edildi.');
+      } else if (r.desteklenmiyor) {
+        message.warning('Bu özellik Chrome veya Edge tarayıcıda çalışır. Şimdilik PDF normal indirme klasörüne kaydedilecek.');
+      } else if (r.error) {
+        message.warning(`Klasör seçilemedi: ${r.error}`);
+      }
+    } finally {
+      setKlasorYukleniyor(false);
+    }
+  }
+
+  async function klasoruUnut() {
+    await pdfKayit.klasoruUnut();
+    message.info('PDF kayıt konumu kaldırıldı. Bundan sonra PDF\'ler İndirilenler klasörüne kaydedilecek.');
+  }
 
   useEffect(() => {
     if (!open || !aktifKullanici) return;
@@ -121,6 +147,74 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
           <Input placeholder="Dahili numara" autoComplete="off" />
         </Form.Item>
       </Form>
+
+      <Divider style={{ margin: '8px 0 16px' }}>PDF Kayıt Konumu</Divider>
+
+      <div style={{ marginBottom: 16 }}>
+        {!pdfKayit.supported ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Bu özellik Chrome veya Edge tarayıcıda çalışır"
+            description="Tarayıcınız desteklemiyor; PDF'ler şimdilik tarayıcınızın İndirilenler klasörüne kaydedilecek."
+          />
+        ) : (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '10px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                background: '#fafafa',
+                marginBottom: 8,
+              }}
+            >
+              <Space size={8} style={{ minWidth: 0 }}>
+                <FolderOutlined style={{ color: pdfKayit.hasKlasor ? '#1E3A5F' : '#9ca3af', fontSize: 16 }} />
+                <span style={{ fontSize: 13, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {pdfKayit.hasKlasor
+                    ? <><span style={{ color: '#6b7280' }}>Seçili klasör: </span><strong>{pdfKayit.klasorAdi}</strong></>
+                    : <span style={{ color: '#6b7280' }}>Henüz PDF kayıt konumu seçilmedi</span>}
+                </span>
+              </Space>
+              {pdfKayit.hasKlasor && (
+                <Tag color="success" style={{ marginRight: 0 }}>Aktif</Tag>
+              )}
+            </div>
+            <Space wrap>
+              {pdfKayit.hasKlasor ? (
+                <>
+                  <Tooltip title="Mevcut klasörü değiştir">
+                    <Button icon={<SwapOutlined />} loading={klasorYukleniyor} onClick={klasorSec}>
+                      Değiştir
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="Tarayıcı klasörü doğrudan açamaz; aynı klasörü onaylayarak görüntüleyebilirsiniz.">
+                    <Button icon={<FolderOpenOutlined />} loading={klasorYukleniyor} onClick={klasorSec}>
+                      Klasörü Aç
+                    </Button>
+                  </Tooltip>
+                  <Button danger icon={<DisconnectOutlined />} onClick={klasoruUnut}>
+                    Bağlantıyı Kaldır
+                  </Button>
+                </>
+              ) : (
+                <Button type="primary" icon={<FolderOpenOutlined />} loading={klasorYukleniyor} onClick={klasorSec}>
+                  Klasör Seç
+                </Button>
+              )}
+            </Space>
+            <div style={{ marginTop: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.55 }}>
+              Seçtiğiniz klasör yalnızca bu tarayıcıda ve hesabınızda saklanır; sunucuya iletilmez.
+              Klasör seçildikten sonra PDF ve e-posta için oluşturulan teklif PDF'leri otomatik olarak buraya kaydedilir.
+            </div>
+          </>
+        )}
+      </div>
 
       <Divider style={{ margin: '8px 0 16px' }}>Şifre Değiştir</Divider>
 

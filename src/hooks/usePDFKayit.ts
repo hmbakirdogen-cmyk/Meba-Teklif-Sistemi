@@ -1,27 +1,32 @@
 /**
- * usePDFKayit.ts — PDF'leri kullanıcının seçtiği klasöre otomatik kaydeder.
+ * usePDFKayit.ts — PDF'leri kullanıcının seçtiği klasöre sessizce kaydeder.
  *
  * File System Access API (Chrome/Edge desktop). Safari/Firefox desteklemiyor —
  * o tarayıcılarda hook no-op (supported=false), mevcut indirme akışı bozulmaz.
  *
- * Akış:
- *   1. İlk kullanım: showDirectoryPicker() ile ana klasör (örn. "Teklifler")
- *   2. Handle IndexedDB'ye saklanır (FileSystemDirectoryHandle structured-clone
- *      ile serialize edilebilir; localStorage string-only olduğu için IDB).
- *   3. Sonraki PDF'lerde: handle reload edilir, izin re-check, alt klasör
- *      (firma adı ilk 2 kelime) oluşturulur/erişilir, dosya yazılır.
+ * Klasör seçimi açık bir kullanıcı aksiyonudur (Profil ekranında "Klasör Seç").
+ * `kaydetPDF` HİÇ picker açmaz — handle yoksa `klasorYok: true` döner; çağıran
+ * standart browser indirmesine düşer.
+ *
+ * Kalıcılık:
+ *   - FileSystemDirectoryHandle → IndexedDB (kullanıcı + firma anahtarlı)
+ *   - Klasör adı → localStorage (UI için ad/etiket)
+ *   - Aynı tarayıcı + aynı kullanıcı → handle korunur, izin yenilenince devam.
+ *   - Farklı kullanıcı / farklı firma → ayrı anahtar → klasörler karışmaz.
  *
  * Çıktı yapısı:
  *   <SeçilenKlasör>/
  *     AKCANLAR PETROL/
  *       2605-010_AKCANLAR_PETROL.pdf
- *     ALFA PNÖMATİK/
- *       2605-011_ALFA_PNÖMATİK.pdf
  */
+
+import { useEffect, useState, useCallback } from 'react';
+import { useKullanici } from '../context/useKullanici';
 
 const DB_NAME = 'meba_pdf_kayit';
 const STORE = 'handles';
-const KEY = 'rootDir';
+const KEY_PREFIX = 'rootDir';
+const LS_NAME_PREFIX = 'mebaPdfKlasorAdi';
 const DB_VERSION = 1;
 
 const WIN_FORBIDDEN_CHARS = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
@@ -96,6 +101,10 @@ export interface PDFKayitSonucu {
   error?: string;
   /** Kullanıcı klasör seçimini iptal ettiyse true (hatadan farklı, sessizce geçilebilir) */
   iptal?: boolean;
+  /** Henüz klasör seçilmemiş — çağıran browser download fallback'ine düşmeli. */
+  klasorYok?: boolean;
+  /** Tarayıcı File System Access desteklemiyor (Safari/Firefox). */
+  desteklenmiyor?: boolean;
 }
 
 /**
@@ -121,39 +130,108 @@ function ilk2Kelime(adi: string): string {
 
 export function usePDFKayit() {
   const supported = isSupported();
+  const { aktifKullanici } = useKullanici();
 
-  async function getRoot(forceNew = false): Promise<DirHandle | null> {
-    if (!supported) return null;
-    if (!forceNew) {
-      try {
-        const stored = await idbGet(KEY) as DirHandle | undefined;
-        if (stored && await ensurePermission(stored)) return stored;
-      } catch {
-        /* IDB read fail — devam et, picker aç */
-      }
+  // Per-user / per-firma anahtarlar — farklı kullanıcılar arasında klasör karışmaz.
+  const userKey = aktifKullanici ? `${aktifKullanici.id}:${aktifKullanici.firmaId ?? '_'}` : '';
+  const idbKey = userKey ? `${KEY_PREFIX}:${userKey}` : '';
+  const lsKey = userKey ? `${LS_NAME_PREFIX}:${userKey}` : '';
+
+  // UI'da gösterilecek klasör adı (handle.name). null = klasör seçilmemiş.
+  const [klasorAdi, setKlasorAdi] = useState<string | null>(() => {
+    if (!supported || !lsKey) return null;
+    try { return localStorage.getItem(lsKey); } catch { return null; }
+  });
+
+  // Aktif kullanıcı değişince LS adını yeniden yükle (klasör IDB'de saklı,
+  // adı LS'de — UI'nin doğru kullanıcının klasör adını göstermesi için).
+  useEffect(() => {
+    if (!supported || !lsKey) {
+      setKlasorAdi(null);
+      return;
     }
+    try { setKlasorAdi(localStorage.getItem(lsKey)); } catch { setKlasorAdi(null); }
+  }, [supported, lsKey]);
+
+  /** IDB'den handle'ı oku; izin tazele. Picker AÇMAZ. */
+  const handleYukle = useCallback(async (): Promise<DirHandle | null> => {
+    if (!supported || !idbKey) return null;
     try {
-      const w = window as unknown as { showDirectoryPicker?: (opt: { id?: string; mode?: 'read' | 'readwrite'; startIn?: string }) => Promise<DirHandle> };
-      if (!w.showDirectoryPicker) return null;
-      const h = await w.showDirectoryPicker({ id: 'meba-teklif-pdf', mode: 'readwrite' });
-      await idbPut(KEY, h);
-      return h;
+      const stored = await idbGet(idbKey) as DirHandle | undefined;
+      if (!stored) return null;
+      const ok = await ensurePermission(stored);
+      return ok ? stored : null;
     } catch {
       return null;
     }
-  }
+  }, [supported, idbKey]);
 
   /**
-   * PDF'i firma alt klasörüne yaz. Hook destekli değilse no-op (supported false).
-   * Caller bu sonucu kontrol etmeli; mevcut server upload akışı paralel devam eder.
+   * Kullanıcı bilinçli olarak klasör seçer (Profil > Klasör Seç / Değiştir).
+   * Picker açar; iptal ederse {iptal:true} döner.
    */
-  async function kaydetPDF(blob: Blob, teklifNo: string, firmaAdi: string): Promise<PDFKayitSonucu> {
-    if (!supported) {
-      return { ok: false, error: 'Tarayıcı File System Access API desteklemiyor (Chrome/Edge gerekli).' };
+  const klasorSec = useCallback(async (): Promise<PDFKayitSonucu> => {
+    if (!supported) return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
+    if (!idbKey) return { ok: false, error: 'Aktif kullanıcı yok.' };
+    try {
+      const w = window as unknown as { showDirectoryPicker?: (opt: { id?: string; mode?: 'read' | 'readwrite'; startIn?: string }) => Promise<DirHandle> };
+      if (!w.showDirectoryPicker) return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
+      const h = await w.showDirectoryPicker({ id: `meba-teklif-pdf-${userKey}`, mode: 'readwrite' });
+      // Yazma izni ön-ısıt → ilk PDF kaydında ek prompt çıkmasın.
+      await ensurePermission(h);
+      await idbPut(idbKey, h);
+      try { localStorage.setItem(lsKey, h.name); } catch { /* ignore */ }
+      setKlasorAdi(h.name);
+      return { ok: true, path: h.name };
+    } catch (e) {
+      // AbortError → kullanıcı iptal etti, sakin mesaj.
+      if (e instanceof Error && e.name === 'AbortError') {
+        return { ok: false, iptal: true };
+      }
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg };
     }
-    const root = await getRoot(false);
+  }, [supported, idbKey, lsKey, userKey]);
+
+  /** Saklı klasörü unut (UI: "Bağlantıyı kaldır"). */
+  const klasoruUnut = useCallback(async (): Promise<void> => {
+    if (!idbKey) return;
+    try { await idbDelete(idbKey); } catch { /* ignore */ }
+    try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
+    setKlasorAdi(null);
+  }, [idbKey, lsKey]);
+
+  /**
+   * Klasörü "aç" — File System Access doğrudan Explorer açmaya izin vermez.
+   * En yakın UX: yeniden showDirectoryPicker → kullanıcı klasörünü görür/seçer.
+   * (Aynı klasörü onaylarsa handle güncellenir, aksi halde değişir.)
+   */
+  const klasoruAc = useCallback(async (): Promise<PDFKayitSonucu> => {
+    return klasorSec();
+  }, [klasorSec]);
+
+  /**
+   * PDF'i kullanıcının seçtiği klasörün firma alt klasörüne yaz.
+   *   - Tarayıcı desteklemiyor → desteklenmiyor:true (caller download fallback yapsın)
+   *   - Klasör seçilmemiş     → klasorYok:true       (caller download fallback yapsın)
+   *   - İzin reddedildi       → IDB temizlenir, klasorYok:true
+   *   - Yazma hatası          → error mesajı
+   * HİÇBİR durumda picker AÇMAZ. Picker yalnızca `klasorSec` içinden tetiklenir.
+   */
+  const kaydetPDF = useCallback(async (
+    blob: Blob,
+    teklifNo: string,
+    firmaAdi: string,
+  ): Promise<PDFKayitSonucu> => {
+    if (!supported) return { ok: false, desteklenmiyor: true };
+    if (!idbKey) return { ok: false, klasorYok: true };
+
+    const root = await handleYukle();
     if (!root) {
-      return { ok: false, iptal: true, error: 'Klasör seçilmedi.' };
+      // Handle yok veya izin reddedildi → adı da temizle, UI "seçilmedi" göstersin.
+      try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
+      setKlasorAdi(null);
+      return { ok: false, klasorYok: true };
     }
 
     const folderName = ilk2Kelime(firmaAdi) || 'Diger';
@@ -167,27 +245,35 @@ export function usePDFKayit() {
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
+      // İlk başarılı yazımda klasör adını da senkronla (bazı tarayıcılarda
+      // ad sonradan güncellenir).
+      try { localStorage.setItem(lsKey, root.name); } catch { /* ignore */ }
+      if (klasorAdi !== root.name) setKlasorAdi(root.name);
       return { ok: true, path: root.name + '\\' + folderName + '\\' + fileName };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes('NotAllowed') || msg.includes('denied')) {
-        try { await idbDelete(KEY); } catch { /* ignore */ }
-        return { ok: false, error: 'Klasör izni reddedildi. Bir sonraki kayıtta tekrar seçim istenecek.' };
+        try { await idbDelete(idbKey); } catch { /* ignore */ }
+        try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
+        setKlasorAdi(null);
+        return { ok: false, klasorYok: true, error: 'Klasör izni reddedildi. Profilinizden yeniden seçim yapabilirsiniz.' };
       }
       return { ok: false, error: msg };
     }
-  }
+  }, [supported, idbKey, lsKey, handleYukle, klasorAdi]);
 
-  /** Kullanıcı kasten klasörü değiştirmek istediğinde tetiklenir. */
-  async function klasorSec(): Promise<boolean> {
-    const h = await getRoot(true);
-    return !!h;
-  }
+  /** Geriye dönük: sifirla (eski API). */
+  const sifirla = klasoruUnut;
 
-  /** Kayıtlı handle'ı temizle (debug/sıfırlama). */
-  async function sifirla(): Promise<void> {
-    try { await idbDelete(KEY); } catch { /* ignore */ }
-  }
-
-  return { supported, kaydetPDF, klasorSec, sifirla };
+  return {
+    supported,
+    /** UI'da "PDF Konumu: ..." göstermek için klasör adı (null = seçilmedi). */
+    klasorAdi,
+    hasKlasor: !!klasorAdi,
+    klasorSec,
+    klasoruAc,
+    klasoruUnut,
+    kaydetPDF,
+    sifirla,
+  };
 }

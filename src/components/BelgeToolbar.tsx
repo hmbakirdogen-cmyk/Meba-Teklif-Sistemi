@@ -18,6 +18,7 @@ import {
   MailOutlined,
   UserOutlined,
   CaretDownOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
 import { buttonClassNames } from '../styles/buttonStyles';
@@ -44,6 +45,9 @@ interface BelgeToolbarProps {
   ilgiliKisiAdSoyad?: string;
   /** Toolbar buton click → parent ilgili kişi seçim popover/modal'ını açar. */
   onIlgiliKisiAc: () => void;
+  /** PDF kayıt konumu durumu — küçük "PDF Konumu: …" etiketi için. */
+  pdfKayitKlasorAdi?: string | null;
+  pdfKayitDestekli?: boolean;
 }
 
 const DURUM_RENK: Record<TeklifDurum, { color: string; bg: string; border: string }> = {
@@ -88,6 +92,8 @@ export default function BelgeToolbar({
   onDurumDegistir,
   ilgiliKisiAdSoyad,
   onIlgiliKisiAc,
+  pdfKayitKlasorAdi,
+  pdfKayitDestekli,
 }: BelgeToolbarProps) {
   const C = useColors();
   const { modal } = App.useApp();
@@ -315,6 +321,37 @@ export default function BelgeToolbar({
             Yazdır
           </Button>
         </Tooltip>
+        {pdfKayitDestekli && (
+          <Tooltip
+            title={
+              pdfKayitKlasorAdi
+                ? `PDF'ler "${pdfKayitKlasorAdi}" klasörüne kaydedilecek. Profilinizden değiştirebilirsiniz.`
+                : 'PDF kayıt konumu seçilmedi. Profilinizden klasör seçebilirsiniz; aksi halde PDF İndirilenler\'e kaydedilir.'
+            }
+            placement="bottom"
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 8px',
+                fontSize: 11,
+                fontWeight: 500,
+                color: pdfKayitKlasorAdi ? '#15803d' : C.textFaint,
+                background: pdfKayitKlasorAdi ? '#ecfdf5' : C.bgSurface,
+                border: `1px solid ${pdfKayitKlasorAdi ? '#a7f3d0' : C.border}`,
+                borderRadius: 999,
+                whiteSpace: 'nowrap',
+                cursor: 'help',
+                userSelect: 'none',
+              }}
+            >
+              <FolderOutlined style={{ fontSize: 11 }} />
+              PDF Konumu: {pdfKayitKlasorAdi ? 'Seçili' : 'Seçilmedi'}
+            </span>
+          </Tooltip>
+        )}
         <Tooltip title="PDF dosyası oluştur ve klasöre kaydet — durumu 'Hazır'a çeker" placement="bottom">
           <Button
             icon={<FilePdfOutlined />}

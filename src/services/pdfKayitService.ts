@@ -185,8 +185,9 @@ function isRemoteWebClient(): boolean {
 }
 
 /**
- * Windows "Farklı Kaydet" penceresi açar (File System Access API). Kullanıcı
- * konumu ve dosya adını seçer.
+ * Windows "Farklı Kaydet" penceresi — yalnızca özel durumlarda. Yeni akışta
+ * kullanıcı `usePDFKayit` üzerinden kalıcı bir klasör seçmiş olur ve PDF
+ * sessizce oraya yazılır; bu fonksiyon artık varsayılan akışta çağrılmıyor.
  *
  * Dönüş:
  *   - 'saved'       → kullanıcı dosyayı kaydetti
@@ -220,6 +221,9 @@ async function showSaveDialog(blob: Blob, fileName: string): Promise<'saved' | '
     return 'unsupported';
   }
 }
+// Tip ihrac yok — fonksiyonun gelecekte özel durumlar için kalmasini saglar
+// (ör. handle yok ve kullanici acik secim isterse). Su an cagrilmiyor.
+void showSaveDialog;
 
 // Otomatik dosya adı: <FIRMA-KLASOR>_<CARI>_<TEKLIFNO>.pdf
 // → Kullanıcının Downloads klasöründe tek seviye, organize edilmiş dosya adı.
@@ -235,7 +239,8 @@ function buildAutoDownloadFileName(teklif: Teklif, firmaPdfKlasorAdi?: string): 
 }
 
 // Browser auto-download: kullanıcı gesture'ı gerekmez, prompt yok, doğrudan
-// Downloads klasörüne kaydedilir.
+// Downloads klasörüne kaydedilir. Yeni akışta picker yok — kullanıcı kalıcı
+// klasör seçmediyse PDF doğrudan İndirilenler'e iner.
 async function autoSaveToDownloads(
   blob: Blob,
   teklif: Teklif,
@@ -243,17 +248,6 @@ async function autoSaveToDownloads(
 ): Promise<{ saved: boolean; cancelled?: boolean; relativePath?: string }> {
   try {
     const fileName = buildAutoDownloadFileName(teklif, firmaPdfKlasorAdi);
-    // Önce "Farklı Kaydet" penceresi (kullanıcı konum + ad seçsin); destek yoksa
-    // veya hata olursa sessizce eski anchor download fallback'ine düş.
-    const sonuc = await showSaveDialog(blob, fileName);
-    if (sonuc === 'saved') {
-      return { saved: true, relativePath: fileName };
-    }
-    if (sonuc === 'cancelled') {
-      // Kullanıcı bilinçli iptal etti → fallback DOWNLOAD yapma; çağıran "iptal" mesajı göstersin.
-      return { saved: false, cancelled: true };
-    }
-    // unsupported → otomatik anchor download (Downloads klasörü)
     browserDownload(blob, fileName);
     return { saved: true, relativePath: `Downloads/${fileName}` };
   } catch {
@@ -414,37 +408,52 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
   hedef: TeklifDisaAktarimHedefi,
   firmaPdfKlasorAdi?: string,
   firmaProfil?: Firma,
+  options?: {
+    /**
+     * Caller (TeklifEditor) PDF'i kullanıcının seçtiği klasöre zaten yazdı mı?
+     * Verildiğinde otomatik fallback (browser download) atlanır; sonuca yerel
+     * yol işlenir. Picker veya download tetiklenmez.
+     */
+    yerelKayitYapildi?: { saved: boolean; path?: string };
+  },
 ): Promise<TeklifDisaAktarimSonucu> {
   const sonuc = await teklifDisaAktar(blob, teklif, hedef, firmaPdfKlasorAdi, firmaProfil);
 
   // ── Web/uzak istemci akışı ────────────────────────────────────────────
   // Server PDF'i kendi makinesindeki MEBA klasörüne yazdı; kullanıcının
   // tarayıcısına dosya UN ulaşmamış olabilir. Hem PDF hem email hedefinde:
-  //   1) PDF'i mutlaka kullanıcı bilgisayarına indir (browser download).
+  //   1) Kullanıcı seçili klasör belirlediyse caller orada zaten yazmış olur
+  //      (options.yerelKayitYapildi). Aksi halde browser download tetiklenir.
   //   2) Email hedefinde mailto ile Outlook/varsayılan istemciyi aç.
   const uzakIstemci = isRemoteWebClient();
   const indirmeGerekli = uzakIstemci || sonuc.istemciTarafindaMailtoGerekli;
 
   if (!indirmeGerekli) {
+    // Local server modunda da kullanıcı klasör seçtiyse onu sonuca işle.
+    if (options?.yerelKayitYapildi?.saved) {
+      return { ...sonuc, yerelKayitYolu: options.yerelKayitYapildi.path };
+    }
     return sonuc;
   }
 
-  // PDF'i kullanıcı tarafına indir. autoSaveToDownloads → showSaveFilePicker
-  // (kullanıcı konum seçer) veya fallback anchor download.
-  const localSave = await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
+  // Yerel kayıt: caller (kullanıcı seçili klasörü) zaten yaptıysa bypass et;
+  // aksi halde sessiz browser download (Downloads klasörü).
+  const localSave = options?.yerelKayitYapildi?.saved
+    ? { saved: true, relativePath: options.yerelKayitYapildi.path }
+    : await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
 
   if (hedef === 'pdf') {
     return {
       ...sonuc,
       kayitYontemi: localSave.saved ? sonuc.kayitYontemi : 'tarayici',
       yerelKayitYolu: localSave.relativePath,
-      yerelKayitIptal: localSave.cancelled,
+      yerelKayitIptal: 'cancelled' in localSave ? localSave.cancelled : false,
     };
   }
 
   // hedef === 'email' → kullanıcı kaydetme penceresinde iptal ettiyse mailto'yu da
   // açma — kullanıcı işlemi durdurmak istedi.
-  if (localSave.cancelled) {
+  if ('cancelled' in localSave && localSave.cancelled) {
     return {
       ...sonuc,
       epostaHazirlandi: false,
@@ -466,10 +475,12 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
     yerelKayitYolu: localSave.relativePath,
     epostaHatasi: acildi
       ? localSave.saved
-        ? `PDF'i seçtiğiniz konuma kaydettik (${firma.kisaAd}). Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
+        ? options?.yerelKayitYapildi?.saved
+          ? `PDF seçili kayıt konumuna kaydedildi (${firma.kisaAd}). Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
+          : `PDF bu bilgisayara indirildi (${firma.kisaAd}). Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
         : 'PDF bu bilgisayara indirildi. Outlook penceresine bu PDF\'i ekleyip kontrol ederek gönderiniz.'
       : localSave.saved
-      ? `PDF'i seçtiğiniz konuma kaydettik (${firma.kisaAd}), ancak yerel e-posta taslağı açılamadı.`
+      ? `PDF kaydedildi (${firma.kisaAd}), ancak yerel e-posta taslağı açılamadı.`
       : 'PDF bu bilgisayara indirildi, ancak yerel e-posta taslağı açılamadı.',
   };
 }

@@ -245,12 +245,15 @@ export default function TeklifEditor() {
   // Manuel "Kaydet" yok; useBelgeState içindeki auto-save effect tüm değişimleri
   // 600ms debounce ile sessizce taslak olarak persist eder.
 
-  const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu) => {
+  const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu, opts?: { yerelKayitYapildi?: boolean }) => {
     // Kullanıcı "Farklı Kaydet" penceresinde iptal etti → sakin info mesajı.
     if (sonuc.yerelKayitIptal) {
       message.info('Kaydetme iptal edildi. PDF oluşturuldu ancak diske kaydedilmedi.');
       return;
     }
+
+    // Kullanıcı kalıcı PDF kayıt klasörü seçtiyse → seçili konum mesajı.
+    const yerelKayitYapildi = !!opts?.yerelKayitYapildi;
 
     // Uzak/web istemci tespiti — server cevab\u0131ndaki bayrak veya hostname.
     const uzakIstemci = sonuc.istemciTarafindaMailtoGerekli
@@ -260,15 +263,25 @@ export default function TeklifEditor() {
         && window.location.hostname !== '::1');
 
     if (sonuc.hedef === 'pdf') {
+      // Yeni akış: kullanıcı kalıcı klasör seçtiyse her zaman bunu söyle.
+      if (yerelKayitYapildi) {
+        message.success(
+          sonuc.yerelKayitYolu
+            ? `PDF seçili kayıt konumuna kaydedildi: ${sonuc.yerelKayitYolu}`
+            : 'PDF seçili kayıt konumuna kaydedildi.',
+        );
+        return;
+      }
+
       if (uzakIstemci) {
         // Web client: server kendi makinesine ar\u015fivledi + tarayc\u0131 download tetiklendi.
         if (sonuc.kayitYontemi === 'otomatik') {
-          message.success('PDF sunucu ar\u015fivine kaydedildi ve bu bilgisayara da indirildi.');
+          message.success('PDF sunucu ar\u015fivine kaydedildi ve bu bilgisayara da indirildi. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.');
         } else {
           message.success(
             sonuc.yerelKayitYolu
-              ? `PDF bu bilgisayara indirildi: ${sonuc.yerelKayitYolu}`
-              : 'PDF bu bilgisayara indirildi.',
+              ? `PDF \u0130ndirilenler klas\u00f6r\u00fcne kaydedildi: ${sonuc.yerelKayitYolu}. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.`
+              : 'PDF \u0130ndirilenler klas\u00f6r\u00fcne kaydedildi. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.',
           );
         }
         return;
@@ -277,8 +290,8 @@ export default function TeklifEditor() {
       if (sonuc.kayitYontemi === 'tarayici') {
         message.success(
           sonuc.yerelKayitYolu
-            ? `PDF yerel klas\u00f6re kaydedildi: ${sonuc.yerelKayitYolu}`
-            : 'PDF indirildi. Bu ortamda otomatik masa\u00fcst\u00fc kayd\u0131 kullan\u0131lamad\u0131\u011f\u0131 i\u00e7in tarayc\u0131 indirmesi kullan\u0131ld\u0131.',
+            ? `PDF \u0130ndirilenler klas\u00f6r\u00fcne kaydedildi: ${sonuc.yerelKayitYolu}. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.`
+            : 'PDF indirildi. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.',
         );
         return;
       }
@@ -298,10 +311,19 @@ export default function TeklifEditor() {
 
     if (sonuc.kayitYontemi === 'tarayici') {
       if (sonuc.epostaTaslakYontemi === 'mailto') {
+        // Yeni akış: kullanıcı kalıcı klasör seçtiyse net mesaj.
+        if (yerelKayitYapildi) {
+          message.success(
+            sonuc.yerelKayitYolu
+              ? `PDF seçili kayıt konumuna kaydedildi: ${sonuc.yerelKayitYolu}. Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
+              : 'PDF seçili kayıt konumuna kaydedildi. Outlook penceresine bu PDF\'i ekleyip kontrol ederek gönderiniz.',
+          );
+          return;
+        }
         message.warning(
           sonuc.yerelKayitYolu
-            ? `PDF yerel klasöre kaydedildi: ${sonuc.yerelKayitYolu}. E-posta taslağı açıldı; PDF ekini manuel ekleyiniz.`
-            : 'PDF indirildi ve e-posta taslağı açıldı. Tarayıcı ortamında PDF eki otomatik eklenemediğinden eki lütfen kendiniz ekleyiniz.',
+            ? `PDF İndirilenler klasörüne kaydedildi: ${sonuc.yerelKayitYolu}. E-posta taslağı açıldı; PDF ekini manuel ekleyiniz. İsterseniz profilinizden PDF kayıt konumu seçebilirsiniz.`
+            : 'PDF indirildi ve e-posta taslağı açıldı. PDF ekini manuel ekleyiniz. İsterseniz profilinizden PDF kayıt konumu seçebilirsiniz.',
         );
         return;
       }
@@ -315,11 +337,19 @@ export default function TeklifEditor() {
     }
 
     if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'outlook') {
+      if (yerelKayitYapildi) {
+        message.success('PDF seçili kayıt konumuna kaydedildi. Outlook gönder penceresi açıldı.');
+        return;
+      }
       message.success('Teklif arşive işlendi ve Outlook gönder penceresi açıldı.');
       return;
     }
 
     if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'mailto') {
+      if (yerelKayitYapildi) {
+        message.success('PDF seçili kayıt konumuna kaydedildi. Mailto taslağı açıldı; PDF ekini manuel ekleyiniz.');
+        return;
+      }
       message.warning('Teklif arşive işlendi ve mailto taslağı açıldı. PDF ekini manuel ekleyiniz.');
       return;
     }
@@ -424,23 +454,35 @@ export default function TeklifEditor() {
       // firmasına özel klasör (MEBA / ELMOS / MESA) açılır, hardcoded değil.
       const teklifFirmasi = firmalar.find((f) => f.id === teklifIcinExport.firmaId);
       const firmaPdfKlasorAdi = teklifFirmasi?.pdfKlasorAdi || undefined;
-      const sonuc = await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi, teklifFirmasi);
-      teklifService.teklifCacheGuncelle(sonuc.teklif);
-      showExportMessage(sonuc);
 
-      // ── File System Access ile yerel klasöre paralel kayıt ──────────────
-      // Sadece PDF hedefi için. Hook destekli değilse / kullanıcı reddederse
-      // sessizce geçer; mevcut server upload akışı dokunulmadı.
-      if (hedef === 'pdf' && pdfKayit.supported && state.cari) {
+      // ── Kullanıcının seçtiği kalıcı PDF kayıt klasörüne sessiz yazım ───
+      // Hook destekli + klasör seçili + kullanıcı bilgisi mevcut ise PDF
+      // doğrudan oraya yazılır. picker AÇILMAZ. Başarı durumunda export'a
+      // bilgi geçilir → showSaveFilePicker / browser download bypass edilir.
+      let yerelKayitYapildi: { saved: boolean; path?: string } | undefined;
+      if (pdfKayit.supported && pdfKayit.hasKlasor && state.cari) {
         const ksonuc = await pdfKayit.kaydetPDF(blob, state.teklifNo, state.cari.firmaAdi);
         if (ksonuc.ok && ksonuc.path) {
-          message.success(`PDF kaydedildi: ${ksonuc.path}`, 4);
-        } else if (ksonuc.iptal) {
-          // Sessizce geç — kullanıcı klasör seçimini iptal etti, server kaydı zaten oldu
+          yerelKayitYapildi = { saved: true, path: ksonuc.path };
+        } else if (ksonuc.klasorYok) {
+          // İzin/handle kaybı — UI'da klasor "seçilmedi"ye düşer; kullanıcı
+          // profilden tekrar seçebilir. Bu PDF için download fallback'e geç.
+          message.info('PDF kayıt klasörüne erişilemedi, indirme klasörüne kaydedildi. Profilinizden klasörü tekrar seçebilirsiniz.', 6);
         } else if (ksonuc.error) {
-          message.warning(`Yerel klasör kaydı yapılamadı: ${ksonuc.error}`, 5);
+          message.warning(`PDF kayıt klasörüne yazılamadı: ${ksonuc.error}`, 6);
         }
       }
+
+      const sonuc = await teklifDisaAktarVeGerekirseYerelTaslakAc(
+        blob,
+        teklifIcinExport,
+        hedef,
+        firmaPdfKlasorAdi,
+        teklifFirmasi,
+        { yerelKayitYapildi },
+      );
+      teklifService.teklifCacheGuncelle(sonuc.teklif);
+      showExportMessage(sonuc, { yerelKayitYapildi: !!yerelKayitYapildi });
 
       // 3) Durum auto-progression — kullanıcının manuel kararına saygı:
       //    'onaylandı' / 'reddedildi' / 'iptal' (sonuçlanmış) ise otomatik
@@ -686,6 +728,8 @@ export default function TeklifEditor() {
         onDurumDegistir={state.setDurum}
         ilgiliKisiAdSoyad={state.ilgiliKisiAdSoyad}
         onIlgiliKisiAc={() => setIlgiliKisiModalAcik(true)}
+        pdfKayitDestekli={pdfKayit.supported}
+        pdfKayitKlasorAdi={pdfKayit.klasorAdi}
       />
 
       {/* Revize banner — kapalı durumda (gönderildi/sonuçlanmış) düzenleme
