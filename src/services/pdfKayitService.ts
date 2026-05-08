@@ -33,6 +33,8 @@ export interface TeklifDisaAktarimSonucu {
   mailGovdesi?: string;
   istemciTarafindaMailtoGerekli?: boolean;
   yerelKayitYolu?: string;
+  /** Kullanıcı "Farklı Kaydet" penceresinde iptal etti — UI sakin mesaj gösterir. */
+  yerelKayitIptal?: boolean;
 }
 
 export class TeklifDisaAktarimHatasi extends Error {
@@ -184,11 +186,14 @@ function isRemoteWebClient(): boolean {
 
 /**
  * Windows "Farklı Kaydet" penceresi açar (File System Access API). Kullanıcı
- * konumu ve dosya adını seçer. Taraycı desteklemiyorsa veya kullanıcı
- * iptal ederse `false` döner; çağrılan kod `browserDownload` fallback'ine
- * düşmelidir.
+ * konumu ve dosya adını seçer.
+ *
+ * Dönüş:
+ *   - 'saved'       → kullanıcı dosyayı kaydetti
+ *   - 'cancelled'   → kullanıcı pencerede iptal etti (sessizce çık)
+ *   - 'unsupported' → tarayıcı API'yi desteklemiyor → fallback download yap
  */
-async function showSaveDialog(blob: Blob, fileName: string): Promise<boolean> {
+async function showSaveDialog(blob: Blob, fileName: string): Promise<'saved' | 'cancelled' | 'unsupported'> {
   // showSaveFilePicker yalnızca Chromium tabanlı (Chrome/Edge) taraycılarda var.
   const w = window as Window & {
     showSaveFilePicker?: (opts: {
@@ -198,7 +203,7 @@ async function showSaveDialog(blob: Blob, fileName: string): Promise<boolean> {
       createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }>;
     }>;
   };
-  if (typeof w.showSaveFilePicker !== 'function') return false;
+  if (typeof w.showSaveFilePicker !== 'function') return 'unsupported';
   try {
     const handle = await w.showSaveFilePicker({
       suggestedName: fileName,
@@ -207,12 +212,12 @@ async function showSaveDialog(blob: Blob, fileName: string): Promise<boolean> {
     const writable = await handle.createWritable();
     await writable.write(blob);
     await writable.close();
-    return true;
+    return 'saved';
   } catch (err) {
-    // AbortError = kullanıcı iptal etti → fallback yapma, sessizce çık.
-    if (err instanceof Error && err.name === 'AbortError') return true;
+    // AbortError = kullanıcı iptal etti → çağıran taraf "Kaydetme iptal edildi" gösterir.
+    if (err instanceof Error && err.name === 'AbortError') return 'cancelled';
     console.warn('[showSaveDialog] hata, fallback download:', err);
-    return false;
+    return 'unsupported';
   }
 }
 
@@ -235,14 +240,22 @@ async function autoSaveToDownloads(
   blob: Blob,
   teklif: Teklif,
   firmaPdfKlasorAdi?: string,
-): Promise<{ saved: boolean; relativePath?: string }> {
+): Promise<{ saved: boolean; cancelled?: boolean; relativePath?: string }> {
   try {
     const fileName = buildAutoDownloadFileName(teklif, firmaPdfKlasorAdi);
     // Önce "Farklı Kaydet" penceresi (kullanıcı konum + ad seçsin); destek yoksa
     // veya hata olursa sessizce eski anchor download fallback'ine düş.
-    const saved = await showSaveDialog(blob, fileName);
-    if (!saved) browserDownload(blob, fileName);
-    return { saved: true, relativePath: saved ? fileName : `Downloads/${fileName}` };
+    const sonuc = await showSaveDialog(blob, fileName);
+    if (sonuc === 'saved') {
+      return { saved: true, relativePath: fileName };
+    }
+    if (sonuc === 'cancelled') {
+      // Kullanıcı bilinçli iptal etti → fallback DOWNLOAD yapma; çağıran "iptal" mesajı göstersin.
+      return { saved: false, cancelled: true };
+    }
+    // unsupported → otomatik anchor download (Downloads klasörü)
+    browserDownload(blob, fileName);
+    return { saved: true, relativePath: `Downloads/${fileName}` };
   } catch {
     return { saved: false };
   }
@@ -425,6 +438,18 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
       ...sonuc,
       kayitYontemi: localSave.saved ? sonuc.kayitYontemi : 'tarayici',
       yerelKayitYolu: localSave.relativePath,
+      yerelKayitIptal: localSave.cancelled,
+    };
+  }
+
+  // hedef === 'email' → kullanıcı kaydetme penceresinde iptal ettiyse mailto'yu da
+  // açma — kullanıcı işlemi durdurmak istedi.
+  if (localSave.cancelled) {
+    return {
+      ...sonuc,
+      epostaHazirlandi: false,
+      epostaTaslakYontemi: null,
+      yerelKayitIptal: true,
     };
   }
 
@@ -441,10 +466,10 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
     yerelKayitYolu: localSave.relativePath,
     epostaHatasi: acildi
       ? localSave.saved
-        ? `PDF bu bilgisayara indirildi (${firma.kisaAd}). Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
+        ? `PDF'i seçtiğiniz konuma kaydettik (${firma.kisaAd}). Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
         : 'PDF bu bilgisayara indirildi. Outlook penceresine bu PDF\'i ekleyip kontrol ederek gönderiniz.'
       : localSave.saved
-      ? `PDF bu bilgisayara indirildi (${firma.kisaAd}), ancak yerel e-posta taslağı açılamadı.`
+      ? `PDF'i seçtiğiniz konuma kaydettik (${firma.kisaAd}), ancak yerel e-posta taslağı açılamadı.`
       : 'PDF bu bilgisayara indirildi, ancak yerel e-posta taslağı açılamadı.',
   };
 }

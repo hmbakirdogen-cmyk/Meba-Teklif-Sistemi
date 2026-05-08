@@ -246,6 +246,12 @@ export default function TeklifEditor() {
   // 600ms debounce ile sessizce taslak olarak persist eder.
 
   const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu) => {
+    // Kullanıcı "Farklı Kaydet" penceresinde iptal etti → sakin info mesajı.
+    if (sonuc.yerelKayitIptal) {
+      message.info('Kaydetme iptal edildi. PDF oluşturuldu ancak diske kaydedilmedi.');
+      return;
+    }
+
     // Uzak/web istemci tespiti — server cevab\u0131ndaki bayrak veya hostname.
     const uzakIstemci = sonuc.istemciTarafindaMailtoGerekli
       || (typeof window !== 'undefined'
