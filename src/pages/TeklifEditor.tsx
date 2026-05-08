@@ -333,53 +333,15 @@ export default function TeklifEditor() {
     try {
       await waitForNextPaint();
 
-      // 2a) Önce server-side Puppeteer denemesi (font-embed, hızlı, deterministic).
-      //     Sadece "pdf" hedefi için. Email PDF email-cap (1MB) zinciri içerdiği
-      //     için şimdilik client tarafta üretilmeye devam eder.
-      let blob: Blob | null = null;
-      let pageImages: string[] = [];
-
-      if (hedef === 'pdf') {
-        try {
-          const apiClient = await import('../services/apiClient');
-          const { APP_CONFIG } = await import('../config');
-          const token = apiClient.getSessionToken() || '';
-          const firmaId = apiClient.getActiveFirmaId() || '';
-          // Auth middleware X-Session-Token ister (apiClient ile uyumlu).
-          // Authorization: Bearer ek olarak gönderilse CORS preflight Allow-Headers
-          // listesinde olmadığı için preflight başarısız olur — bu yüzden sadece
-          // X-Session-Token kullanıyoruz; sunucu render-pdf de aynı header'ı okur.
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (token) headers['X-Session-Token'] = token;
-          if (firmaId) headers['X-Firma-Id'] = firmaId;
-          const res = await fetch(`${APP_CONFIG.API_BASE}/teklif/render-pdf`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ teklifId: teklifObj.id }),
-          });
-          const data = await res.json() as { ok?: boolean; pdfBase64?: string; error?: string };
-          if (res.ok && data.ok && data.pdfBase64) {
-            const bin = atob(data.pdfBase64);
-            const u8 = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i += 1) u8[i] = bin.charCodeAt(i);
-            blob = new Blob([u8.buffer], { type: 'application/pdf' });
-          } else {
-            // sessizce client fallback'e düş; user'a yansıtmıyoruz
-            console.warn('[render-pdf] server fail, client fallback:', data.error);
-          }
-        } catch (err) {
-          console.warn('[render-pdf] network/exception, client fallback:', err);
-        }
-      }
-
-      // 2b) Server başarısız veya hedef='email' ise client tarafta üret
-      if (!blob) {
-        const { pdf, pageImages: imgs } = hedef === 'email'
-          ? await buildEmailPdf(sablonRef.current)
-          : await buildPdf(sablonRef.current);
-        pageImages = imgs;
-        blob = pdf.output('blob');
-      }
+      // 2) Client-side html2canvas + jsPDF ile PDF üretimi.
+      //    Server-side Puppeteer denemesi (/teklif/render-pdf) kalite/layout
+      //    sorunları nedeniyle devre dışı; client akışı tasarımla bire bir
+      //    eşleşiyor. İleride server route stabilize olursa burada tekrar
+      //    fallback olarak eklenebilir.
+      const { pdf, pageImages } = hedef === 'email'
+        ? await buildEmailPdf(sablonRef.current)
+        : await buildPdf(sablonRef.current);
+      const blob: Blob = pdf.output('blob');
       printImagesRef.current = pageImages;
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
