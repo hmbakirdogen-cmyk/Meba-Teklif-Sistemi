@@ -31,15 +31,38 @@ const DB_VERSION = 1;
 
 const WIN_FORBIDDEN_CHARS = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
+/**
+ * File System Access API (`showDirectoryPicker`) için destek tespiti.
+ *  - Chrome/Edge masaüstü: var.
+ *  - Safari/Firefox: yok.
+ *  - HTTP üzerinden LAN IP (örn. http://192.168.1.53:5174): bazı tarayıcılarda
+ *    `showDirectoryPicker` undefined; bazılarında çağrıda SecurityError.
+ *    `window.isSecureContext` false ise UI'da net mesaj verilir, çağrı yine
+ *    try/catch ile sarılı — runtime hata sızdırılmaz.
+ */
 function isSupported(): boolean {
   return typeof window !== 'undefined'
-    && 'showDirectoryPicker' in window
-    && 'indexedDB' in window;
+    && typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
+    && typeof window.indexedDB !== 'undefined';
+}
+
+function isSecure(): boolean {
+  return typeof window !== 'undefined' && window.isSecureContext === true;
 }
 
 function openIDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB kullanılamıyor.'));
+      return;
+    }
+    let req: IDBOpenDBRequest;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (e) {
+      reject(e);
+      return;
+    }
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
@@ -48,37 +71,61 @@ function openIDB(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error('IndexedDB açılışı engellendi.'));
   });
 }
 
 async function idbGet(key: string): Promise<unknown> {
-  const db = await openIDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  try {
+    const db = await openIDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('[pdfKayit] idbGet failed:', e);
+    return undefined;
+  }
 }
 
-async function idbPut(key: string, value: unknown): Promise<void> {
-  const db = await openIDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(value, key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+async function idbPut(key: string, value: unknown): Promise<boolean> {
+  try {
+    const db = await openIDB();
+    return await new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      try {
+        tx.objectStore(STORE).put(value, key);
+      } catch (e) {
+        // DataCloneError vs. → handle aktarılamadı, sessizce false dön.
+        console.warn('[pdfKayit] idbPut clone hata:', e);
+        resolve(false);
+        return;
+      }
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => { console.warn('[pdfKayit] idbPut tx hata:', tx.error); resolve(false); };
+      tx.onabort = () => { console.warn('[pdfKayit] idbPut abort:', tx.error); resolve(false); };
+    });
+  } catch (e) {
+    console.warn('[pdfKayit] idbPut açılış hata:', e);
+    return false;
+  }
 }
 
 async function idbDelete(key: string): Promise<void> {
-  const db = await openIDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  try {
+    const db = await openIDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 type DirHandle = FileSystemDirectoryHandle & {
@@ -87,12 +134,17 @@ type DirHandle = FileSystemDirectoryHandle & {
 };
 
 async function ensurePermission(h: DirHandle): Promise<boolean> {
-  if (!h.queryPermission) return true;
-  const cur = await h.queryPermission({ mode: 'readwrite' });
-  if (cur === 'granted') return true;
-  if (!h.requestPermission) return false;
-  const next = await h.requestPermission({ mode: 'readwrite' });
-  return next === 'granted';
+  try {
+    if (!h.queryPermission) return true;
+    const cur = await h.queryPermission({ mode: 'readwrite' });
+    if (cur === 'granted') return true;
+    if (!h.requestPermission) return false;
+    const next = await h.requestPermission({ mode: 'readwrite' });
+    return next === 'granted';
+  } catch (e) {
+    console.warn('[pdfKayit] ensurePermission hata:', e);
+    return false;
+  }
 }
 
 export interface PDFKayitSonucu {
@@ -168,28 +220,67 @@ export function usePDFKayit() {
 
   /**
    * Kullanıcı bilinçli olarak klasör seçer (Profil > Klasör Seç / Değiştir).
-   * Picker açar; iptal ederse {iptal:true} döner.
+   * Picker açar; iptal ederse {iptal:true} döner. Tüm hata yolları yakalanır;
+   * çağıran taraf hiçbir koşulda exception görmez.
    */
   const klasorSec = useCallback(async (): Promise<PDFKayitSonucu> => {
-    if (!supported) return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
-    if (!idbKey) return { ok: false, error: 'Aktif kullanıcı yok.' };
+    if (!supported) {
+      const guvenli = isSecure();
+      return {
+        ok: false,
+        desteklenmiyor: true,
+        error: guvenli
+          ? 'Bu özellik Chrome veya Edge tarayıcıda çalışır.'
+          : 'Bu özellik güvenli bağlantı (HTTPS / localhost) ve Chrome/Edge gerektirir. Şimdilik PDF\'ler tarayıcınızın İndirilenler klasörüne kaydedilecektir.',
+      };
+    }
+    if (!isSecure()) {
+      // Bazı Chrome sürümleri http://192.168.x.x üzerinde showDirectoryPicker'ı
+      // expose ediyor ama çağrıda SecurityError fırlatıyor. Önden bilgilendir.
+      return {
+        ok: false,
+        desteklenmiyor: true,
+        error: 'Bu özellik güvenli bağlantı (HTTPS / localhost) gerektirir. Şimdilik PDF\'ler tarayıcınızın İndirilenler klasörüne kaydedilecektir.',
+      };
+    }
+    if (!idbKey) return { ok: false, error: 'Aktif kullanıcı bulunamadı.' };
     try {
       const w = window as unknown as { showDirectoryPicker?: (opt: { id?: string; mode?: 'read' | 'readwrite'; startIn?: string }) => Promise<DirHandle> };
-      if (!w.showDirectoryPicker) return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
+      if (typeof w.showDirectoryPicker !== 'function') {
+        return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
+      }
+      // Picker'ı doğrudan kullanıcı gesture içinde çağır — öncesinde await yok.
       const h = await w.showDirectoryPicker({ id: `meba-teklif-pdf-${userKey}`, mode: 'readwrite' });
-      // Yazma izni ön-ısıt → ilk PDF kaydında ek prompt çıkmasın.
-      await ensurePermission(h);
-      await idbPut(idbKey, h);
+      // Yazma izni ön-ısıt → ilk PDF kaydında ek prompt çıkmasın. Hata olsa
+      // bile devam et; izin sonradan da istenebilir.
+      try { await ensurePermission(h); } catch { /* ignore */ }
+      // Handle'ı IDB'ye kaydet — başarısız olsa bile mevcut session devam eder
+      // (bellekte değil, ama klasor adı LS'de tutulduğu için yeniden seçim
+      // istenir; çağıran taraf zaten kaydetPDF'te handle yok ise fallback yapar).
+      const persisted = await idbPut(idbKey, h);
+      if (!persisted) {
+        console.warn('[pdfKayit] Handle kalıcı saklanamadı (DataCloneError olabilir). Klasör seçimi yine de oturum boyu kullanılabilir; sonraki açılışta yeniden seçim istenecek.');
+      }
       try { localStorage.setItem(lsKey, h.name); } catch { /* ignore */ }
       setKlasorAdi(h.name);
       return { ok: true, path: h.name };
     } catch (e) {
+      const err = e as Error;
       // AbortError → kullanıcı iptal etti, sakin mesaj.
-      if (e instanceof Error && e.name === 'AbortError') {
+      if (err && err.name === 'AbortError') {
         return { ok: false, iptal: true };
       }
-      const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg };
+      // SecurityError / NotAllowedError → genelde insecure context veya iframe.
+      if (err && (err.name === 'SecurityError' || err.name === 'NotAllowedError')) {
+        console.warn('[pdfKayit] klasorSec güvenlik hatası:', err);
+        return {
+          ok: false,
+          desteklenmiyor: true,
+          error: 'Tarayıcı güvenlik politikası klasör seçimine izin vermedi. PDF\'ler İndirilenler klasörüne kaydedilecek.',
+        };
+      }
+      console.error('[pdfKayit] klasorSec beklenmeyen hata:', err);
+      return { ok: false, error: err?.message || 'Klasör seçilemedi.' };
     }
   }, [supported, idbKey, lsKey, userKey]);
 
@@ -226,7 +317,13 @@ export function usePDFKayit() {
     if (!supported) return { ok: false, desteklenmiyor: true };
     if (!idbKey) return { ok: false, klasorYok: true };
 
-    const root = await handleYukle();
+    let root: DirHandle | null = null;
+    try {
+      root = await handleYukle();
+    } catch (e) {
+      console.warn('[pdfKayit] handleYukle hata:', e);
+      root = null;
+    }
     if (!root) {
       // Handle yok veya izin reddedildi → adı da temizle, UI "seçilmedi" göstersin.
       try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
@@ -251,8 +348,10 @@ export function usePDFKayit() {
       if (klasorAdi !== root.name) setKlasorAdi(root.name);
       return { ok: true, path: root.name + '\\' + folderName + '\\' + fileName };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('NotAllowed') || msg.includes('denied')) {
+      const err = e as Error;
+      const msg = err?.message || String(e);
+      console.warn('[pdfKayit] kaydetPDF yazma hatası:', err);
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || msg.includes('NotAllowed') || msg.includes('denied')) {
         try { await idbDelete(idbKey); } catch { /* ignore */ }
         try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
         setKlasorAdi(null);
@@ -267,6 +366,8 @@ export function usePDFKayit() {
 
   return {
     supported,
+    /** Secure context (HTTPS / localhost) — UI bilgilendirmesi için. */
+    secureContext: isSecure(),
     /** UI'da "PDF Konumu: ..." göstermek için klasör adı (null = seçilmedi). */
     klasorAdi,
     hasKlasor: !!klasorAdi,

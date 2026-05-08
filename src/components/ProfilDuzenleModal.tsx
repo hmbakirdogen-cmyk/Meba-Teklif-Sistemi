@@ -50,10 +50,14 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
       } else if (r.iptal) {
         message.info('Klasör seçimi iptal edildi.');
       } else if (r.desteklenmiyor) {
-        message.warning('Bu özellik Chrome veya Edge tarayıcıda çalışır. Şimdilik PDF normal indirme klasörüne kaydedilecek.');
+        message.warning(r.error || 'Bu özellik Chrome veya Edge tarayıcıda çalışır. Şimdilik PDF normal indirme klasörüne kaydedilecek.');
       } else if (r.error) {
         message.warning(`Klasör seçilemedi: ${r.error}`);
       }
+    } catch (e) {
+      // Hook artık tüm hataları yakalıyor; yine de son güvenlik ağı.
+      console.error('[ProfilDuzenleModal] klasorSec exception:', e);
+      message.warning('Klasör seçimi şu an yapılamıyor. PDF\'ler İndirilenler klasörüne kaydedilmeye devam edecek.');
     } finally {
       setKlasorYukleniyor(false);
     }
@@ -157,6 +161,13 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
             showIcon
             message="Bu özellik Chrome veya Edge tarayıcıda çalışır"
             description="Tarayıcınız desteklemiyor; PDF'ler şimdilik tarayıcınızın İndirilenler klasörüne kaydedilecek."
+          />
+        ) : !pdfKayit.secureContext ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Güvenli bağlantı gerekiyor"
+            description="PDF kayıt konumu özelliği yalnızca HTTPS veya localhost üzerinde çalışır. Bu sayfaya HTTP ile bağlandığınız için klasör seçimi şu an kullanılamıyor; PDF'ler İndirilenler klasörüne kaydedilecek."
           />
         ) : (
           <>
