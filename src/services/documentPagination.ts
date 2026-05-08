@@ -17,7 +17,18 @@ import { DOCUMENT_PAGE, mmToPx, computeSetGroupPos } from '../templates/teklifDo
  */
 
 const CONTINUATION_TOP_GAP_PX = 10;
-const TRAILING_BLOCK_SAFETY_PX = 20;
+/**
+ * Trailing bloklar (totals + signature) için optik güvenlik tamponu.
+ * Bu değer arttıkça, son sayfa doluluğu azalır ve widow kuralı daha erken
+ * devreye girerek son ürün bloğunu yeni sayfaya çeker.
+ */
+const TRAILING_BLOCK_SAFETY_PX = 56;
+/**
+ * Her sayfanın alt bölgesinde korunan optik boşluk. Satır blokları bu kadar
+ * kapasiteyi "görünmez" sayar; böylece son satırlar sayfanın dibine yapışmaz
+ * ve bazı durumlarda 1 satır önceden yeni sayfaya geçiş tetiklenir.
+ */
+const OPTICAL_ROW_BOTTOM_BUFFER_PX = 24;
 
 function outerHeight(el: HTMLElement | null): number {
   if (!el) return 0;
@@ -217,9 +228,13 @@ function placeBlockOnPages(
   currentPage.showTableHeader = true;
 
   const capacity = pageCapacity(currentPage, measurements);
+  // Optik güvenlik tamponu: sayfa alt kenarında OPTICAL_ROW_BOTTOM_BUFFER_PX
+  // kadar alan "görünmez" sayılır. Bu, son satırların sayfanın dibine
+  // yapışmasını önler ve gerektiğinde 1 satır erken page break üretir.
+  const opticalCapacity = capacity - OPTICAL_ROW_BOTTOM_BUFFER_PX;
   const interBlockGap = currentPage.rowHeightUsed > 0 ? measurements.tableSpacerHeight : 0;
   const willOverflow = currentPage.rowHeightUsed > 0
-    && currentPage.rowHeightUsed + interBlockGap + block.height > capacity;
+    && currentPage.rowHeightUsed + interBlockGap + block.height > opticalCapacity;
 
   if (willOverflow) {
     currentPage = startNewPage(pages);
