@@ -174,7 +174,7 @@ export function useBelgeState(
   const [teklifNoDurumu, setTeklifNoDurumu] = useState<'hazir' | 'yukleniyor' | 'hata'>(
     mevcut ? 'hazir' : 'yukleniyor',
   );
-  const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().subtract(3, 'day').format('YYYY-MM-DD'));
+  const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
   const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ? cariEpostaVarsayilanla(mevcut.cari) : null);
   const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
   const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? (v?.paraBirimi as ParaBirimi) ?? 'EUR');

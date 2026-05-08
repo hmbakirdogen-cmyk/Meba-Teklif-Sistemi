@@ -1092,6 +1092,11 @@ export const SET_ALT_KALEM_FRAME_CLOSE_STYLE: CSSProperties = Object.freeze({
   borderRight: '0.9px solid #BFBFBF',
 });
 
+export const SET_ALT_KALEM_FRAME_CLOSE_TOP_STYLE: CSSProperties = Object.freeze({
+  borderRight: '0.9px solid #BFBFBF',
+  borderTopRightRadius: '8px',
+});
+
 export const SET_ALT_KALEM_FRAME_CLOSE_BOTTOM_STYLE: CSSProperties = Object.freeze({
   borderRight: '0.9px solid #BFBFBF',
   borderBottomRightRadius: '8px',
@@ -1103,10 +1108,12 @@ export function getSetAltKalemEmptyCellStyle(isSetAltKalem?: boolean): CSSProper
 
 export function getSetAltKalemFrameCloseStyle(
   isSetAltKalem: boolean | undefined,
-  isBottom: boolean,
+  setGroupPos: 'top' | 'middle' | 'bottom' | null,
 ): CSSProperties {
   if (!isSetAltKalem) return {};
-  return isBottom ? SET_ALT_KALEM_FRAME_CLOSE_BOTTOM_STYLE : SET_ALT_KALEM_FRAME_CLOSE_STYLE;
+  if (setGroupPos === 'top') return SET_ALT_KALEM_FRAME_CLOSE_TOP_STYLE;
+  if (setGroupPos === 'bottom') return SET_ALT_KALEM_FRAME_CLOSE_BOTTOM_STYLE;
+  return SET_ALT_KALEM_FRAME_CLOSE_STYLE;
 }
 
 export function getSetStepClass(isSetAltKalem: boolean | undefined, setGroupPos: 'top' | 'middle' | 'bottom' | null): string {
@@ -1163,8 +1170,8 @@ export const NOTES_BOX_STYLE: CSSProperties = {
 };
 
 export const SIGNATURE_SECTION_STYLE: CSSProperties = {
-  marginTop: `${SIGNATURE_METRICS.sectionMarginTopPx}px`,
-  padding: `${SIGNATURE_METRICS.sectionPaddingYpx}px 0 ${SIGNATURE_METRICS.sectionPaddingYpx}px`,
+  marginTop: '18px',
+  padding: '18px 0 22px',
   ...noBreak,
 };
 

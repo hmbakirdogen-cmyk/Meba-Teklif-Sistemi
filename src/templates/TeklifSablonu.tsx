@@ -41,13 +41,6 @@ import {
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
   SIGNATURE_BLOCK_ROW_STYLE,
-  SIGNATURE_CONTENT_ROW_STYLE,
-  SIGNATURE_FIELD_STYLE,
-  SIGNATURE_FIELDS_GRID_STYLE,
-  SIGNATURE_FIELDS_HOST_STYLE,
-  SIGNATURE_LABEL_STYLE,
-  SIGNATURE_LINE_STYLE,
-  SIGNATURE_METRICS,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_STYLE,
@@ -513,6 +506,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('miktar'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
+                  ...(!satirBazliParaBirimi ? getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos) : {}),
                 })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
@@ -539,7 +533,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   letterSpacing: '0.03em',
                   ...getOfferTableSeparatorStyle('paraBirimi'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
-                  ...getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos === 'bottom'),
+                  ...(satirBazliParaBirimi ? getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos) : {}),
                 })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
@@ -744,22 +738,22 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         {/* ── SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına ── */}
         <div id="pdf-signature-block" style={SIGNATURE_BLOCK_ROW_STYLE}>
 
-          {/* SİPARİŞİ VEREN — sayfa genişliğinin %100'ü, 3 sütun (İsim+Tarih | Kaşe | İmza) */}
-          <div style={{ flex: '0 0 100%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
-          <div style={SIGNATURE_CONTENT_ROW_STYLE}>
+          {/* SİPARİŞİ VEREN — sayfa genişliğinin %70'i, ferah iç boşluk */}
+          <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
 
             {/* Sol: 2-satır dikey başlık — biraz büyük, daha ferah tracking */}
             <div style={{
               flexShrink: 0,
-              width: '56px',
-              minHeight: '74px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'visible',
+              position: 'relative',
+              width: '40px',
+              overflow: 'hidden',
             }}>
               <div style={{
-                transform: 'rotate(-90deg)',
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%) rotate(-90deg)',
                 width: '120px',
                 textAlign: 'left',
                 userSelect: 'none',
@@ -788,34 +782,30 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               </div>
             </div>
 
-            {/* Sağ: İçerik — isim+tarih | imza & kaşe */}
-            <div style={SIGNATURE_FIELDS_HOST_STYLE}>
-              <div style={SIGNATURE_FIELDS_GRID_STYLE}>
-                <div style={{ ...SIGNATURE_FIELD_STYLE, display: 'flex', flexDirection: 'column', gap: `${SIGNATURE_METRICS.detailsFieldGapPx}px` }}>
-                  <div style={{ ...SIGNATURE_FIELD_STYLE, width: '100%', maxWidth: '100%' }}>
-                    <div style={SIGNATURE_LINE_STYLE} />
-                    <div style={SIGNATURE_LABEL_STYLE}>
-                      <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
-                      <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                      <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
-                    </div>
-                  </div>
-                  <div style={{ ...SIGNATURE_FIELD_STYLE, width: '100%', maxWidth: '100%' }}>
-                    <div style={SIGNATURE_LINE_STYLE} />
-                    <div style={SIGNATURE_LABEL_STYLE}>
-                      <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
-                      <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                      <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ ...SIGNATURE_FIELD_STYLE, width: `${SIGNATURE_METRICS.fieldsGridStampWidthMm}mm`, maxWidth: `${SIGNATURE_METRICS.fieldsGridStampWidthMm}mm` }}>
-                  <div style={{ ...SIGNATURE_LINE_STYLE, width: `${SIGNATURE_METRICS.fieldsGridStampWidthMm}mm`, maxWidth: `${SIGNATURE_METRICS.fieldsGridStampWidthMm}mm` }} />
-                  <div style={SIGNATURE_LABEL_STYLE}>
-                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza & Kaşe</span>
+            {/* Sağ: İçerik — isim, tarih, imza */}
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
+                <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45' }}>
+                  <div style={{ marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
                     <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature & Stamp</span>
+                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
                   </div>
+                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px', marginBottom: '12px' }} />
+                  <div style={{ marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
+                    <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
+                  </div>
+                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                </div>
+                <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '0' }}>
+                  <div style={{ marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                    <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                  </div>
+                  <div style={{ borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 </div>
               </div>
             </div>
