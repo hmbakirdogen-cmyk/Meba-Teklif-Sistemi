@@ -1117,9 +1117,7 @@ export function getSetAltKalemFrameCloseStyle(
 }
 
 export function getSetStepClass(isSetAltKalem: boolean | undefined, setGroupPos: 'top' | 'middle' | 'bottom' | null): string {
-  // Alt kalemler için artık rcCell(setGroupPos) ile çerçeve sağı teslimat kolonunda kapanıyor;
-  // 'set-altkalem-empty' sınıfı gerekmiyor.
-  if (isSetAltKalem) return '';
+  if (isSetAltKalem) return 'set-altkalem-empty';
   return setGroupPos === 'top' ? 'set-parent-step' : '';
 }
 
@@ -1172,8 +1170,8 @@ export const NOTES_BOX_STYLE: CSSProperties = {
 };
 
 export const SIGNATURE_SECTION_STYLE: CSSProperties = {
-  marginTop: '6px',
-  padding: '4px 0 8px',
+  marginTop: '18px',
+  padding: '18px 0 22px',
   ...noBreak,
 };
 

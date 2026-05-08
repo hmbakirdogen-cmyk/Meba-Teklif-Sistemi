@@ -44,6 +44,8 @@ import {
   buildSettingsItems,
   getOfferTableSeparatorClass,
   getOfferTableSeparatorStyle,
+  getSetAltKalemEmptyCellStyle,
+  getSetAltKalemFrameCloseStyle,
   getSetStepClass,
   getTableHeadCellStyle,
   noBreak,
@@ -373,6 +375,7 @@ function TableSection({
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('miktar'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
+                  ...(!satirBazliParaBirimi ? getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos) : {}),
                 })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
@@ -385,19 +388,19 @@ function TableSection({
                     </div>
                   ) : '-'}
                 </td>
-                <td className={getOfferTableSeparatorClass('paraBirimi')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...getOfferTableSeparatorStyle('paraBirimi'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={getOfferTableSeparatorClass('paraBirimi')} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.helper, whiteSpace: 'nowrap', fontWeight: 700, letterSpacing: '0.03em', ...getOfferTableSeparatorStyle('paraBirimi'), ...rcCell('mid', idx, undefined, setGroupPos), ...(satirBazliParaBirimi ? getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos) : {}) })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
-                <td className={`${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('birimFiyat'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={`${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('birimFiyat'), ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...getSetAltKalemEmptyCellStyle(satir.setAltKalem) })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
                     return Math.abs(nihai) >= 0.005 ? formatDisplayNumber(nihai, 2, 2) : '-';
                   })()}
                 </td>
-                <td className={`${getOfferTableSeparatorClass('toplam') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('toplam'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
+                <td className={`${getOfferTableSeparatorClass('toplam') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'right', verticalAlign: 'middle', fontSize: '11px', fontWeight: 700, color: TABLE_TEXT.numeric, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...getOfferTableSeparatorStyle('toplam'), ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...getSetAltKalemEmptyCellStyle(satir.setAltKalem) })}>
                   {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-')}
                 </td>
-                <td className={`${getOfferTableSeparatorClass('teslimat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...getOfferTableSeparatorStyle('teslimat'), ...rcCell('last', idx, undefined, setGroupPos) })}>
+                <td className={`${getOfferTableSeparatorClass('teslimat') ?? ''} ${getSetStepClass(satir.setAltKalem, setGroupPos)}`.trim() || undefined} style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`, color: TABLE_TEXT.passive, whiteSpace: 'nowrap', lineHeight: LINE_ITEM_METRICS.deliveryLineHeight, ...getOfferTableSeparatorStyle('teslimat'), ...rcCell('last', idx, undefined, satir.setAltKalem ? null : setGroupPos), ...getSetAltKalemEmptyCellStyle(satir.setAltKalem) })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '-')}
                 </td>
               </tr>
@@ -533,7 +536,7 @@ function SignatureBlock() {
 
       {/* SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına. Ferah */}
       <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE } as React.CSSProperties}>
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: '18px' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
 
         {/* Sol: 2-satır dikey başlık — biraz büyütüldü, tracking arttırıldı */}
         <div style={{
@@ -547,29 +550,29 @@ function SignatureBlock() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%) rotate(-90deg)',
-            width: '100px',
+            width: '120px',
             textAlign: 'left',
             userSelect: 'none',
             whiteSpace: 'nowrap',
             fontFamily: SF_FONT,
           }}>
             <div style={{
-              fontSize: '10.8px',
+              fontSize: '12px',
               fontWeight: 600,
               color: C.sigPrimary,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.10em',
               textTransform: 'uppercase',
-              lineHeight: 1.1,
-              marginBottom: '4px',
+              lineHeight: 1.2,
+              marginBottom: '6px',
             }}>
               Siparişi Veren
             </div>
             <div style={{
-              fontSize: '8.64px',
+              fontSize: '9.2px',
               fontWeight: 400,
               color: C.sigSecondary,
-              letterSpacing: '0.04em',
-              lineHeight: 1.1,
+              letterSpacing: '0.06em',
+              lineHeight: 1.2,
             }}>
               Authorised Person
             </div>
@@ -578,8 +581,8 @@ function SignatureBlock() {
 
         {/* Sağ: İçerik — isim, tarih, imza */}
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-            <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45', fontFamily: SF_FONT }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
+            <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45', fontFamily: SF_FONT }}>
               <div style={{ position: 'relative', top: '16px' }}>
                 <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 <div style={{ marginBottom: '6px', marginTop: '2px' }}>

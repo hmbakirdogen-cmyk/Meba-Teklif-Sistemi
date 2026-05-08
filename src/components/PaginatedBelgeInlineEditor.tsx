@@ -44,11 +44,6 @@ import {
   PARTY_LABEL_STYLE,
   PARTY_NAME_STYLE,
   ROW_CARD,
-  TableColgroup,
-  buildSettingsItems,
-  computeTotalsAmountRightOffset,
-  getOfferTableSeparatorClass,
-  getOfferTableSeparatorStyle,
   getSettingsGridStyle,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
@@ -57,9 +52,22 @@ import {
   SETTINGS_EN_LABEL_STYLE,
   SETTINGS_VALUE_STYLE,
   SIGNATURE_BLOCK_ROW_STYLE,
+  SIGNATURE_CONTENT_ROW_STYLE,
+  SIGNATURE_FIELD_STYLE,
+  SIGNATURE_FIELDS_GRID_STYLE,
+  SIGNATURE_FIELDS_HOST_STYLE,
+  SIGNATURE_LABEL_STYLE,
+  SIGNATURE_LINE_STYLE,
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_TITLE_STYLE,
+  TableColgroup,
+  computeTotalsAmountRightOffset,
+  buildSettingsItems,
+  getOfferTableSeparatorClass,
+  getOfferTableSeparatorStyle,
+  getSetAltKalemEmptyCellStyle,
+  getSetAltKalemFrameCloseStyle,
   getSetStepClass,
   getTableHeadCellStyle,
   computeSetGroupPos,
@@ -1613,7 +1621,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'center',
                         ...getOfferTableSeparatorStyle('paraBirimi'),
                         ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('paraBirimi'), setGroupPos !== null),
-                        // frame-close artık teslimat kolonunda — burada kaldırıldı
+                        ...getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos === 'bottom'),
                       })}
                     >
                       {satirBazliParaBirimi ? (
@@ -1624,7 +1632,7 @@ export default function PaginatedBelgeInlineEditor({
                     <RowCell
                       idx={idx}
                       pos="mid"
-                      setGroupPos={setGroupPos}
+                      setGroupPos={satir.setAltKalem ? null : setGroupPos}
                       data-cell-field="birimFiyat"
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
                       className={(() => {
@@ -1638,6 +1646,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'right',
                         ...getOfferTableSeparatorStyle('birimFiyat'),
                         ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('birimFiyat'), setGroupPos !== null),
+                        ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                       })}
                     >
                       {satir.setAltKalem ? null : (
@@ -1651,7 +1660,7 @@ export default function PaginatedBelgeInlineEditor({
                     <RowCell
                       idx={idx}
                       pos="mid"
-                      setGroupPos={setGroupPos}
+                      setGroupPos={satir.setAltKalem ? null : setGroupPos}
                       className={(() => {
                         const base = getOfferTableSeparatorClass('toplam') ?? '';
                         const step = getSetStepClass(satir.setAltKalem, setGroupPos);
@@ -1662,6 +1671,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'right',
                         ...getOfferTableSeparatorStyle('toplam'),
                         ...getMarkedCellStyle(isMarked, 'mid', false, setGroupPos !== null),
+                        ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                       })}
                     >
                       {satir.setAltKalem ? null : (
@@ -1670,11 +1680,11 @@ export default function PaginatedBelgeInlineEditor({
                         </span>
                       )}
                     </RowCell>
-                    {/* Teslimat — alt kalemde boş; set frame sağ kenarı burada kapanır (rcCell setGroupPos ile). */}
+                    {/* Teslimat — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
                     <RowCell
                       idx={idx}
                       pos="last"
-                      setGroupPos={setGroupPos}
+                      setGroupPos={satir.setAltKalem ? null : setGroupPos}
                       data-cell-field="teslimat"
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
                       className={(() => {
@@ -1689,6 +1699,7 @@ export default function PaginatedBelgeInlineEditor({
                         textAlign: 'center',
                         ...getOfferTableSeparatorStyle('teslimat'),
                         ...getMarkedCellStyle(isMarked, 'last', isActiveCell('teslimat'), setGroupPos !== null),
+                        ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
                       })}
                     >
                       {satir.setAltKalem ? null : (
@@ -1947,76 +1958,76 @@ export default function PaginatedBelgeInlineEditor({
               <div style={{ marginTop: 'auto' }}>
                 <div style={SIGNATURE_BLOCK_ROW_STYLE}>
 
-                  {/* SİPARİŞİ VEREN bloğu — Genel Toplam'dan bağımsız, tek başına. Ferah */}
-                  <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
-                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '18px' }}>
+                  {/* SİPARİŞİ VEREN bloğu — tam genişlik, 3 sütun (İsim+Tarih | Kaşe | İmza) */}
+                  <div style={{ flex: '0 0 100%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
+                  <div style={SIGNATURE_CONTENT_ROW_STYLE}>
 
-                    {/* Sol: 2-satır dikey başlık — biraz büyütüldü, tracking arttırıldı */}
+                    {/* Sol: 2-satır dikey başlık (rotasyonlu) — biraz büyütüldü */}
                     <div style={{
                       flexShrink: 0,
                       position: 'relative',
-                      width: '40px',
-                      overflow: 'hidden',
+                      width: '52px',
+                      overflow: 'visible',
                     }}>
                       <div style={{
                         position: 'absolute',
                         top: '50%',
                         left: '50%',
                         transform: 'translate(-50%, -50%) rotate(-90deg)',
-                        width: '100px',
+                        width: '120px',
                         textAlign: 'left',
                         userSelect: 'none',
                         whiteSpace: 'nowrap',
                       }}>
                         <div style={{
-                          fontSize: '10.8px',
+                          fontSize: '12px',
                           fontWeight: 600,
                           color: C.sigPrimary,
-                          letterSpacing: '0.06em',
+                          letterSpacing: '0.10em',
                           textTransform: 'uppercase',
-                          lineHeight: 1.1,
-                          marginBottom: '4px',
+                          lineHeight: 1.2,
+                          marginBottom: '6px',
                         }}>
                           Siparişi Veren
                         </div>
                         <div style={{
-                          fontSize: '8.64px',
+                          fontSize: '9.2px',
                           fontWeight: 400,
                           color: C.sigSecondary,
-                          letterSpacing: '0.04em',
-                          lineHeight: 1.1,
+                          letterSpacing: '0.06em',
+                          lineHeight: 1.2,
                         }}>
                           Authorised Person
                         </div>
                       </div>
                     </div>
 
-                    {/* Sağ: İçerik — isim, tarih, imza */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
-                        <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
-                          <div style={{ position: 'relative', top: '16px' }}>
-                            <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                            <div style={{ marginBottom: '6px', marginTop: '2px' }}>
-                              <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
-                              <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                              <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
-                            </div>
+                    {/* Sağ: İçerik — isim+tarih | imza & kaşe */}
+                    <div style={SIGNATURE_FIELDS_HOST_STYLE}>
+                      <div style={SIGNATURE_FIELDS_GRID_STYLE}>
+                        <div style={SIGNATURE_FIELD_STYLE}>
+                          <div style={SIGNATURE_LABEL_STYLE}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                            <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
                           </div>
-                          <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                          <div style={{ marginTop: '2px' }}>
+                          <div style={SIGNATURE_LINE_STYLE} />
+                        </div>
+                        <div style={SIGNATURE_FIELD_STYLE}>
+                          <div style={SIGNATURE_LABEL_STYLE}>
                             <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
                             <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                             <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
                           </div>
+                          <div style={SIGNATURE_LINE_STYLE} />
                         </div>
-                        <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px' }}>
-                          <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
-                          <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
-                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
+                        <div style={SIGNATURE_FIELD_STYLE}>
+                          <div style={SIGNATURE_LABEL_STYLE}>
+                            <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza & Kaşe</span>
                             <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
+                            <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature & Stamp</span>
                           </div>
+                          <div style={SIGNATURE_LINE_STYLE} />
                         </div>
                       </div>
                     </div>
