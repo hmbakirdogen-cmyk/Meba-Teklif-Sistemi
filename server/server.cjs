@@ -629,7 +629,7 @@ async function outlookTaslagiAc({ aliciEposta, konu, govde, htmlGovde, ekDosyaYo
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
 // Body size limit: 10 MB. Buyuk PDF/imaj uploadlari icin yeterli; DoS'tan korur.
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+const MAX_BODY_BYTES = 60 * 1024 * 1024;
 
 function parseBody(req) {
   return new Promise((resolve, reject) => {
@@ -639,7 +639,7 @@ function parseBody(req) {
       receivedBytes += chunk.length;
       if (receivedBytes > MAX_BODY_BYTES) {
         req.destroy();
-        reject(new Error('İstek gövdesi çok büyük (maks 10 MB).'));
+        reject(new Error('İstek gövdesi çok büyük (maks 60 MB).'));
         return;
       }
       body += chunk;

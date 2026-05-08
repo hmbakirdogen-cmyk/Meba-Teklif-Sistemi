@@ -229,7 +229,7 @@ export async function buildPdf(
 ): Promise<{ pdf: jsPDF; pageImages: string[] }> {
   const canvases = await renderPageCanvases(pagedRootEl);
   const pageImages = canvases.map(encodeCanvasToPng);
-  const pdf = buildPdfFromImages(pageImages, 'PNG', 'NONE');
+  const pdf = buildPdfFromImages(pageImages, 'PNG', 'FAST');
   return { pdf, pageImages };
 }
 
