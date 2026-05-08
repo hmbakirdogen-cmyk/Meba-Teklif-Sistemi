@@ -1430,7 +1430,11 @@ const server = http.createServer(async (req, res) => {
 
         const mailHtmlGovdesi = mailHtmlGovdesiUret(teklif, logoBase64, teklifFirmaProfili);
 
-        const acmaSonucu = hedef === 'pdf'
+        // PDF dosyasını yalnızca aynı makinedeki istemci tetiklediyse aç —
+        // remote (LAN) web client için PDF, kullanıcının tarayıcısına indirilir
+        // (client tarafında `teklifDisaAktarVeGerekirseYerelTaslakAc` yapar);
+        // server bilgisayarda Adobe Reader vb. asla açılmaz.
+        const acmaSonucu = hedef === 'pdf' && ayniMakineIstemci
           ? dosyaAc(tamYol)
           : { acildi: false };
         const epostaSonucu = hedef === 'email' && ayniMakineIstemci
