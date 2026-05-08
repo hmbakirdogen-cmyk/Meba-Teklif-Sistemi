@@ -17,7 +17,8 @@ import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { urunSetService } from '../services/urunSetService';
-import { referansVeriService, VARSAYILAN_MARKA } from '../services/referansVeriService';
+import { referansVeriService, getVarsayilanMarka } from '../services/referansVeriService';
+import { useFirma } from '../context/useFirma';
 import { sanitizeMultilineText } from '../utils/formatters';
 import { isYonetici } from '../utils/yetkiUtils';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
@@ -54,6 +55,8 @@ export interface BelgeState {
   odemeVadesi: string;
   contactName: string;
   contactTitle: 'BEY' | 'HANIM';
+  ilgiliKisiId?: string;
+  ilgiliKisiAdSoyad?: string;
   gecerlilikSuresi: string;
   dovizKuru: string;
   olusturmaTarihi: string;
@@ -92,6 +95,7 @@ interface BelgeActions {
   setCariSehir: (sehir: string) => void;
   setContactName: (name: string) => void;
   setContactTitle: (title: 'BEY' | 'HANIM') => void;
+  setIlgiliKisi: (id: string | null, adSoyad: string | null) => void;
   setGecerlilikSuresi: (sure: string) => void;
   setDovizKuru: (kur: string) => void;
 
@@ -154,6 +158,12 @@ export function useBelgeState(
 ): BelgeState & BelgeActions {
   const mevcut = mevcutId ? teklifService.teklifGetir(mevcutId) : null;
   const birimler = referansVeriService.birimler.tumunuGetir();
+  // Aktif firma varsayılanları — yeni teklif hücrelerinde (paraBirimi, kdv,
+  // vade, geçerlilik, marka, birim, teslim) fallback olarak kullanılır.
+  // Mevcut teklifte kayıttaki değer öncelikli; varsayılan EZMEZ.
+  const { aktifFirma } = useFirma();
+  const v = aktifFirma?.varsayilanlar;
+  const varsayilanMarka = getVarsayilanMarka(v);
   // Mevcut teklifin orijinal sahibi — useRef ile tek seferinde sabitlenir.
   // teklifGetir her render'da çağrılır; autoSave sonrası store'daki sahip değişirse
   // bu ref etkilenmez ve kontrol geçerliliğini korur.
@@ -164,10 +174,10 @@ export function useBelgeState(
   const [teklifNoDurumu, setTeklifNoDurumu] = useState<'hazir' | 'yukleniyor' | 'hata'>(
     mevcut ? 'hazir' : 'yukleniyor',
   );
-  const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
+  const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().subtract(3, 'day').format('YYYY-MM-DD'));
   const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ? cariEpostaVarsayilanla(mevcut.cari) : null);
   const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
-  const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? 'EUR');
+  const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? (v?.paraBirimi as ParaBirimi) ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
   const [satirBazliIskonto, setSatirBazliIskontoState] = useState(mevcut?.satirBazliIskonto ?? false);
   const [durum, setDurumState] = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
@@ -176,12 +186,14 @@ export function useBelgeState(
   const [notlarGosterilsin, setNotlarGosterilsinState] = useState<boolean>(
     mevcut?.notlarGosterilsin ?? !!(mevcut?.notlar && mevcut.notlar.trim().length > 0)
   );
-  const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? 0);
-  const [iskontoOrani, setIskontoOraniState] = useState(mevcut?.iskontoOrani ?? 0);
-  const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? '45 Gün');
+  const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? v?.kdvOrani ?? 0);
+  const [iskontoOrani, setIskontoOraniState] = useState(mevcut?.iskontoOrani ?? v?.iskontoOrani ?? 0);
+  const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? v?.odemeVadesi ?? '45 Gün');
   const [contactName, setContactNameState] = useState(mevcut?.contactName ?? '');
   const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
-  const [gecerlilikSuresi, setGecerlilikSuresiState] = useState<string>(mevcut?.gecerlilikSuresi ?? '1 Hafta');
+  const [ilgiliKisiId, setIlgiliKisiIdState] = useState<string | undefined>(mevcut?.ilgiliKisiId);
+  const [ilgiliKisiAdSoyad, setIlgiliKisiAdSoyadState] = useState<string | undefined>(mevcut?.ilgiliKisiAdSoyad);
+  const [gecerlilikSuresi, setGecerlilikSuresiState] = useState<string>(mevcut?.gecerlilikSuresi ?? v?.gecerlilikSuresi ?? '1 Hafta');
   const [dovizKuru, setDovizKuruState] = useState<string>(mevcut?.dovizKuru ?? 'TCMB Fatura');
   const [olusturmaTarihi] = useState(mevcut?.olusturmaTarihi ?? dayjs().toISOString());
   const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
@@ -235,7 +247,22 @@ export function useBelgeState(
       setContactNameState(secilen.yetkiliKisi ?? '');
       setContactTitleState('BEY');
     }
-  }, []);
+    // Akıllı hatırlama: yalnızca yeni teklifte (mevcutId yok), bu cariye
+    // ait en son teklifin para birimi / ödeme vadesi / KDV oranını önceden
+    // doldur. Kullanıcı isterse değiştirebilir; firma varsayılanlarını
+    // ezer çünkü cari-bazlı ayarlar daha spesifiktir.
+    if (!mevcutId) {
+      const sonCariTeklif = teklifService
+        .tumTeklifleriGetir(kullanici ?? undefined)
+        .filter((t) => t.cari?.id === secilen.id)
+        .sort((a, b) => (b.tarih || '').localeCompare(a.tarih || ''))[0];
+      if (sonCariTeklif) {
+        if (sonCariTeklif.paraBirimi) setParaBirimiState(sonCariTeklif.paraBirimi);
+        if (sonCariTeklif.odemeVadesi) setOdemeVadesiState(sonCariTeklif.odemeVadesi);
+        if (typeof sonCariTeklif.kdvOrani === 'number') setKdvOraniState(sonCariTeklif.kdvOrani);
+      }
+    }
+  }, [mevcutId, kullanici]);
 
   const setCariEPosta = useCallback((email: string) => {
     if (!cari) return;
@@ -276,6 +303,11 @@ export function useBelgeState(
     setContactTitleState(title);
     if (cari) cariService.cariMuhatapGuncelle(cari.id, contactName.trim(), title);
   }, [cari, contactName]);
+
+  const setIlgiliKisi = useCallback((id: string | null, adSoyad: string | null) => {
+    setIlgiliKisiIdState(id || undefined);
+    setIlgiliKisiAdSoyadState(adSoyad || undefined);
+  }, []);
 
   const setGecerlilikSuresi = useCallback((sure: string) => {
     setGecerlilikSuresiState(sure);
@@ -322,6 +354,8 @@ export function useBelgeState(
       dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
+      ilgiliKisiId,
+      ilgiliKisiAdSoyad,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
       status: 'taslak',
       visibility,
@@ -345,6 +379,8 @@ export function useBelgeState(
     kullanici,
     contactName,
     contactTitle,
+    ilgiliKisiId,
+    ilgiliKisiAdSoyad,
     gecerlilikSuresi,
     dovizKuru,
     gorseller,
@@ -359,16 +395,16 @@ export function useBelgeState(
   const satirEkle = useCallback(() => {
     const yeni: TeklifSatiri = {
       id: hesaplamaMotoru.satirIdUret(),
-      marka: VARSAYILAN_MARKA,
+      marka: varsayilanMarka,
       urunKod: '',
       urunAdi: '',
       aciklama: '',
       paraBirimi: hesaplamaMotoru.varsayilanSatirParaBirimi(paraBirimi),
       miktar: 1,
-      birim: birimler[0] ?? 'Adet',
+      birim: v?.birim || birimler[0] || 'Adet',
       birimFiyat: 0,
       indirimOrani: 0,
-      teslimTarihi: '2-3 Gün',
+      teslimTarihi: v?.teslimTarihi || '2-3 Gün',
       satirToplami: 0,
     };
     setSatirlarState(prev => {
@@ -377,21 +413,21 @@ export function useBelgeState(
       return next;
     });
     setSeciliSatirId(yeni.id);
-  }, [paraBirimi, birimler, satirDegisimiAnlikKaydet]);
+  }, [paraBirimi, birimler, satirDegisimiAnlikKaydet, varsayilanMarka, v?.birim, v?.teslimTarihi]);
 
   const satirArayaEkle = useCallback((afterIndex: number) => {
     const yeni: TeklifSatiri = {
       id: hesaplamaMotoru.satirIdUret(),
-      marka: VARSAYILAN_MARKA,
+      marka: varsayilanMarka,
       urunKod: '',
       urunAdi: '',
       aciklama: '',
       paraBirimi: hesaplamaMotoru.varsayilanSatirParaBirimi(paraBirimi),
       miktar: 1,
-      birim: birimler[0] ?? 'Adet',
+      birim: v?.birim || birimler[0] || 'Adet',
       birimFiyat: 0,
       indirimOrani: 0,
-      teslimTarihi: '2-3 Gün',
+      teslimTarihi: v?.teslimTarihi || '2-3 Gün',
       satirToplami: 0,
     };
     setSatirlarState(prev => {
@@ -401,7 +437,7 @@ export function useBelgeState(
       return next;
     });
     setSeciliSatirId(yeni.id);
-  }, [paraBirimi, birimler, satirDegisimiAnlikKaydet]);
+  }, [paraBirimi, birimler, satirDegisimiAnlikKaydet, varsayilanMarka, v?.birim, v?.teslimTarihi]);
 
   const satirSil = useCallback((id: string) => {
     setSatirlarState(prev => {
@@ -456,7 +492,7 @@ export function useBelgeState(
 
       const altKalemler: TeklifSatiri[] = set.kalemler.map((kalem) => ({
         id: hesaplamaMotoru.satirIdUret(),
-        marka: parent.marka || VARSAYILAN_MARKA,
+        marka: parent.marka || varsayilanMarka,
         urunKod: kalem.urunKod,
         urunAdi: '',
         aciklama: kalem.aciklama,
@@ -478,7 +514,7 @@ export function useBelgeState(
       satirDegisimiAnlikKaydet(next);
       return next;
     });
-  }, [birimler, paraBirimi, satirDegisimiAnlikKaydet]);
+  }, [birimler, paraBirimi, satirDegisimiAnlikKaydet, varsayilanMarka]);
 
   const setParaBirimi = useCallback((pb: ParaBirimi) => {
     setParaBirimiState(pb);
@@ -556,11 +592,13 @@ export function useBelgeState(
       dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
       contactTitle: contactName.trim() ? contactTitle : undefined,
+      ilgiliKisiId,
+      ilgiliKisiAdSoyad,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
       status,
       visibility,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, gecerlilikSuresi, dovizKuru, gorseller, status, visibility]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad, gecerlilikSuresi, dovizKuru, gorseller, status, visibility]);
 
   /**
    * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
@@ -632,7 +670,7 @@ export function useBelgeState(
   }, [
     cari, satirlar, paraBirimi, satirBazliParaBirimi, satirBazliIskonto,
     kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin,
-    contactName, contactTitle,
+    contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad,
     tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility, dovizKuru,
   ]);
 
@@ -655,6 +693,8 @@ export function useBelgeState(
     odemeVadesi,
     contactName,
     contactTitle,
+    ilgiliKisiId,
+    ilgiliKisiAdSoyad,
     gecerlilikSuresi,
     dovizKuru,
     olusturmaTarihi,
@@ -684,6 +724,7 @@ export function useBelgeState(
     setCariSehir,
     setContactName,
     setContactTitle,
+    setIlgiliKisi,
     setGecerlilikSuresi,
     setDovizKuru,
     setSatirlar,

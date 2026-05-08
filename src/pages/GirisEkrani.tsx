@@ -21,6 +21,8 @@ interface PersonelKart {
   firmaId: string | null;
   profilFotoUrl: string | null;
   initials: string;
+  telefon?: string | null;
+  dahili?: string | null;
 }
 
 type Adim = 'splash' | 'firma' | 'kullanici';
@@ -1077,6 +1079,7 @@ function FirmaKarti({ firma, onSecim, isMobile, index }: {
   const cardStyle: CSSProperties = {
     width: isMobile ? '100%' : FIRMA_KART_LAYOUT.cardWidth,
     maxWidth: 260,
+    minHeight: 312,
     padding: FIRMA_KART_LAYOUT.cardPadding,
     borderRadius: FIRMA_KART_LAYOUT.cardBorderRadius,
     cursor: 'pointer',
@@ -1494,10 +1497,17 @@ function FirmaKarti({ firma, onSecim, isMobile, index }: {
             ? `drop-shadow(0 6px 18px ${haloColor}55)`
             : 'drop-shadow(0 1px 2px rgba(0,0,0,0.10))'
         }
+        style={{
+          width: FIRMA_KART_LAYOUT.logoBoxWidth,
+          height: FIRMA_KART_LAYOUT.logoBoxHeight,
+          padding: FIRMA_KART_LAYOUT.logoBoxPadding,
+        }}
       />
 
       {/* Slogan */}
       <div style={{
+        width: '100%',
+        minHeight: 48,
         fontSize: 10, letterSpacing: 1.6,
         color: hovered ? 'rgba(225,235,250,0.88)' : ink(0.55),
         textTransform: 'uppercase',
@@ -2521,6 +2531,26 @@ function PersonelKart({
               </div>
             );
           })()}
+
+          {(kullanici.telefon || kullanici.dahili) && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: 2,
+              fontSize: 10, color: ink(0.50), letterSpacing: 0.3,
+            }}>
+              {kullanici.telefon && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 11 }}>📞</span>
+                  <span>{kullanici.telefon}</span>
+                </div>
+              )}
+              {kullanici.dahili && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 10 }}>☎</span>
+                  <span>Dahili: {kullanici.dahili}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Yonetici rol etiketi — TUM etiketler ayni ebatta (80 x 30).
               Avatar+isim+unvan'in ALTINDA, kucuk bir bosluk sonrasi inline.
