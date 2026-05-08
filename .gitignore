@@ -67,6 +67,12 @@ bin/
 # Canlı veritabanı — her firma kendi db'sine sahip; kaynak kontrolüne girmez.
 server/db.json
 
+# Veritabanı yedekleri (otomatik backup scheduler + manuel reset utility)
+server/db.json.bak.*
+server/*.bak.*
+**/*.bak
+**/*.backup
+
 # Production build çıktısı (build:production komutu üretir)
 build-deployment/
 # Lokal firma veri dosyaları (XLSX/XLS, logolar) — repo dışı
