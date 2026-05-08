@@ -163,16 +163,44 @@ export interface PDFKayitSonucu {
  * Windows yasak karakterleri ve kontrol karakterlerini temizler.
  * Regex character class yerine string include ile (Edit tool'da regex bytes
  * bozulma sorununu önlemek için).
+ *
+ * Türkçe karakterler (ÇĞİÖŞÜ çğıöşü) Windows'da geçerlidir; korunur.
+ * Sadece File System Access API ve Windows için yasak olanlar temizlenir.
  */
 function sanitizeAd(s: string): string {
   let out = '';
   for (const ch of s) {
     const code = ch.charCodeAt(0);
+    // Kontrol karakterleri (CR/LF/TAB dahil) → boşluk
     if (code < 32) { out += ' '; continue; }
     if (WIN_FORBIDDEN_CHARS.includes(ch)) { out += ' '; continue; }
     out += ch;
   }
-  return out.trim().replace(/\s+/g, ' ');
+  // Boşlukları normalize et, baş/son boşluk sil, sonda kalan nokta/boşlukları
+  // (Windows ve File System Access API kabul etmez) temizle.
+  return out.trim().replace(/\s+/g, ' ').replace(/[. ]+$/g, '');
+}
+
+/** Windows reserved adları — File System Access API bunları reddeder. */
+const WIN_RESERVED_NAMES = new Set([
+  'CON', 'PRN', 'AUX', 'NUL',
+  'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+  'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+]);
+
+/**
+ * Dosya/klasör adını File System Access API + Windows için tam güvenli hale
+ * getirir. Boş veya reserved bir ad gelirse fallback uygulanır.
+ */
+function safeFsName(raw: string, fallback: string, maxLen = 120): string {
+  let cleaned = sanitizeAd(raw);
+  if (!cleaned) cleaned = fallback;
+  // Reserved isim kontrolü (uzantı olsun olmasın)
+  const head = cleaned.split('.')[0]?.toUpperCase() ?? '';
+  if (WIN_RESERVED_NAMES.has(head)) cleaned = `_${cleaned}`;
+  // Uzunluk sınırı (NTFS: tek bileşen 255; biz makul tutalım).
+  if (cleaned.length > maxLen) cleaned = cleaned.slice(0, maxLen).trimEnd().replace(/[. ]+$/g, '');
+  return cleaned || fallback;
 }
 
 function ilk2Kelime(adi: string): string {
@@ -250,7 +278,11 @@ export function usePDFKayit() {
         return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
       }
       // Picker'ı doğrudan kullanıcı gesture içinde çağır — öncesinde await yok.
-      const h = await w.showDirectoryPicker({ id: `meba-teklif-pdf-${userKey}`, mode: 'readwrite' });
+      // `id` Chrome tarafından `^[a-zA-Z0-9_-]{0,32}$` ile doğrulanır; userKey
+      // içerdiği ':' nedeniyle TypeError "contains invalid character" fırlatır.
+      // Bu yüzden yalnızca güvenli karakterleri bırakıp 32 karakterle sınırlıyoruz.
+      const safePickerId = `meba-pdf-${userKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`.slice(0, 32);
+      const h = await w.showDirectoryPicker({ id: safePickerId, mode: 'readwrite' });
       // Yazma izni ön-ısıt → ilk PDF kaydında ek prompt çıkmasın. Hata olsa
       // bile devam et; izin sonradan da istenebilir.
       try { await ensurePermission(h); } catch { /* ignore */ }
@@ -277,6 +309,15 @@ export function usePDFKayit() {
           ok: false,
           desteklenmiyor: true,
           error: 'Tarayıcı güvenlik politikası klasör seçimine izin vermedi. PDF\'ler İndirilenler klasörüne kaydedilecek.',
+        };
+      }
+      // TypeError "contains invalid character" → suggestedName/id sanitization
+      // başarısız oldu (teorik). Kullanıcıya net mesaj, indirme fallback'ine düş.
+      if (err && err.name === 'TypeError' && /invalid character/i.test(err.message || '')) {
+        console.error('[pdfKayit] klasorSec invalid character:', err);
+        return {
+          ok: false,
+          error: 'Dosya adı güvenli hale getirilemedi. PDF normal indirme yöntemiyle kaydedilecek.',
         };
       }
       console.error('[pdfKayit] klasorSec beklenmeyen hata:', err);
@@ -331,10 +372,11 @@ export function usePDFKayit() {
       return { ok: false, klasorYok: true };
     }
 
-    const folderName = ilk2Kelime(firmaAdi) || 'Diger';
+    const folderName = safeFsName(ilk2Kelime(firmaAdi), 'Diger', 80);
     const fileNameBase = folderName.replace(/\s+/g, '_');
-    const safeTeklifNo = sanitizeAd(teklifNo).replace(/\s+/g, '_') || 'teklif';
-    const fileName = safeTeklifNo + '_' + fileNameBase + '.pdf';
+    const safeTeklifNoRaw = sanitizeAd(teklifNo).replace(/\s+/g, '_');
+    const safeTeklifNo = safeFsName(safeTeklifNoRaw, 'teklif', 80);
+    const fileName = safeFsName(`${safeTeklifNo}_${fileNameBase}`, 'teklif', 200) + '.pdf';
 
     try {
       const subDir = await root.getDirectoryHandle(folderName, { create: true });
@@ -350,12 +392,18 @@ export function usePDFKayit() {
     } catch (e) {
       const err = e as Error;
       const msg = err?.message || String(e);
-      console.warn('[pdfKayit] kaydetPDF yazma hatası:', err);
+      console.warn('[pdfKayit] kaydetPDF yazma hatası:', err, { folderName, fileName });
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || msg.includes('NotAllowed') || msg.includes('denied')) {
         try { await idbDelete(idbKey); } catch { /* ignore */ }
         try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
         setKlasorAdi(null);
         return { ok: false, klasorYok: true, error: 'Klasör izni reddedildi. Profilinizden yeniden seçim yapabilirsiniz.' };
+      }
+      if (err?.name === 'TypeError' && /invalid character/i.test(msg)) {
+        return {
+          ok: false,
+          error: 'Dosya adı güvenli hale getirilemedi. PDF normal indirme yöntemiyle kaydedilecek.',
+        };
       }
       return { ok: false, error: msg };
     }
