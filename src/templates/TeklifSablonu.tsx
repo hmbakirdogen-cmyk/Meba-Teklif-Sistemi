@@ -50,8 +50,6 @@ import {
   buildSettingsItems,
   getOfferTableSeparatorClass,
   getOfferTableSeparatorStyle,
-  getSetAltKalemEmptyCellStyle,
-  getSetAltKalemFrameCloseStyle,
   getSetStepClass,
   getTableHeadCellStyle,
   DescText,
@@ -506,7 +504,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('miktar'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
-                  ...(!satirBazliParaBirimi ? getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos) : {}),
+                  // frame-close artık teslimat kolonunda — burada kaldırıldı
                 })}>
                   {satir.miktar !== 0 ? (
                     <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 0 }}>
@@ -533,7 +531,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   letterSpacing: '0.03em',
                   ...getOfferTableSeparatorStyle('paraBirimi'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
-                  ...(satirBazliParaBirimi ? getSetAltKalemFrameCloseStyle(satir.setAltKalem, setGroupPos) : {}),
+                  // frame-close artık teslimat kolonunda — burada kaldırıldı
                 })}>
                   {satirBazliParaBirimi ? PARA_BIRIMI_ETIKETI[satirPb] : ''}
                 </td>
@@ -547,8 +545,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('birimFiyat'),
-                  ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos),
-                  ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
+                  ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.setAltKalem ? '' : (() => {
                     const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
@@ -566,8 +563,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   fontVariantNumeric: 'tabular-nums',
                   ...getOfferTableSeparatorStyle('toplam'),
-                  ...rcCell('mid', idx, undefined, satir.setAltKalem ? null : setGroupPos),
-                  ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
+                  ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
                   {satir.setAltKalem ? '' : (Math.abs(satir.satirToplami) >= 0.005 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '—')}
                 </td>
@@ -581,8 +577,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   whiteSpace: 'nowrap',
                   lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
                   ...getOfferTableSeparatorStyle('teslimat'),
-                  ...rcCell('last', idx, undefined, satir.setAltKalem ? null : setGroupPos),
-                  ...getSetAltKalemEmptyCellStyle(satir.setAltKalem),
+                  ...rcCell('last', idx, undefined, setGroupPos),
                 })}>
                   {satir.setAltKalem ? '' : (satir.teslimTarihi || '—')}
                 </td>
@@ -740,7 +735,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
           {/* SİPARİŞİ VEREN — sayfa genişliğinin %70'i, ferah iç boşluk */}
           <div style={{ flex: '0 0 70%', minWidth: 0, ...SIGNATURE_SECTION_STYLE }}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '18px' }}>
 
             {/* Sol: 2-satır dikey başlık — biraz büyük, daha ferah tracking */}
             <div style={{
@@ -754,28 +749,28 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%) rotate(-90deg)',
-                width: '120px',
+                width: '100px',
                 textAlign: 'left',
                 userSelect: 'none',
                 whiteSpace: 'nowrap',
               }}>
                 <div style={{
-                  fontSize: '12px',
+                  fontSize: '10.8px',
                   fontWeight: 600,
                   color: C.sigPrimary,
-                  letterSpacing: '0.10em',
+                  letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  lineHeight: 1.2,
-                  marginBottom: '6px',
+                  lineHeight: 1.1,
+                  marginBottom: '4px',
                 }}>
                   Siparişi Veren
                 </div>
                 <div style={{
-                  fontSize: '9.2px',
+                  fontSize: '8.64px',
                   fontWeight: 400,
                   color: C.sigSecondary,
-                  letterSpacing: '0.06em',
-                  lineHeight: 1.2,
+                  letterSpacing: '0.04em',
+                  lineHeight: 1.1,
                 }}>
                   Authorised Person
                 </div>
@@ -784,28 +779,30 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
 
             {/* Sağ: İçerik — isim, tarih, imza */}
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '44px' }}>
-                <div style={{ flex: '0 0 42%', fontSize: '11px', lineHeight: '1.45' }}>
-                  <div style={{ marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
-                    <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
-                    <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
+                <div style={{ flex: '0 0 40%', fontSize: '11px', lineHeight: '1.45' }}>
+                  <div style={{ position: 'relative', top: '16px' }}>
+                    <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                    <div style={{ marginBottom: '6px', marginTop: '2px' }}>
+                      <span style={{ fontWeight: 500, color: C.sigPrimary }}>İsim</span>
+                      <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
+                      <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Name</span>
+                    </div>
                   </div>
-                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px', marginBottom: '12px' }} />
-                  <div style={{ marginBottom: '6px' }}>
+                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                  <div style={{ marginTop: '2px' }}>
                     <span style={{ fontWeight: 500, color: C.sigPrimary }}>Tarih</span>
                     <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                     <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Date</span>
                   </div>
-                  <div style={{ marginRight: '2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 </div>
-                <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '0' }}>
-                  <div style={{ marginBottom: '6px' }}>
+                <div style={{ flex: '1', fontSize: '11px', lineHeight: '1.45', paddingTop: '54px' }}>
+                  <div style={{ width: '115px', marginLeft: '-2cm', borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
+                  <div style={{ marginTop: '2px', marginLeft: '-2cm' }}>
                     <span style={{ fontWeight: 500, color: C.sigPrimary }}>İmza</span>
                     <span style={{ fontSize: '8.5px', color: C.sigSecondary }}> / </span>
                     <span style={{ fontSize: '8px', fontWeight: 400, color: C.sigSecondary }}>Signature</span>
                   </div>
-                  <div style={{ borderBottom: `1px solid ${C.sigBorder}`, height: '30px' }} />
                 </div>
               </div>
             </div>
