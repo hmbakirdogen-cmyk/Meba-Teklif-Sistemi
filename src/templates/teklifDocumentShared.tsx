@@ -104,11 +104,18 @@ export const DOCUMENT_PAGE = {
   paddingBottomMm: 8,
 } as const;
 
+export const DOCUMENT_LAYOUT_TOKENS = {
+  pageWidthMm: DOCUMENT_PAGE.widthMm,
+  pageHeightMm: DOCUMENT_PAGE.heightMm,
+  pagePaddingTopMm: DOCUMENT_PAGE.paddingTopMm,
+  pagePaddingXmm: DOCUMENT_PAGE.paddingXmm,
+  pagePaddingBottomMm: DOCUMENT_PAGE.paddingBottomMm,
+  compactHeaderMarginBottomPx: 10,
+} as const;
+
 export function mmToPx(mm: number): number {
   return mm * (96 / 25.4);
 }
-
-export const HIGH_QUALITY_IMAGE_RENDERING = 'high-quality' as unknown as CSSProperties['imageRendering'];
 
 export const PARA_BIRIMI_ETIKETI: Record<string, string> = {
   TRY: 'TL',
@@ -188,8 +195,48 @@ export function createDocumentBrand(primaryColor?: string) {
   };
 }
 
-export const HEADER_LAYOUT = {
-  headerMarginBottomPx: 10,
+export const HEADER_MARGIN_BOTTOM_PX = DOCUMENT_LAYOUT_TOKENS.compactHeaderMarginBottomPx;
+
+export const TABLE_HEAD_METRICS = {
+  mainFontSizePx: 9.7,
+  mainFontWeight: 700,
+  mainLetterSpacing: '0.06em',
+  mainLineHeight: 1.28,
+  subFontSizePx: 7.5,
+  subFontWeight: 400,
+  subLetterSpacing: '0.02em',
+  subLineHeight: 1.2,
+} as const;
+
+export const OFFER_COLUMN_METRICS = {
+  measurePadPx: () => LINE_ITEM_METRICS.cellPaddingXpx * 2,
+  measureBufferPx: 2,
+  minWidths: {
+    no: 22,
+    marka: 32,
+    code: 56,
+    qty: 44,
+    paraBirimi: 38,
+    unitPrice: 60,
+    total: 60,
+    delivery: 46,
+  },
+} as const;
+
+export const SIGNATURE_METRICS = {
+  sectionMarginTopPx: 18,
+  sectionPaddingYpx: 16,
+  blockRowGapPx: 14,
+  contentRowGapPx: 18,
+  fieldsGridNameWidthMm: 40,
+  fieldsGridStampWidthMm: 48,
+  fieldsGridColumnGapPx: 18,
+  fieldFontSizePx: 11,
+  fieldLineHeight: 1.45,
+  labelMarginTopPx: 6,
+  labelLineHeight: 1.25,
+  lineHeightPx: 22,
+  detailsFieldGapPx: 10,
 } as const;
 
 interface FullHeaderLayoutStyles {
@@ -212,7 +259,7 @@ export function getFullHeaderLayoutStyles(firmaId?: string): FullHeaderLayoutSty
       alignItems: 'stretch',
       width: '100%',
       minHeight: `${LOGO_OPT_H}px`,
-      marginBottom: `${HEADER_LAYOUT.headerMarginBottomPx}px`,
+      marginBottom: `${HEADER_MARGIN_BOTTOM_PX}px`,
       ...noBreak,
     },
     logoColumnStyle: {
@@ -427,17 +474,16 @@ export function computeOfferColumnWidths(
     return Math.round(longest * charEstimate);
   };
 
-  const PAD = LINE_ITEM_METRICS.cellPaddingXpx * 2;
-  const BUFFER = 2;
+  const PAD = OFFER_COLUMN_METRICS.measurePadPx();
+  const BUFFER = OFFER_COLUMN_METRICS.measureBufferPx;
   const wrap = (min: number, contentW: number, headerW: number = 0): number =>
     Math.max(min, Math.ceil(Math.max(contentW, headerW) + PAD + BUFFER));
 
-  const H_SIZE = 9.7, H_WEIGHT = 700, H_LS = '0.06em', H_SUB_SIZE = 7.5;
   const headerW = (main: string, sub: string): number => {
     if (!canMeasure) return Math.max(main.length * 5.8, sub.length * 4.5);
     return Math.max(
-      measureTextWidth(main, H_SIZE, H_WEIGHT, H_LS),
-      measureTextWidth(sub, H_SUB_SIZE, 400, H_LS),
+      measureTextWidth(main, TABLE_HEAD_METRICS.mainFontSizePx, TABLE_HEAD_METRICS.mainFontWeight, TABLE_HEAD_METRICS.mainLetterSpacing),
+      measureTextWidth(sub, TABLE_HEAD_METRICS.subFontSizePx, TABLE_HEAD_METRICS.subFontWeight, TABLE_HEAD_METRICS.mainLetterSpacing),
     );
   };
 
@@ -470,14 +516,14 @@ export function computeOfferColumnWidths(
     : 0;
 
   return {
-    no:         wrap(22, 0,                 noHeaderW),
-    marka:      wrap(32, markaContentW,     markaHeaderW),
-    code:       wrap(56, codeContentW,      codeHeaderW),
-    qty:        wrap(44, qtyContentW,       qtyHeaderW),
-    paraBirimi: satirBazliParaBirimi ? wrap(38, paraBirimiContentW, pbHeaderW) : 0,
-    unitPrice:  wrap(60, unitPriceContentW, upHeaderW),
-    total:      wrap(60, totalContentW,     totHeaderW),
-    delivery:   wrap(46, deliveryContentW,  delHeaderW),
+    no:         wrap(OFFER_COLUMN_METRICS.minWidths.no, 0, noHeaderW),
+    marka:      wrap(OFFER_COLUMN_METRICS.minWidths.marka, markaContentW, markaHeaderW),
+    code:       wrap(OFFER_COLUMN_METRICS.minWidths.code, codeContentW, codeHeaderW),
+    qty:        wrap(OFFER_COLUMN_METRICS.minWidths.qty, qtyContentW, qtyHeaderW),
+    paraBirimi: satirBazliParaBirimi ? wrap(OFFER_COLUMN_METRICS.minWidths.paraBirimi, paraBirimiContentW, pbHeaderW) : 0,
+    unitPrice:  wrap(OFFER_COLUMN_METRICS.minWidths.unitPrice, unitPriceContentW, upHeaderW),
+    total:      wrap(OFFER_COLUMN_METRICS.minWidths.total, totalContentW, totHeaderW),
+    delivery:   wrap(OFFER_COLUMN_METRICS.minWidths.delivery, deliveryContentW, delHeaderW),
   };
 }
 
@@ -861,7 +907,7 @@ export const PARTY_LABEL_STYLE: CSSProperties = {
 
 export const PARTY_NAME_STYLE: CSSProperties = {
   fontWeight: 600,
-  fontSize: '11px',
+  fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
   color: DOCUMENT_COLORS.navy,
   marginBottom: '3px',
   lineHeight: 1.35,
@@ -1014,8 +1060,8 @@ const OPTICAL_SEPARATOR_COLUMNS = new Set<OfferTableColumnKey>([
 ]);
 
 const OPTICAL_SEPARATOR_COLOR = {
-  head: 'rgba(26,43,66,0.088)',
-  body: 'rgba(26,43,66,0.072)',
+  head: 'rgba(26,43,66,0.13)',
+  body: 'rgba(26,43,66,0.10)',
 } as const;
 
 export function getOfferTableSeparatorClass(columnKey: OfferTableColumnKey): string | undefined {
@@ -1028,8 +1074,8 @@ export function getOfferTableSeparatorStyle(
 ): CSSProperties {
   if (!OPTICAL_SEPARATOR_COLUMNS.has(columnKey)) return {};
 
-  const topInset = surface === 'head' ? '18%' : '12%';
-  const bottomInset = surface === 'head' ? '82%' : '88%';
+  const topInset = surface === 'head' ? '12%' : '6%';
+  const bottomInset = surface === 'head' ? '88%' : '94%';
   const fallbackColor = OPTICAL_SEPARATOR_COLOR[surface];
 
   return {
@@ -1049,9 +1095,9 @@ export function getTableHeadCellStyle(
     padding: CELL_PAD,
     textAlign: align,
     verticalAlign: 'bottom',
-    fontSize: '9.7px',
-    fontWeight: 700,
-    letterSpacing: '0.06em',
+    fontSize: `${TABLE_HEAD_METRICS.mainFontSizePx}px`,
+    fontWeight: TABLE_HEAD_METRICS.mainFontWeight,
+    letterSpacing: TABLE_HEAD_METRICS.mainLetterSpacing,
     color: TABLE_TEXT.header,
     background: '#F5F5F5',
     borderTop: 'none',
@@ -1059,7 +1105,7 @@ export function getTableHeadCellStyle(
     borderRight: 'none',
     borderBottom: `0.75px solid ${DOCUMENT_COLORS.navyBorder}`,
     borderRadius: 0,
-    lineHeight: 1.28,
+    lineHeight: TABLE_HEAD_METRICS.mainLineHeight,
     whiteSpace: 'nowrap',
     ...(columnKey ? getOfferTableSeparatorStyle(columnKey, 'head') : null),
   };
@@ -1067,16 +1113,16 @@ export function getTableHeadCellStyle(
 
 export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
   display: 'block',
-  fontWeight: 400,
-  fontSize: '7.5px',
+  fontWeight: TABLE_HEAD_METRICS.subFontWeight,
+  fontSize: `${TABLE_HEAD_METRICS.subFontSizePx}px`,
   color: TABLE_TEXT.helper,
   marginTop: '1px',
-  letterSpacing: '0.02em',
-  lineHeight: 1.2,
+  letterSpacing: TABLE_HEAD_METRICS.subLetterSpacing,
+  lineHeight: TABLE_HEAD_METRICS.subLineHeight,
 };
 
 export const NOTES_BOX_STYLE: CSSProperties = {
-  fontSize: '10.5px',
+  fontSize: `${LINE_ITEM_METRICS.baseFontSizePx - 0.5}px`,
   marginBottom: '6px',
   padding: '8px 12px',
   border: `0.75px solid ${DOCUMENT_COLORS.border}`,
@@ -1090,21 +1136,21 @@ export const NOTES_BOX_STYLE: CSSProperties = {
 };
 
 export const SIGNATURE_SECTION_STYLE: CSSProperties = {
-  marginTop: '18px',
-  padding: '16px 0 16px',
+  marginTop: `${SIGNATURE_METRICS.sectionMarginTopPx}px`,
+  padding: `${SIGNATURE_METRICS.sectionPaddingYpx}px 0 ${SIGNATURE_METRICS.sectionPaddingYpx}px`,
   ...noBreak,
 };
 
 export const SIGNATURE_BLOCK_ROW_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'stretch',
-  gap: '14px',
+  gap: `${SIGNATURE_METRICS.blockRowGapPx}px`,
 };
 
 export const SIGNATURE_CONTENT_ROW_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
-  gap: '18px',
+  gap: `${SIGNATURE_METRICS.contentRowGapPx}px`,
 };
 
 export const SIGNATURE_FIELDS_HOST_STYLE: CSSProperties = {
@@ -1115,8 +1161,8 @@ export const SIGNATURE_FIELDS_HOST_STYLE: CSSProperties = {
 
 export const SIGNATURE_FIELDS_GRID_STYLE: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '40mm 48mm',
-  columnGap: '18px',
+  gridTemplateColumns: `${SIGNATURE_METRICS.fieldsGridNameWidthMm}mm ${SIGNATURE_METRICS.fieldsGridStampWidthMm}mm`,
+  columnGap: `${SIGNATURE_METRICS.fieldsGridColumnGapPx}px`,
   alignItems: 'start',
   justifyItems: 'start',
   width: 'fit-content',
@@ -1124,22 +1170,22 @@ export const SIGNATURE_FIELDS_GRID_STYLE: CSSProperties = {
 };
 
 export const SIGNATURE_FIELD_STYLE: CSSProperties = {
-  width: '40mm',
-  maxWidth: '40mm',
-  fontSize: '11px',
-  lineHeight: 1.45,
+  width: `${SIGNATURE_METRICS.fieldsGridNameWidthMm}mm`,
+  maxWidth: `${SIGNATURE_METRICS.fieldsGridNameWidthMm}mm`,
+  fontSize: `${SIGNATURE_METRICS.fieldFontSizePx}px`,
+  lineHeight: SIGNATURE_METRICS.fieldLineHeight,
 };
 
 export const SIGNATURE_LABEL_STYLE: CSSProperties = {
-  marginTop: '6px',
+  marginTop: `${SIGNATURE_METRICS.labelMarginTopPx}px`,
   marginBottom: 0,
-  lineHeight: 1.25,
+  lineHeight: SIGNATURE_METRICS.labelLineHeight,
 };
 
 export const SIGNATURE_LINE_STYLE: CSSProperties = {
-  width: '40mm',
-  maxWidth: '40mm',
-  height: '22px',
+  width: `${SIGNATURE_METRICS.fieldsGridNameWidthMm}mm`,
+  maxWidth: `${SIGNATURE_METRICS.fieldsGridNameWidthMm}mm`,
+  height: `${SIGNATURE_METRICS.lineHeightPx}px`,
   borderBottom: `1px solid ${DOCUMENT_COLORS.sigBorder}`,
 };
 
@@ -1160,31 +1206,6 @@ export const FOOTER_BAR_STYLE: CSSProperties = {
   printColorAdjust: 'exact',
   WebkitPrintColorAdjust: 'exact',
 };
-
-/** Geçerlilik süresinden bitiş tarihini hesapla.
- *  "1 Hafta", "30 Gün", "2 Ay" gibi ifadeleri parse edip teklif tarihi
- *  üzerinden gerçek bitiş tarihini DD.MM.YYYY formatında döner.
- *  "Sınırsız" / parse edilemeyen değerler olduğu gibi döner. */
-function hesaplaGecerlilikBitis(tarihStr: string, sure: string): string {
-  if (!sure) return '—';
-  const sureLower = sure.toLocaleLowerCase('tr-TR');
-  if (sureLower.includes('sınırsız') || sureLower.includes('limitsiz')) return 'Sınırsız';
-
-  const tarih = new Date(tarihStr);
-  if (isNaN(tarih.getTime())) return sure;
-
-  const match = sureLower.match(/(\d+)\s*(g[üu]n|hafta|ay|month|week|day)/);
-  if (!match) return sure;
-  const n = parseInt(match[1], 10);
-  const unit = match[2];
-  if (unit.startsWith('g') || unit === 'day') tarih.setDate(tarih.getDate() + n);
-  else if (unit === 'hafta' || unit === 'week') tarih.setDate(tarih.getDate() + n * 7);
-  else if (unit === 'ay' || unit === 'month') tarih.setMonth(tarih.getMonth() + n);
-
-  const dd = String(tarih.getDate()).padStart(2, '0');
-  const mm = String(tarih.getMonth() + 1).padStart(2, '0');
-  return `${dd}.${mm}.${tarih.getFullYear()}`;
-}
 
 export type SettingsItemId =
   | 'paraBirimi' | 'odemeVadesi' | 'kdvOrani' | 'kur' | 'gecerlilik';
@@ -1226,7 +1247,7 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
     id: 'gecerlilik',
     tr: 'Geçerlilik',
     en: 'Validity',
-    value: hesaplaGecerlilikBitis(teklif.tarih, teklif.gecerlilikSuresi ?? '1 Hafta'),
+    value: teklif.gecerlilikSuresi || '1 Hafta',
   });
 
   return items;

@@ -78,7 +78,7 @@ import {
   SatirAksiyonlariPanel,
   SatirIskontoRozeti,
 } from './InlineSatirEditor';
-import type { SatirCellField } from './inlineSatirEditorShared';
+import { buildSatirCellNavOrder, type SatirCellField } from './inlineSatirEditorShared';
 import type { TeklifPagePlan } from '../services/documentPagination';
 
 const C = DOCUMENT_COLORS;
@@ -290,7 +290,9 @@ function CellEditPopup({
   // Escape / Dışarı tıklama callback'lerini ref'te tut → listener her render'da
   // yeniden bağlanmasın, latest closure'a sahip olsun.
   const stateRef = useRef({ satirId, satirFocusCell, onClose });
-  stateRef.current = { satirId, satirFocusCell, onClose };
+  useEffect(() => {
+    stateRef.current = { satirId, satirFocusCell, onClose };
+  }, [satirId, satirFocusCell, onClose]);
 
   // Escape ile kapat
   useEffect(() => {
@@ -535,11 +537,7 @@ function UrunKodPopupBody({
   const { modal, message } = App.useApp();
   // Urun listesi — popup açıkken bir kez çek
   const [urunler, setUrunler] = useState(() => urunService.tumUrunleriGetir());
-  const [setler, setSetler] = useState(() => urunSetService.tumSetleriGetir());
-  useEffect(() => {
-    setUrunler(urunService.tumUrunleriGetir());
-    setSetler(urunSetService.tumSetleriGetir());
-  }, []);
+  const [setler] = useState(() => urunSetService.tumSetleriGetir());
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<InputRef>(null);
   // "Yeni ürün?" sorgusu için baseline + suggestion'dan seçim flag'i
@@ -580,10 +578,17 @@ function UrunKodPopupBody({
       onSatirGuncelle(satir.id, 'urunKod', item.kod);
       onSatirGuncelle(satir.id, 'setId', undefined);
       onSatirGuncelle(satir.id, 'aciklama', item.payload.aciklama ?? '');
+      // Akıllı doldurma: ürün katalog değerleri yalnızca BOŞ hücreleri doldurur,
+      // kullanıcının daha önce girdiği değer ezilmez.
       if (item.payload.varsayilanFiyat && !satir.birimFiyat) {
         onSatirGuncelle(satir.id, 'birimFiyat', item.payload.varsayilanFiyat);
       }
-      if (item.payload.birim) onSatirGuncelle(satir.id, 'birim', item.payload.birim);
+      if (item.payload.marka && !(satir.marka || '').trim()) {
+        onSatirGuncelle(satir.id, 'marka', item.payload.marka);
+      }
+      if (item.payload.birim && !(satir.birim || '').trim()) {
+        onSatirGuncelle(satir.id, 'birim', item.payload.birim);
+      }
     }
     onClose();
   };
@@ -893,27 +898,21 @@ export default function PaginatedBelgeInlineEditor({
     [],
   );
 
+  // İşaretli satır görsel stilini CSS dosyası yönetir:
+  // belgeInlineConstants.ts içindeki `.offer-table tr[data-marked="true"]`
+  // selektörü td background ve bookmark ::before çiziyor. Bu fonksiyon
+  // imza uyumu için boş döner — call site'lar dokunulmadan kaldı.
   function getMarkedCellStyle(
-    marked: boolean,
-    role: 'first' | 'mid' | 'last',
-    isActive = false,
-    isSetGroup = false,
+    _marked: boolean,
+    _role: 'first' | 'mid' | 'last',
+    _isActive = false,
+    _isSetGroup = false,
   ): React.CSSProperties {
-    if (!marked) return {};
-    if (isActive) return {};
-
-    const tint = isSetGroup
-      ? 'inset 0 0 0 999px rgba(255,255,255,0.055)'
-      : 'inset 0 0 0 999px rgba(26,43,66,0.030)';
-    const topLine = 'inset 0 1px 0 rgba(26,43,66,0.100)';
-    const bottomLine = 'inset 0 -1px 0 rgba(26,43,66,0.085)';
-    const leftAccent = role === 'first'
-      ? 'inset 3px 0 0 rgba(26,43,66,0.34)'
-      : null;
-
-    return {
-      boxShadow: [leftAccent, topLine, bottomLine, tint].filter(Boolean).join(', '),
-    };
+    void _marked;
+    void _role;
+    void _isActive;
+    void _isSetGroup;
+    return {};
   }
 
   // Hücreye tıklayınca aktif et (popup açar). Aktif hücreye tekrar tıklanınca
@@ -938,9 +937,7 @@ export default function PaginatedBelgeInlineEditor({
   // Sıra satirBazliParaBirimi'ye göre değişir; sub-item'da paraBirimi ve
   // birimFiyat tıklanamaz → atlanır.
   const CELL_ORDER = useMemo<SatirCellField[]>(
-    () => satirBazliParaBirimi
-      ? ['marka', 'urunKod', 'aciklama', 'miktar', 'paraBirimi', 'birimFiyat', 'teslimat']
-      : ['marka', 'urunKod', 'aciklama', 'miktar', 'birimFiyat', 'teslimat'],
+    () => buildSatirCellNavOrder(satirBazliParaBirimi),
     [satirBazliParaBirimi],
   );
 
@@ -1204,7 +1201,7 @@ export default function PaginatedBelgeInlineEditor({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            onEditingAlanDegistir(null);
+                            onEditingAlanDegistir('musteri-telefon');
                           }
                           if (e.key === 'Escape') onEditingAlanDegistir(null);
                         }}
@@ -1305,7 +1302,7 @@ export default function PaginatedBelgeInlineEditor({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            onEditingAlanDegistir(null);
+                            onEditingAlanDegistir('musteri-eposta');
                           }
                           if (e.key === 'Escape') onEditingAlanDegistir(null);
                         }}
@@ -1629,7 +1626,10 @@ export default function PaginatedBelgeInlineEditor({
                         </div>
                       ) : <span>-</span>}
                     </RowCell>
-                    {/* Para Birimi — satirBazli'da gösterilir, değilse boş. */}
+                    {/* Para Birimi — satirBazli'da gösterilir, değilse boş.
+                        Set alt kalemlerinde çerçevenin sağ kapanış noktası: birimFiyat/toplam/
+                        teslimat çerçeve dışında olduğundan bu hücrede sağ kenara set frame
+                        border'ı + en alt alt kalemde sağ-alt köşe radius'u eklenir. */}
                     <RowCell
                       idx={idx}
                       pos="mid"
@@ -1637,21 +1637,41 @@ export default function PaginatedBelgeInlineEditor({
                       data-cell-field="paraBirimi"
                       onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
                       className={`${getOfferTableSeparatorClass('paraBirimi') ?? ''} ${activeClass('paraBirimi') ?? ''} ${satirBazliParaBirimi ? '' : 'no-click'}`.trim() || undefined}
-                      style={applyCellStyle({ cursor: satirBazliParaBirimi ? 'pointer' : 'default', textAlign: 'center', ...getOfferTableSeparatorStyle('paraBirimi'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('paraBirimi'), setGroupPos !== null) })}
+                      style={applyCellStyle({
+                        cursor: satirBazliParaBirimi ? 'pointer' : 'default',
+                        textAlign: 'center',
+                        ...getOfferTableSeparatorStyle('paraBirimi'),
+                        ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('paraBirimi'), setGroupPos !== null),
+                        ...(satir.setAltKalem ? {
+                          borderRight: '0.9px solid #BFBFBF',
+                          ...(setGroupPos === 'bottom' ? { borderBottomRightRadius: '8px' } : {}),
+                        } : {}),
+                      })}
                     >
                       {satirBazliParaBirimi ? (
                         <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
                       ) : null}
                     </RowCell>
-                    {/* Birim Fiyat — alt kalemde tıklanamaz */}
+                    {/* Birim Fiyat — alt kalemde tamamen boş; set parent'ta merdiven basamağı (alt borderBottom). */}
                     <RowCell
                       idx={idx}
                       pos="mid"
-                      setGroupPos={setGroupPos}
+                      setGroupPos={satir.setAltKalem ? null : setGroupPos}
                       data-cell-field="birimFiyat"
                       onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
-                      className={satir.setAltKalem ? `${getOfferTableSeparatorClass('birimFiyat') ?? ''} no-click`.trim() : `${getOfferTableSeparatorClass('birimFiyat') ?? ''} ${activeClass('birimFiyat') ?? ''}`.trim()}
-                      style={applyCellStyle({ cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'right', ...getOfferTableSeparatorStyle('birimFiyat'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('birimFiyat'), setGroupPos !== null) })}
+                      className={(() => {
+                        const base = getOfferTableSeparatorClass('birimFiyat') ?? '';
+                        if (satir.setAltKalem) return `${base} no-click set-altkalem-empty`.trim();
+                        const step = (setGroupPos === 'top') ? 'set-parent-step' : '';
+                        return `${base} ${activeClass('birimFiyat') ?? ''} ${step}`.trim();
+                      })()}
+                      style={applyCellStyle({
+                        cursor: satir.setAltKalem ? 'default' : 'pointer',
+                        textAlign: 'right',
+                        ...getOfferTableSeparatorStyle('birimFiyat'),
+                        ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('birimFiyat'), setGroupPos !== null),
+                        ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                      })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.price}>{(() => {
@@ -1660,13 +1680,23 @@ export default function PaginatedBelgeInlineEditor({
                         })()}</span>
                       )}
                     </RowCell>
-                    {/* Toplam — salt-okunur */}
+                    {/* Toplam — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
                     <RowCell
                       idx={idx}
                       pos="mid"
-                      setGroupPos={setGroupPos}
-                      className={getOfferTableSeparatorClass('toplam')}
-                      style={applyCellStyle({ textAlign: 'right', ...getOfferTableSeparatorStyle('toplam'), ...getMarkedCellStyle(isMarked, 'mid', false, setGroupPos !== null) })}
+                      setGroupPos={satir.setAltKalem ? null : setGroupPos}
+                      className={(() => {
+                        const base = getOfferTableSeparatorClass('toplam') ?? '';
+                        if (satir.setAltKalem) return `${base} set-altkalem-empty`.trim();
+                        const step = (setGroupPos === 'top') ? 'set-parent-step' : '';
+                        return `${base} ${step}`.trim() || undefined;
+                      })()}
+                      style={applyCellStyle({
+                        textAlign: 'right',
+                        ...getOfferTableSeparatorStyle('toplam'),
+                        ...getMarkedCellStyle(isMarked, 'mid', false, setGroupPos !== null),
+                        ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                      })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.total}>
@@ -1674,15 +1704,27 @@ export default function PaginatedBelgeInlineEditor({
                         </span>
                       )}
                     </RowCell>
-                    {/* Teslimat — alt kalemde tıklanamaz; aksiyon paneli burada */}
+                    {/* Teslimat — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
                     <RowCell
                       idx={idx}
                       pos="last"
-                      setGroupPos={setGroupPos}
+                      setGroupPos={satir.setAltKalem ? null : setGroupPos}
                       data-cell-field="teslimat"
                       onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
-                      className={satir.setAltKalem ? `${getOfferTableSeparatorClass('teslimat') ?? ''} no-click`.trim() : `${getOfferTableSeparatorClass('teslimat') ?? ''} ${activeClass('teslimat') ?? ''}`.trim()}
-                      style={applyCellStyle({ position: 'relative', cursor: satir.setAltKalem ? 'default' : 'pointer', textAlign: 'center', ...getOfferTableSeparatorStyle('teslimat'), ...getMarkedCellStyle(isMarked, 'last', isActiveCell('teslimat'), setGroupPos !== null) })}
+                      className={(() => {
+                        const base = getOfferTableSeparatorClass('teslimat') ?? '';
+                        if (satir.setAltKalem) return `${base} no-click set-altkalem-empty`.trim();
+                        const step = (setGroupPos === 'top') ? 'set-parent-step' : '';
+                        return `${base} ${activeClass('teslimat') ?? ''} ${step}`.trim();
+                      })()}
+                      style={applyCellStyle({
+                        position: 'relative',
+                        cursor: satir.setAltKalem ? 'default' : 'pointer',
+                        textAlign: 'center',
+                        ...getOfferTableSeparatorStyle('teslimat'),
+                        ...getMarkedCellStyle(isMarked, 'last', isActiveCell('teslimat'), setGroupPos !== null),
+                        ...(satir.setAltKalem ? { background: 'none', border: 'none', boxShadow: 'none' } : {}),
+                      })}
                     >
                       {satir.setAltKalem ? null : (
                         <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>

@@ -16,7 +16,7 @@ import {
   PrinterOutlined,
   FilePdfOutlined,
   MailOutlined,
-  PlusOutlined,
+  UserOutlined,
   CaretDownOutlined,
 } from '@ant-design/icons';
 import { useColors } from '../hooks/useColors';
@@ -28,7 +28,6 @@ interface BelgeToolbarProps {
   teklifNo: string;
   teklifNoDurumu: 'hazir' | 'yukleniyor' | 'hata';
   cariAdi?: string;
-  hasCari?: boolean;
   durum: TeklifDurum;
   /** Otomatik kayıt durumu — durum'la birlikte "düzenlendi" göstergesi için
    *  kullanılır. Status taslak iken durum ileri bir aşamadaysa, içerik son
@@ -39,9 +38,12 @@ interface BelgeToolbarProps {
   onPdfIndir: () => void;
   onEMailGonder: () => void;
   onYazdir: () => void;
-  onSatirEkle: () => void;
   onPanelAc: (mod: PanelModu) => void;
   onDurumDegistir: (d: TeklifDurum) => void;
+  /** Atanmış ilgili kişinin adı — buton üzerinde küçük etiket olarak gösterilir. */
+  ilgiliKisiAdSoyad?: string;
+  /** Toolbar buton click → parent ilgili kişi seçim popover/modal'ını açar. */
+  onIlgiliKisiAc: () => void;
 }
 
 const DURUM_RENK: Record<TeklifDurum, { color: string; bg: string; border: string }> = {
@@ -75,7 +77,6 @@ export default function BelgeToolbar({
   teklifNo,
   teklifNoDurumu,
   cariAdi,
-  hasCari = true,
   durum,
   status,
   uretiliyor,
@@ -83,9 +84,10 @@ export default function BelgeToolbar({
   onPdfIndir,
   onEMailGonder,
   onYazdir,
-  onSatirEkle,
   onPanelAc,
   onDurumDegistir,
+  ilgiliKisiAdSoyad,
+  onIlgiliKisiAc,
 }: BelgeToolbarProps) {
   const C = useColors();
   const { modal } = App.useApp();
@@ -266,13 +268,18 @@ export default function BelgeToolbar({
 
       {/* Sağ: Aksiyonlar */}
       <Space size={6} wrap>
-        <Tooltip title="Satır ekle">
+        <Tooltip title={ilgiliKisiAdSoyad ? `İlgili: ${ilgiliKisiAdSoyad}` : 'İlgili kişi ata (şirket içi)'}>
           <Button
             type="text"
-            icon={<PlusOutlined />}
-            onClick={onSatirEkle}
-            disabled={!hasCari}
-          />
+            icon={<UserOutlined />}
+            onClick={onIlgiliKisiAc}
+            style={{
+              position: 'relative',
+              ...(ilgiliKisiAdSoyad ? { color: '#2563eb' } : {}),
+            }}
+          >
+            {ilgiliKisiAdSoyad ? ilgiliKisiAdSoyad.split(' ')[0] : null}
+          </Button>
         </Tooltip>
         <Tooltip title="Notlar">
           <Button

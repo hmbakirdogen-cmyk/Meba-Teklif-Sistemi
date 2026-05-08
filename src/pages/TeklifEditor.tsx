@@ -34,6 +34,7 @@ import BelgeToolbar from '../components/BelgeToolbar';
 import KumandaPaneli from '../components/KumandaPaneli';
 import GeriBildirimDrawer from '../components/GeriBildirimDrawer';
 import CariSecimi from '../components/CariSecimi';
+import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
 import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 import { usePDFKayit } from '../hooks/usePDFKayit';
@@ -49,7 +50,7 @@ export default function TeklifEditor() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const { aktifKullanici } = useKullanici();
-  const { firmalar } = useFirma();
+  const { firmalar, aktifFirma } = useFirma();
   const pdfKayit = usePDFKayit();
   const C = useColors();
 
@@ -70,6 +71,7 @@ export default function TeklifEditor() {
   const [cizimModu, setCizimModu] = useState(false);
   // Geri bildirim drawer state — KumandaPaneli'ndeki butondan açılır.
   const [geriBildirimAcik, setGeriBildirimAcik] = useState(false);
+  const [ilgiliKisiModalAcik, setIlgiliKisiModalAcik] = useState(false);
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
   const cizimKalinlik = useRef(3);
@@ -125,6 +127,10 @@ export default function TeklifEditor() {
   // Aksi halde editingAlan→null her olduğunda effect yeniden tetiklenir ve
   // kullanıcı boş alana tıkladığında popup en son hücrede tekrar açılır.
   const ilkSatirOtomatikAcildiRef = useRef(false);
+  // Müşteri popover zinciri (muhatap→telefon→eposta) için bir önceki
+  // editingAlan değerini izle — zincir bitiminde satıra geçişi tetikler,
+  // zincir ortasında bekler.
+  const prevEditingAlanRef = useRef<EditingAlan>(null);
   useEffect(() => {
     if (yeniTeklif && cari && satirlar.length === 0) {
       satirEkle();
@@ -147,11 +153,32 @@ export default function TeklifEditor() {
       ilkSatirOtomatikAcildiRef.current = true;
       setEditingAlan(`satir-${satirlar[0].id}`);
     }
-    // Muhatap paneli kapatılınca (editingAlan null'a döndü) satıra geç
-    if (muhatapGosterildiRef.current && editingAlan === null && satirlar.length >= 1) {
-      muhatapGosterildiRef.current = false;
-      ilkSatirOtomatikAcildiRef.current = true;
-      setEditingAlan(`satir-${satirlar[0].id}`);
+  }, [yeniTeklif, satirlar, cari, editingAlan]);
+
+  // Muhatap paneli kapatılınca (editingAlan null'a döndü) satıra geç
+  // — AMA muhatap→tel→eposta zinciri ortasında değilsek. Sadece müşteri
+  // alanlarından (musteri-*) doğrudan null'a düşüldüğünde tetikleniyor:
+  //   muhatap → null   ✓
+  //   muhatap → tel    × (effect tetiklenmez, çünkü null değil)
+  //   tel → eposta     ×
+  //   eposta → null    ✓ (zincir tamamlandı)
+  useEffect(() => {
+    const prev = prevEditingAlanRef.current;
+    prevEditingAlanRef.current = editingAlan;
+
+    if (
+      muhatapGosterildiRef.current &&
+      editingAlan === null &&
+      satirlar.length >= 1
+    ) {
+      const musteriAlanlari: EditingAlan[] = [
+        'musteri-muhatap', 'musteri-telefon', 'musteri-eposta', 'musteri-sehir',
+      ];
+      if (prev && musteriAlanlari.includes(prev)) {
+        muhatapGosterildiRef.current = false;
+        ilkSatirOtomatikAcildiRef.current = true;
+        setEditingAlan(`satir-${satirlar[0].id}`);
+      }
     }
   }, [yeniTeklif, satirlar, cari, editingAlan]);
 
@@ -600,7 +627,6 @@ export default function TeklifEditor() {
         teklifNo={state.teklifNo}
         teklifNoDurumu={state.teklifNoDurumu}
         cariAdi={state.cari ? formatCariAdi(state.cari.firmaAdi) : undefined}
-        hasCari={Boolean(state.cari)}
         durum={state.durum}
         status={state.status}
         uretiliyor={state.uretiliyor}
@@ -608,9 +634,10 @@ export default function TeklifEditor() {
         onPdfIndir={handlePdfIndir}
         onEMailGonder={handleEMailGonder}
         onYazdir={handleYazdir}
-        onSatirEkle={state.satirEkle}
         onPanelAc={handlePanelAc}
         onDurumDegistir={state.setDurum}
+        ilgiliKisiAdSoyad={state.ilgiliKisiAdSoyad}
+        onIlgiliKisiAc={() => setIlgiliKisiModalAcik(true)}
       />
 
       {/* Revize banner — kapalı durumda (gönderildi/sonuçlanmış) düzenleme
@@ -793,6 +820,15 @@ export default function TeklifEditor() {
         open={geriBildirimAcik}
         onClose={() => setGeriBildirimAcik(false)}
         initialSayfa="TeklifEditor"
+      />
+
+      <IlgiliKisiSecimModal
+        open={ilgiliKisiModalAcik}
+        onClose={() => setIlgiliKisiModalAcik(false)}
+        teklifFirmaId={teklifObj?.firmaId ?? aktifFirma?.id}
+        mevcutId={state.ilgiliKisiId}
+        mevcutAdSoyad={state.ilgiliKisiAdSoyad}
+        onSec={(id, ad) => state.setIlgiliKisi(id, ad)}
       />
     </div>
   );
