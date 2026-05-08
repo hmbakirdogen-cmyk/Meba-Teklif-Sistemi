@@ -44,7 +44,7 @@ export default function GeriBildirimButonu({ offsetRight = 24, sayfaAdiOverride 
           type="button"
           aria-label="Geri Bildirim"
           onClick={() => setAcik(true)}
-          className="geri-bildirim-fab"
+          className="geri-bildirim-fab no-print"
           style={{
             position: 'fixed',
             bottom: 24,

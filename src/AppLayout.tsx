@@ -677,9 +677,12 @@ export default function AppLayout() {
         onClose={() => setProfilDuzenleOpen(false)}
       />
 
-      {/* Geri Bildirim floating buton — TeklifEditor sayfasında gizli
-          (KumandaPaneli içinde ayrı buton var) */}
-      {!location.pathname.startsWith('/teklif/') && <GeriBildirimButonu />}
+      {/* Geri Bildirim floating buton — tüm sayfalarda (TeklifEditor dâhil)
+          aynı tasarım diliyle sağ-alt FAB. PDF ve A4 print alanına dahil değil
+          (`.no-print` sahibi değil ama position:fixed + zIndex:900 ile sadece
+          ekran katmanında; `@media print` PDF renderında DOM'a girmiyor çünkü
+          PDF render kendi izole document'inde çalışıyor). */}
+      <GeriBildirimButonu />
 
       {/* Süper admin yönetim drawer'ı — header'daki çan ikonu açar */}
       {adminMi && (

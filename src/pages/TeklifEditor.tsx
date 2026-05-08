@@ -32,7 +32,6 @@ import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
 import KumandaPaneli from '../components/KumandaPaneli';
-import GeriBildirimDrawer from '../components/GeriBildirimDrawer';
 import CariSecimi from '../components/CariSecimi';
 import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
 import type { Teklif } from '../types';
@@ -69,8 +68,6 @@ export default function TeklifEditor() {
 
   // Serbest çizim modu
   const [cizimModu, setCizimModu] = useState(false);
-  // Geri bildirim drawer state — KumandaPaneli'ndeki butondan açılır.
-  const [geriBildirimAcik, setGeriBildirimAcik] = useState(false);
   const [ilgiliKisiModalAcik, setIlgiliKisiModalAcik] = useState(false);
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
@@ -813,14 +810,8 @@ export default function TeklifEditor() {
           onVisibilityDegistir={state.setVisibility}
           serberstCizimAktif={cizimModu}
           onSerberstCizimToggle={() => setCizimModu((v) => !v)}
-          onGeriBildirimAc={() => setGeriBildirimAcik(true)}
         />
       )}
-      <GeriBildirimDrawer
-        open={geriBildirimAcik}
-        onClose={() => setGeriBildirimAcik(false)}
-        initialSayfa="TeklifEditor"
-      />
 
       <IlgiliKisiSecimModal
         open={ilgiliKisiModalAcik}

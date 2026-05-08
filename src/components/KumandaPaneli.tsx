@@ -1,6 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Tooltip } from 'antd';
-import { MessageOutlined } from '@ant-design/icons';
 import {
   PremiumEditIcon,
   PremiumImageIcon,
@@ -53,8 +52,6 @@ interface KumandaPaneliProps {
   /** Serbest çizim modu aktif mi */
   serberstCizimAktif: boolean;
   onSerberstCizimToggle: () => void;
-  /** Geri bildirim drawer'ını aç (TeklifEditor parent'ı yönetir) */
-  onGeriBildirimAc?: () => void;
 }
 
 export default function KumandaPaneli({
@@ -67,7 +64,6 @@ export default function KumandaPaneli({
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
   serberstCizimAktif, onSerberstCizimToggle,
-  onGeriBildirimAc,
 }: KumandaPaneliProps) {
   const { aktifKullanici } = useKullanici();
   const isYonetici = isYoneticiRol(aktifKullanici?.rol);
@@ -1251,28 +1247,6 @@ export default function KumandaPaneli({
             </button>
           </Tooltip>
         </section>
-
-        {onGeriBildirimAc && (
-          <section className="panel-section">
-            <Tooltip
-              title="Geri Bildirim Gönder"
-              placement="left"
-              mouseEnterDelay={1}
-              color={TOOLTIP_COLOR}
-              styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
-            >
-              <button
-                type="button"
-                className="image-add"
-                onClick={onGeriBildirimAc}
-                aria-label="Geri Bildirim"
-              >
-                <span className="button-sweep" aria-hidden="true" />
-                <MessageOutlined style={{ fontSize: 16 }} />
-              </button>
-            </Tooltip>
-          </section>
-        )}
 
         <section className="panel-section">
           <SecLabel text="Satır Ayarları" />
