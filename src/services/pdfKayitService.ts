@@ -248,7 +248,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 
     reader.onload = () => {
       if (typeof reader.result !== 'string') {
-        reject(new Error('PDF verisi okunamadi.'));
+        reject(new Error('PDF verisi okunamadı.'));
         return;
       }
 
@@ -256,7 +256,7 @@ function blobToBase64(blob: Blob): Promise<string> {
       resolve(commaIndex >= 0 ? reader.result.slice(commaIndex + 1) : reader.result);
     };
 
-    reader.onerror = () => reject(new Error('PDF verisi base64 formatina donusturulemedi.'));
+    reader.onerror = () => reject(new Error('PDF verisi base64 formatına dönüştürülemedi.'));
     reader.readAsDataURL(blob);
   });
 }

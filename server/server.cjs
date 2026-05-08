@@ -63,7 +63,7 @@ function loadServerConfig() {
 
 const SERVER_CONFIG = loadServerConfig();
 const PORT = SERVER_CONFIG.listenPort || 3001;
-const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP \u015eIRKETLER\u0130 TEKL\u0130FLER';
+const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP ŞİRKETLERİ TEKLİFLER';
 
 // Aktif teklif icin PDF kok klasor adi: firma profilinde pdfKlasorAdi varsa onu
 // kullan, yoksa fallback. teklif.firmaId'den firma cozulur.
@@ -90,7 +90,7 @@ function readDB() {
     const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
     return data;
   } catch (err) {
-    console.warn('[readDB] db.json okunamadi, varsayilan yapi kullaniliyor:', err.message);
+    console.warn('[readDB] db.json okunamadı, varsayılan yapı kullanılıyor:', err.message);
     return { ...DB_DEFAULTS };
   }
 }
@@ -1353,7 +1353,7 @@ const server = http.createServer(async (req, res) => {
         // Firma profilinden klasor adi cek. Onceligi sirayla:
         //   1) teklif.firmaId (kayittaki firma)
         //   2) request ctx'den firmaId (giris yapmis kullanicinin firmasi — header/query)
-        //   3) fallback ("GRUP SIRKETLERI TEKLIFLER")
+        //   3) fallback ("GRUP ŞİRKETLERİ TEKLİFLER")
         // Eger teklifte firmaId yok ama ctx'ten geldiyse, teklif kaydina kalici
         // sekilde yazilir → sonraki PDF'lerde dogru klasor secilir.
         const dbForFirma = readDB();

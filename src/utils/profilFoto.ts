@@ -14,14 +14,14 @@ const TARGET_AR = VESIKALIK_WIDTH / VESIKALIK_HEIGHT; // 0.75
 const MAX_PHOTO_BYTES = 600 * 1024; // 600 KB
 
 /**
- * Verilen dosyayi 3:4 vesikalik formatina merkezi crop ile kirpip
+ * Verilen dosyayı 3:4 vesikalık formatına merkezi crop ile kırpıp
  * resize eder, JPEG base64 olarak doner. ~30-90 KB araligi hedefli.
  */
 export async function dosyaToVesikalikBase64(file: File): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => resolve(String(fr.result || ''));
-    fr.onerror = () => reject(new Error('Dosya okunamadi'));
+    fr.onerror = () => reject(new Error('Dosya okunamadı'));
     fr.readAsDataURL(file);
   });
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {

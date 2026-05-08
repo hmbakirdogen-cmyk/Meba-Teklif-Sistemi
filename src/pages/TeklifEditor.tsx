@@ -356,8 +356,8 @@ export default function TeklifEditor() {
       state.setPdfHazir(true);
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
-      // Eski tekliflerde firmaId bos kalmis olabilir — fallback "GRUP SIRKETLERI"
-      // klasorune dusulmemesi icin aktif kullanicinin firmasi ile doldurulur.
+      // Eski tekliflerde firmaId boş kalmış olabilir — fallback "GRUP ŞİRKETLERİ"
+      // klasörüne düşülmemesi için aktif kullanıcının firması ile doldurulur.
       // Super-admin (firmaId: null) icin backend ctx fallback'i devreye girer.
       const teklifIcinExport = kayitliTeklif.firmaId
         ? kayitliTeklif
