@@ -72,8 +72,8 @@ export default function KumandaPaneli({
   const { aktifKullanici } = useKullanici();
   const isYonetici = isYoneticiRol(aktifKullanici?.rol);
 
-  const [lastKdv, setLastKdv] = useState(() => (kdvOrani > 0 ? kdvOrani : 20));
-  const [lastIsk, setLastIsk] = useState(() => (iskontoOrani > 0 ? iskontoOrani : 10));
+  const lastKdvRef = useRef(kdvOrani > 0 ? kdvOrani : 20);
+  const lastIskRef = useRef(iskontoOrani > 0 ? iskontoOrani : 10);
   const [iskontoDraft, setIskontoDraft] = useState(() => String(iskontoOrani > 0 ? iskontoOrani : 10));
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Kilit'in altındaki tüm section'lar (Resim Ekle, Satır Ayarları,
@@ -84,6 +84,11 @@ export default function KumandaPaneli({
   const iskOn = iskontoOrani > 0;
 
   useEffect(() => {
+    if (kdvOrani > 0) lastKdvRef.current = kdvOrani;
+  }, [kdvOrani]);
+
+  useEffect(() => {
+    if (iskontoOrani > 0) lastIskRef.current = iskontoOrani;
     if (!iskOn) return;
     setIskontoDraft(String(iskontoOrani));
   }, [iskOn, iskontoOrani]);
@@ -99,27 +104,27 @@ export default function KumandaPaneli({
 
     const clamped = Math.min(100, Math.max(0.5, parsed));
     const stepped = Math.round(clamped * 2) / 2;
-    setLastIsk(stepped);
+    lastIskRef.current = stepped;
     onIskontoOraniDegistir(stepped);
     setIskontoDraft(String(stepped));
   };
 
   const toggleKdv = () => {
     if (kdvOn) {
-      setLastKdv(kdvOrani);
+      lastKdvRef.current = kdvOrani;
       onKdvOraniDegistir(0);
       return;
     }
-    onKdvOraniDegistir(lastKdv);
+    onKdvOraniDegistir(lastKdvRef.current);
   };
 
   const toggleIsk = () => {
     if (iskOn) {
-      setLastIsk(iskontoOrani);
+      lastIskRef.current = iskontoOrani;
       onIskontoOraniDegistir(0);
       return;
     }
-    onIskontoOraniDegistir(lastIsk);
+    onIskontoOraniDegistir(lastIskRef.current);
   };
 
   const onResimSec = () => fileInputRef.current?.click();

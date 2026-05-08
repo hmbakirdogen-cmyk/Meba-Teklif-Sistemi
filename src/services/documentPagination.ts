@@ -217,19 +217,22 @@ function placeBlockOnPages(
   currentPage.showTableHeader = true;
 
   const capacity = pageCapacity(currentPage, measurements);
+  const interBlockGap = currentPage.rowHeightUsed > 0 ? measurements.tableSpacerHeight : 0;
   const willOverflow = currentPage.rowHeightUsed > 0
-    && currentPage.rowHeightUsed + block.height > capacity;
+    && currentPage.rowHeightUsed + interBlockGap + block.height > capacity;
 
   if (willOverflow) {
     currentPage = startNewPage(pages);
     currentPage.showTableHeader = true;
   }
 
+  const appliedGap = currentPage.rowHeightUsed > 0 ? measurements.tableSpacerHeight : 0;
+
   if (currentPage.rowHeightUsed === 0) {
     currentPage.rowStartIndex = block.startIndex;
   }
   currentPage.rowEndIndex = block.endIndex;
-  currentPage.rowHeightUsed += block.height;
+  currentPage.rowHeightUsed += appliedGap + block.height;
 }
 
 /**
