@@ -338,7 +338,6 @@ export default function TeklifEditor() {
       //     için şimdilik client tarafta üretilmeye devam eder.
       let blob: Blob | null = null;
       let pageImages: string[] = [];
-      let pdfFromServer = false;
 
       if (hedef === 'pdf') {
         try {
@@ -360,7 +359,6 @@ export default function TeklifEditor() {
             const u8 = new Uint8Array(bin.length);
             for (let i = 0; i < bin.length; i += 1) u8[i] = bin.charCodeAt(i);
             blob = new Blob([u8.buffer], { type: 'application/pdf' });
-            pdfFromServer = true;
           } else {
             // sessizce client fallback'e düş; user'a yansıtmıyoruz
             console.warn('[render-pdf] server fail, client fallback:', data.error);
@@ -381,9 +379,6 @@ export default function TeklifEditor() {
       printImagesRef.current = pageImages;
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
-      if (pdfFromServer) {
-        message.success('PDF server tarafında üretildi (font-embed).', 2);
-      }
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
       // Eski tekliflerde firmaId bos kalmis olabilir — fallback "GRUP SIRKETLERI"
@@ -422,21 +417,24 @@ export default function TeklifEditor() {
       //    geçiş tetiklenmez — kapanmış teklifin durumu yanlışlıkla 'hazir' ya
       //    da 'gonderildi'ye dönmesin. Aksi takdirde:
       //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap
-      //      hedef='email' → durum 'taslak'/'hazır' ise 'gönderildi' yap (e-posta hazırlandıysa)
-      const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
+      //      hedef='email' → e-posta hazırlandıysa 'gönderildi' yap
       const sonuclanmis = state.durum === 'onaylandi' || state.durum === 'reddedildi' || state.durum === 'iptal';
       if (!sonuclanmis) {
         if (hedef === 'pdf' && state.durum === 'taslak') {
           state.setDurum('hazir');
         }
-        if (hedef === 'email' && sonuc.epostaHazirlandi && yumusakDurumlar.includes(state.durum)) {
-          state.setDurum('gonderildi');
-          await state.kaydetWithStatus('gonderildi');
-        } else if (hedef === 'email' && sonuc.epostaHazirlandi) {
+        if (hedef === 'email' && sonuc.epostaHazirlandi) {
+          // Tek save: state.durum henüz 'gonderildi' olmasa da setDurum +
+          // kaydetWithStatus tek seferde halleder; öncekiyle aynı net etki.
+          const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
+          if (yumusakDurumlar.includes(state.durum)) {
+            state.setDurum('gonderildi');
+          }
           await state.kaydetWithStatus('gonderildi');
         }
       }
     } catch (error) {
+      console.error('[handleDisaAktar] hata:', error);
       if (error instanceof TeklifDisaAktarimHatasi) {
         message.error(error.message);
       } else {
@@ -500,9 +498,22 @@ export default function TeklifEditor() {
         ),
       );
 
-      iframe.contentWindow?.print();
-      setTimeout(() => document.body.removeChild(iframe), 3000);
-    } catch {
+      // Iframe temizlik: print dialog kapanınca anında kaldır;
+      // onafterprint tetiklenmezse 5sn'lik fallback ile yine kalkar.
+      let cleaned = false;
+      const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
+        try { document.body.removeChild(iframe); } catch { /* DOM'da yoksa yok say */ }
+      };
+      const win = iframe.contentWindow;
+      if (win) {
+        win.onafterprint = cleanup;
+      }
+      win?.print();
+      setTimeout(cleanup, 5000);
+    } catch (error) {
+      console.error('[handleYazdir] hata:', error);
       message.error('Yazdırma sırasında hata oluştu.');
     } finally {
       uretiliyorRef.current = false;
