@@ -181,7 +181,11 @@ export default function TeklifPrintSayfasi() {
       </div>
 
       {/* Görünür: gerçek paged document — Puppeteer bunu raster eder */}
-      <div style={{ width: '210mm', margin: 0, padding: 0, background: '#fff' }}>
+      <div
+        data-pdf-render-ready={printReady ? 'true' : 'false'}
+        data-expected-page-count={pagination.totalPages}
+        style={{ width: '210mm', margin: 0, padding: 0, background: '#fff' }}
+      >
         <TeklifPagedDocument
           teklif={teklif}
           totals={totals}

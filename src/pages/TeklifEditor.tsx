@@ -16,8 +16,9 @@ import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import { useColors } from '../hooks/useColors';
 import { useBelgeState, type PanelModu } from '../hooks/useBelgeState';
-import { buildPdf, buildEmailPdf, buildPrintImages } from '../services/pdfService';
+import { buildPdf, buildEmailPdf, buildPrintImages, PdfPageCountMismatchError } from '../services/pdfService';
 import { teklifService } from '../services/teklifService';
+import { api } from '../services/apiClient';
 import {
   teklifDisaAktar,
   teklifDisaAktarVeGerekirseYerelTaslakAc,
@@ -47,7 +48,7 @@ function waitForNextPaint(): Promise<void> {
 export default function TeklifEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { aktifKullanici } = useKullanici();
   const { firmalar, aktifFirma } = useFirma();
   const pdfKayit = usePDFKayit();
@@ -304,8 +305,35 @@ export default function TeklifEditor() {
     );
   }, [message]);
 
+  const confirmEmailPdfReview = useCallback((): Promise<boolean> => new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    modal.confirm({
+      title: 'PDF teklifini kontrol edin',
+      content: (
+        <div style={{ lineHeight: 1.55 }}>
+          <div>Lütfen göndermeden önce ekli PDF teklifini kontrol ediniz.</div>
+          <div style={{ marginTop: 8, color: '#6b7280' }}>
+            Özellikle çok sayfalı teklifler ve set/grup içeren teklifler için PDF çıktısını doğrulamanız önerilir.
+          </div>
+        </div>
+      ),
+      okText: 'Devam et ve Outlook’u aç',
+      cancelText: 'Vazgeç',
+      centered: true,
+      onOk: () => finish(true),
+      onCancel: () => finish(false),
+      afterClose: () => finish(false),
+    });
+  }), [modal]);
+
   const handleDisaAktar = useCallback(async (hedef: TeklifDisaAktarimHedefi) => {
-    if (!teklifObj || !sablonRef.current || !kompaktHeaderRef.current || uretiliyorRef.current) return;
+    if (!teklifObj || uretiliyorRef.current) return;
 
     if (!state.cari) {
       message.warning('Lütfen önce bir müşteri seçin.');
@@ -317,43 +345,28 @@ export default function TeklifEditor() {
       return;
     }
 
-    // 1) State'i ZORLA "kaydedildi" olarak persist et — PDF en son halden üretilir.
-    //    Save (server round-trip) ile PDF render (DOM canvas) eş zamanlı gider:
-    //    PDF DOM'dan okuduğu için save bitmesini beklemesine gerek yok; ikisini
-    //    Promise.all ile paralel çalıştırarak toplam süreyi save süresi kadar
-    //    azaltıyoruz.
+    if (!sablonRef.current) {
+      message.error('Canlı belge görünümü hazır değil. Lütfen kısa süre sonra tekrar deneyin.');
+      return;
+    }
+
+    // 1) State'i önce "kaydedildi" olarak persist et. Canonical PDF kaynağı:
+    //    editördeki CanliA4Belge'nin offscreen paged DOM'u (sablonRef).
+    //    Bu DOM, /print route ile aynı TeklifPagedDocument'i kullanır;
+    //    `data-pdf-render-ready` + `data-expected-page-count` + `data-pdf-page`
+    //    marker'ları ile pdfService'in page-count guard'ı zaten korur.
     uretiliyorRef.current = true;
     state.setUretiliyor(true);
     state.setPdfHazir(false);
     state.setPdfBlob(null);
     printImagesRef.current = [];
 
-    const savePromise = state.kaydetWithStatus('kaydedildi');
-
     try {
-      await waitForNextPaint();
-
-      // 2) Client-side html2canvas + jsPDF ile PDF üretimi.
-      //    Server-side Puppeteer denemesi (/teklif/render-pdf) kalite/layout
-      //    sorunları nedeniyle devre dışı; client akışı tasarımla bire bir
-      //    eşleşiyor. İleride server route stabilize olursa burada tekrar
-      //    fallback olarak eklenebilir.
-      const [kaydedildi, { pdf, pageImages }] = await Promise.all([
-        savePromise,
-        hedef === 'email'
-          ? buildEmailPdf(sablonRef.current)
-          : buildPdf(sablonRef.current),
-      ]);
-
+      const kaydedildi = await state.kaydetWithStatus('kaydedildi');
       if (!kaydedildi) {
         message.error('Teklif kaydedilemedi. PDF oluşturma işlemi durduruldu.');
         return;
       }
-
-      const blob: Blob = pdf.output('blob');
-      printImagesRef.current = pageImages;
-      state.setPdfBlob(blob);
-      state.setPdfHazir(true);
 
       const kayitliTeklif = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
       // Eski tekliflerde firmaId boş kalmış olabilir — fallback "GRUP ŞİRKETLERİ"
@@ -362,6 +375,24 @@ export default function TeklifEditor() {
       const teklifIcinExport = kayitliTeklif.firmaId
         ? kayitliTeklif
         : { ...kayitliTeklif, firmaId: aktifKullanici?.firmaId ?? kayitliTeklif.firmaId };
+      await api.teklifler.upsert(teklifIcinExport);
+
+      // Render kaynağı: editör içindeki canlı paged DOM. Aynı pages dizisi,
+      // aynı template, aynı pagination → PRINT = PDF = ARCHIVE.
+      await waitForNextPaint();
+      const { pdf, pageImages } = hedef === 'email'
+        ? await buildEmailPdf(sablonRef.current!)
+        : await buildPdf(sablonRef.current!);
+      const blob: Blob = pdf.output('blob');
+      printImagesRef.current = pageImages;
+      state.setPdfBlob(blob);
+      state.setPdfHazir(true);
+
+      if (hedef === 'email') {
+        const devam = await confirmEmailPdfReview();
+        if (!devam) return;
+      }
+
       // Offline/yedek yol için firmanın PDF klasör adı (server-side ile birebir aynı).
       // Teklifin firmaId'si üzerinden firmalar listesinden alınır → her kullanıcının
       // firmasına özel klasör (MEBA / ELMOS / MESA) açılır, hardcoded değil.
@@ -412,6 +443,8 @@ export default function TeklifEditor() {
       console.error('[handleDisaAktar] hata:', error);
       if (error instanceof TeklifDisaAktarimHatasi) {
         message.error(error.message);
+      } else if (error instanceof PdfPageCountMismatchError) {
+        message.error('PDF sayfa sayısı doğrulanamadı. PDF kaydedilmedi; lütfen canlı print görünümünü kontrol edip tekrar deneyin.');
       } else {
         message.error(
           hedef === 'email'
@@ -423,7 +456,7 @@ export default function TeklifEditor() {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message, showExportMessage, aktifKullanici?.firmaId, firmalar, pdfKayit]);
+  }, [teklifObj, state, message, showExportMessage, confirmEmailPdfReview, aktifKullanici?.firmaId, firmalar, pdfKayit]);
 
   const handlePdfIndir = useCallback(async () => {
     await handleDisaAktar('pdf');
@@ -564,7 +597,6 @@ export default function TeklifEditor() {
   // ── REVIZE GUARD ─────────────────────────────────────────────────────────
   // Sonuçlanmış / gönderilmiş teklif düzenlenmek istendiğinde orijinal kayıt
   // korunur, yeni bir revize teklif oluşturulup oraya yönlendirilir.
-  const { modal } = App.useApp();
   const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'reddedildi', 'iptal'] as const;
   const kilitli = (KAPALI_DURUMLAR as readonly string[]).includes(state.durum);
   const durumEtiket: Record<string, string> = {

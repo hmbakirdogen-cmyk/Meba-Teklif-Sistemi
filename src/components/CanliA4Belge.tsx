@@ -99,6 +99,7 @@ export default function CanliA4Belge({
   const [scale, setScale] = useState(1);
   const [naturalH, setNaturalH] = useState(Math.round(mmToPx(DOCUMENT_PAGE.heightMm)));
   const [pagination, setPagination] = useState<TeklifPaginationResult>(FALLBACK_PAGINATION);
+  const [paginationReady, setPaginationReady] = useState(false);
 
   const totals = useMemo(
     () => hesaplamaMotoru.teklifToplamlariniHesapla({
@@ -124,9 +125,11 @@ export default function CanliA4Belge({
     const linearRoot = measureRef.current;
     const compactHeaderEl = kompaktHeaderRef.current;
     if (!linearRoot || !compactHeaderEl) return;
+    setPaginationReady(false);
 
     const measure = () => {
       setPagination(calculateTeklifPagination(linearRoot, compactHeaderEl, teklif.satirlar));
+      setPaginationReady(true);
     };
 
     const obs = new ResizeObserver(measure);
@@ -176,6 +179,8 @@ export default function CanliA4Belge({
       <div
         ref={sablonRef}
         aria-hidden
+        data-pdf-render-ready={paginationReady ? 'true' : 'false'}
+        data-expected-page-count={pagination.totalPages}
         style={{
           position: 'absolute',
           left: '-9999px',

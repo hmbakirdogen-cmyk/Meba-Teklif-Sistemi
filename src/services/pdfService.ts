@@ -79,6 +79,80 @@ type JpegAttempt = {
   compression: 'NONE' | 'FAST' | 'MEDIUM';
 };
 
+export class PdfPageCountMismatchError extends Error {
+  renderedPageCount: number;
+  pdfPageCount: number;
+  expectedPageCount: number | null;
+
+  constructor(params: { renderedPageCount: number; pdfPageCount: number; expectedPageCount: number | null }) {
+    super(
+      `PDF sayfa sayısı doğrulanamadı. Render edilen sayfa: ${params.renderedPageCount}, PDF sayfası: ${params.pdfPageCount}.`,
+    );
+    this.name = 'PdfPageCountMismatchError';
+    this.renderedPageCount = params.renderedPageCount;
+    this.pdfPageCount = params.pdfPageCount;
+    this.expectedPageCount = params.expectedPageCount;
+  }
+}
+
+type PagedDomSnapshot = {
+  pageEls: HTMLElement[];
+  renderedPageCount: number;
+  expectedPageCount: number | null;
+};
+
+function parsePositiveInt(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function inspectPagedDom(pagedRootEl: HTMLElement): PagedDomSnapshot {
+  const pageEls = Array.from(
+    pagedRootEl.querySelectorAll<HTMLElement>('[data-pdf-page="true"]'),
+  );
+  return {
+    pageEls,
+    renderedPageCount: pageEls.length,
+    expectedPageCount: parsePositiveInt(pagedRootEl.dataset.expectedPageCount),
+  };
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function waitForPagedDomReady(pagedRootEl: HTMLElement): Promise<PagedDomSnapshot> {
+  const startedAt = Date.now();
+  const timeoutMs = 3000;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const snapshot = inspectPagedDom(pagedRootEl);
+    const markedReady = pagedRootEl.dataset.pdfRenderReady !== 'false';
+    const expectedMatches = snapshot.expectedPageCount == null
+      || snapshot.renderedPageCount === snapshot.expectedPageCount;
+
+    if (markedReady && snapshot.renderedPageCount > 0 && expectedMatches) {
+      return snapshot;
+    }
+
+    await nextFrame();
+  }
+
+  const snapshot = inspectPagedDom(pagedRootEl);
+  const pdfPageCount = snapshot.renderedPageCount;
+  console.error('[pdfService] Paged DOM hazır değil veya sayfa sayısı uyuşmuyor.', {
+    renderedPageCount: snapshot.renderedPageCount,
+    expectedPageCount: snapshot.expectedPageCount,
+    pdfRenderReady: pagedRootEl.dataset.pdfRenderReady,
+  });
+  throw new PdfPageCountMismatchError({
+    renderedPageCount: snapshot.renderedPageCount,
+    pdfPageCount,
+    expectedPageCount: snapshot.expectedPageCount,
+  });
+}
+
 /**
  * html2canvas'ın oluşturduğu DOM kopyasında ekrandaki kalite ipuçlarını
  * çoğaltır: print-color-adjust, font kerning/smoothing, geometric text
@@ -118,15 +192,15 @@ function applyCloneQualityFixes(clonedDoc: Document, clonedEl: HTMLElement): voi
  * hesaplanmıştır; burada sadece her sayfa elementi kendi A4 ölçüsünde
  * raster edilir.
  */
-async function renderPageCanvases(pagedRootEl: HTMLElement): Promise<HTMLCanvasElement[]> {
+async function renderPageCanvases(
+  pagedRootEl: HTMLElement,
+): Promise<{ canvases: HTMLCanvasElement[]; renderedPageCount: number; expectedPageCount: number | null }> {
   await document.fonts.ready;
 
-  const pageEls = Array.from(
-    pagedRootEl.querySelectorAll<HTMLElement>('[data-pdf-page="true"]'),
-  );
+  const { pageEls, renderedPageCount, expectedPageCount } = await waitForPagedDomReady(pagedRootEl);
 
   if (pageEls.length === 0) {
-    throw new Error('PDF sayfalari bulunamadi.');
+    throw new Error('PDF sayfaları bulunamadı.');
   }
 
   const scale = getOptimalScale();
@@ -157,7 +231,7 @@ async function renderPageCanvases(pagedRootEl: HTMLElement): Promise<HTMLCanvasE
     }),
   );
 
-  return canvases;
+  return { canvases, renderedPageCount, expectedPageCount };
 }
 
 /** Canvas → lossless PNG data URL. */
@@ -219,6 +293,30 @@ function buildPdfFromImages(
   return pdf;
 }
 
+function getJsPdfPageCount(pdf: jsPDF): number {
+  if (typeof pdf.getNumberOfPages === 'function') {
+    return pdf.getNumberOfPages();
+  }
+  const internal = pdf.internal as unknown as { getNumberOfPages?: () => number };
+  return typeof internal.getNumberOfPages === 'function' ? internal.getNumberOfPages() : 0;
+}
+
+function assertPdfPageCount(
+  pdf: jsPDF,
+  renderedPageCount: number,
+  expectedPageCount: number | null,
+): void {
+  const pdfPageCount = getJsPdfPageCount(pdf);
+  if (renderedPageCount !== pdfPageCount) {
+    console.error('[pdfService] Render/PDF sayfa sayısı uyuşmuyor.', {
+      renderedPageCount,
+      pdfPageCount,
+      expectedPageCount,
+    });
+    throw new PdfPageCountMismatchError({ renderedPageCount, pdfPageCount, expectedPageCount });
+  }
+}
+
 /**
  * Standart "PDF İndir" akışı — lossless PNG, dosya boyutu sınırı yok.
  * Ekrandaki A4 önizlemesi ile PDF arasında gözle fark edilebilir kalite
@@ -226,11 +324,12 @@ function buildPdfFromImages(
  */
 export async function buildPdf(
   pagedRootEl: HTMLElement,
-): Promise<{ pdf: jsPDF; pageImages: string[] }> {
-  const canvases = await renderPageCanvases(pagedRootEl);
+): Promise<{ pdf: jsPDF; pageImages: string[]; renderedPageCount: number; pdfPageCount: number }> {
+  const { canvases, renderedPageCount, expectedPageCount } = await renderPageCanvases(pagedRootEl);
   const pageImages = canvases.map(encodeCanvasToPng);
   const pdf = buildPdfFromImages(pageImages, 'PNG', 'FAST');
-  return { pdf, pageImages };
+  assertPdfPageCount(pdf, renderedPageCount, expectedPageCount);
+  return { pdf, pageImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(pdf) };
 }
 
 /**
@@ -240,8 +339,8 @@ export async function buildPdf(
  */
 export async function buildEmailPdf(
   pagedRootEl: HTMLElement,
-): Promise<{ pdf: jsPDF; pageImages: string[] }> {
-  const canvases = await renderPageCanvases(pagedRootEl);
+): Promise<{ pdf: jsPDF; pageImages: string[]; renderedPageCount: number; pdfPageCount: number }> {
+  const { canvases, renderedPageCount, expectedPageCount } = await renderPageCanvases(pagedRootEl);
 
   // E-posta PDF'i pratikte hep > 1 MB (PNG olarak); önce PNG denemesi 2× boş
   // iş yapıyordu. Direkt JPEG 0.92'den başla; cap'e sığanı döndür.
@@ -260,16 +359,20 @@ export async function buildEmailPdf(
     const pdf = buildPdfFromImages(pageImages, 'JPEG', attempt.compression);
     const bytes = (pdf.output('arraybuffer') as ArrayBuffer).byteLength;
     if (bytes < bestBytes) { bestBytes = bytes; bestPdf = pdf; bestImages = pageImages; }
-    if (bytes <= EMAIL_MAX_BYTES) return { pdf, pageImages };
+    if (bytes <= EMAIL_MAX_BYTES) {
+      assertPdfPageCount(pdf, renderedPageCount, expectedPageCount);
+      return { pdf, pageImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(pdf) };
+    }
   }
 
-  return { pdf: bestPdf!, pageImages: bestImages };
+  assertPdfPageCount(bestPdf!, renderedPageCount, expectedPageCount);
+  return { pdf: bestPdf!, pageImages: bestImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(bestPdf!) };
 }
 
 /** Yazdırma için her sayfanın PNG data URL'ini döndürür. */
 export async function buildPrintImages(
   pagedRootEl: HTMLElement,
 ): Promise<string[]> {
-  const canvases = await renderPageCanvases(pagedRootEl);
+  const { canvases } = await renderPageCanvases(pagedRootEl);
   return canvases.map(encodeCanvasToPng);
 }
