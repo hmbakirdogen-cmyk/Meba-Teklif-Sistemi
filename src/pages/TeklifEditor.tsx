@@ -451,7 +451,10 @@ export default function TeklifEditor() {
       ).join('');
 
       const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:0;height:0;border:none;';
+      // Görünür ama ekran dışı: Chrome bazı durumlarda width=0/height=0 veya
+      // display:none iframe'lerde print()'i sessizce yutuyor. Off-screen +
+      // küçük boyut ile dialog güvenle açılır.
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;border:none;opacity:0;';
       document.body.appendChild(iframe);
 
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -485,6 +488,12 @@ export default function TeklifEditor() {
       if (win) {
         win.onafterprint = cleanup;
       }
+      // Print dialog'unun açılması için iframe'in focus edilmesi şart.
+      // Bazı tarayıcılar (Chrome 100+) focus olmayan iframe'de print() çağrısını
+      // sessizce yutuyor. focus() + bir paint sonrası print() en güvenli akış.
+      try { iframe.focus(); win?.focus(); } catch { /* focus engellendiyse devam et */ }
+      // Bir microtask kadar bekle ki focus event loop'a işlensin
+      await new Promise<void>((res) => requestAnimationFrame(() => res()));
       win?.print();
       setTimeout(cleanup, 5000);
     } catch (error) {

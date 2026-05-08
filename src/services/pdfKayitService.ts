@@ -120,6 +120,40 @@ function browserDownload(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/**
+ * Windows "Farklı Kaydet" penceresi açar (File System Access API). Kullanıcı
+ * konumu ve dosya adını seçer. Taraycı desteklemiyorsa veya kullanıcı
+ * iptal ederse `false` döner; çağrılan kod `browserDownload` fallback'ine
+ * düşmelidir.
+ */
+async function showSaveDialog(blob: Blob, fileName: string): Promise<boolean> {
+  // showSaveFilePicker yalnızca Chromium tabanlı (Chrome/Edge) taraycılarda var.
+  const w = window as Window & {
+    showSaveFilePicker?: (opts: {
+      suggestedName?: string;
+      types?: Array<{ description: string; accept: Record<string, string[]> }>;
+    }) => Promise<{
+      createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }>;
+    }>;
+  };
+  if (typeof w.showSaveFilePicker !== 'function') return false;
+  try {
+    const handle = await w.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [{ description: 'PDF Belgesi', accept: { 'application/pdf': ['.pdf'] } }],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch (err) {
+    // AbortError = kullanıcı iptal etti → fallback yapma, sessizce çık.
+    if (err instanceof Error && err.name === 'AbortError') return true;
+    console.warn('[showSaveDialog] hata, fallback download:', err);
+    return false;
+  }
+}
+
 // Otomatik dosya adı: <FIRMA-KLASOR>_<CARI>_<TEKLIFNO>.pdf
 // → Kullanıcının Downloads klasöründe tek seviye, organize edilmiş dosya adı.
 function buildAutoDownloadFileName(teklif: Teklif, firmaPdfKlasorAdi?: string): string {
@@ -142,8 +176,11 @@ async function autoSaveToDownloads(
 ): Promise<{ saved: boolean; relativePath?: string }> {
   try {
     const fileName = buildAutoDownloadFileName(teklif, firmaPdfKlasorAdi);
-    browserDownload(blob, fileName);
-    return { saved: true, relativePath: `Downloads/${fileName}` };
+    // Önce "Farklı Kaydet" penceresi (kullanıcı konum + ad seçsin); destek yoksa
+    // veya hata olursa sessizce eski anchor download fallback'ine düş.
+    const saved = await showSaveDialog(blob, fileName);
+    if (!saved) browserDownload(blob, fileName);
+    return { saved: true, relativePath: saved ? fileName : `Downloads/${fileName}` };
   } catch {
     return { saved: false };
   }
