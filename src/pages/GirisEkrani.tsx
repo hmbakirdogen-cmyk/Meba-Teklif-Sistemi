@@ -1914,9 +1914,14 @@ export default function GirisEkrani() {
           }}
         >
           <div style={{
-            fontSize: isMobile ? 52 : 80,
+            // Başlık metni "GROUP COMPANIES" (15 char) → "CORPORATE OPERATIONS PLATFORM" (29 char)
+            // olarak güncellendi. Karakter sayısı ~2x arttığı için orijinal
+            // fontSize/letterSpacing değerleri (80/10, 52/4) küçük ekranlarda
+            // taşmaya neden oluyordu; gradient/glow/font ailesi/tipografi
+            // karakterini koruyarak boyut ve aralık orantılı küçültüldü.
+            fontSize: isMobile ? 30 : 56,
             fontWeight: 300,
-            letterSpacing: isMobile ? 4 : 10,
+            letterSpacing: isMobile ? 2 : 6,
             fontFamily: '"Manrope","Inter","Helvetica Neue","Arial",sans-serif',
             background: 'linear-gradient(180deg, #ffffff 0%, #e8eef8 28%, #b8c8de 65%, #7a8eb0 100%)',
             WebkitBackgroundClip: 'text',
@@ -1925,8 +1930,12 @@ export default function GirisEkrani() {
             textShadow: '0 2px 40px rgba(120,170,240,0.30)',
             marginBottom: 12,
             textAlign: 'center',
+            // 360px altı cihazlarda dahi taşmaması için doğal kelime kırılmasına
+            // izin ver; geniş ekranlarda zaten tek satır.
+            lineHeight: 1.1,
+            maxWidth: '92vw',
           }}>
-            GROUP COMPANIES
+            CORPORATE OPERATIONS PLATFORM
           </div>
 
           <div style={{
@@ -2023,7 +2032,7 @@ export default function GirisEkrani() {
                 boxShadow: `0 0 8px ${accent(0.85)}`,
                 animation: 'gc-pulse-soft 2.4s ease-in-out infinite',
               }} />
-              Group Companies
+              Corporate Operations Platform
             </div>
 
             {/* Ana başlık — zarif çelik-krom gradient (statik, animasyonsuz) */}
