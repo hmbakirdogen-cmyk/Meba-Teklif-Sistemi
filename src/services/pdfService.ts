@@ -42,14 +42,39 @@ const HTML2CANVAS_BASE_OPTIONS = {
   useCORS: true,
   allowTaint: false,
   logging: false,
-  // backgroundColor null → transparent destekle. DOCUMENT_ROOT_STYLE zaten
-  // arka planı beyaz yapıyor, bu sadece transparent piksellerin doğru
-  // composite olmasını sağlar.
-  backgroundColor: null,
+  // A4 belge her zaman beyaz — transparent (null) edge anti-aliasing'inde
+  // koyu header / genel toplam alanlarında çok ince renk drift yaratıyordu.
+  // Beyaz arka plan kompozisyonu tamamen flatten edip ekrandaki rengi
+  // korur (PDF arka planı zaten beyaz, transparency'ye gerek yok).
+  backgroundColor: '#ffffff',
   imageTimeout: 60000,
   foreignObjectRendering: false,
   letterRendering: true,
 } as const;
+
+/**
+ * Clone DOM'una enjekte edilen renk-tutarlılık stylesheet'i. `@media print`
+ * bloğunda zaten benzer kurallar var ama html2canvas screen modunda render
+ * ettiği için print kuralları tetiklenmiyordu. Bu stylesheet clone'a inline
+ * eklenerek tüm descendant'larda print-color-adjust:exact zorlanır;
+ * taraycının koyu/gradient alanlarda "economy" optimizasyonu yapması
+ * engellenir. Sonuç: ekrandaki ile bire bir renk.
+ */
+const CLONE_QUALITY_STYLESHEET = `
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  html, body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  img {
+    image-rendering: auto !important;
+  }
+`;
 
 type JpegAttempt = {
   quality: number;
@@ -62,10 +87,23 @@ type JpegAttempt = {
  * çoğaltır: print-color-adjust, font kerning/smoothing, geometric text
  * rendering. Logo gibi <img>'lerde imageRendering 'auto' (lanczos) korunur.
  */
-function applyCloneQualityFixes(clonedEl: HTMLElement): void {
-  // Bu özellikler CSS inheritance ile root'tan child'lara geçer; tek seferde
-  // root'a uygulamak yeterli. Eski querySelectorAll('*') + getComputedStyle
-  // loop'u büyük belgelerde n× DOM walk darboğazı yaratıyordu.
+function applyCloneQualityFixes(clonedDoc: Document, clonedEl: HTMLElement): void {
+  // 1) Global stylesheet enjeksiyonu — tüm descendant'larda color-adjust:exact
+  //    !important. Tek inline style ile root'a yazmak inheritance için yeterli
+  //    değil; bazı child'lar kendi `color-adjust: economy` ya da implicit
+  //    optimizasyon hint'leri ile taraycıyı "hafif renkleri at" moduna
+  //    sokabiliyor. !important ile zorluyoruz.
+  try {
+    const styleEl = clonedDoc.createElement('style');
+    styleEl.setAttribute('data-pdf-quality', 'true');
+    styleEl.textContent = CLONE_QUALITY_STYLESHEET;
+    const head = clonedDoc.head || clonedDoc.documentElement;
+    if (head) head.appendChild(styleEl);
+  } catch { /* clonedDoc head yoksa fallback'e düş */ }
+
+  // 2) Root'a font-smoothing + text-rendering kalıtımı (CSS inheritance ile
+  //    child'lara geçer). Eski querySelectorAll('*') + getComputedStyle loop'u
+  //    büyük belgelerde n× DOM walk darboğazı yaratıyordu.
   clonedEl.style.setProperty('-webkit-print-color-adjust', 'exact');
   clonedEl.style.printColorAdjust = 'exact';
   clonedEl.style.setProperty('color-adjust', 'exact');
@@ -75,12 +113,6 @@ function applyCloneQualityFixes(clonedEl: HTMLElement): void {
   clonedEl.style.fontKerning = 'normal';
   clonedEl.style.setProperty('font-feature-settings', '"kern" 1');
   clonedEl.style.overflow = 'visible';
-
-  const images = clonedEl.querySelectorAll<HTMLElement>('img');
-  images.forEach((img) => {
-    img.style.imageRendering = 'auto';
-    img.style.setProperty('-webkit-print-color-adjust', 'exact');
-  });
 }
 
 /**
@@ -121,8 +153,8 @@ async function renderPageCanvases(pagedRootEl: HTMLElement): Promise<HTMLCanvasE
         windowHeight: renderHeight,
         scrollX: 0,
         scrollY: 0,
-        onclone: (_clonedDoc, clonedEl) => {
-          applyCloneQualityFixes(clonedEl);
+        onclone: (clonedDoc, clonedEl) => {
+          applyCloneQualityFixes(clonedDoc, clonedEl);
         },
       });
     }),
