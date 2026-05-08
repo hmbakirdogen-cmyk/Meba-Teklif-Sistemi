@@ -1,12 +1,12 @@
 import { APP_CONFIG } from '../config';
 import { getSessionToken, getActiveFirmaId } from './apiClient';
-import type { Teklif } from '../types';
+import type { Firma, Teklif } from '../types';
 
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
 // Tüm firmalar için ortak fallback adı — sadece firma kök klasör adı dışarıdan
 // verilmediğinde kullanılır (offline/edge senaryosu).
-const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP SIRKETLERI TEKLIFLER';
+const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP ŞİRKETLERİ TEKLİFLER';
 
 // showDirectoryPicker prompt'lu yol kaldırıldı — fully otomatik akış için
 // kullanıcı gesture istemeyen browserDownload kullanılıyor.
@@ -51,6 +51,51 @@ function normalizeWhitespace(value: string): string {
   return value.replace(MULTIPLE_SPACES_REGEX, ' ').trim();
 }
 
+type MailFirmaProfili = Pick<Firma, 'id' | 'kisaAd' | 'ad' | 'adres' | 'telefon' | 'eposta' | 'web'>;
+
+const DEFAULT_MAIL_FIRMALAR: Record<string, MailFirmaProfili> = {
+  meba: {
+    id: 'meba',
+    kisaAd: 'MEBA',
+    ad: 'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
+    adres: 'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
+    telefon: '0352 5020780',
+    eposta: 'info@mebamekanik.com',
+    web: 'www.mebamekanik.com',
+  },
+  mesa: {
+    id: 'mesa',
+    kisaAd: 'MESA',
+    ad: 'Mesa Enerji Taahhüt Elektrik Elektronik Mühendislik Danışmanlık Makine San. ve Tic. Ltd. Şti.',
+    adres: 'Organize Sanayi Bölgesi 12. Cad. OSB Ticaret Merkezi No: 5/9 Melikgazi / KAYSERİ',
+    telefon: '0352 321 30 00',
+    eposta: 'info@mesaenerji.com',
+    web: 'www.mesaenerji.com.tr',
+  },
+  elmos: {
+    id: 'elmos',
+    kisaAd: 'ELMOS',
+    ad: 'ELMOS Otomasyon San. Tic. Ltd. Şti.',
+    adres: 'Organize Sanayi Bölgesi 12. Cad. No:30 Melikgazi / KAYSERİ',
+    telefon: '0352 321 30 50',
+    eposta: '',
+    web: 'www.elmos.com.tr',
+  },
+};
+
+function buildMailFirmaProfili(teklif: Teklif, firmaProfil?: Firma): MailFirmaProfili {
+  const fallback = DEFAULT_MAIL_FIRMALAR[firmaProfil?.id || teklif.firmaId || 'meba'] ?? DEFAULT_MAIL_FIRMALAR.meba;
+  return {
+    id: normalizeWhitespace(firmaProfil?.id || fallback.id),
+    kisaAd: normalizeWhitespace(firmaProfil?.kisaAd || fallback.kisaAd),
+    ad: normalizeWhitespace(firmaProfil?.ad || fallback.ad),
+    adres: normalizeWhitespace(firmaProfil?.adres || fallback.adres),
+    telefon: normalizeWhitespace(firmaProfil?.telefon || fallback.telefon),
+    eposta: normalizeWhitespace(firmaProfil?.eposta || fallback.eposta),
+    web: normalizeWhitespace(firmaProfil?.web || fallback.web || ''),
+  };
+}
+
 function sanitizeWindowsSegment(value: string, fallback: string): string {
   const withoutControls = Array.from(value).filter((character) => character.charCodeAt(0) >= 32).join('');
   const sanitized = normalizeWhitespace(
@@ -71,11 +116,15 @@ function buildFallbackFileName(teklif: Teklif): string {
   return teklifNo ? `${cariStem} - ${teklifNo}.pdf` : `${cariStem}.pdf`;
 }
 
-function buildMailSubject(teklif: Teklif): string {
-  return teklif.teklifNo ? `Teklif Belgesi - ${teklif.teklifNo}` : 'Teklif Belgesi';
+function buildMailSubject(teklif: Teklif, firmaProfil?: Firma): string {
+  const firma = buildMailFirmaProfili(teklif, firmaProfil);
+  return teklif.teklifNo
+    ? `${firma.kisaAd} Teklif Belgesi - ${teklif.teklifNo}`
+    : `${firma.kisaAd} Teklif Belgesi`;
 }
 
-function buildMailBody(teklif: Teklif): string {
+function buildMailBody(teklif: Teklif, firmaProfil?: Firma): string {
+  const firma = buildMailFirmaProfili(teklif, firmaProfil);
   const kisi = normalizeWhitespace(teklif.contactName ?? '');
   const title = teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
   const hitap = kisi ? `Sayın ${kisi} ${title},` : 'Sayın İlgili,';
@@ -97,16 +146,12 @@ function buildMailBody(teklif: Teklif): string {
 
   if (hazirlayanAdi) satirlar.push(hazirlayanAdi);
 
-  satirlar.push(
-    'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
-    '',
-    'T: +90 352 502 07 80',
-    'E: info@mebamekanik.com',
-    'W: www.mebamekanik.com',
-    '',
-    'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
-    sep,
-  );
+  satirlar.push(firma.ad, '');
+  if (firma.telefon) satirlar.push(`T: ${firma.telefon}`);
+  if (firma.eposta) satirlar.push(`E: ${firma.eposta}`);
+  if (firma.web) satirlar.push(`W: ${firma.web}`);
+  if (firma.adres) satirlar.push('', firma.adres);
+  satirlar.push(sep);
 
   return satirlar.join('\n');
 }
@@ -221,11 +266,12 @@ function buildFallbackResult(
   teklif: Teklif,
   hedef: TeklifDisaAktarimHedefi,
   localSave?: { saved: boolean; relativePath?: string },
+  firmaProfil?: Firma,
 ): TeklifDisaAktarimSonucu {
   const fallbackFileName = buildFallbackFileName(teklif);
   const aliciEposta = teklif.cari?.ePosta?.trim() || undefined;
-  const mailKonu = buildMailSubject(teklif);
-  const mailGovdesi = buildMailBody(teklif);
+  const mailKonu = buildMailSubject(teklif, firmaProfil);
+  const mailGovdesi = buildMailBody(teklif, firmaProfil);
 
   if (!localSave?.saved) {
     browserDownload(blob, fallbackFileName);
@@ -243,7 +289,7 @@ function buildFallbackResult(
       kayitYontemi: 'tarayici',
       dosyaAcildi: false,
       epostaHazirlandi: acildi,
-      epostaHatasi: acildi ? 'Tarayici taslagi acildi, ancak PDF eki otomatik eklenemedi.' : 'Mail taslagi acilamadi.',
+      epostaHatasi: acildi ? 'Tarayıcı taslağı açıldı, ancak PDF eki otomatik eklenemedi.' : 'Mail taslağı açılamadı.',
       epostaTaslakYontemi: acildi ? 'mailto' : null,
       aliciEposta,
       mailKonu,
@@ -272,6 +318,7 @@ export async function teklifDisaAktar(
   teklif: Teklif,
   hedef: TeklifDisaAktarimHedefi,
   firmaPdfKlasorAdi?: string,
+  firmaProfil?: Firma,
 ): Promise<TeklifDisaAktarimSonucu> {
   const pdfBase64 = await blobToBase64(blob);
 
@@ -292,7 +339,7 @@ export async function teklifDisaAktar(
 
     if (!response.ok) {
       throw new TeklifDisaAktarimHatasi(
-        payload.error ?? 'Disa aktarim islemi tamamlanamadi.',
+        payload.error ?? 'Dışa aktarım işlemi tamamlanamadı.',
         {
           pdfYolu: payload.pdfYolu,
           pdfDosyaAdi: payload.pdfDosyaAdi,
@@ -324,7 +371,7 @@ export async function teklifDisaAktar(
     }
 
     const localSave = await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
-    return buildFallbackResult(blob, teklif, hedef, localSave);
+    return buildFallbackResult(blob, teklif, hedef, localSave, firmaProfil);
   }
 }
 
@@ -333,8 +380,9 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
   teklif: Teklif,
   hedef: TeklifDisaAktarimHedefi,
   firmaPdfKlasorAdi?: string,
+  firmaProfil?: Firma,
 ): Promise<TeklifDisaAktarimSonucu> {
-  const sonuc = await teklifDisaAktar(blob, teklif, hedef, firmaPdfKlasorAdi);
+  const sonuc = await teklifDisaAktar(blob, teklif, hedef, firmaPdfKlasorAdi, firmaProfil);
 
   if (hedef !== 'email' || !sonuc.istemciTarafindaMailtoGerekli) {
     return sonuc;
@@ -343,8 +391,9 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
   // Otomatik browser-download (prompt yok). Downloads klasörüne kaydedilir.
   const localSave = await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
 
-  const konu = sonuc.mailKonu || buildMailSubject(teklif);
-  const govde = sonuc.mailGovdesi || buildMailBody(teklif);
+  const konu = sonuc.mailKonu || buildMailSubject(teklif, firmaProfil);
+  const govde = sonuc.mailGovdesi || buildMailBody(teklif, firmaProfil);
+  const firma = buildMailFirmaProfili(teklif, firmaProfil);
   const acildi = openMailtoDraft(sonuc.aliciEposta, konu, govde);
 
   return {
@@ -354,10 +403,10 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
     yerelKayitYolu: localSave.relativePath,
     epostaHatasi: acildi
       ? localSave.saved
-        ? 'PDF bu bilgisayarda yerel MEBA klasor yapisina kaydedildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.'
+        ? `PDF bu bilgisayarda yerel ${firma.kisaAd} klasör yapısına kaydedildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.`
         : 'PDF bu bilgisayara indirildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.'
       : localSave.saved
-      ? 'PDF bu bilgisayarda yerel MEBA klasor yapisina kaydedildi, ancak yerel e-posta taslağı açılamadı.'
+      ? `PDF bu bilgisayarda yerel ${firma.kisaAd} klasör yapısına kaydedildi, ancak yerel e-posta taslağı açılamadı.`
       : 'PDF bu bilgisayara indirildi, ancak yerel e-posta taslağı açılamadı.',
   };
 }

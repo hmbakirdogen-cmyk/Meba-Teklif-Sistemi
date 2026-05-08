@@ -250,21 +250,21 @@ export default function TeklifEditor() {
       if (sonuc.kayitYontemi === 'tarayici') {
         message.success(
           sonuc.yerelKayitYolu
-            ? `PDF yerel klasore kaydedildi: ${sonuc.yerelKayitYolu}`
-            : 'PDF indirildi. Bu ortamda otomatik masaustu kaydi kullanilamadigi icin tarayici indirmesi kullanildi.',
+            ? `PDF yerel klasöre kaydedildi: ${sonuc.yerelKayitYolu}`
+            : 'PDF indirildi. Bu ortamda otomatik masaüstü kaydı kullanılamadığı için tarayıcı indirmesi kullanıldı.',
         );
         return;
       }
 
       if (sonuc.dosyaAcildi) {
-        message.success('PDF kaydedildi, kayit altina alindi ve otomatik olarak acildi.');
+        message.success('PDF kaydedildi, kayıt altına alındı ve otomatik olarak açıldı.');
         return;
       }
 
       message.warning(
         sonuc.dosyaAcmaHatasi
-          ? `PDF kaydedildi ve kayit altina alindi, ancak otomatik acilamadi. ${sonuc.dosyaAcmaHatasi}`
-          : 'PDF kaydedildi ve kayit altina alindi, ancak otomatik acma tamamlanamadi.',
+          ? `PDF kaydedildi ve kayıt altına alındı, ancak otomatik açılamadı. ${sonuc.dosyaAcmaHatasi}`
+          : 'PDF kaydedildi ve kayıt altına alındı, ancak otomatik açma tamamlanamadı.',
       );
       return;
     }
@@ -273,7 +273,7 @@ export default function TeklifEditor() {
       if (sonuc.epostaTaslakYontemi === 'mailto') {
         message.warning(
           sonuc.yerelKayitYolu
-            ? `PDF yerel klasore kaydedildi: ${sonuc.yerelKayitYolu}. E-posta taslağı açıldı; PDF ekini manuel ekleyiniz.`
+            ? `PDF yerel klasöre kaydedildi: ${sonuc.yerelKayitYolu}. E-posta taslağı açıldı; PDF ekini manuel ekleyiniz.`
             : 'PDF indirildi ve e-posta taslağı açıldı. Tarayıcı ortamında PDF eki otomatik eklenemediğinden eki lütfen kendiniz ekleyiniz.',
         );
         return;
@@ -346,7 +346,7 @@ export default function TeklifEditor() {
       ]);
 
       if (!kaydedildi) {
-        message.error('Teklif kaydedilemedi. PDF olusturma islemi durduruldu.');
+        message.error('Teklif kaydedilemedi. PDF oluşturma işlemi durduruldu.');
         return;
       }
 
@@ -368,8 +368,8 @@ export default function TeklifEditor() {
       const teklifFirmasi = firmalar.find((f) => f.id === teklifIcinExport.firmaId);
       const firmaPdfKlasorAdi = teklifFirmasi?.pdfKlasorAdi || undefined;
       const sonuc = hedef === 'email'
-        ? await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi)
-        : await teklifDisaAktar(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi);
+        ? await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi, teklifFirmasi)
+        : await teklifDisaAktar(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi, teklifFirmasi);
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
 
@@ -415,8 +415,8 @@ export default function TeklifEditor() {
       } else {
         message.error(
           hedef === 'email'
-            ? 'E-mail gonderim akisi hazirlanirken hata olustu.'
-            : 'PDF olusturulurken hata olustu.',
+            ? 'E-mail gönderim akışı hazırlanırken hata oluştu.'
+            : 'PDF oluşturulurken hata oluştu.',
         );
       }
     } finally {

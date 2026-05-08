@@ -163,7 +163,21 @@ function sanitizeUser(u) {
   };
 }
 
-function sanitizeFirma(f) { return f; }
+const FIRMA_TEXT_FALLBACKS = {
+  mesa: {
+    ad: 'Mesa Enerji Taahhüt Elektrik Elektronik Mühendislik Danışmanlık Makine San. ve Tic. Ltd. Şti.',
+  },
+};
+
+function sanitizeFirma(f) {
+  if (!f) return f;
+  const fallback = FIRMA_TEXT_FALLBACKS[f.id];
+  if (!fallback) return f;
+  return {
+    ...f,
+    ad: /Taahhut|Muhendislik|Danismanlik| Sti\.?/i.test(String(f.ad || '')) ? fallback.ad : f.ad,
+  };
+}
 
 // ── Initials helper ─────────────────────────────────────────────────────────
 function uretInitials(adSoyad) {

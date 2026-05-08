@@ -293,7 +293,7 @@ function masaustuYolunuBul() {
     }
   }
 
-  throw new Error('Windows masaustu klasoru bulunamadi.');
+  throw new Error('Windows masaüstü klasörü bulunamadı.');
 }
 
 function klasoruHazirla(klasorYolu, hataMesaji) {
@@ -341,7 +341,7 @@ function dosyaAc(filePath) {
   } catch (error) {
     return {
       acildi: false,
-      acmaHatasi: error instanceof Error ? error.message : 'PDF dosyasi acilamadi.',
+      acmaHatasi: error instanceof Error ? error.message : 'PDF dosyası açılamadı.',
     };
   }
 }
@@ -350,11 +350,75 @@ function escapePowerShellLiteral(value) {
   return String(value ?? '').replace(/'/g, "''");
 }
 
-function mailKonuUret(teklif) {
-  return teklif.teklifNo ? `Teklif Belgesi - ${teklif.teklifNo}` : 'Teklif Belgesi';
+const DEFAULT_MAIL_FIRMALAR = {
+  meba: {
+    id: 'meba',
+    kisaAd: 'MEBA',
+    ad: 'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
+    adres: 'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
+    telefon: '0352 5020780',
+    eposta: 'info@mebamekanik.com',
+    web: 'www.mebamekanik.com',
+  },
+  mesa: {
+    id: 'mesa',
+    kisaAd: 'MESA',
+    ad: 'Mesa Enerji Taahhüt Elektrik Elektronik Mühendislik Danışmanlık Makine San. ve Tic. Ltd. Şti.',
+    adres: 'Organize Sanayi Bölgesi 12. Cad. OSB Ticaret Merkezi No: 5/9 Melikgazi / KAYSERİ',
+    telefon: '0352 321 30 00',
+    eposta: 'info@mesaenerji.com',
+    web: 'www.mesaenerji.com.tr',
+  },
+  elmos: {
+    id: 'elmos',
+    kisaAd: 'ELMOS',
+    ad: 'ELMOS Otomasyon San. Tic. Ltd. Şti.',
+    adres: 'Organize Sanayi Bölgesi 12. Cad. No:30 Melikgazi / KAYSERİ',
+    telefon: '0352 321 30 50',
+    eposta: '',
+    web: 'www.elmos.com.tr',
+  },
+};
+
+function mailFirmaDegeriSec(firmaProfili, alan) {
+  const id = normalizeWhitespace(firmaProfili?.id || 'meba');
+  const fallback = DEFAULT_MAIL_FIRMALAR[id] || DEFAULT_MAIL_FIRMALAR.meba;
+  const value = normalizeWhitespace(firmaProfili?.[alan] || '');
+  if (id === 'mesa' && alan === 'ad' && /Taahhut|Muhendislik|Danismanlik| Sti\.?/i.test(value)) {
+    return fallback.ad;
+  }
+  return value || fallback[alan] || '';
 }
 
-function mailGovdesiUret(teklif) {
+function mailFirmaProfiliUret(firmaProfili) {
+  return {
+    id: mailFirmaDegeriSec(firmaProfili, 'id'),
+    kisaAd: normalizeWhitespace(firmaProfili?.kisaAd || firmaProfili?.teklifPrefix || mailFirmaDegeriSec(firmaProfili, 'kisaAd')),
+    ad: mailFirmaDegeriSec(firmaProfili, 'ad'),
+    adres: mailFirmaDegeriSec(firmaProfili, 'adres'),
+    telefon: mailFirmaDegeriSec(firmaProfili, 'telefon'),
+    eposta: mailFirmaDegeriSec(firmaProfili, 'eposta'),
+    web: mailFirmaDegeriSec(firmaProfili, 'web'),
+    logoPath: normalizeWhitespace(firmaProfili?.logoPath || '/logo-meba.png'),
+  };
+}
+
+function firmaLogoYoluUret(firmaMailProfili) {
+  const publicDir = path.resolve(__dirname, '..', 'public');
+  const temizLogo = firmaMailProfili.logoPath.replace(/^[/\\]+/, '').replace(/\\/g, '/');
+  const aday = path.resolve(publicDir, temizLogo);
+  return aday.startsWith(publicDir + path.sep) ? aday : path.join(publicDir, 'logo-meba.png');
+}
+
+function mailKonuUret(teklif, firmaProfili) {
+  const firma = mailFirmaProfiliUret(firmaProfili);
+  return teklif.teklifNo
+    ? `${firma.kisaAd} Teklif Belgesi - ${teklif.teklifNo}`
+    : `${firma.kisaAd} Teklif Belgesi`;
+}
+
+function mailGovdesiUret(teklif, firmaProfili) {
+  const firma = mailFirmaProfiliUret(firmaProfili);
   const kisi = normalizeWhitespace(teklif?.contactName ?? '');
   const title = teklif?.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
   const hitap = kisi ? `Sayın ${kisi} ${title},` : 'Sayın İlgili,';
@@ -376,16 +440,12 @@ function mailGovdesiUret(teklif) {
 
   if (hazirlayanAdi) satirlar.push(hazirlayanAdi);
 
-  satirlar.push(
-    'MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Mühendislik San. Tic. Ltd. Şti.',
-    '',
-    'T: +90 352 502 07 80',
-    'E: info@mebamekanik.com',
-    'W: www.mebamekanik.com',
-    '',
-    'Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ',
-    sep,
-  );
+  satirlar.push(firma.ad, '');
+  if (firma.telefon) satirlar.push(`T: ${firma.telefon}`);
+  if (firma.eposta) satirlar.push(`E: ${firma.eposta}`);
+  if (firma.web) satirlar.push(`W: ${firma.web}`);
+  if (firma.adres) satirlar.push('', firma.adres);
+  satirlar.push(sep);
 
   return satirlar.join('\r\n');
 }
@@ -418,7 +478,17 @@ function mailtoTaslagiAc({ aliciEposta, konu, govde }) {
   }
 }
 
-function mailHtmlGovdesiUret(teklif, logoBase64) {
+function htmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function mailHtmlGovdesiUret(teklif, logoBase64, firmaProfili) {
+  const firma = mailFirmaProfiliUret(firmaProfili);
   const kisi = normalizeWhitespace(teklif?.contactName ?? '');
   const title = teklif?.contactTitle === 'HANIM' ? 'Hanım' : 'Bey';
   const hitap = kisi ? `Sayın ${kisi} ${title},` : 'Sayın İlgili,';
@@ -429,19 +499,24 @@ function mailHtmlGovdesiUret(teklif, logoBase64) {
   const govdeMetni = `${cariAdi ? cariAdi + ' için hazırladığımız teklif belgemiz' : 'Teklif belgemiz'}${teklifNo ? ' (No: ' + teklifNo + ')' : ''} ekte yer almaktadır. Herhangi bir sorunuz olması durumunda lütfen bizimle iletişime geçiniz.`;
 
   const logoHtml = logoBase64
-    ? `<td style="padding-right:16px;vertical-align:top;width:195px;line-height:0;font-size:0;"><img src="data:image/png;base64,${logoBase64}" width="195" height="89" alt="MEBA" style="display:block;width:195px;height:89px;"></td>`
+    ? `<td style="padding-right:16px;vertical-align:top;width:195px;line-height:0;font-size:0;"><img src="data:image/png;base64,${logoBase64}" width="195" height="89" alt="${htmlEscape(firma.kisaAd)}" style="display:block;width:195px;height:89px;"></td>`
     : '';
   const separatorHtml = logoBase64
     ? `<td style="width:1px;background:#1A2B42;padding:0;"></td>`
     : '';
   const hazirlayanUnvan = normalizeWhitespace(teklif?.hazirlayanUnvan ?? '');
+  const iletisimHtml = [
+    firma.telefon ? `<span style="color:#94a3b8;">T</span>&nbsp; ${htmlEscape(firma.telefon)}` : '',
+    firma.eposta ? `<span style="color:#94a3b8;">E</span>&nbsp; ${htmlEscape(firma.eposta)}` : '',
+    firma.web ? `<span style="color:#94a3b8;">W</span>&nbsp; ${htmlEscape(firma.web)}` : '',
+  ].filter(Boolean).join(' &nbsp;&nbsp;');
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#ffffff;">
 <div style="max-width:600px;padding:28px 32px 32px;font-family:Arial,Helvetica,sans-serif;font-size:13.5px;color:#1e293b;line-height:1.7;">
-  <p style="margin:0 0 14px;">${hitap}</p>
-  <p style="margin:0 0 14px;">${govdeMetni}</p>
+  <p style="margin:0 0 14px;">${htmlEscape(hitap)}</p>
+  <p style="margin:0 0 14px;">${htmlEscape(govdeMetni)}</p>
   <p style="margin:0 0 24px;">Saygılarımızla,</p>
   <div style="border-top:1px solid #dde3ec;padding-top:16px;">
     <table style="border-collapse:collapse;" cellpadding="0" cellspacing="0">
@@ -449,14 +524,10 @@ function mailHtmlGovdesiUret(teklif, logoBase64) {
         ${logoHtml}
         ${separatorHtml}
         <td style="vertical-align:top;padding-left:16px;">
-          ${hazirlayanAdi ? `<div style="font-size:13px;font-weight:700;color:#1A2B42;line-height:1.3;margin-bottom:1px;">${hazirlayanAdi}${hazirlayanUnvan ? `<span style="font-weight:400;color:#64748b;font-size:12px;"> &nbsp;·&nbsp; ${hazirlayanUnvan}</span>` : ''}</div>` : ''}
-          <div style="font-size:11px;color:#64748b;line-height:1.3;margin-bottom:7px;">MEBA Pnömatik Hidrolik Makina Elektrik Elektronik Müh. San. Tic. Ltd. Şti.</div>
-          <div style="font-size:12px;color:#334155;line-height:1.9;">
-            <span style="color:#94a3b8;">T</span>&nbsp; +90 352 502 07 80 &nbsp;&nbsp;
-            <span style="color:#94a3b8;">E</span>&nbsp; info@mebamekanik.com &nbsp;&nbsp;
-            <span style="color:#94a3b8;">W</span>&nbsp; www.mebamekanik.com
-          </div>
-          <div style="font-size:11px;color:#94a3b8;line-height:1.4;margin-top:3px;">Kayseri OSB İnecik Mah. Fatih Sultan Mehmet Blv. No:252/D Melikgazi / KAYSERİ</div>
+          ${hazirlayanAdi ? `<div style="font-size:13px;font-weight:700;color:#1A2B42;line-height:1.3;margin-bottom:1px;">${htmlEscape(hazirlayanAdi)}${hazirlayanUnvan ? `<span style="font-weight:400;color:#64748b;font-size:12px;"> &nbsp;·&nbsp; ${htmlEscape(hazirlayanUnvan)}</span>` : ''}</div>` : ''}
+          <div style="font-size:11px;color:#64748b;line-height:1.3;margin-bottom:7px;">${htmlEscape(firma.ad)}</div>
+          ${iletisimHtml ? `<div style="font-size:12px;color:#334155;line-height:1.9;">${iletisimHtml}</div>` : ''}
+          ${firma.adres ? `<div style="font-size:11px;color:#94a3b8;line-height:1.4;margin-top:3px;">${htmlEscape(firma.adres)}</div>` : ''}
         </td>
       </tr>
     </table>
@@ -1270,11 +1341,11 @@ const server = http.createServer(async (req, res) => {
       let teklifKaydiTamamlandi = false;
 
       if (!teklif || typeof teklif !== 'object' || typeof teklif.id !== 'string') {
-        return send(res, 400, { error: 'Teklif kaydi bulunamadi.' });
+        return send(res, 400, { error: 'Teklif kaydı bulunamadı.' });
       }
 
       if (!pdfBase64) {
-        return send(res, 400, { error: 'PDF verisi alinamadi.' });
+        return send(res, 400, { error: 'PDF verisi alınamadı.' });
       }
 
       try {
@@ -1301,11 +1372,11 @@ const server = http.createServer(async (req, res) => {
         const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
         if (pdfBuffer.length === 0) {
-          return send(res, 400, { error: 'PDF verisi gecersiz.' });
+          return send(res, 400, { error: 'PDF verisi geçersiz.' });
         }
 
-        klasoruHazirla(anaKlasorYolu, 'Ana PDF klasoru olusturulamadi.');
-        klasoruHazirla(altKlasorYolu, 'Cari klasoru olusturulamadi.');
+        klasoruHazirla(anaKlasorYolu, 'Ana PDF klasörü oluşturulamadı.');
+        klasoruHazirla(altKlasorYolu, 'Cari klasörü oluşturulamadı.');
 
         const { dosyaAdi, tamYol } = benzersizDosyaYoluUret(altKlasorYolu, dosyaGovdesi, 'pdf');
         kaydedilenDosyaYolu = tamYol;
@@ -1314,7 +1385,7 @@ const server = http.createServer(async (req, res) => {
         try {
           fs.writeFileSync(tamYol, pdfBuffer);
         } catch {
-          throw new Error('PDF dosyasi diske kaydedilemedi.');
+          throw new Error('PDF dosyası diske kaydedilemedi.');
         }
 
         const pdfOlusturmaTarihi = new Date().toISOString();
@@ -1343,21 +1414,21 @@ const server = http.createServer(async (req, res) => {
           writeDB(db);
           teklifKaydiTamamlandi = true;
         } catch {
-          throw new Error('Teklif kaydi program altyapisina yazilamadi.');
+          throw new Error('Teklif kaydı program altyapısına yazılamadı.');
         }
 
         const aliciEposta = normalizeWhitespace(teklif?.cari?.ePosta ?? '');
-        const mailKonu = mailKonuUret(teklif);
-        const mailGovdesi = mailGovdesiUret(teklif);
+        const mailKonu = mailKonuUret(teklif, teklifFirmaProfili);
+        const mailGovdesi = mailGovdesiUret(teklif, teklifFirmaProfili);
 
         // Logo: base64 olarak oku, yoksa null geç
         let logoBase64 = null;
         try {
-          const logoYolu = path.join(__dirname, '..', 'public', 'logo-meba.png');
+          const logoYolu = firmaLogoYoluUret(mailFirmaProfiliUret(teklifFirmaProfili));
           logoBase64 = fs.readFileSync(logoYolu).toString('base64');
         } catch { /* logo okunamazsa imza logosuz olur */ }
 
-        const mailHtmlGovdesi = mailHtmlGovdesiUret(teklif, logoBase64);
+        const mailHtmlGovdesi = mailHtmlGovdesiUret(teklif, logoBase64, teklifFirmaProfili);
 
         const acmaSonucu = hedef === 'pdf'
           ? dosyaAc(tamYol)
@@ -1374,7 +1445,7 @@ const server = http.createServer(async (req, res) => {
           ? {
             epostaHazirlandi: false,
             epostaTaslakYontemi: null,
-            epostaHatasi: 'Istemci uzak bilgisayarda oldugu icin Outlook taslagi tarayici tarafinda acilacak.',
+            epostaHatasi: 'İstemci uzak bilgisayarda olduğu için Outlook taslağı tarayıcı tarafında açılacak.',
           }
           : {
             epostaHazirlandi: false,
@@ -1411,7 +1482,7 @@ const server = http.createServer(async (req, res) => {
           mailGovdesi: hedef === 'email' ? mailGovdesi : undefined,
         });
       } catch (error) {
-        const hataMesaji = error instanceof Error ? error.message : 'PDF kayit islemi tamamlanamadi.';
+        const hataMesaji = error instanceof Error ? error.message : 'PDF kayıt işlemi tamamlanamadı.';
 
         if (hedef === 'email') {
           emailTelemetryYaz({
@@ -1428,7 +1499,7 @@ const server = http.createServer(async (req, res) => {
 
         if (kaydedilenDosyaYolu && !teklifKaydiTamamlandi) {
           return send(res, 500, {
-            error: `PDF kaydedildi ancak program kaydina islenemedi. ${hataMesaji}`,
+            error: `PDF kaydedildi ancak program kaydına işlenemedi. ${hataMesaji}`,
             pdfYolu: kaydedilenDosyaYolu,
             pdfDosyaAdi: kaydedilenDosyaAdi,
           });
