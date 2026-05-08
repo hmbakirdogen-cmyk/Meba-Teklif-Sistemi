@@ -109,6 +109,25 @@ function withTimeout(signal?: AbortSignal, timeoutMs: number = TIMEOUT_MS_DEFAUL
 
 // ── Generic helpers ───────────────────────────────────────────────────────────
 
+/**
+ * Runtime'da 401 alındığında KullaniciContext'i bilgilendirmek için custom
+ * event. Boot doğrulaması (/auth/me) ve login'in kendisi (/auth/login) için
+ * tetiklenmez — bunların kendi 401 mantıkları var. Aynı anda gelen birden
+ * fazla 401'in çoklu logout / mesaj kuyruğu oluşturmaması için 5sn'lik
+ * dedupe penceresi var.
+ */
+export const SESSION_EXPIRED_EVENT = 'gc-session-expired';
+let sessionExpiredDispatched = false;
+function maybeDispatchSessionExpired(label: string): void {
+  if (typeof window === 'undefined') return;
+  // Auth endpoint'lerinin kendi 401 davranışı var — dışarıda tut.
+  if (label.includes('/auth/login') || label.includes('/auth/logout') || label.includes('/auth/me')) return;
+  if (sessionExpiredDispatched) return;
+  sessionExpiredDispatched = true;
+  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+  setTimeout(() => { sessionExpiredDispatched = false; }, 5000);
+}
+
 /** Yardimci: response'u json'a cevirir; hata durumunda body'deki error mesajini
  *  ekleyerek throw eder. */
 async function parseOrThrow<T>(res: Response, label: string): Promise<T> {
@@ -118,6 +137,9 @@ async function parseOrThrow<T>(res: Response, label: string): Promise<T> {
     try { body = await res.json(); } catch { /* ignore */ }
   }
   if (!res.ok) {
+    if (res.status === 401) {
+      maybeDispatchSessionExpired(label);
+    }
     const errMsg = (body && typeof body === 'object' && 'error' in (body as Record<string, unknown>))
       ? String((body as Record<string, unknown>).error)
       : `${label} → ${res.status}`;

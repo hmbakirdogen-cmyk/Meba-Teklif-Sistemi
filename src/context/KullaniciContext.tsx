@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { message } from 'antd';
 import type { Kullanici } from '../types/kullanici';
 import { KullaniciContext } from './kullaniciContextStore';
 import {
@@ -9,6 +10,7 @@ import {
   getStoredKullanici,
   setStoredKullanici,
   getSessionToken,
+  SESSION_EXPIRED_EVENT,
 } from '../services/apiClient';
 import { tumFirmalaraErisir } from '../utils/yetkiUtils';
 
@@ -110,6 +112,28 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
     setActiveFirmaId(null);
     setAktifKullanici(null);
   }, []);
+
+  // Runtime sırasında herhangi bir API çağrısı 401 dönerse (token süresi
+  // dolmuş, server'da session prune edilmiş, vb.) merkezi olarak logout
+  // yap ve kullanıcıyı bilgilendir. Boot doğrulaması (/auth/me) ve login
+  // (/auth/login) hariç tutulur — apiClient.maybeDispatchSessionExpired()
+  // bu filtrelemeyi yapar. Dedupe penceresi de orada (5sn).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    function onSessionExpired() {
+      // Zaten logout olmuşsa veya hiç login olmamışsa sessizce yok say.
+      if (!getSessionToken()) return;
+      try {
+        message.warning({
+          content: 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.',
+          duration: 4,
+        });
+      } catch { /* message provider yoksa sessiz geç */ }
+      void cikisYap();
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, [cikisYap]);
 
   // Eski API geriye uyum
   const girisYap = useCallback((kullanici: Kullanici) => {
