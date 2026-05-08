@@ -1197,11 +1197,17 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Caller'ın session token'i — Puppeteer'a localStorage'a inject ederiz ki
-      // print sayfasi /api/teklifler fetch'inde 401 almasın.
+      // print sayfasi /api/teklifler fetch'inde 401 almasın. Frontend artık
+      // X-Session-Token header'ı gönderiyor (CORS preflight uyumlu); eski
+      // Authorization: Bearer formatı geriye uyumluluk için fallback olarak
+      // korunur.
+      const xSessionToken = req.headers['x-session-token'];
       const authHeader = req.headers['authorization'] || '';
-      const sessionToken = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
-        ? authHeader.slice(7).trim()
-        : '';
+      const sessionToken = (typeof xSessionToken === 'string' && xSessionToken)
+        ? xSessionToken.trim()
+        : (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7).trim()
+            : '');
 
       // Kendi launcher portumuz (frontend dist serve eden static server)
       const printPort = SERVER_CONFIG.frontendPort || 5173;

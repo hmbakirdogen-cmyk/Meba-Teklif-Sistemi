@@ -345,8 +345,12 @@ export default function TeklifEditor() {
           const { APP_CONFIG } = await import('../config');
           const token = apiClient.getSessionToken() || '';
           const firmaId = apiClient.getActiveFirmaId() || '';
+          // Auth middleware X-Session-Token ister (apiClient ile uyumlu).
+          // Authorization: Bearer ek olarak gönderilse CORS preflight Allow-Headers
+          // listesinde olmadığı için preflight başarısız olur — bu yüzden sadece
+          // X-Session-Token kullanıyoruz; sunucu render-pdf de aynı header'ı okur.
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (token) headers['Authorization'] = 'Bearer ' + token;
+          if (token) headers['X-Session-Token'] = token;
           if (firmaId) headers['X-Firma-Id'] = firmaId;
           const res = await fetch(`${APP_CONFIG.API_BASE}/teklif/render-pdf`, {
             method: 'POST',
