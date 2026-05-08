@@ -24,14 +24,11 @@ import jsPDF from 'jspdf';
 const EMAIL_MAX_BYTES = 1024 * 1024;
 
 /**
- * Dinamik scale: retina (devicePixelRatio >= 2) ekranlarda 4 (~384 DPI),
- * standart ekranlarda 3 (~288 DPI). Üst sınır 4'te tutuluyor; daha yükseği
- * dosya boyutu ve render süresini orantısız büyütüyor, gözle fark yok.
+ * Sabit scale = 4 (~384 DPI A4). Her ekranda en yüksek netlik; dosya boyutu
+ * lossless flate ile yönetilebilir kalıyor.
  */
 function getOptimalScale(): number {
-  if (typeof window === 'undefined') return 3;
-  const dpr = window.devicePixelRatio || 1;
-  return dpr >= 2 ? 4 : 3;
+  return 4;
 }
 
 /**
@@ -232,7 +229,7 @@ export async function buildPdf(
 ): Promise<{ pdf: jsPDF; pageImages: string[] }> {
   const canvases = await renderPageCanvases(pagedRootEl);
   const pageImages = canvases.map(encodeCanvasToPng);
-  const pdf = buildPdfFromImages(pageImages, 'PNG', 'FAST');
+  const pdf = buildPdfFromImages(pageImages, 'PNG', 'NONE');
   return { pdf, pageImages };
 }
 
