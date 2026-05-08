@@ -435,6 +435,9 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     if (yeni.length < 4) {
       return send(res, 400, { error: 'Yeni sifre en az 4 karakter olmali.' });
     }
+    if (yeni === VARSAYILAN_SIFRE) {
+      return send(res, 400, { error: 'Yeni sifre varsayilan sifre (0000) olamaz.' });
+    }
     const k = auth.ctx.kullanici;
     if (!verifyPassword(mevcut, k.sifreHash)) {
       auditLog(db, 'change_password_failed', { kullanici: k }, { reason: 'wrong_current' });
@@ -444,6 +447,10 @@ function createAuthRoutes({ readDB, writeDB, parseBody, send }) {
     k.sifreHash = hashPassword(yeni);
     k.mustChangePassword = false;
     k.sifreDegisikligi = new Date().toISOString();
+    // Diger eski oturumlari iptal et — yalnizca mevcut oturum kalsin
+    ensureOturumlar(db);
+    const mevcutToken = auth.ctx.token;
+    db.oturumlar = db.oturumlar.filter((s) => s.kullaniciId !== k.id || s.token === mevcutToken);
     auditLog(db, 'change_password', { kullanici: k });
     writeDB(db);
     return send(res, 200, { ok: true, mustChangePassword: false });
