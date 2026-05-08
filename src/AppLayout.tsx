@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
@@ -102,7 +102,59 @@ export default function AppLayout() {
   const cokFirmaErisir = tumFirmalaraErisir(rol);
 
   // PWA — masaüstüne kurulum (sadece localhost veya HTTPS'de gözükür).
-  const { canInstall, install } = usePWAInstall();
+  const { canInstall, install, isInstalled } = usePWAInstall();
+
+  // LAN HTTP üzerinden çalışan uzak istemcilerde tarayıcı `beforeinstallprompt`
+  // event'ini fire etmez. Bu durumda yine de "Masaüstüne Ekle" butonu görünmeli;
+  // tıklandığında manuel kurulum talimatlarını gösteren modal açılmalı.
+  const isStandaloneApp = typeof window !== 'undefined'
+    && window.matchMedia
+    && window.matchMedia('(display-mode: standalone)').matches;
+  const installButtonGorunsun = !isInstalled && !isStandaloneApp;
+
+  const masaustuTalimatGoster = useCallback(() => {
+    modal.info({
+      title: 'Masaüstüne Ekle',
+      width: 540,
+      content: (
+        <div style={{ lineHeight: 1.6, fontSize: 13 }}>
+          <p style={{ marginTop: 0 }}>
+            Bu sistemi masaüstü uygulaması gibi kullanmak için tarayıcınızdan
+            kurulum yapabilirsiniz.
+          </p>
+          <p style={{ fontWeight: 600, marginBottom: 4 }}>Chrome / Edge (Windows):</p>
+          <ol style={{ paddingLeft: 20, marginTop: 0 }}>
+            <li>Sağ üstteki <b>⋮</b> menüsünü açın.</li>
+            <li><b>Yayınla, kaydet ve paylaş</b> → <b>Sayfayı uygulama olarak yükle…</b> seçeneğine tıklayın.</li>
+            <li>Açılan pencerede <b>Yükle</b>'yi onaylayın.</li>
+            <li>Masaüstünüzde "Teklif" kısayolu oluşur; çift tıklayarak açabilirsiniz.</li>
+          </ol>
+          <p style={{ fontWeight: 600, marginBottom: 4 }}>Edge (alternatif):</p>
+          <p style={{ marginTop: 0 }}>
+            Adres çubuğunun sağındaki <b>monitör + indir</b> simgesine tıklayın → <b>Yükle</b>.
+          </p>
+          <p style={{ fontWeight: 600, marginBottom: 4 }}>Safari (iPhone / iPad):</p>
+          <p style={{ marginTop: 0 }}>
+            Paylaş simgesi → <b>Ana Ekrana Ekle</b>.
+          </p>
+          <p style={{ marginBottom: 0, color: '#94a3b8', fontSize: 12 }}>
+            Not: Tarayıcınızda "Uygulama olarak yükle" seçeneği görünmüyorsa
+            sayfayı sık kullanılanlara ekleyebilir veya işletim sistemi
+            kısayolu oluşturabilirsiniz.
+          </p>
+        </div>
+      ),
+      okText: 'Tamam',
+    });
+  }, [modal]);
+
+  const masaustuneEkleHandler = useCallback(() => {
+    if (canInstall) {
+      void install();
+    } else {
+      masaustuTalimatGoster();
+    }
+  }, [canInstall, install, masaustuTalimatGoster]);
 
   function navigate_(path: string) {
     setDrawerOpen(false);
@@ -468,15 +520,15 @@ export default function AppLayout() {
               </div>
             </div>
 
-            {/* PWA — Masaüstüne Ekle (yalnızca desteklenen tarayıcılar + localhost/HTTPS'de) */}
-            {canInstall && (
+            {/* PWA — Masaüstüne Ekle (native prompt yoksa manuel talimatlı modal açılır) */}
+            {installButtonGorunsun && (
               <Tooltip title="Bu uygulamayı masaüstüne yükle">
                 <Button
                   type="default"
                   ghost
                   size="small"
                   icon={<DownloadOutlined />}
-                  onClick={() => void install()}
+                  onClick={masaustuneEkleHandler}
                   style={{
                     height: 28,
                     borderColor: 'rgba(30,58,95,0.55)',
@@ -518,12 +570,12 @@ export default function AppLayout() {
         {/* ── HAMBURGER — sadece mobile ── */}
         {isMobile && (
           <>
-            {canInstall && (
+            {installButtonGorunsun && (
               <Tooltip title="Masaüstüne yükle">
                 <Button
                   type="text"
                   icon={<DownloadOutlined />}
-                  onClick={() => void install()}
+                  onClick={masaustuneEkleHandler}
                   className={buttonClassNames.iconGhost}
                   style={{ color: 'rgba(207,225,255,0.9)', fontSize: 16, marginRight: 2 }}
                 />

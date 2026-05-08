@@ -20,7 +20,6 @@ import { buildPdf, buildEmailPdf, buildPrintImages, PdfPageCountMismatchError } 
 import { teklifService } from '../services/teklifService';
 import { api } from '../services/apiClient';
 import {
-  teklifDisaAktar,
   teklifDisaAktarVeGerekirseYerelTaslakAc,
   type TeklifDisaAktarimHedefi,
   type TeklifDisaAktarimSonucu,
@@ -247,25 +246,46 @@ export default function TeklifEditor() {
   // 600ms debounce ile sessizce taslak olarak persist eder.
 
   const showExportMessage = useCallback((sonuc: TeklifDisaAktarimSonucu) => {
+    // Uzak/web istemci tespiti — server cevab\u0131ndaki bayrak veya hostname.
+    const uzakIstemci = sonuc.istemciTarafindaMailtoGerekli
+      || (typeof window !== 'undefined'
+        && window.location.hostname !== 'localhost'
+        && window.location.hostname !== '127.0.0.1'
+        && window.location.hostname !== '::1');
+
     if (sonuc.hedef === 'pdf') {
+      if (uzakIstemci) {
+        // Web client: server kendi makinesine ar\u015fivledi + tarayc\u0131 download tetiklendi.
+        if (sonuc.kayitYontemi === 'otomatik') {
+          message.success('PDF sunucu ar\u015fivine kaydedildi ve bu bilgisayara da indirildi.');
+        } else {
+          message.success(
+            sonuc.yerelKayitYolu
+              ? `PDF bu bilgisayara indirildi: ${sonuc.yerelKayitYolu}`
+              : 'PDF bu bilgisayara indirildi.',
+          );
+        }
+        return;
+      }
+
       if (sonuc.kayitYontemi === 'tarayici') {
         message.success(
           sonuc.yerelKayitYolu
-            ? `PDF yerel klasöre kaydedildi: ${sonuc.yerelKayitYolu}`
-            : 'PDF indirildi. Bu ortamda otomatik masaüstü kaydı kullanılamadığı için tarayıcı indirmesi kullanıldı.',
+            ? `PDF yerel klas\u00f6re kaydedildi: ${sonuc.yerelKayitYolu}`
+            : 'PDF indirildi. Bu ortamda otomatik masa\u00fcst\u00fc kayd\u0131 kullan\u0131lamad\u0131\u011f\u0131 i\u00e7in tarayc\u0131 indirmesi kullan\u0131ld\u0131.',
         );
         return;
       }
 
       if (sonuc.dosyaAcildi) {
-        message.success('PDF kaydedildi, kayıt altına alındı ve otomatik olarak açıldı.');
+        message.success('PDF kaydedildi, kay\u0131t alt\u0131na al\u0131nd\u0131 ve otomatik olarak a\u00e7\u0131ld\u0131.');
         return;
       }
 
       message.warning(
         sonuc.dosyaAcmaHatasi
-          ? `PDF kaydedildi ve kayıt altına alındı, ancak otomatik açılamadı. ${sonuc.dosyaAcmaHatasi}`
-          : 'PDF kaydedildi ve kayıt altına alındı, ancak otomatik açma tamamlanamadı.',
+          ? `PDF kaydedildi ve kay\u0131t alt\u0131na al\u0131nd\u0131, ancak otomatik a\u00e7\u0131lamad\u0131. ${sonuc.dosyaAcmaHatasi}`
+          : 'PDF kaydedildi ve kay\u0131t alt\u0131na al\u0131nd\u0131, ancak otomatik a\u00e7ma tamamlanamad\u0131.',
       );
       return;
     }
@@ -398,9 +418,7 @@ export default function TeklifEditor() {
       // firmasına özel klasör (MEBA / ELMOS / MESA) açılır, hardcoded değil.
       const teklifFirmasi = firmalar.find((f) => f.id === teklifIcinExport.firmaId);
       const firmaPdfKlasorAdi = teklifFirmasi?.pdfKlasorAdi || undefined;
-      const sonuc = hedef === 'email'
-        ? await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi, teklifFirmasi)
-        : await teklifDisaAktar(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi, teklifFirmasi);
+      const sonuc = await teklifDisaAktarVeGerekirseYerelTaslakAc(blob, teklifIcinExport, hedef, firmaPdfKlasorAdi, teklifFirmasi);
       teklifService.teklifCacheGuncelle(sonuc.teklif);
       showExportMessage(sonuc);
 

@@ -166,6 +166,23 @@ function browserDownload(blob: Blob, fileName: string): void {
 }
 
 /**
+ * Çoklu bilgisayar / web client tespiti. Server'ın masaüstüne kaydetmesi
+ * sadece sunucu makinede anlamlı; uzak (LAN/IP) taraycılardan bağlanan
+ * kullanıcılar için bunun yanında mutlaka browser download tetiklenmelidir.
+ *
+ * `localhost` / `127.0.0.1` / `::1` → local server (Outlook COM + masaüstü kaydı
+ * kullanıcıya ulaşan tek yol). Diğer her hostname (192.168.x.x, maşina adı,
+ * vb.) → web client; taraycı download zorunlu.
+ */
+function isRemoteWebClient(): boolean {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname.toLowerCase();
+  if (!host) return false;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return false;
+  return true;
+}
+
+/**
  * Windows "Farklı Kaydet" penceresi açar (File System Access API). Kullanıcı
  * konumu ve dosya adını seçer. Taraycı desteklemiyorsa veya kullanıcı
  * iptal ederse `false` döner; çağrılan kod `browserDownload` fallback'ine
@@ -363,7 +380,10 @@ export async function teklifDisaAktar(
       aliciEposta: payload.aliciEposta,
       mailKonu: payload.mailKonu,
       mailGovdesi: payload.mailGovdesi,
-      istemciTarafindaMailtoGerekli: payload.istemciTarafindaMailtoGerekli ?? false,
+      // Server uzak makinede ise PDF yalnızca server'ın MEBA klasörüne
+      // yazıldı; kullanıcının tarayıcısına ulaşması için
+      // teklifDisaAktarVeGerekirseYerelTaslakAc içinde zorunlu indirme tetiklenir.
+      istemciTarafindaMailtoGerekli: payload.istemciTarafindaMailtoGerekli ?? isRemoteWebClient(),
     };
   } catch (error) {
     if (error instanceof TeklifDisaAktarimHatasi || !(error instanceof TypeError)) {
@@ -384,13 +404,31 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
 ): Promise<TeklifDisaAktarimSonucu> {
   const sonuc = await teklifDisaAktar(blob, teklif, hedef, firmaPdfKlasorAdi, firmaProfil);
 
-  if (hedef !== 'email' || !sonuc.istemciTarafindaMailtoGerekli) {
+  // ── Web/uzak istemci akışı ────────────────────────────────────────────
+  // Server PDF'i kendi makinesindeki MEBA klasörüne yazdı; kullanıcının
+  // tarayıcısına dosya UN ulaşmamış olabilir. Hem PDF hem email hedefinde:
+  //   1) PDF'i mutlaka kullanıcı bilgisayarına indir (browser download).
+  //   2) Email hedefinde mailto ile Outlook/varsayılan istemciyi aç.
+  const uzakIstemci = isRemoteWebClient();
+  const indirmeGerekli = uzakIstemci || sonuc.istemciTarafindaMailtoGerekli;
+
+  if (!indirmeGerekli) {
     return sonuc;
   }
 
-  // Otomatik browser-download (prompt yok). Downloads klasörüne kaydedilir.
+  // PDF'i kullanıcı tarafına indir. autoSaveToDownloads → showSaveFilePicker
+  // (kullanıcı konum seçer) veya fallback anchor download.
   const localSave = await autoSaveToDownloads(blob, teklif, firmaPdfKlasorAdi);
 
+  if (hedef === 'pdf') {
+    return {
+      ...sonuc,
+      kayitYontemi: localSave.saved ? sonuc.kayitYontemi : 'tarayici',
+      yerelKayitYolu: localSave.relativePath,
+    };
+  }
+
+  // hedef === 'email' → ek olarak mailto taslağı aç
   const konu = sonuc.mailKonu || buildMailSubject(teklif, firmaProfil);
   const govde = sonuc.mailGovdesi || buildMailBody(teklif, firmaProfil);
   const firma = buildMailFirmaProfili(teklif, firmaProfil);
@@ -403,10 +441,10 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
     yerelKayitYolu: localSave.relativePath,
     epostaHatasi: acildi
       ? localSave.saved
-        ? `PDF bu bilgisayarda yerel ${firma.kisaAd} klasör yapısına kaydedildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.`
-        : 'PDF bu bilgisayara indirildi. Yerel e-posta taslağı açıldı; PDF ekini manuel ekleyin.'
+        ? `PDF bu bilgisayara indirildi (${firma.kisaAd}). Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
+        : 'PDF bu bilgisayara indirildi. Outlook penceresine bu PDF\'i ekleyip kontrol ederek gönderiniz.'
       : localSave.saved
-      ? `PDF bu bilgisayarda yerel ${firma.kisaAd} klasör yapısına kaydedildi, ancak yerel e-posta taslağı açılamadı.`
+      ? `PDF bu bilgisayara indirildi (${firma.kisaAd}), ancak yerel e-posta taslağı açılamadı.`
       : 'PDF bu bilgisayara indirildi, ancak yerel e-posta taslağı açılamadı.',
   };
 }
