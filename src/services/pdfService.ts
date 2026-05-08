@@ -24,12 +24,14 @@ import jsPDF from 'jspdf';
 const EMAIL_MAX_BYTES = 1024 * 1024;
 
 /**
- * Sabit html2canvas scale = 3 (~288 DPI A4). 300+ DPI insan gözü için ayırt
- * edilemez seviyede; retina'da eski dpr×3 (=6) → 32 MP/sayfa lüzumsuzdu.
- * Düz 3 ile ~8 MP/sayfa, ~4× hız kazancı, kalite kaybı yok.
+ * Dinamik scale: retina (devicePixelRatio >= 2) ekranlarda 4 (~384 DPI),
+ * standart ekranlarda 3 (~288 DPI). Üst sınır 4'te tutuluyor; daha yükseği
+ * dosya boyutu ve render süresini orantısız büyütüyor, gözle fark yok.
  */
 function getOptimalScale(): number {
-  return 3;
+  if (typeof window === 'undefined') return 3;
+  const dpr = window.devicePixelRatio || 1;
+  return dpr >= 2 ? 4 : 3;
 }
 
 /**
@@ -99,31 +101,32 @@ async function renderPageCanvases(pagedRootEl: HTMLElement): Promise<HTMLCanvasE
   }
 
   const scale = getOptimalScale();
-  const canvases: HTMLCanvasElement[] = [];
 
-  for (let i = 0; i < pageEls.length; i += 1) {
-    const el = pageEls[i];
-    const rect = el.getBoundingClientRect();
-    // CSS pixel → integer (subpixel boyut blur yapar)
-    const renderWidth  = Math.max(1, Math.round(rect.width  || el.scrollWidth  || el.offsetWidth  || Math.round(210 * (96 / 25.4))));
-    const renderHeight = Math.max(1, Math.round(rect.height || el.scrollHeight || el.offsetHeight || Math.round(297 * (96 / 25.4))));
+  // Sayfalar paralel render edilir — html2canvas DOM kopyası üzerinde çalıştığı
+  // için birbirine karışmaz, ve I/O (font/decoder) örtüşür. 3-5 sayfa için
+  // memory artmaşı ihmal edilebilir; tek sayfada da ek maliyet yok.
+  const canvases = await Promise.all(
+    pageEls.map(async (el) => {
+      const rect = el.getBoundingClientRect();
+      // CSS pixel → integer (subpixel boyut blur yapar)
+      const renderWidth  = Math.max(1, Math.round(rect.width  || el.scrollWidth  || el.offsetWidth  || Math.round(210 * (96 / 25.4))));
+      const renderHeight = Math.max(1, Math.round(rect.height || el.scrollHeight || el.offsetHeight || Math.round(297 * (96 / 25.4))));
 
-    const canvas = await html2canvas(el, {
-      ...HTML2CANVAS_BASE_OPTIONS,
-      scale,
-      width: renderWidth,
-      height: renderHeight,
-      windowWidth: renderWidth,
-      windowHeight: renderHeight,
-      scrollX: 0,
-      scrollY: 0,
-      onclone: (_clonedDoc, clonedEl) => {
-        applyCloneQualityFixes(clonedEl);
-      },
-    });
-
-    canvases.push(canvas);
-  }
+      return html2canvas(el, {
+        ...HTML2CANVAS_BASE_OPTIONS,
+        scale,
+        width: renderWidth,
+        height: renderHeight,
+        windowWidth: renderWidth,
+        windowHeight: renderHeight,
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (_clonedDoc, clonedEl) => {
+          applyCloneQualityFixes(clonedEl);
+        },
+      });
+    }),
+  );
 
   return canvases;
 }

@@ -317,18 +317,18 @@ export default function TeklifEditor() {
       return;
     }
 
-    // 1) Önce state'i ZORLA "kaydedildi" olarak persist et — PDF en son halden üretilir
-    const kaydedildi = await state.kaydetWithStatus('kaydedildi');
-    if (!kaydedildi) {
-      message.error('Teklif kaydedilemedi. PDF olusturma islemi durduruldu.');
-      return;
-    }
-
+    // 1) State'i ZORLA "kaydedildi" olarak persist et — PDF en son halden üretilir.
+    //    Save (server round-trip) ile PDF render (DOM canvas) eş zamanlı gider:
+    //    PDF DOM'dan okuduğu için save bitmesini beklemesine gerek yok; ikisini
+    //    Promise.all ile paralel çalıştırarak toplam süreyi save süresi kadar
+    //    azaltıyoruz.
     uretiliyorRef.current = true;
     state.setUretiliyor(true);
     state.setPdfHazir(false);
     state.setPdfBlob(null);
     printImagesRef.current = [];
+
+    const savePromise = state.kaydetWithStatus('kaydedildi');
 
     try {
       await waitForNextPaint();
@@ -338,9 +338,18 @@ export default function TeklifEditor() {
       //    sorunları nedeniyle devre dışı; client akışı tasarımla bire bir
       //    eşleşiyor. İleride server route stabilize olursa burada tekrar
       //    fallback olarak eklenebilir.
-      const { pdf, pageImages } = hedef === 'email'
-        ? await buildEmailPdf(sablonRef.current)
-        : await buildPdf(sablonRef.current);
+      const [kaydedildi, { pdf, pageImages }] = await Promise.all([
+        savePromise,
+        hedef === 'email'
+          ? buildEmailPdf(sablonRef.current)
+          : buildPdf(sablonRef.current),
+      ]);
+
+      if (!kaydedildi) {
+        message.error('Teklif kaydedilemedi. PDF olusturma islemi durduruldu.');
+        return;
+      }
+
       const blob: Blob = pdf.output('blob');
       printImagesRef.current = pageImages;
       state.setPdfBlob(blob);
