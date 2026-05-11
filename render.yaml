@@ -10,7 +10,10 @@ services:
     branch: main
     healthCheckPath: /api/health
     autoDeploy: true
-    buildCommand: npm ci && npx prisma generate && npm run build
+    # --include=dev: NODE_ENV=production ortamında devDependencies (typescript,
+    # @types/node, vite types, prisma CLI) build için gerekli; aksi halde
+    # `tsc -b` "Cannot find type definition file for 'vite/client'" verir.
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: DATABASE_URL
