@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
+import { BellOutlined, MailOutlined } from '@ant-design/icons';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
@@ -562,6 +562,18 @@ export default function AppLayout() {
                 type="text"
                 icon={<UserOutlined />}
                 onClick={() => setProfilDuzenleOpen(true)}
+                size="small"
+                className={buttonClassNames.iconGhostSmall}
+                style={{ color: 'rgba(148,163,184,0.8)' }}
+              />
+            </Tooltip>
+
+            {/* E-posta Ayarları — kendi SMTP credentials'larını yönet */}
+            <Tooltip title="E-posta Ayarları">
+              <Button
+                type="text"
+                icon={<MailOutlined />}
+                onClick={() => navigate('/profil/eposta')}
                 size="small"
                 className={buttonClassNames.iconGhostSmall}
                 style={{ color: 'rgba(148,163,184,0.8)' }}
