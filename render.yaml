@@ -1,0 +1,43 @@
+# Render.com Blueprint — Meba Teklif Sistemi
+# Tek Web Service (Express + tsx) + managed Postgres.
+# Cloudflare R2 ve Resend env vars sync:false → ilk deploy'da manuel set.
+services:
+  - type: web
+    name: meba-teklif
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    healthCheckPath: /api/health
+    autoDeploy: true
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: meba-pg
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        value: meba-teklif
+      - key: R2_PUBLIC_URL
+        sync: false
+
+databases:
+  - name: meba-pg
+    plan: starter
+    region: frankfurt
+    postgresMajorVersion: 16

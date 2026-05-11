@@ -10,6 +10,7 @@
 
 import type { Teklif, Cari, Urun, UrunSeti, Kullanici, Firma, Bildirim } from '../types';
 import { APP_CONFIG } from '../config';
+import { authStorage } from './authStorage';
 
 const BASE = APP_CONFIG.API_BASE;
 /** Default network timeout — kısa endpoint'ler için (login, kayıt, get vb.). */
@@ -18,31 +19,35 @@ const TIMEOUT_MS_DEFAULT = 8000;
  *  LAN'da 8sn'i kolayca aşabilir. /sync/* ve bulkReplace bunu kullanır. */
 const TIMEOUT_MS_LONG = 30000;
 
-const SESSION_TOKEN_KEY = 'gc_session_token';
-const ACTIVE_FIRMA_KEY = 'gc_active_firma_id';
-const ACTIVE_USER_KEY = 'gc_aktif_kullanici';
+// ─── Auth storage adapter ──────────────────────────────────────────────
+// Tüm token/user/firma erişimi src/services/authStorage.ts üzerinden olur.
+// Bu dosyadaki public API (getSessionToken/setSessionToken vs.) geriye dönük
+// uyumluluk için tutulur ama altta authStorage'a delege eder. Yeni kod
+// doğrudan authStorage'ı tercih etmeli.
+//
+// "Beni Hatırla" semantiği: kullanıcı checkbox'ı authStorage.save() çağrılırken
+// `remember` parametresi olarak iletilir. ŞİFRE HİÇBİR YERDE SAKLANMAZ.
 
 export function getSessionToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(SESSION_TOKEN_KEY);
+  return authStorage.getToken();
 }
 export function setSessionToken(token: string | null): void {
-  if (typeof window === 'undefined') return;
-  if (token) localStorage.setItem(SESSION_TOKEN_KEY, token);
-  else localStorage.removeItem(SESSION_TOKEN_KEY);
+  // Geriye dönük uyum: yalnız token'ı silen kullanım (logout) için clearAuth.
+  // Token set işlemi normalde authStorage.save() üzerinden yapılır
+  // (KullaniciContext.loginYap içinde); bu setter yalnızca temizleme amaçlı.
+  if (!token) authStorage.clearAuth();
+  // null olmayan setToken çağrısı bu yeni mimaride beklenmez — save() kullan.
 }
 
 export function getActiveFirmaId(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ACTIVE_FIRMA_KEY);
+  return authStorage.getActiveFirmaId();
 }
 /** FirmaContext senkronizasyonu icin custom event adi (ayni tab icinde polling yerine). */
 export const ACTIVE_FIRMA_CHANGE_EVENT = 'gc-active-firma-change';
 
 export function setActiveFirmaId(firmaId: string | null): void {
+  authStorage.setActiveFirmaId(firmaId);
   if (typeof window === 'undefined') return;
-  if (firmaId) localStorage.setItem(ACTIVE_FIRMA_KEY, firmaId);
-  else localStorage.removeItem(ACTIVE_FIRMA_KEY);
   // Ayni tab icinde FirmaContext'i hemen senkronize et (storage event diger
   // tab'lere gider, ayni tab'a gelmez). Polling 1 sn'lik gecikmeyi siler.
   window.dispatchEvent(new CustomEvent(ACTIVE_FIRMA_CHANGE_EVENT, {
@@ -50,37 +55,18 @@ export function setActiveFirmaId(firmaId: string | null): void {
   }));
 }
 
-// "Beni Hatirla" artik sifre saklamiyor — bunun yerine login isteginde
-// beniHatirla:true gonderilir; backend session TTL'ini 30 gune cikarir.
-// Sifre hicbir yerde saklanmaz; XSS-uyumlu. (Eski getRememberedSifre /
-// setRememberedSifre / clearRememberedSifre / _obf / _deobf kaldirildi.)
-
 export function getStoredKullanici(): Kullanici | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(ACTIVE_USER_KEY);
-    return raw ? (JSON.parse(raw) as Kullanici) : null;
-  } catch {
-    return null;
-  }
+  return authStorage.getUser();
 }
 export function setStoredKullanici(kullanici: Kullanici | null): void {
-  if (typeof window === 'undefined') return;
-  if (kullanici) localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(kullanici));
-  else localStorage.removeItem(ACTIVE_USER_KEY);
+  // Geriye dönük uyum: profil foto / isim güncelleme — mevcut storage'a yaz.
+  // Logout çağrısı (null) için clearAuth kullan.
+  if (kullanici) authStorage.updateUser(kullanici);
+  else authStorage.clearAuth();
 }
 
-/** Device id — localStorage'tan oku, yoksa üret. */
 function getDeviceId(): string {
-  if (typeof window === 'undefined') return 'server';
-  // Eski anahtardan migrate (geriye uyum)
-  const eski = localStorage.getItem('meba_device_id');
-  let id = localStorage.getItem('gc_device_id') || eski;
-  if (!id) {
-    id = 'web-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
-  }
-  localStorage.setItem('gc_device_id', id);
-  return id;
+  return authStorage.getDeviceId();
 }
 
 function buildHeaders(extra?: Record<string, string>): Record<string, string> {

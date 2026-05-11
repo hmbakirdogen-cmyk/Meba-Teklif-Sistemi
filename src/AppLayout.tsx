@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge } from 'antd';
+import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
-import BildirimDrawer from './components/BildirimDrawer';
+import BildirimPaneli from './components/BildirimPaneli';
 import { bildirimService } from './services/bildirimService';
 import { isSuperAdmin } from './utils/yetkiUtils';
 import { useEffect } from 'react';
@@ -14,7 +14,7 @@ import { api } from './services/apiClient';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
   MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
-  CheckOutlined, BarChartOutlined, DownloadOutlined, HistoryOutlined, SettingOutlined,
+  CheckOutlined, BarChartOutlined, DownloadOutlined, SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useKullanici } from './context/useKullanici';
@@ -28,6 +28,7 @@ import { usePWAInstall } from './hooks/usePWAInstall';
 import { buttonClassNames } from './styles/buttonStyles';
 import { getAdaptiveLogoPlacement } from './styles/logoStyles';
 import { SyncStatusBar } from './components/SyncStatusBar';
+import EditableFieldContextMenu from './components/EditableFieldContextMenu';
 
 const { Header, Content } = Layout;
 
@@ -188,12 +189,6 @@ export default function AppLayout() {
       icon: <FileTextOutlined />,
       label: 'Teklif Yönetimi',
       onClick: () => navigate_('/teklifler'),
-    },
-    {
-      key: 'malzeme-gecmisi',
-      icon: <HistoryOutlined />,
-      label: 'Malzeme Geçmişi',
-      onClick: () => navigate_('/malzeme-gecmisi'),
     },
     {
       key: 'referans-veriler',
@@ -411,24 +406,44 @@ export default function AppLayout() {
           />
         </Tooltip>
 
-        {/* Tum kullanicilar: atama bildirimleri cani */}
-        {!isMobile && aktifKullanici && (
-          <Tooltip title="Bildirimler" placement="bottom">
-            <Badge count={okunmamisBildirim} size="small" offset={[-2, 4]}>
-              <Button
-                type="text"
-                aria-label="Bildirimler"
-                onClick={() => setBildirimDrawerAcik(true)}
-                icon={<BellOutlined style={{ fontSize: 18, color: '#ffffff' }} />}
-                style={{ background: 'transparent', border: 'none' }}
+        {/* Tum kullanicilar: atama + admin cevap bildirimleri.
+            Zil sadece okunmamış varsa görünür (sade premium navbar). */}
+        {!isMobile && aktifKullanici && okunmamisBildirim > 0 && (
+          <Popover
+            content={
+              <BildirimPaneli
+                open={bildirimDrawerAcik}
+                onClose={() => setBildirimDrawerAcik(false)}
+                onListeDegisti={(liste) => setOkunmamisBildirim(bildirimService.okunmamisSayisi(liste))}
+                onGeriBildirimAc={() => setAdminGbDrawerAcik(true)}
               />
-            </Badge>
-          </Tooltip>
+            }
+            trigger="click"
+            placement="bottomRight"
+            open={bildirimDrawerAcik}
+            onOpenChange={setBildirimDrawerAcik}
+            arrow={false}
+            overlayClassName="bildirim-popover"
+          >
+            <Tooltip title="Bildirimler" placement="bottom" mouseEnterDelay={0.4}>
+              <Badge count={okunmamisBildirim} size="small" offset={[-2, 4]}>
+                <Button
+                  type="text"
+                  aria-label="Bildirimler"
+                  icon={<BellOutlined style={{ fontSize: 18, color: '#ffffff' }} />}
+                  style={{ background: 'transparent', border: 'none' }}
+                  className="bildirim-zil"
+                />
+              </Badge>
+            </Tooltip>
+          </Popover>
         )}
 
-        {/* Süper admin: okunmamış geri bildirim çanı */}
-        {adminMi && !isMobile && (
-          <Tooltip title="Geri Bildirimler" placement="bottom">
+        {/* Süper admin: okunmamış kullanıcı geri bildirim çanı.
+            Yalnız okunmamış varsa görünür. (Tüm kullanıcı feedback'lerini
+            yöneticiye gösteren ayrı kanal — bildirim çanından farklı.) */}
+        {adminMi && !isMobile && okunmamisGb > 0 && (
+          <Tooltip title="Yeni geri bildirimler" placement="bottom" mouseEnterDelay={0.4}>
             <Badge count={okunmamisGb} size="small" offset={[-2, 4]}>
               <Button
                 type="text"
@@ -497,7 +512,7 @@ export default function AppLayout() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 700,
                     color: isAdminLike ? '#fbbf24' : '#93c5fd',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
+                    fontFamily: 'var(--font-sans)',
                     letterSpacing: 0.5,
                   }}>
                     {aktifKullanici.initials}
@@ -736,23 +751,22 @@ export default function AppLayout() {
           PDF render kendi izole document'inde çalışıyor). */}
       <GeriBildirimButonu />
 
-      {/* Süper admin yönetim drawer'ı — header'daki çan ikonu açar */}
-      {adminMi && (
+      {/* GeriBildirim drawer'ı — admin için tüm kullanıcı feedback yönetimi,
+          normal kullanıcı için kendi geri bildirim geçmişi (admin cevap dâhil).
+          Hem admin yellow zilden, hem de bildirim panelindeki cevap satırından
+          tetiklenir. */}
+      {aktifKullanici && (
         <GeriBildirimDrawer
           open={adminGbDrawerAcik}
           onClose={() => setAdminGbDrawerAcik(false)}
-          initialSayfa="(yönetim)"
+          initialSayfa={adminMi ? '(yönetim)' : 'Bildirim cevap'}
         />
       )}
 
-      {/* Bildirim drawer'i — tum kullanicilar icin atama/teklif olaylari */}
-      {aktifKullanici && (
-        <BildirimDrawer
-          open={bildirimDrawerAcik}
-          onClose={() => setBildirimDrawerAcik(false)}
-          onListeDegisti={(liste) => setOkunmamisBildirim(bildirimService.okunmamisSayisi(liste))}
-        />
-      )}
+      {/* EditableField sağ tık menüsü — singleton, portal body'ye render eder.
+          App seviyesinde mount: tüm sayfalar (TeklifEditor, TeklifPrintSayfasi vb.)
+          ortak menüyü kullanır. PDF'e yansımaz (.no-export + data-html2canvas-ignore). */}
+      <EditableFieldContextMenu />
     </Layout>
   );
 }

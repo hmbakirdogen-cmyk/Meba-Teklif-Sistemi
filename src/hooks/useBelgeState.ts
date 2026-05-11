@@ -23,6 +23,7 @@ import { sanitizeMultilineText } from '../utils/formatters';
 import { isYonetici } from '../utils/yetkiUtils';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
 import type { KullaniciRol } from '../types/kullanici';
+import type { Snapshot } from './useUndoRedo';
 import dayjs from 'dayjs';
 
 function cariEpostaVarsayilanla(cari: Cari): Cari {
@@ -143,6 +144,11 @@ interface BelgeActions {
 
   // Görünürlük yetkisi (private = gizli, team = ekibe açık)
   setVisibility: (v: TeklifVisibility) => void;
+
+  // Undo/Redo desteği — snapshot okuma + toplu restore.
+  // Undo stack'i useUndoRedo hook'unda yaşar; useBelgeState ona durum API'si sunar.
+  getSnapshot: () => Snapshot;
+  restoreSnapshot: (snapshot: Snapshot) => void;
 }
 
 interface KullaniciBilgisi {
@@ -674,6 +680,59 @@ export function useBelgeState(
     tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility, dovizKuru,
   ]);
 
+  // ── Undo/Redo snapshot API ──
+  //
+  // getSnapshot: closure üzerinden o anki state'i okur. push tetiklenmeden hemen
+  // önce çağrılır (CellEditPopup açılışı, popup onOpenChange(open=true), satır
+  // aksiyonu öncesi).
+  //
+  // restoreSnapshot: bir snapshot'ı tüm internal setState'lere uygular. React
+  // 18+ otomatik batching ile bunlar tek render'da reconcile edilir; auto-save
+  // useEffect'i ardından tek kez tetiklenir.
+  const getSnapshot = useCallback((): Snapshot => ({
+    satirlar,
+    cari,
+    contactName,
+    contactTitle,
+    paraBirimi,
+    kdvOrani,
+    iskontoOrani,
+    odemeVadesi,
+    gecerlilikSuresi,
+    dovizKuru,
+    notlar,
+    notlarGosterilsin,
+    tarih,
+    ilgiliKisiId,
+    ilgiliKisiAdSoyad,
+    satirBazliParaBirimi,
+    satirBazliIskonto,
+  }), [
+    satirlar, cari, contactName, contactTitle, paraBirimi, kdvOrani, iskontoOrani,
+    odemeVadesi, gecerlilikSuresi, dovizKuru, notlar, notlarGosterilsin, tarih,
+    ilgiliKisiId, ilgiliKisiAdSoyad, satirBazliParaBirimi, satirBazliIskonto,
+  ]);
+
+  const restoreSnapshot = useCallback((s: Snapshot) => {
+    setSatirlarState(s.satirlar);
+    setCariState(s.cari);
+    setContactNameState(s.contactName);
+    setContactTitleState(s.contactTitle);
+    setParaBirimiState(s.paraBirimi);
+    setKdvOraniState(s.kdvOrani);
+    setIskontoOraniState(s.iskontoOrani);
+    setOdemeVadesiState(s.odemeVadesi);
+    setGecerlilikSuresiState(s.gecerlilikSuresi);
+    setDovizKuruState(s.dovizKuru);
+    setNotlarState(s.notlar);
+    setNotlarGosterilsinState(s.notlarGosterilsin);
+    setTarih(s.tarih);
+    setIlgiliKisiIdState(s.ilgiliKisiId);
+    setIlgiliKisiAdSoyadState(s.ilgiliKisiAdSoyad);
+    setSatirBazliParaBirimiState(s.satirBazliParaBirimi);
+    setSatirBazliIskontoState(s.satirBazliIskonto);
+  }, []);
+
   return {
     // State
     teklifId,
@@ -757,5 +816,7 @@ export function useBelgeState(
     kaydet,
     kaydetWithStatus,
     setVisibility: setVisibilityState,
+    getSnapshot,
+    restoreSnapshot,
   };
 }

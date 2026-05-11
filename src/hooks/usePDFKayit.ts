@@ -225,8 +225,10 @@ export function usePDFKayit() {
 
   // Aktif kullanıcı değişince LS adını yeniden yükle (klasör IDB'de saklı,
   // adı LS'de — UI'nin doğru kullanıcının klasör adını göstermesi için).
+  // localStorage external state'tir; effect ile sync etmek doğru pattern.
   useEffect(() => {
     if (!supported || !lsKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setKlasorAdi(null);
       return;
     }

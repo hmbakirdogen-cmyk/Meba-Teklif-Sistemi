@@ -49,11 +49,12 @@ export const LETTER_SPACING = {
 } as const;
 
 // ── Tipografi: Font ailesi ────────────────────────────────────────────────────
-// Apple sistem fontu lider; macOS/iOS'ta SF Pro, Windows'ta SF Pro varsa onu,
-// yoksa Inter (Apple stilini en iyi taklit eden web fontu) → Arial fallback.
+// Inter primary — tüm OS'lerde aynı render, mükemmel Türkçe karakter desteği,
+// tabular-nums tam çalışır. System fontlar yalnız fallback (Inter yüklenemezse).
+// CSS var(--font-sans) ile birebir aynı cascade — index.css :root tek kaynak.
 export const FONT_FAMILY = {
-  sans: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
-  mono: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+  sans: '"Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Arial, sans-serif',
+  mono: 'ui-monospace, "SF Mono", "Menlo", "Cascadia Code", "JetBrains Mono", Consolas, monospace',
 } as const;
 
 // ── Köşe yarıçapı ─────────────────────────────────────────────────────────────

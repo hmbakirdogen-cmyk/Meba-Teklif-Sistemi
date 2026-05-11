@@ -104,7 +104,7 @@ export default function IlkGirisModal() {
         padding: '32px 30px',
         boxShadow: '0 36px 90px rgba(0,0,0,0.65)',
         color: 'rgba(225,235,250,0.94)',
-        fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
+        fontFamily: 'var(--font-sans)',
       }}>
         <div style={{
           fontSize: 11, letterSpacing: 3, color: gold(0.6),

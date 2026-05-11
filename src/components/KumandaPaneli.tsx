@@ -9,6 +9,7 @@ import {
   PremiumDiscountIcon,
   PremiumVisibilityIcon,
 } from './premium-icons';
+import { UndoArrowIcon, RedoArrowIcon } from './ToolbarIcons';
 import { useKullanici } from '../context/useKullanici';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 
@@ -52,6 +53,11 @@ interface KumandaPaneliProps {
   /** Serbest çizim modu aktif mi */
   serberstCizimAktif: boolean;
   onSerberstCizimToggle: () => void;
+  /** Faz 2 — Undo/Redo durum + tetik. Sayfanın global Ctrl+Z/Y de aynı handler'a bağlı. */
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export default function KumandaPaneli({
@@ -64,6 +70,7 @@ export default function KumandaPaneli({
   sagPanelOpen, onResimEkle,
   visibility, onVisibilityDegistir,
   serberstCizimAktif, onSerberstCizimToggle,
+  canUndo, canRedo, onUndo, onRedo,
 }: KumandaPaneliProps) {
   const { aktifKullanici } = useKullanici();
   const isYonetici = isYoneticiRol(aktifKullanici?.rol);
@@ -570,7 +577,7 @@ export default function KumandaPaneli({
 
         /* KDV wordmark text — fill solid accent, stroke yok */
         .premium-panel-icon .pi-text {
-          font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+          font-family: var(--font-sans);
           font-size: 18px;
           font-weight: 800;
           letter-spacing: 0.06em;
@@ -1136,6 +1143,59 @@ export default function KumandaPaneli({
             transform: none !important;
           }
         }
+
+        /* ─── Faz 2: Undo / Redo segmented control ─────────────────────────
+           Yan yana iki buton, ortada ince ayraç, tek nötr container. lock-button
+           CSS'inin pseudo / glow / sweep katmanlarından bağımsız. ───────── */
+        .control-panel .kp-undo-redo-group {
+          width: 100%;
+          height: calc(36px * var(--panel-scale));
+          margin: 6px 0 0;
+          display: flex;
+          align-items: stretch;
+          background: rgba(255, 255, 255, 0.015);
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          border-radius: 10px;
+          overflow: hidden;
+        }
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn {
+          flex: 1 1 0;
+          min-width: 0;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          border-radius: 0;
+          color: rgba(255, 255, 255, 0.82);
+          cursor: pointer;
+          transition: background-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out, filter 180ms ease-out;
+        }
+        /* Segment ayracı — sadece ikinci buton üstünde, container içinde */
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn + .kp-undo-redo-btn {
+          border-left: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn[data-active="true"]:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.98);
+          filter: drop-shadow(0 0 6px rgba(120, 180, 255, 0.18));
+        }
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn[data-active="false"] {
+          opacity: 0.32;
+          cursor: not-allowed;
+        }
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn:focus-visible {
+          outline: 1px solid rgba(255, 255, 255, 0.35);
+          outline-offset: -2px;
+        }
+        /* lock-button pseudo katmanları bu segment butonlarında devre dışı */
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn::before,
+        .control-panel .kp-undo-redo-group .kp-undo-redo-btn::after {
+          display: none !important;
+        }
       `}</style>
 
       <div className="control-panel" data-editing={!readOnly} data-collapsed={!panelGenis}>
@@ -1161,6 +1221,50 @@ export default function KumandaPaneli({
               <PremiumEditIcon readOnly={readOnly} />
             </button>
           </Tooltip>
+
+          {/* Faz 2 — Undo / Redo segmented control. Yan yana, tek container,
+              ortada ince ayraç. Apple/Linear/Figma referans estetiği: nötr ton,
+              hafif hover, mavi/kırmızı vurgu yok. lock-button CSS'i etkilemez. */}
+          {!readOnly && (
+            <div className="kp-undo-redo-group" role="group" aria-label="Geri Al / İleri Al">
+              <Tooltip
+                title="Geri Al (Ctrl+Z)"
+                placement="left"
+                mouseEnterDelay={1}
+                color={TOOLTIP_COLOR}
+                styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
+              >
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  aria-label="Geri Al"
+                  className="kp-undo-redo-btn"
+                  data-active={canUndo}
+                >
+                  <UndoArrowIcon size={15} />
+                </button>
+              </Tooltip>
+              <Tooltip
+                title="İleri Al (Ctrl+Y)"
+                placement="left"
+                mouseEnterDelay={1}
+                color={TOOLTIP_COLOR}
+                styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
+              >
+                <button
+                  type="button"
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  aria-label="İleri Al"
+                  className="kp-undo-redo-btn"
+                  data-active={canRedo}
+                >
+                  <RedoArrowIcon size={15} />
+                </button>
+              </Tooltip>
+            </div>
+          )}
 
           <Tooltip
             title={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
@@ -1450,10 +1554,10 @@ function NotesToggleIcon() {
 }
 
 const TOOLTIP_STYLE: React.CSSProperties = {
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Inter', 'Arial', sans-serif",
+  fontFamily: 'var(--font-sans)',
   color: 'rgba(255,232,238,0.92)',
   fontSize: 10,
-  fontWeight: 350,
+  fontWeight: 400,
   lineHeight: 1.5,
   letterSpacing: '-0.01em',
   padding: '3px 6px',

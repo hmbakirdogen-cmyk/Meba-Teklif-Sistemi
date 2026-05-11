@@ -526,7 +526,7 @@ function NotesBlock({ teklif }: { teklif: Teklif }) {
 }
 
 function SignatureBlock() {
-  const SF_FONT = '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif';
+  const SF_FONT = 'var(--font-sans)';
 
   return (
     <div style={{ ...SIGNATURE_BLOCK_ROW_STYLE, fontFamily: SF_FONT } as React.CSSProperties}>

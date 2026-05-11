@@ -1,0 +1,438 @@
+// Meba-Teklif-Sistemi — Prisma şeması
+// 3 firma (MEBA / ELMOS / MESA) multi-tenant, firmaId scoping ile.
+// ID'ler mevcut db.json'dan migrate edilecek; uygulama tarafı id üretir.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────
+
+enum Rol {
+  super_admin
+  firma_admin
+  engineer
+  sales
+}
+
+enum Visibility {
+  team
+  private
+}
+
+enum BildirimTur {
+  ilgili_atandi
+  teklif_guncellendi
+  geri_bildirim_cevap
+}
+
+enum GeriBildirimTur {
+  hata
+  oneri
+  mesaj
+}
+
+enum EmailDurum {
+  queued
+  sent
+  failed
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FIRMA — 3 grup şirketi (meba / mesa / elmos)
+// ─────────────────────────────────────────────────────────────────
+
+model Firma {
+  id              String   @id // 'meba' | 'mesa' | 'elmos'
+  ad              String
+  kisaAd          String?
+  slogan          String?
+  logoUrl         String?  // R2 public URL
+  renkBirincil    String?
+  renkVurgu       String?
+  adres           String?
+  vergiDairesi    String?
+  vergiNo         String?
+  telefon         String?
+  eposta          String?
+  web             String?
+  iban            String?
+  pdfKlasorAdi    String?
+  teklifPrefix    String?
+  logoScale       Float?
+  varsayilanlar   Json?     // serbest form varsayılan değerler
+
+  kullanicilar    Kullanici[]
+  teklifler       Teklif[]
+  cariler         Cari[]
+  urunler         Urun[]
+  urunSetleri     UrunSeti[]
+  referans        Referans?
+  sayac           Sayac?
+  bildirimler     Bildirim[]
+
+  @@map("firmalar")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// KULLANICI — auth + multi-tenant
+// ─────────────────────────────────────────────────────────────────
+
+model Kullanici {
+  id                          String    @id
+  kullaniciAdi                String    @unique
+  sifreHash                   String    // "scrypt$<saltHex>$<hashHex>"
+  adSoyad                     String
+  unvan                       String?
+  initials                    String?
+  rol                         Rol
+  firmaId                     String?
+  gosterilenFirmalar          String[]  @default([])
+  telefon                     String?
+  dahili                      String?
+  profilFotoUrl               String?
+  profilFotoYuklemeTarihi     DateTime?
+  aktifMi                     Boolean   @default(true)
+  mustChangePassword          Boolean   @default(true)
+  sifreDegisikligi            DateTime?
+  olusturmaTarihi             DateTime  @default(now())
+  olusturanKullaniciId        String?
+  silmeTarihi                 DateTime?
+
+  firma                       Firma?    @relation(fields: [firmaId], references: [id], onDelete: SetNull)
+  oturumlar                   Oturum[]
+  geriBildirimler             GeriBildirim[] @relation("GonderenKullanici")
+
+  @@index([firmaId])
+  @@map("kullanicilar")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// OTURUM — session tokens (TTL)
+// ─────────────────────────────────────────────────────────────────
+
+model Oturum {
+  token           String    @id
+  kullaniciId     String
+  olusturulduAt   DateTime  @default(now())
+  expiresAt       DateTime
+  beniHatirla     Boolean   @default(false)
+  ip              String?
+  ua              String?
+  deviceId        String?
+
+  kullanici       Kullanici @relation(fields: [kullaniciId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([kullaniciId])
+  @@map("oturumlar")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TEKLIF
+// ─────────────────────────────────────────────────────────────────
+
+model Teklif {
+  id                       String      @id
+  firmaId                  String
+  teklifNo                 String?
+  tarih                    String?     // 'YYYY-MM-DD'
+  durum                    String?     // 'taslak' | 'gonderildi' | 'kazanildi' | 'kayip' | ...
+  status                   String?     // legacy alias, durum'la senkron
+  paraBirimi               String?
+  kdvOrani                 Float?
+  iskontoOrani             Float?
+  odemeVadesi              String?
+  gecerlilikSuresi         String?
+  dovizKuru                String?
+  satirBazliParaBirimi     Boolean     @default(false)
+  satirBazliIskonto        Boolean     @default(false)
+
+  // Cari snapshot — teklif anındaki cari verisi (tarihsel uyum için kopyalanır)
+  cariSnapshot             Json?
+  contactName              String?
+  contactTitle             String?
+
+  // Satırlar + toplamlar
+  satirlar                 Json        @default("[]")
+  araToplam                Float       @default(0)
+  toplamIndirim            Float       @default(0)
+  toplamVergi              Float       @default(0)
+  genelToplam              Float       @default(0)
+
+  notlar                   String?
+  notlarGosterilsin        Boolean     @default(true)
+
+  hazirlayanKullaniciId    String?
+  hazirlayanAdSoyad        String?
+  hazirlayanRol            String?
+  hazirlayanUnvan          String?
+  ilgiliKisiId             String?
+  visibility               Visibility  @default(team)
+
+  // Revizyon zinciri
+  revizyonNo               Int?
+  kaynakTeklifId           String?
+  kokTeklifId              String?
+
+  // Sonuç meta
+  sonucTarihi              DateTime?
+  sonucGirenKullaniciId    String?
+  sonucNotu                String?
+  kayipSebebi              String?
+  rakipFirma               String?
+
+  // PDF arşiv (R2)
+  pdfUrl                   String?
+  pdfDosyaAdi              String?
+  pdfOlusturmaTarihi       DateTime?
+
+  // Sync meta
+  version                  Int         @default(1)
+  deviceId                 String?
+  updatedBy                String?
+  lastSyncedAt             DateTime?
+  deletedAt                DateTime?
+
+  olusturmaTarihi          DateTime    @default(now())
+  guncellemeTarihi         DateTime    @default(now()) @updatedAt
+
+  firma                    Firma       @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@index([firmaId, deletedAt])
+  @@index([hazirlayanKullaniciId])
+  @@index([ilgiliKisiId])
+  @@index([teklifNo])
+  @@map("teklifler")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CARI
+// ─────────────────────────────────────────────────────────────────
+
+model Cari {
+  id                  String    @id
+  firmaId             String
+  cariKod             String?
+  firmaAdi            String
+  yetkiliKisi         String?   // legacy tek-kişi
+  telefon             String?
+  ePosta              String?
+  adres               String?
+  sehir               String?
+  vergiDairesi        String?
+  vergiNo             String?
+  logoUrl             String?   // R2 public URL
+  logoYuklemeTarihi   DateTime?
+  kisiler             Json?     // çoklu ilgili kişi (yeni format)
+  lastContactName     String?
+  lastContactTitle    String?
+  notlar              String?
+
+  // Sync meta
+  version             Int       @default(1)
+  deviceId            String?
+  updatedBy           String?
+  lastSyncedAt        DateTime?
+  deletedAt           DateTime?
+
+  olusturmaTarihi     DateTime  @default(now())
+  guncellemeTarihi    DateTime  @default(now()) @updatedAt
+
+  firma               Firma     @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@index([firmaId, deletedAt])
+  @@index([firmaId, cariKod])
+  @@index([firmaId, firmaAdi])
+  @@map("cariler")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// URUN
+// ─────────────────────────────────────────────────────────────────
+
+model Urun {
+  id                String    @id
+  firmaId           String
+  urunKod           String?
+  urunAdi           String
+  aciklama          String?
+  kategori          String?
+  marka             String?
+  birim             String?
+  varsayilanFiyat   Float?
+  resimUrl          String?   // R2 public URL (ileride)
+
+  // Sync meta
+  version           Int       @default(1)
+  deviceId          String?
+  updatedBy         String?
+  lastSyncedAt      DateTime?
+  deletedAt         DateTime?
+
+  olusturmaTarihi   DateTime  @default(now())
+  guncellemeTarihi  DateTime  @default(now()) @updatedAt
+
+  firma             Firma     @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@index([firmaId, deletedAt])
+  @@index([firmaId, urunKod])
+  @@map("urunler")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// URUN SETI
+// ─────────────────────────────────────────────────────────────────
+
+model UrunSeti {
+  id                String    @id
+  firmaId           String
+  setKod            String?
+  setAdi            String?
+  aciklama          String?
+  kalemler          Json      @default("[]")
+
+  // Sync meta
+  version           Int       @default(1)
+  deviceId          String?
+  updatedBy         String?
+  lastSyncedAt      DateTime?
+  deletedAt         DateTime?
+
+  olusturmaTarihi   DateTime  @default(now())
+  guncellemeTarihi  DateTime  @default(now()) @updatedAt
+
+  firma             Firma     @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@index([firmaId, deletedAt])
+  @@map("urun_setleri")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// REFERANS — per-firma referans listeleri
+// ─────────────────────────────────────────────────────────────────
+
+model Referans {
+  firmaId                    String   @id
+  markalar                   String[] @default([])
+  birimler                   String[] @default([])
+  teslimSecenekleri          String[] @default([])
+  odemeVadesiSecenekleri     String[] @default([])
+  kdvOranlari                String[] @default([])
+  gecerlilikSecenekleri      String[] @default([])
+  paraBirimleri              String[] @default([])
+  dovizKuruSecenekleri       String[] @default([])
+
+  firma                      Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@map("referanslar")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SAYAC — per-firma aylık teklif numara sayacı
+// ─────────────────────────────────────────────────────────────────
+
+model Sayac {
+  firmaId   String   @id
+  yil       Int
+  ay        Int
+  deger     Int      @default(0)
+
+  firma     Firma    @relation(fields: [firmaId], references: [id], onDelete: Cascade)
+
+  @@map("sayaclar")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BILDIRIM — atama / teklif olayları
+// ─────────────────────────────────────────────────────────────────
+
+model Bildirim {
+  id                       String      @id
+  hedefKullaniciId         String
+  kaynakKullaniciId        String?
+  kaynakKullaniciAdSoyad   String?
+  tur                      BildirimTur
+  teklifId                 String?
+  teklifNo                 String?
+  cariAdi                  String?
+  geriBildirimId           String?
+  ozet                     String?
+  okundu                   Boolean     @default(false)
+  tarih                    DateTime    @default(now())
+
+  // firmaId opsiyonel — bazı bildirimler cross-firma olabilir
+  firmaId                  String?
+  firma                    Firma?      @relation(fields: [firmaId], references: [id], onDelete: SetNull)
+
+  @@index([hedefKullaniciId, tarih])
+  @@index([okundu])
+  @@map("bildirimler")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// GERI BILDIRIM — kullanıcı → süper admin mesaj kanalı
+// ─────────────────────────────────────────────────────────────────
+
+model GeriBildirim {
+  id                   String          @id
+  gonderenKullaniciId  String
+  gonderenAdSoyad      String?
+  tur                  GeriBildirimTur
+  sayfa                String?
+  mesaj                String
+  okundu               Boolean         @default(false)
+  cevap                String?
+  cevapTarihi          DateTime?
+  tarih                DateTime        @default(now())
+
+  gonderen             Kullanici       @relation("GonderenKullanici", fields: [gonderenKullaniciId], references: [id], onDelete: Cascade)
+
+  @@index([tarih])
+  @@map("geri_bildirimler")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// AUDIT LOG — son 5000 girdi rolling (uygulama tarafı kırpar)
+// ─────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  zaman         DateTime @default(now())
+  eylem         String
+  kullaniciId   String?
+  kullaniciAdi  String?
+  firmaId       String?
+  detay         Json?
+
+  @@index([zaman])
+  @@index([kullaniciId])
+  @@map("audit_log")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EMAIL LOG — Resend gönderim telemetrisi
+// ─────────────────────────────────────────────────────────────────
+
+model EmailLog {
+  id           Int        @id @default(autoincrement())
+  teklifId     String?
+  teklifNo     String?
+  aliciEposta  String?
+  gonderen     String?
+  durum        EmailDurum
+  resendId     String?
+  hata         String?
+  tarih        DateTime   @default(now())
+
+  @@index([tarih])
+  @@index([teklifId])
+  @@map("email_log")
+}

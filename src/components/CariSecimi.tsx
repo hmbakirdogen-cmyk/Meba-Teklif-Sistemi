@@ -92,7 +92,11 @@ export default function CariSecimi({ value, onChange }: CariSecimiProps) {
           value={value?.id}
           onChange={cariSec}
           popupMatchSelectWidth={false}
-          dropdownStyle={{ minWidth: 560 }}
+          classNames={{ popup: { root: 'meba-cari-search-popup' } }}
+          // Parent içine render → scroll ile birlikte hareket eder (body fixed olmaz).
+          // Splash card overflow:visible olduğu için kesilmez.
+          getPopupContainer={(trigger) => trigger.parentElement || document.body}
+          styles={{ popup: { root: { minWidth: 560, maxWidth: '90vw', zIndex: 2050 } } }}
           options={selectOptions}
           filterOption={(input, option) => {
             const ara = input.toLocaleLowerCase('tr-TR');

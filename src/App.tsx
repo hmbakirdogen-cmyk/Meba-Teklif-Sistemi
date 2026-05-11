@@ -4,7 +4,6 @@ import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import AppRouter from './AppRouter'
 import { buttonClassNames } from './styles/buttonStyles'
 import { initDataStore } from './services/dataStore'
-import { initNetworkConfig } from './services/networkConfig'
 import { ThemeProvider } from './context/ThemeContext'
 import { useTheme } from './context/useTheme'
 import { useKullanici } from './context/useKullanici'
@@ -74,7 +73,7 @@ function SoftwareSignature() {
         zIndex: 1,
         fontSize: 8.8,
         letterSpacing: 0.32,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
+        fontFamily: 'var(--font-sans)',
         fontWeight: 600,
         color: 'var(--text-secondary)',
         opacity: 0.8,
@@ -168,15 +167,17 @@ function ThemedApp() {
     // Login değilsek /api/init zaten 401 döner; AppRouter login ekranını
     // göstersin diye hazırlık anahtarını set edip return ediyoruz.
     if (!userId || !userRol) {
+      // Login öncesi: hazır anahtarını eşitle ki AppRouter login ekranını
+      // gösterebilsin. Bu external auth state'in sync'i — async init
+      // çağrılarını skip ediyoruz.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHataMsg(null);
       setHazirSessionKey(oturumAnahtari);
       return;
     }
     const kullanici = { id: userId, rol: userRol };
-    // initNetworkConfig önce çalışır → API_BASE'i resolve eder; sonra
-    // initDataStore sunucudan veri çeker.
-    initNetworkConfig()
-      .then(() => initDataStore(kullanici))
+    // Same-origin API: API_BASE artık sabit '/api' (Render veya Vite proxy).
+    initDataStore(kullanici)
       .then(() => {
         if (!aktif) return;
         setHataMsg(null);

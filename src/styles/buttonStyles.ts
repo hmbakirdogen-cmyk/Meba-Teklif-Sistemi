@@ -16,10 +16,6 @@ export const buttonClassNames = {
   link: 'app-link-button',
 } as const;
 
-export function tabButtonClassName(active: boolean) {
-  return `app-tab-button${active ? ' is-active' : ''}`;
-}
-
 export function chipButtonClassName(active: boolean) {
   return `app-chip-button${active ? ' is-active' : ''}`;
 }

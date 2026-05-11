@@ -22,8 +22,10 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Zaten standalone modda açılmışsa (kurulu) → butonu gösterme
+    // Zaten standalone modda açılmışsa (kurulu) → butonu gösterme.
+    // matchMedia external API — sync için effect doğru yer.
     if (window.matchMedia('(display-mode: standalone)').matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsInstalled(true);
       return;
     }

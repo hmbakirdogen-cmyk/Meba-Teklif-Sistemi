@@ -7,6 +7,7 @@ import { calculateTeklifPagination, type TeklifPaginationResult } from '../servi
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import { ImageOverlayLayer } from './ImageOverlayLayer';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi, ImageItem } from '../types';
+import type { Snapshot } from '../hooks/useUndoRedo';
 
 const A4_W_PX = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
 const A4_H_PX = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
@@ -43,6 +44,9 @@ interface CanliA4BelgeProps {
   gorseller: ImageItem[];
   onGorselGuncelle: (id: string, partial: Partial<Omit<ImageItem, 'id'>>) => void;
   onGorselSil: (id: string) => void;
+  /** Undo stack push — popup commit + cari/ayar değişikliklerinde tetiklenir. */
+  pushUndo: (snapshot: Snapshot) => void;
+  getSnapshot: () => Snapshot;
 }
 
 const FALLBACK_PAGINATION: TeklifPaginationResult = {
@@ -92,6 +96,8 @@ export default function CanliA4Belge({
   gorseller,
   onGorselGuncelle,
   onGorselSil,
+  pushUndo,
+  getSnapshot,
 }: CanliA4BelgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -125,18 +131,46 @@ export default function CanliA4Belge({
     const linearRoot = measureRef.current;
     const compactHeaderEl = kompaktHeaderRef.current;
     if (!linearRoot || !compactHeaderEl) return;
+    // Layout ölçüm öncesi pagination ready bayrağını sıfırla — DOM ölçüm sonrası
+    // measure() içinde yeniden true yapılır. ResizeObserver-driven external sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginationReady(false);
 
-    const measure = () => {
+    // Faz 2 — 800ms debounce: yazım sırasında her keystroke pagination recompute
+    // tetiklemesin. İlk run leading-immediate (mount + ilk değişiklik), sonraki
+    // çağrılar trailing-debounced. PDF export waitForPagedDomReady polling
+    // sırasında data-pdf-render-ready=false → true bekler; debounce gecikmesi
+    // PDF render'ı bloklamaz, sadece UI yeniden hesabı geciktirir.
+    let firstRun = true;
+    let timerId: number | null = null;
+
+    const compute = () => {
       setPagination(calculateTeklifPagination(linearRoot, compactHeaderEl, teklif.satirlar));
       setPaginationReady(true);
+    };
+
+    const measure = () => {
+      if (firstRun) {
+        firstRun = false;
+        compute();
+        return;
+      }
+      setPaginationReady(false);
+      if (timerId !== null) window.clearTimeout(timerId);
+      timerId = window.setTimeout(() => {
+        compute();
+        timerId = null;
+      }, 800);
     };
 
     const obs = new ResizeObserver(measure);
     obs.observe(linearRoot);
     obs.observe(compactHeaderEl);
     measure();
-    return () => obs.disconnect();
+    return () => {
+      obs.disconnect();
+      if (timerId !== null) window.clearTimeout(timerId);
+    };
   }, [teklif, kompaktHeaderRef]);
 
   useLayoutEffect(() => {
@@ -275,6 +309,8 @@ export default function CanliA4Belge({
             onSatirArayaEkle={onSatirArayaEkle}
             onNotlarDegistir={onNotlarDegistir}
             readOnly={readOnly}
+            pushUndo={pushUndo}
+            getSnapshot={getSnapshot}
             renderPageOverlay={(pageIndex) => (
               <ImageOverlayLayer
                 pageIndex={pageIndex}

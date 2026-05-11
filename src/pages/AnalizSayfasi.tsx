@@ -8,7 +8,8 @@ import type { Teklif } from '../types';
 import { useKullanici } from '../context/useKullanici';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useColors } from '../hooks/useColors';
-import { computeYoneticiOzeti, YoneticiOzeti, SONUC_CFG, KAYIP_SEBEBI_LABEL } from './TeklifListesi';
+import { computeYoneticiOzeti, SONUC_CFG, KAYIP_SEBEBI_LABEL } from './teklifListesiShared';
+import { YoneticiOzeti } from '../components/YoneticiOzeti';
 import { useTheme } from '../context/useTheme';
 import { formatDate, formatCariAdi } from '../utils/formatters';
 

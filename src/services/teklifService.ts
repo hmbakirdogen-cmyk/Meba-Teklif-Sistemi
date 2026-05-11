@@ -87,6 +87,13 @@ function teklifSil(id: string): void {
   dataStore.deleteTeklif(id);
 }
 
+/**
+ * Çoğalt — kaynak teklifi yeni bağımsız bir kayıt olarak çoğaltır.
+ * Taşınanlar: satırlar, fiyatlar, açıklamalar, KDV/iskonto, notlar.
+ * Sıfırlananlar: teklif no (yeni üretilir), tarihler, durum (taslak),
+ * sonuç meta verileri, PDF dosya bilgileri, sync alanları, revizyon
+ * zinciri (yeni teklif kendi başına).
+ */
 function teklifKopyala(
   id: string,
   kullanici?: { id: string; adSoyad: string; rol: string; unvan?: string },
@@ -100,8 +107,29 @@ function teklifKopyala(
     teklifNo: '---',
     tarih: dayjs().format('YYYY-MM-DD'),
     durum: 'taslak',
+    status: 'taslak',
     olusturmaTarihi: now,
     guncellemeTarihi: now,
+    // Revizyon zincirini kopart — bu yeni bağımsız bir teklif
+    revizyonNo: undefined,
+    kaynakTeklifId: undefined,
+    kokTeklifId: undefined,
+    // Sonuç meta sıfırla — yeni teklif henüz sonuçlanmamış
+    sonucTarihi: undefined,
+    sonucGirenKullaniciId: undefined,
+    sonucNotu: undefined,
+    kayipSebebi: undefined,
+    rakipFirma: undefined,
+    // PDF dosya bilgileri sıfırlanır — yeni PDF üretilecek
+    pdfYolu: undefined,
+    pdfDosyaAdi: undefined,
+    pdfOlusturmaTarihi: undefined,
+    // Sync meta sıfırla — yeni kayıt
+    version: undefined,
+    deviceId: undefined,
+    updatedBy: undefined,
+    lastSyncedAt: undefined,
+    deletedAt: undefined,
     ...(kullanici && {
       hazirlayanKullaniciId: kullanici.id,
       hazirlayanAdSoyad: kullanici.adSoyad,

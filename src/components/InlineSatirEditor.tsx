@@ -7,7 +7,7 @@ import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from 're
 import { createPortal } from 'react-dom';
 import { App, Input } from 'antd';
 import type { InputRef } from 'antd';
-import { DeleteOutlined, PercentageOutlined } from '@ant-design/icons';
+import { DeleteOutlined, HistoryOutlined, PercentageOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi, Urun, UrunSeti } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
@@ -523,6 +523,8 @@ function MiktarEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorP
           value={satir.miktar}
           min={0}
           onChange={(value) => onGuncelle('miktar', value ?? 0)}
+          formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
+          parser={(value) => parseLocaleNumber(value ?? '')}
           onFocus={(e) => (e.target as HTMLInputElement).select?.()}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -657,6 +659,8 @@ interface ActionPanelProps {
   satirBazliIskonto: boolean;
   onGuncelle: (alan: keyof TeklifSatiri, deger: unknown) => void;
   onSil: () => void;
+  /** Ürün geçmişi panelini aç. urunKod boşsa tıklanamaz. */
+  onReferanslar?: () => void;
 }
 
 export function SatirAksiyonlariPanel({
@@ -664,6 +668,7 @@ export function SatirAksiyonlariPanel({
   satirBazliIskonto,
   onGuncelle,
   onSil,
+  onReferanslar,
 }: ActionPanelProps) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -745,10 +750,36 @@ export function SatirAksiyonlariPanel({
               max={100}
               step={1}
               onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
+              formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
+              parser={(value) => parseLocaleNumber(value ?? '')}
               onFocus={(e) => (e.target as HTMLInputElement).select?.()}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
             />
+          </span>
+          <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
+        </>
+      )}
+      {onReferanslar && (satir.urunKod || '').trim() !== '' && (
+        <>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onReferanslar();
+            }}
+            title="Bu ürünün geçmiş referanslarını gör"
+            aria-label="Referanslar"
+            style={{ ...actionBtnStyle, color: '#1E3A5F', opacity: 0.78, padding: '2px 5px' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(30,58,95,0.10)';
+              e.currentTarget.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.opacity = '0.78';
+            }}
+          >
+            <HistoryOutlined style={{ fontSize: 10 }} />
           </span>
           <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
         </>

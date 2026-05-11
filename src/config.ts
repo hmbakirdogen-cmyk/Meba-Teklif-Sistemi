@@ -1,35 +1,16 @@
 /**
  * config.ts — Merkezi uygulama yapılandırması.
- * Port, API base URL gibi bilgiler tek buradan yönetilir.
- *
- * API_BASE iki kaynaktan beslenir:
- *  1. Runtime'da networkConfig.resolveServerBase() ile bulunan global
- *     window.MEBA_API_BASE (varsa kullanılır — client mode'da farklı host'a bağlanmak için).
- *  2. Yoksa fallback: window.location.hostname:3001/api (mevcut davranış,
- *     server modunda ya da configsiz ortamda doğrudan çalışır).
+ * Render üzerinde same-origin deploy: API_BASE varsayılan olarak '/api'.
+ * Lokal dev: Vite proxy /api -> http://localhost:3001/api yönlendirir.
+ * İstisnai durumlar için VITE_API_BASE env var override eder.
  */
 
-declare global {
-  interface Window {
-    MEBA_API_BASE?: string;
-  }
-}
-
 export const APP_CONFIG = {
-  /** Backend API port numarası */
-  API_PORT: 3001,
-
-  /** Frontend geliştirme sunucusu portu */
-  DEV_PORT: 5173,
-
-  /** API base URL (runtime'da hostname'e göre oluşur) */
+  /** Backend API base URL — same-origin '/api', override için VITE_API_BASE */
   get API_BASE(): string {
-    if (typeof window !== 'undefined' && window.MEBA_API_BASE) {
-      return window.MEBA_API_BASE;
-    }
-    const hostname = typeof window !== 'undefined'
-      ? (window.location.hostname || 'localhost')
-      : 'localhost';
-    return `http://${hostname}:${this.API_PORT}/api`;
+    const envOverride =
+      typeof import.meta !== 'undefined' && (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE;
+    if (envOverride) return envOverride.replace(/\/+$/, '');
+    return '/api';
   },
 } as const;

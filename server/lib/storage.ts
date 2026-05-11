@@ -1,0 +1,89 @@
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+const accountId = process.env.R2_ACCOUNT_ID || '';
+const accessKeyId = process.env.R2_ACCESS_KEY_ID || '';
+const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || '';
+const bucket = process.env.R2_BUCKET || 'meba-teklif';
+const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+
+export const r2Configured = Boolean(accountId && accessKeyId && secretAccessKey && bucket);
+
+let _client: S3Client | null = null;
+function getClient(): S3Client {
+  if (_client) return _client;
+  if (!r2Configured) {
+    throw new Error('R2 env vars eksik (R2_ACCOUNT_ID/ACCESS_KEY_ID/SECRET_ACCESS_KEY/BUCKET).');
+  }
+  _client = new S3Client({
+    region: 'auto',
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: false,
+  });
+  return _client;
+}
+
+export interface UploadOptions {
+  cacheControl?: string;
+  contentDisposition?: string;
+}
+
+export async function uploadFile(
+  key: string,
+  body: Buffer,
+  contentType: string,
+  opts: UploadOptions = {},
+): Promise<{ key: string; url: string }> {
+  const client = getClient();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      CacheControl: opts.cacheControl ?? 'public, max-age=31536000, immutable',
+      ContentDisposition: opts.contentDisposition,
+    }),
+  );
+  return { key, url: publicUrl(key) };
+}
+
+export async function deleteFile(key: string): Promise<void> {
+  const client = getClient();
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export async function presignedDownloadUrl(key: string, expiresInSec = 600): Promise<string> {
+  const client = getClient();
+  return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: expiresInSec });
+}
+
+export function publicUrl(key: string): string {
+  if (!publicBase) {
+    return `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${key}`;
+  }
+  return `${publicBase}/${key}`;
+}
+
+/** "image/png" → "png" gibi mime → extension. */
+export function mimeToExt(mime: string): string {
+  const m = (mime || '').toLowerCase();
+  if (m === 'image/png') return 'png';
+  if (m === 'image/webp') return 'webp';
+  if (m === 'image/gif') return 'gif';
+  if (m === 'image/svg+xml') return 'svg';
+  if (m === 'application/pdf') return 'pdf';
+  return 'jpg';
+}
+
+/** "data:image/png;base64,XXX" → { mime, buffer }. */
+export function decodeDataUrl(dataUrl: string): { mime: string; buffer: Buffer } {
+  const match = dataUrl.match(/^data:([a-z]+\/[a-z0-9+.-]+);base64,(.+)$/i);
+  if (match) {
+    return { mime: match[1].toLowerCase(), buffer: Buffer.from(match[2], 'base64') };
+  }
+  return { mime: 'image/jpeg', buffer: Buffer.from(dataUrl, 'base64') };
+}
+
+export const MAX_PHOTO_BYTES = 600 * 1024;

@@ -71,6 +71,11 @@ const CLONE_QUALITY_STYLESHEET = `
   img {
     image-rendering: auto !important;
   }
+  /* Faz 2 safety: aktif hücre highlight'ı veya runtime dekorasyonlar clone'a sızmasın. */
+  .no-export, td.is-active-cell {
+    box-shadow: none !important;
+    background-color: transparent !important;
+  }
 `;
 
 type JpegAttempt = {
@@ -182,8 +187,24 @@ function applyCloneQualityFixes(clonedDoc: Document, clonedEl: HTMLElement): voi
   clonedEl.style.setProperty('-webkit-font-smoothing', 'antialiased');
   clonedEl.style.setProperty('-moz-osx-font-smoothing', 'grayscale');
   clonedEl.style.fontKerning = 'normal';
-  clonedEl.style.setProperty('font-feature-settings', '"kern" 1');
+  clonedEl.style.setProperty('font-feature-settings', '"kern" 1, "calt" 1, "ss01" 1');
+  // Tek font garantisi: render'da fallback'e düşmesin diye Inter cascade'i
+  // doğrudan zorla (inherit chain bazı clone child'larda kopabiliyor).
+  clonedEl.style.setProperty('font-family', 'var(--font-sans)', 'important');
   clonedEl.style.overflow = 'visible';
+
+  // 3) EditableField hover overlay'inin clone'a sızmasına karşı emniyet
+  //    kuşağı. html2canvas screen modunda :hover render etmez, ama pseudo
+  //    ::after gradient'i bazı edge case'lerde clone'da pixellenebilir.
+  try {
+    const editableSafetyCss = clonedDoc.createElement('style');
+    editableSafetyCss.setAttribute('data-pdf-editable-safety', 'true');
+    editableSafetyCss.textContent =
+      '[data-editable]{cursor:default !important;user-select:auto !important;-webkit-user-select:auto !important;}' +
+      '[data-editable]::after{display:none !important;opacity:0 !important;}';
+    const head = clonedDoc.head || clonedDoc.documentElement;
+    if (head) head.appendChild(editableSafetyCss);
+  } catch { /* ignore */ }
 }
 
 /**

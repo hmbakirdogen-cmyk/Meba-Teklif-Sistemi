@@ -25,7 +25,6 @@ function pathToSayfaAd(pathname: string): string {
   if (pathname.startsWith('/teklifler')) return 'TeklifListesi';
   if (pathname.startsWith('/personel')) return 'PersonelSayfasi';
   if (pathname.startsWith('/veri-yonetimi')) return 'VeriYonetimiSayfasi';
-  if (pathname.startsWith('/malzeme-gecmisi')) return 'MalzemeGecmisiSayfasi';
   if (pathname.startsWith('/firma')) return 'FirmaProfilSayfasi';
   if (pathname.startsWith('/analiz')) return 'AnalizSayfasi';
   if (pathname === '/' || pathname === '') return 'Anasayfa';

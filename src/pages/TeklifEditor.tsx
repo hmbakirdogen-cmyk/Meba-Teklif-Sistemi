@@ -16,6 +16,7 @@ import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import { useColors } from '../hooks/useColors';
 import { useBelgeState, type PanelModu } from '../hooks/useBelgeState';
+import { useUndoRedo } from '../hooks/useUndoRedo';
 import { buildPdf, buildEmailPdf, buildPrintImages, PdfPageCountMismatchError } from '../services/pdfService';
 import { teklifService } from '../services/teklifService';
 import { api } from '../services/apiClient';
@@ -43,6 +44,16 @@ function waitForNextPaint(): Promise<void> {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
 }
+
+// Sonuçlanmış/gönderilmiş teklif düzenlemesi için revize zorunlu kapanan durumlar.
+const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'reddedildi', 'iptal'] as const;
+
+// Modal/uyarı metinlerinde kullanılan Türkçe etiketler — kararlı referans için
+// module-level (her render'da yeni Record üretmemek için).
+const DURUM_ETIKET: Record<string, string> = {
+  gonderildi: 'gönderildi', onaylandi: 'onaylandı',
+  reddedildi: 'reddedildi', iptal: 'iptal edildi',
+};
 
 export default function TeklifEditor() {
   const { id } = useParams<{ id: string }>();
@@ -79,6 +90,78 @@ export default function TeklifEditor() {
     id,
     aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan } : null,
   );
+
+  // ── Undo/Redo ────────────────────────────────────────────────────────
+  // Faz 2: state setter'ları sarmalayarak satır aksiyonlarını + popup
+  // commit'lerini stack'e iter. CellEditPopup ve cari/ayar Popover'ları
+  // pushUndo prop'unu PaginatedBelgeInlineEditor zincirinden alır.
+  const undoRedo = useUndoRedo();
+  const { push: pushUndo } = undoRedo;
+  const getSnapshot = state.getSnapshot;
+  const restoreSnapshot = state.restoreSnapshot;
+
+  const wrappedSatirEkle = useCallback(() => {
+    pushUndo(getSnapshot());
+    state.satirEkle();
+  }, [pushUndo, getSnapshot, state]);
+
+  const wrappedSatirArayaEkle = useCallback((afterIndex: number) => {
+    pushUndo(getSnapshot());
+    state.satirArayaEkle(afterIndex);
+  }, [pushUndo, getSnapshot, state]);
+
+  const wrappedSatirSil = useCallback((satirId: string) => {
+    pushUndo(getSnapshot());
+    state.satirSil(satirId);
+  }, [pushUndo, getSnapshot, state]);
+
+  const wrappedSatiraSetUygula = useCallback((satirId: string, setId: string) => {
+    pushUndo(getSnapshot());
+    state.satiraSetUygula(satirId, setId);
+  }, [pushUndo, getSnapshot, state]);
+
+  const handleUndo = useCallback(() => {
+    if (modeKilitli) return;
+    const snap = undoRedo.undo(getSnapshot());
+    if (snap) {
+      restoreSnapshot(snap);
+      setEditingAlan(null);
+    }
+  }, [modeKilitli, undoRedo, getSnapshot, restoreSnapshot]);
+
+  const handleRedo = useCallback(() => {
+    if (modeKilitli) return;
+    const snap = undoRedo.redo(getSnapshot());
+    if (snap) {
+      restoreSnapshot(snap);
+      setEditingAlan(null);
+    }
+  }, [modeKilitli, undoRedo, getSnapshot, restoreSnapshot]);
+
+  // Global Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y dinleyicisi.
+  // Input/textarea içindeyken native browser undo öncelikli (karakter bazlı).
+  // Bu sayede edit sırasında native undo, edit commit sonrası bizim stack çalışır.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (modeKilitli) return;
+      const meta = e.ctrlKey || e.metaKey;
+      if (!meta) return;
+      const t = e.target as HTMLElement | null;
+      const inField = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        if (inField) return;
+        e.preventDefault();
+        handleUndo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        if (inField) return;
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modeKilitli, handleUndo, handleRedo]);
 
   // Başkasına ait teklif: personel (yönetici olmayan) başkasının teklifini düzenleyemez.
   const sahipDegil = useMemo(() => {
@@ -255,15 +338,7 @@ export default function TeklifEditor() {
     // Kullanıcı kalıcı PDF kayıt klasörü seçtiyse → seçili konum mesajı.
     const yerelKayitYapildi = !!opts?.yerelKayitYapildi;
 
-    // Uzak/web istemci tespiti — server cevab\u0131ndaki bayrak veya hostname.
-    const uzakIstemci = sonuc.istemciTarafindaMailtoGerekli
-      || (typeof window !== 'undefined'
-        && window.location.hostname !== 'localhost'
-        && window.location.hostname !== '127.0.0.1'
-        && window.location.hostname !== '::1');
-
     if (sonuc.hedef === 'pdf') {
-      // Yeni akış: kullanıcı kalıcı klasör seçtiyse her zaman bunu söyle.
       if (yerelKayitYapildi) {
         message.success(
           sonuc.yerelKayitYolu
@@ -272,76 +347,20 @@ export default function TeklifEditor() {
         );
         return;
       }
-
-      if (uzakIstemci) {
-        // Web client: server kendi makinesine ar\u015fivledi + tarayc\u0131 download tetiklendi.
-        if (sonuc.kayitYontemi === 'otomatik') {
-          message.success('PDF sunucu ar\u015fivine kaydedildi ve bu bilgisayara da indirildi. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.');
-        } else {
-          message.success(
-            sonuc.yerelKayitYolu
-              ? `PDF \u0130ndirilenler klas\u00f6r\u00fcne kaydedildi: ${sonuc.yerelKayitYolu}. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.`
-              : 'PDF \u0130ndirilenler klas\u00f6r\u00fcne kaydedildi. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.',
-          );
-        }
-        return;
-      }
-
-      if (sonuc.kayitYontemi === 'tarayici') {
-        message.success(
-          sonuc.yerelKayitYolu
-            ? `PDF \u0130ndirilenler klas\u00f6r\u00fcne kaydedildi: ${sonuc.yerelKayitYolu}. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.`
-            : 'PDF indirildi. \u0130sterseniz profilinizden PDF kay\u0131t konumu se\u00e7ebilirsiniz.',
-        );
-        return;
-      }
-
-      if (sonuc.dosyaAcildi) {
-        message.success('PDF kaydedildi, kay\u0131t alt\u0131na al\u0131nd\u0131 ve otomatik olarak a\u00e7\u0131ld\u0131.');
-        return;
-      }
-
-      message.warning(
-        sonuc.dosyaAcmaHatasi
-          ? `PDF kaydedildi ve kay\u0131t alt\u0131na al\u0131nd\u0131, ancak otomatik a\u00e7\u0131lamad\u0131. ${sonuc.dosyaAcmaHatasi}`
-          : 'PDF kaydedildi ve kay\u0131t alt\u0131na al\u0131nd\u0131, ancak otomatik a\u00e7ma tamamlanamad\u0131.',
+      message.success(
+        sonuc.yerelKayitYolu
+          ? `PDF İndirilenler klasörüne kaydedildi: ${sonuc.yerelKayitYolu}. İsterseniz profilinizden PDF kayıt konumu seçebilirsiniz.`
+          : 'PDF indirildi. İsterseniz profilinizden PDF kayıt konumu seçebilirsiniz.',
       );
       return;
     }
 
-    if (sonuc.kayitYontemi === 'tarayici') {
-      if (sonuc.epostaTaslakYontemi === 'mailto') {
-        // Yeni akış: kullanıcı kalıcı klasör seçtiyse net mesaj.
-        if (yerelKayitYapildi) {
-          message.success(
-            sonuc.yerelKayitYolu
-              ? `PDF seçili kayıt konumuna kaydedildi: ${sonuc.yerelKayitYolu}. Outlook penceresine bu PDF'i ekleyip kontrol ederek gönderiniz.`
-              : 'PDF seçili kayıt konumuna kaydedildi. Outlook penceresine bu PDF\'i ekleyip kontrol ederek gönderiniz.',
-          );
-          return;
-        }
-        message.warning(
-          sonuc.yerelKayitYolu
-            ? `PDF İndirilenler klasörüne kaydedildi: ${sonuc.yerelKayitYolu}. E-posta taslağı açıldı; PDF ekini manuel ekleyiniz. İsterseniz profilinizden PDF kayıt konumu seçebilirsiniz.`
-            : 'PDF indirildi ve e-posta taslağı açıldı. PDF ekini manuel ekleyiniz. İsterseniz profilinizden PDF kayıt konumu seçebilirsiniz.',
-        );
-        return;
-      }
-
-      message.warning(
-        sonuc.epostaHatasi
-          ? `PDF indirildi, ancak e-posta taslağı açılamadı. ${sonuc.epostaHatasi}`
-          : 'PDF indirildi, ancak e-posta taslağı açılamadı.',
+    if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'resend') {
+      message.success(
+        sonuc.aliciEposta
+          ? `E-posta ${sonuc.aliciEposta} adresine PDF ekiyle başarıyla gönderildi.`
+          : 'E-posta PDF ekiyle başarıyla gönderildi.',
       );
-      return;
-    }
-
-    if (sonuc.epostaHazirlandi && sonuc.epostaTaslakYontemi === 'outlook') {
-      if (yerelKayitYapildi) {
-        message.success('PDF seçili kayıt konumuna kaydedildi. Outlook gönder penceresi açıldı.');
-        return;
-      }
-      message.success('Teklif arşive işlendi ve Outlook gönder penceresi açıldı.');
       return;
     }
 
@@ -512,10 +531,12 @@ export default function TeklifEditor() {
       } else if (error instanceof PdfPageCountMismatchError) {
         message.error('PDF sayfa sayısı doğrulanamadı. PDF kaydedilmedi; lütfen canlı print görünümünü kontrol edip tekrar deneyin.');
       } else {
+        const detay = error instanceof Error ? error.message : String(error);
         message.error(
           hedef === 'email'
-            ? 'E-mail gönderim akışı hazırlanırken hata oluştu.'
-            : 'PDF oluşturulurken hata oluştu.',
+            ? `E-mail gönderim akışı hazırlanırken hata oluştu: ${detay}`
+            : `PDF oluşturulurken hata oluştu: ${detay}`,
+          8,
         );
       }
     } finally {
@@ -663,12 +684,7 @@ export default function TeklifEditor() {
   // ── REVIZE GUARD ─────────────────────────────────────────────────────────
   // Sonuçlanmış / gönderilmiş teklif düzenlenmek istendiğinde orijinal kayıt
   // korunur, yeni bir revize teklif oluşturulup oraya yönlendirilir.
-  const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'reddedildi', 'iptal'] as const;
   const kilitli = (KAPALI_DURUMLAR as readonly string[]).includes(state.durum);
-  const durumEtiket: Record<string, string> = {
-    gonderildi: 'gönderildi', onaylandi: 'onaylandı',
-    reddedildi: 'reddedildi', iptal: 'iptal edildi',
-  };
 
   const revizeOlusturVeGec = useCallback(() => {
     if (!id) return;
@@ -689,7 +705,7 @@ export default function TeklifEditor() {
   const revizeOnayAc = useCallback(() => {
     modal.confirm({
       title: 'Yeni revize oluşturulsun mu?',
-      content: `Bu teklif ${durumEtiket[state.durum] || state.durum}. Düzenleme için orijinal kayıt korunarak yeni bir revize teklif oluşturulacak. Yeni revize üzerinde editleyip ayrı bir PDF üretebileceksiniz.`,
+      content: `Bu teklif ${DURUM_ETIKET[state.durum] || state.durum}. Düzenleme için orijinal kayıt korunarak yeni bir revize teklif oluşturulacak. Yeni revize üzerinde editleyip ayrı bir PDF üretebileceksiniz.`,
       okText: 'Evet, revize oluştur',
       cancelText: 'Vazgeç',
       onOk: () => revizeOlusturVeGec(),
@@ -745,7 +761,7 @@ export default function TeklifEditor() {
         }}>
           <span style={{ fontSize: 16 }}>⟳</span>
           <span style={{ flex: 1 }}>
-            Bu teklif <b>{durumEtiket[state.durum] || state.durum}</b>. Düzenlemek için orijinal kayıt korunur, yeni bir revize teklif oluşturulur.
+            Bu teklif <b>{DURUM_ETIKET[state.durum] || state.durum}</b>. Düzenlemek için orijinal kayıt korunur, yeni bir revize teklif oluşturulur.
           </span>
           <button
             type="button"
@@ -813,10 +829,12 @@ export default function TeklifEditor() {
               onGecerlilikSuresiDegistir={state.setGecerlilikSuresi}
               onDovizKuruDegistir={state.setDovizKuru}
               onSatirGuncelle={state.satirGuncelle}
-              onSatiraSetUygula={state.satiraSetUygula}
-              onSatirSil={state.satirSil}
-              onSatirEkle={state.satirEkle}
-              onSatirArayaEkle={state.satirArayaEkle}
+              onSatiraSetUygula={wrappedSatiraSetUygula}
+              onSatirSil={wrappedSatirSil}
+              onSatirEkle={wrappedSatirEkle}
+              onSatirArayaEkle={wrappedSatirArayaEkle}
+              pushUndo={pushUndo}
+              getSnapshot={getSnapshot}
               onNotlarDegistir={state.setNotlar}
               sablonRef={sablonRef}
               kompaktHeaderRef={kompaktHeaderRef}
@@ -845,7 +863,9 @@ export default function TeklifEditor() {
                   background: `linear-gradient(180deg, ${C.bgElevated || C.bgSurface} 0%, ${C.bgSurface} 100%)`,
                   border: `1px solid ${C.border}`,
                   boxShadow: '0 20px 60px -24px rgba(15, 23, 42, 0.35), 0 4px 16px -8px rgba(15, 23, 42, 0.18)',
-                  overflow: 'hidden',
+                  // overflow:hidden glow taşmasını keserdi ama Antd Select dropdown'u da kesiyordu.
+                  // Dropdown getPopupContainer ile body'ye taşındığı için artık gerekli değil.
+                  overflow: 'visible',
                 }}
               >
                 {/* Hafif glow — üstte */}
@@ -1027,10 +1047,15 @@ export default function TeklifEditor() {
           onVisibilityDegistir={state.setVisibility}
           serberstCizimAktif={cizimModu}
           onSerberstCizimToggle={() => setCizimModu((v) => !v)}
+          canUndo={undoRedo.canUndo}
+          canRedo={undoRedo.canRedo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
         />
       )}
 
       <IlgiliKisiSecimModal
+        key={ilgiliKisiModalAcik ? `open-${state.ilgiliKisiId ?? 'yeni'}` : 'closed'}
         open={ilgiliKisiModalAcik}
         onClose={() => setIlgiliKisiModalAcik(false)}
         teklifFirmaId={teklifObj?.firmaId ?? aktifFirma?.id}
@@ -1062,8 +1087,15 @@ const KALINLIKLAR = [2, 4, 8, 14];
 function SerberstCizimOverlay({
   canvasRef, renkRef, kalinlikRef, ciziyorRef, sonKonumRef, aktif, onKapat,
 }: SerberstCizimOverlayProps) {
-  const [aktifRenk, setAktifRenk] = useState(renkRef.current);
-  const [aktifKalinlik, setAktifKalinlik] = useState(kalinlikRef.current);
+  // Initial değerler parent'tan paylaşılan ref'lerden gelir; ref.current
+  // burada sadece mount anında lazy init function içinden bir kez okunur,
+  // render scope'ta yan etki üretmez. Plugin yine de "render'da ref'a
+  // erişim" diye flag'lemek istiyor; bu spesifik durum güvenli — overlay
+  // mount edildiğinde çizim ref'leri zaten valid baş değerlere sahiptir.
+  // eslint-disable-next-line react-hooks/refs
+  const [aktifRenk, setAktifRenk] = useState<string>(() => renkRef.current);
+  // eslint-disable-next-line react-hooks/refs
+  const [aktifKalinlik, setAktifKalinlik] = useState<number>(() => kalinlikRef.current);
   const [silgiModu, setSilgiModu] = useState(false);
 
   // Canvas boyutunu container'a uydur

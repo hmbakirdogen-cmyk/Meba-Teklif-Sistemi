@@ -51,6 +51,8 @@ export default function TeklifPrintSayfasi() {
   // ── Teklif fetch ──
   useEffect(() => {
     if (!id) {
+      // URL parametresi eksik — error state'e push (early validation).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError('Teklif ID belirtilmedi.');
       return;
     }

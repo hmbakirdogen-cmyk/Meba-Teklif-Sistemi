@@ -75,9 +75,12 @@ export function InlineCariAutocompleteField({
   }, [autoFocus]);
 
   // Viewport pozisyonu — focused değiştiğinde dropdown'u yukarı/aşağı aç.
+  // DOM ölçümünden derive ediliyor (rootRef.current.getBoundingClientRect),
+  // bu external DOM sync'i — render scope'ta yapılamaz.
   useEffect(() => {
     if (!focused) return;
     const rect = rootRef.current?.getBoundingClientRect();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenAbove(rect ? rect.bottom > window.innerHeight * 0.65 : false);
   }, [focused]);
 

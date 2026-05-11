@@ -6,7 +6,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
-import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatMarka, formatAdres, formatAdSoyad } from '../utils/formatters';
+import { formatDate, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatAdres, formatAdSoyad } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { referansVeriService } from '../services/referansVeriService';
 import { urunService } from '../services/urunService';
@@ -17,15 +17,9 @@ import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { TotalsCard } from './TotalsCard';
 import { RowResizerLayer } from './RowResizerLayer';
 import { InlineCariAutocompleteField } from './InlineCariAutocompleteField';
-import {
-  formatBirimAbbrev,
-  formatParaBirimiLabel,
-  RowCell,
-  ROW_SHELL,
-  ROW_TEXT,
-  DescText,
-  UNIT_OPTIONS,
-} from './InlineTableRowShared';
+import { EditableField } from './EditableField';
+import { SatirRow } from './SatirRow';
+import { UNIT_OPTIONS } from './InlineTableRowShared';
 import {
   DOCUMENT_BRAND,
   DOCUMENT_COLORS,
@@ -48,7 +42,6 @@ import {
   buildSettingsItems,
   computeTotalsAmountRightOffset,
   getOfferTableSeparatorClass,
-  getOfferTableSeparatorStyle,
   getSettingsGridStyle,
   SETTINGS_CARD_STYLE,
   SETTINGS_LABEL_STYLE,
@@ -60,25 +53,20 @@ import {
   SIGNATURE_SECTION_STYLE,
   TABLE_HEAD_SUBLABEL_STYLE,
   TABLE_TITLE_STYLE,
-  getSetStepClass,
   getTableHeadCellStyle,
   computeSetGroupPos,
   computeMainItemIndex,
   computeSetSubitemIndex,
-  renderSetSubitemNumber,
-  SET_SUBITEM_NUMBER_STYLE,
 } from '../templates/teklifDocumentShared';
 import { FIELD_CSS, type EditingAlan } from './belgeInlineConstants';
-import {
-  SatirAksiyonlariPanel,
-  SatirIskontoRozeti,
-} from './InlineSatirEditor';
+import ReferanslarDrawer from './ReferanslarDrawer';
 import { buildSatirCellNavOrder, type SatirCellField } from './inlineSatirEditorShared';
+import type { Snapshot } from '../hooks/useUndoRedo';
+import { snapshotChanged } from '../hooks/useUndoRedo';
 import type { TeklifPagePlan } from '../services/documentPagination';
 import {
   computeCellPopupPosition,
   findSatirCellElement,
-  getMarkedCellStyle,
   useMarkedRows,
 } from './paginatedBelgeInlineHelpers';
 
@@ -119,6 +107,9 @@ interface PaginatedBelgeInlineEditorProps {
   readOnly?: boolean;
   renderPageOverlay?: (pageIndex: number) => React.ReactNode;
   scale?: number;
+  /** Faz 2 undo stack push — popup commit + cari/ayar değişikliklerinde tetiklenir. */
+  pushUndo: (snapshot: Snapshot) => void;
+  getSnapshot: () => Snapshot;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -234,6 +225,7 @@ function CellEditPopup({
   onSatirGuncelle,
   onSatiraSetUygula,
   onClose,
+  onEscapeRevert,
 }: {
   teklif: Teklif;
   editingAlan: EditingAlan;
@@ -241,6 +233,8 @@ function CellEditPopup({
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onClose: () => void;
+  /** Escape'te aktif hücrenin alanlarını baseline'a geri yükler (parent handle eder). */
+  onEscapeRevert?: () => void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
@@ -255,6 +249,9 @@ function CellEditPopup({
   // Sol kenar aktif hücreye, sağ kenar viewport'a clamp'lenir.
   useLayoutEffect(() => {
     if (!isOpen || !satirId) {
+      // Cell popup kapanırken pozisyonu sıfırla — DOM ölçümünden derive ediliyor,
+      // layout effect external sync.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPos(null);
       return;
     }
@@ -285,17 +282,18 @@ function CellEditPopup({
 
   // Escape / Dışarı tıklama callback'lerini ref'te tut → listener her render'da
   // yeniden bağlanmasın, latest closure'a sahip olsun.
-  const stateRef = useRef({ satirId, satirFocusCell, onClose });
+  const stateRef = useRef({ satirId, satirFocusCell, onClose, onEscapeRevert });
   useEffect(() => {
-    stateRef.current = { satirId, satirFocusCell, onClose };
-  }, [satirId, satirFocusCell, onClose]);
+    stateRef.current = { satirId, satirFocusCell, onClose, onEscapeRevert };
+  }, [satirId, satirFocusCell, onClose, onEscapeRevert]);
 
-  // Escape ile kapat
+  // Escape ile kapat — Faz 2: önce baseline'a revert, sonra kapat.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
+        stateRef.current.onEscapeRevert?.();
         stateRef.current.onClose();
       }
     };
@@ -824,6 +822,8 @@ export default function PaginatedBelgeInlineEditor({
   readOnly = false,
   renderPageOverlay,
   scale = 1,
+  pushUndo,
+  getSnapshot,
 }: PaginatedBelgeInlineEditorProps) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
@@ -867,6 +867,8 @@ export default function PaginatedBelgeInlineEditor({
   // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
   // gözüksün diye (active panel ile aynı pozisyonda).
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
+  // Referanslar drawer'i — satırdaki ürünün geçmiş ticari kayıtlarını gösterir.
+  const [referanslarSatir, setReferanslarSatir] = useState<TeklifSatiri | null>(null);
   // Satır başındaki numaraya tıklanınca satır işaretlenir; durum teklif
   // state'ine yazılmaz, sadece editör görsel işaretidir.
   const { markedRowIds, toggleRowMark } = useMarkedRows();
@@ -878,23 +880,104 @@ export default function PaginatedBelgeInlineEditor({
     objectPosition: 'left center',
   });
 
-  // Hücreye tıklayınca aktif et (popup açar). Aktif hücreye tekrar tıklanınca
-  // toggle ile kapatır → kullanıcı popup'ı aynı hücreye basarak da kapatabilir.
-  const handleSatirCellClick = useCallback(
-    (satir: TeklifSatiri, cell: SatirCellField) => (e: React.MouseEvent) => {
+  // ─── SatirRow için stable flat callbacks ──────────────────────────────
+  // Curried `handleSatirCellClick` memo'yu bozar (her satır map'inde yeni fn).
+  // Aşağıdaki callback'ler primitive parametre alır, dependency'leri sabittir.
+  const handleCellClickFlat = useCallback(
+    (satirId: string, cell: SatirCellField, e: React.MouseEvent) => {
       if (readOnly) return;
       e.stopPropagation();
-      const isSameActive =
-        editingAlan === `satir-${satir.id}` && satirFocusCell === cell;
+      const isSameActive = editingAlan === `satir-${satirId}` && satirFocusCell === cell;
       if (isSameActive) {
         onEditingAlanDegistir(null);
         return;
       }
       setSatirFocusCell(cell);
-      onEditingAlanDegistir(`satir-${satir.id}`);
+      onEditingAlanDegistir(`satir-${satirId}`);
     },
     [editingAlan, satirFocusCell, onEditingAlanDegistir, readOnly],
   );
+
+  const handleRowEnter = useCallback((satirId: string) => {
+    setHoverRowId(satirId);
+  }, []);
+
+  const handleRowLeave = useCallback((satirId: string) => {
+    setHoverRowId((curr) => (curr === satirId ? null : curr));
+  }, []);
+
+  // satirlar'a referans tutarız — Referanslar drawer için satir nesnesi gerek
+  // ama SatirRow'a sadece id geçiyoruz. Ref güncel satırı bulmaya yarar.
+  const satirlarRef = useRef(teklif.satirlar);
+  satirlarRef.current = teklif.satirlar;
+
+  const handleReferanslarAc = useCallback(
+    (satirId: string) => {
+      const target = satirlarRef.current.find((s) => s.id === satirId);
+      if (!target) return;
+      onEditingAlanDegistir(null);
+      setHoverRowId(null);
+      setReferanslarSatir(target);
+    },
+    [onEditingAlanDegistir],
+  );
+
+  // ─── Faz 2 — Popup commit boundary için baseline snapshot yönetimi ───
+  //
+  // Popup (CellEditPopup veya cari/ayar Popover) açıldığında baseline alınır;
+  // kapanırken state değiştiyse undo stack'e baseline push edilir. Escape
+  // revert tablo hücrelerinde baseline'a geri döner (push olmaz → diff yok).
+  // Cari/ayar popover'larında Escape değer korur (kullanıcı tercihi); kapanışta
+  // diff varsa yine push olur.
+  const popupBaselineRef = useRef<Snapshot | null>(null);
+  const popupBaselineSatirRef = useRef<TeklifSatiri | null>(null);
+  const getSnapshotRef = useRef(getSnapshot);
+  const pushUndoRef = useRef(pushUndo);
+  useEffect(() => { getSnapshotRef.current = getSnapshot; }, [getSnapshot]);
+  useEffect(() => { pushUndoRef.current = pushUndo; }, [pushUndo]);
+
+  useEffect(() => {
+    if (!editingAlan) {
+      // Kapanış: değişiklik varsa baseline'ı stack'e it.
+      const baseline = popupBaselineRef.current;
+      if (baseline && snapshotChanged(baseline, getSnapshotRef.current())) {
+        pushUndoRef.current(baseline);
+      }
+      popupBaselineRef.current = null;
+      popupBaselineSatirRef.current = null;
+      return;
+    }
+    // Açılış
+    popupBaselineRef.current = getSnapshotRef.current();
+    if (editingAlan.startsWith('satir-')) {
+      const id = editingAlan.slice(6);
+      const found = satirlarRef.current.find((s) => s.id === id);
+      popupBaselineSatirRef.current = found ? { ...found } : null;
+    } else {
+      popupBaselineSatirRef.current = null;
+    }
+  }, [editingAlan]);
+
+  /**
+   * CellEditPopup Escape'i: aktif hücrenin alanlarını baseline kopyaya
+   * geri yükle → kapanışta diff bulunmaz → push olmaz (=iptal davranışı).
+   */
+  const handleCellEscapeRevert = useCallback(() => {
+    const orig = popupBaselineSatirRef.current;
+    if (!orig || !satirFocusCell) return;
+    const fieldMap: Record<SatirCellField, (keyof TeklifSatiri)[]> = {
+      marka: ['marka'],
+      urunKod: ['urunKod', 'urunAdi'],
+      aciklama: ['aciklama'],
+      miktar: ['miktar', 'birim'],
+      paraBirimi: ['paraBirimi'],
+      birimFiyat: ['birimFiyat', 'indirimOrani'],
+      teslimat: ['teslimTarihi'],
+    };
+    const fields = fieldMap[satirFocusCell];
+    if (!fields) return;
+    fields.forEach((k) => onSatirGuncelle(orig.id, k, orig[k]));
+  }, [satirFocusCell, onSatirGuncelle]);
 
   // ─── Tab tuşu ile hücreler arası gezinme ──────────────────────────────
   // Sıra satirBazliParaBirimi'ye göre değişir; sub-item'da paraBirimi ve
@@ -1096,7 +1179,11 @@ export default function PaginatedBelgeInlineEditor({
                 </tr>
                 <tr>
                   <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Hazırlayan</td>
-                  <td style={{ fontSize: '9.5px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{teklif.hazirlayanAdSoyad ? formatAdSoyad(teklif.hazirlayanAdSoyad) : firmaBilgi.kisaAd}</td>
+                  <td style={{ fontSize: '9.5px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+                    <EditableField as="span" type="text" fieldKey="alt-hazirlayan" readOnly>
+                      {teklif.hazirlayanAdSoyad ? formatAdSoyad(teklif.hazirlayanAdSoyad) : firmaBilgi.kisaAd}
+                    </EditableField>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1158,9 +1245,9 @@ export default function PaginatedBelgeInlineEditor({
                 </div>
               }
             >
-              <div style={{ ...PARTY_NAME_STYLE, cursor: 'pointer' }}>
+              <EditableField as="div" type="text" fieldKey="musteri-firma" style={PARTY_NAME_STYLE}>
                 {formatCariAdi(teklif.cari.firmaAdi) || '—'}
-              </div>
+              </EditableField>
             </Popover>
           )}
 
@@ -1202,9 +1289,9 @@ export default function PaginatedBelgeInlineEditor({
                   </div>
                 }
               >
-                <div style={{ fontWeight: 500, marginBottom: '1px', cursor: 'pointer' }}>
+                <EditableField as="div" type="text" fieldKey="musteri-muhatap" style={{ fontWeight: 500, marginBottom: '1px' }}>
                   {muhatapSatiri ? <>Sayın {muhatapSatiri}</> : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>Muhatap ekle…</span>}
-                </div>
+                </EditableField>
               </Popover>
             )}
 
@@ -1253,9 +1340,9 @@ export default function PaginatedBelgeInlineEditor({
                     </div>
                   }
                 >
-                  <span style={{ cursor: 'pointer' }}>
+                  <EditableField as="span" type="text" fieldKey="musteri-sehir">
                     {teklif.cari.sehir || <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>şehir ekle…</span>}
-                  </span>
+                  </EditableField>
                 </Popover>
               )}
               {(teklif.cari.sehir || !readOnly) && <span> &nbsp;|&nbsp; </span>}
@@ -1289,9 +1376,9 @@ export default function PaginatedBelgeInlineEditor({
                     </div>
                   }
                 >
-                  <span style={{ cursor: 'pointer' }}>
+                  <EditableField as="span" type="text" fieldKey="musteri-telefon">
                     Tel: {teklif.cari.telefon ? formatPhone(teklif.cari.telefon) : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>ekle…</span>}
-                  </span>
+                  </EditableField>
                 </Popover>
               )}
 
@@ -1327,9 +1414,9 @@ export default function PaginatedBelgeInlineEditor({
                     </div>
                   }
                 >
-                  <span style={{ cursor: 'pointer' }}>
+                  <EditableField as="span" type="text" fieldKey="musteri-eposta">
                     {teklif.cari.ePosta || <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>e-posta ekle…</span>}
-                  </span>
+                  </EditableField>
                 </Popover>
               )}
             </div>
@@ -1354,17 +1441,23 @@ export default function PaginatedBelgeInlineEditor({
         return (
           <div style={getSettingsGridStyle(items.length)}>
             {items.map((item) => {
-              const alanId = `ayar-${item.id}` as EditingAlan;
+              const alanKey = `ayar-${item.id}`;
+              const alanId = alanKey as EditingAlan;
               const editable = !readOnly;
+              const fieldType: 'text' | 'number' | 'currency' =
+                item.id === 'paraBirimi' ? 'currency'
+                : (item.id === 'kdvOrani' || item.id === 'kur') ? 'number'
+                : 'text';
 
               const cardInner = (
-                <div
-                  key={alanId}
-                  data-alan={alanId}
-                  style={{
-                    ...SETTINGS_CARD_STYLE,
-                    cursor: editable ? 'pointer' : 'default',
-                  }}
+                <EditableField
+                  key={alanKey}
+                  as="div"
+                  type={fieldType}
+                  fieldKey={alanKey}
+                  readOnly={!editable}
+                  style={SETTINGS_CARD_STYLE}
+                  extraAttrs={{ 'data-alan': alanKey }}
                 >
                   <div style={SETTINGS_LABEL_STYLE}>
                     <span style={SETTINGS_TR_LABEL_STYLE}>{item.tr}</span>
@@ -1372,7 +1465,7 @@ export default function PaginatedBelgeInlineEditor({
                     <span style={SETTINGS_EN_LABEL_STYLE}>{item.en}</span>
                   </div>
                   <div style={SETTINGS_VALUE_STYLE}>{item.value}</div>
-                </div>
+                </EditableField>
               );
 
               if (!editable) return cardInner;
@@ -1470,8 +1563,9 @@ export default function PaginatedBelgeInlineEditor({
               const isInsideSetGroup = setGroupPos === 'top' || setGroupPos === 'middle';
               const colCount = OFFER_TABLE_COLUMN_COUNT;
               const isMarked = markedRowIds.has(satir.id);
-
-              const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
+              const isHoverRow = hoverRowId === satir.id;
+              const mainItemIndex = computeMainItemIndex(teklif.satirlar, idx);
+              const setSubitemIndex = computeSetSubitemIndex(teklif.satirlar, idx) ?? 1;
 
               const isLastRow = idx === teklif.satirlar.length - 1;
               const isFirstRow = idx === 0;
@@ -1523,190 +1617,31 @@ export default function PaginatedBelgeInlineEditor({
                 : renderInsertButton(idx, `insert-${satir.id}`, OFFER_TABLE_ROW_GAP_PX);
 
 
-              const isActiveCell = (cell: SatirCellField) => isRowActive && satirFocusCell === cell;
-              // Hücre tıklaması popup'ı açar (CellEditPopup, render ağacının tepesinde tek mount).
-              const cellClick = (cell: SatirCellField) => handleSatirCellClick(satir, cell);
-              const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
-
               return (
                 <React.Fragment key={satir.id}>
                   {insertAbove}
-                  <tr
-                    data-satir-id={satir.id}
-                    data-marked={isMarked ? 'true' : undefined}
-                    onMouseEnter={() => setHoverRowId(satir.id)}
-                    onMouseLeave={() => setHoverRowId((curr) => (curr === satir.id ? null : curr))}
-                    style={{
-                      ...noBreak,
-                      ...(satir.rowHeight && satir.rowHeight > 0
-                        ? { height: `${satir.rowHeight}px` }
-                        : null),
-                    }}
-                  >
-                    <RowCell
-                      idx={idx}
-                      pos="first"
-                      setGroupPos={setGroupPos}
-                      style={applyCellStyle({
-                        ...ROW_TEXT.no,
-                        ...getMarkedCellStyle(isMarked, 'first', false, setGroupPos !== null),
-                      })}
-                    >
-                      {satir.setAltKalem ? (
-                        <span
-                          onClick={toggleRowMark(satir.id)}
-                          title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
-                          style={{ ...SET_SUBITEM_NUMBER_STYLE, cursor: 'pointer' }}
-                        >
-                          {renderSetSubitemNumber(computeSetSubitemIndex(teklif.satirlar, idx) ?? 1)}
-                        </span>
-                      ) : (
-                        <span
-                          onClick={toggleRowMark(satir.id)}
-                          title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {String(computeMainItemIndex(teklif.satirlar, idx)).padStart(2, '0')}
-                        </span>
-                      )}
-                    </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="marka" onClick={cellClick('marka')} className={`${getOfferTableSeparatorClass('marka') ?? ''} ${activeClass('marka') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'center', ...getOfferTableSeparatorStyle('marka'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('marka'), setGroupPos !== null) })}>
-                      <span style={ROW_TEXT.brand}>{satir.marka ? formatMarka(satir.marka) : '-'}</span>
-                    </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="urunKod" onClick={cellClick('urunKod')} className={`product-code-cell ${getOfferTableSeparatorClass('urunKod') ?? ''} ${activeClass('urunKod') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left', ...getOfferTableSeparatorStyle('urunKod'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('urunKod'), setGroupPos !== null) })}>
-                      <span style={ROW_TEXT.code}>{satir.urunKod || '-'}</span>
-                    </RowCell>
-                    <RowCell idx={idx} pos="mid" setGroupPos={setGroupPos} data-cell-field="aciklama" onClick={cellClick('aciklama')} className={`description-cell ${getOfferTableSeparatorClass('aciklama') ?? ''} ${activeClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ cursor: 'pointer', textAlign: 'left', ...getOfferTableSeparatorStyle('aciklama'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('aciklama'), setGroupPos !== null) })}>
-                      <span>
-                        <DescText text={satir.aciklama || '-'} />
-                      </span>
-                    </RowCell>
-                    <RowCell
-                      idx={idx}
-                      pos="mid"
-                      setGroupPos={setGroupPos}
-                      data-cell-field="miktar"
-                      onClick={cellClick('miktar')}
-                      className={`${getOfferTableSeparatorClass('miktar') ?? ''} ${activeClass('miktar') ?? ''}`.trim()}
-                      style={applyCellStyle({ cursor: 'pointer', textAlign: 'left', ...getOfferTableSeparatorStyle('miktar'), ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('miktar'), setGroupPos !== null) })}
-                    >
-                      {satir.miktar !== 0 ? (
-                        <div style={ROW_SHELL.quantityWrap}>
-                          <span style={{ ...ROW_TEXT.quantityValue, ...ROW_SHELL.quantityValueWrap }}>{formatDisplayNumber(satir.miktar, 0, 4)}</span>
-                          <span style={{ ...ROW_TEXT.quantityUnit, ...ROW_SHELL.quantityUnitWrap }}>{formatBirimAbbrev(satir.birim)}</span>
-                        </div>
-                      ) : <span>-</span>}
-                    </RowCell>
-                    {/* Para Birimi — satirBazli'da gösterilir, değilse boş.
-                        Set alt kalemlerinde çerçevenin sağ kapanış noktası: birimFiyat/toplam/
-                        teslimat çerçeve dışında olduğundan bu hücrede sağ kenara set frame
-                        border'ı + en alt alt kalemde sağ-alt köşe radius'u eklenir. */}
-                    <RowCell
-                      idx={idx}
-                      pos="mid"
-                      setGroupPos={setGroupPos}
-                      data-cell-field="paraBirimi"
-                      onClick={satirBazliParaBirimi ? cellClick('paraBirimi') : undefined}
-                      className={`${getOfferTableSeparatorClass('paraBirimi') ?? ''} ${activeClass('paraBirimi') ?? ''} ${satirBazliParaBirimi ? '' : 'no-click'}`.trim() || undefined}
-                      style={applyCellStyle({
-                        cursor: satirBazliParaBirimi ? 'pointer' : 'default',
-                        textAlign: 'center',
-                        ...getOfferTableSeparatorStyle('paraBirimi'),
-                        ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('paraBirimi'), setGroupPos !== null),
-                        // frame-close artık teslimat kolonunda — burada kaldırıldı
-                      })}
-                    >
-                      {satirBazliParaBirimi ? (
-                        <span style={ROW_TEXT.currency}>{formatParaBirimiLabel(satirPb)}</span>
-                      ) : null}
-                    </RowCell>
-                    {/* Birim Fiyat — alt kalemde tamamen boş; set parent'ta merdiven basamağı (alt borderBottom). */}
-                    <RowCell
-                      idx={idx}
-                      pos="mid"
-                      setGroupPos={setGroupPos}
-                      data-cell-field="birimFiyat"
-                      onClick={satir.setAltKalem ? undefined : cellClick('birimFiyat')}
-                      className={(() => {
-                        const base = getOfferTableSeparatorClass('birimFiyat') ?? '';
-                        const step = getSetStepClass(satir.setAltKalem, setGroupPos);
-                        if (satir.setAltKalem) return `${base} no-click ${step}`.trim();
-                        return `${base} ${activeClass('birimFiyat') ?? ''} ${step}`.trim();
-                      })()}
-                      style={applyCellStyle({
-                        cursor: satir.setAltKalem ? 'default' : 'pointer',
-                        textAlign: 'right',
-                        ...getOfferTableSeparatorStyle('birimFiyat'),
-                        ...getMarkedCellStyle(isMarked, 'mid', isActiveCell('birimFiyat'), setGroupPos !== null),
-                      })}
-                    >
-                      {satir.setAltKalem ? null : (
-                        <span style={ROW_TEXT.price}>{(() => {
-                          const nihai = satir.birimFiyat * (1 - (satir.indirimOrani || 0) / 100);
-                          return Math.abs(nihai) >= 0.005 ? formatDisplayNumber(nihai, 2, 2) : '-';
-                        })()}</span>
-                      )}
-                    </RowCell>
-                    {/* Toplam — alt kalemde tamamen boş; set parent'ta merdiven basamağı. */}
-                    <RowCell
-                      idx={idx}
-                      pos="mid"
-                      setGroupPos={setGroupPos}
-                      className={(() => {
-                        const base = getOfferTableSeparatorClass('toplam') ?? '';
-                        const step = getSetStepClass(satir.setAltKalem, setGroupPos);
-                        if (satir.setAltKalem) return `${base} ${step}`.trim();
-                        return `${base} ${step}`.trim() || undefined;
-                      })()}
-                      style={applyCellStyle({
-                        textAlign: 'right',
-                        ...getOfferTableSeparatorStyle('toplam'),
-                        ...getMarkedCellStyle(isMarked, 'mid', false, setGroupPos !== null),
-                      })}
-                    >
-                      {satir.setAltKalem ? null : (
-                        <span style={ROW_TEXT.total}>
-                          {satir.satirToplami !== 0 ? formatDisplayNumber(satir.satirToplami, 2, 2) : '-'}
-                        </span>
-                      )}
-                    </RowCell>
-                    {/* Teslimat — alt kalemde boş; set frame sağ kenarı burada kapanır (rcCell setGroupPos ile). */}
-                    <RowCell
-                      idx={idx}
-                      pos="last"
-                      setGroupPos={setGroupPos}
-                      data-cell-field="teslimat"
-                      onClick={satir.setAltKalem ? undefined : cellClick('teslimat')}
-                      className={(() => {
-                        const base = getOfferTableSeparatorClass('teslimat') ?? '';
-                        const step = getSetStepClass(satir.setAltKalem, setGroupPos);
-                        if (satir.setAltKalem) return `${base} no-click ${step}`.trim();
-                        return `${base} ${activeClass('teslimat') ?? ''} ${step}`.trim();
-                      })()}
-                      style={applyCellStyle({
-                        position: 'relative',
-                        cursor: satir.setAltKalem ? 'default' : 'pointer',
-                        textAlign: 'center',
-                        ...getOfferTableSeparatorStyle('teslimat'),
-                        ...getMarkedCellStyle(isMarked, 'last', isActiveCell('teslimat'), setGroupPos !== null),
-                      })}
-                    >
-                      {satir.setAltKalem ? null : (
-                        <span style={ROW_TEXT.delivery}>{satir.teslimTarihi || '-'}</span>
-                      )}
-                      {(satir.indirimOrani || 0) > 0 && !isRowActive && hoverRowId !== satir.id && (
-                        <SatirIskontoRozeti rowId={satir.id} oran={satir.indirimOrani || 0} />
-                      )}
-                      {!readOnly && (isRowActive || hoverRowId === satir.id) && (
-                        <SatirAksiyonlariPanel
-                          satir={satir}
-                          satirBazliIskonto={!satir.setAltKalem && isRowActive && satirBazliIskonto}
-                          onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
-                          onSil={() => onSatirSil(satir.id)}
-                        />
-                      )}
-                    </RowCell>
-                  </tr>
+                  <SatirRow
+                    satir={satir}
+                    idx={idx}
+                    satirPb={satirPb}
+                    mainItemIndex={mainItemIndex}
+                    setSubitemIndex={setSubitemIndex}
+                    setGroupPos={setGroupPos}
+                    isMarked={isMarked}
+                    isRowActive={isRowActive}
+                    isHoverRow={isHoverRow}
+                    activeCellField={isRowActive ? satirFocusCell : null}
+                    satirBazliParaBirimi={satirBazliParaBirimi}
+                    satirBazliIskonto={satirBazliIskonto}
+                    readOnly={readOnly}
+                    onCellClick={handleCellClickFlat}
+                    onRowEnter={handleRowEnter}
+                    onRowLeave={handleRowLeave}
+                    onToggleMark={toggleRowMark}
+                    onSatirGuncelle={onSatirGuncelle}
+                    onSatirSil={onSatirSil}
+                    onReferanslarAc={handleReferanslarAc}
+                  />
                   {insertIndicator}
                 </React.Fragment>
               );
@@ -2040,8 +1975,18 @@ export default function PaginatedBelgeInlineEditor({
           onSatirGuncelle={onSatirGuncelle}
           onSatiraSetUygula={onSatiraSetUygula}
           onClose={() => onEditingAlanDegistir(null)}
+          onEscapeRevert={handleCellEscapeRevert}
         />
       )}
+      <ReferanslarDrawer
+        open={!!referanslarSatir}
+        onClose={() => setReferanslarSatir(null)}
+        urunKod={referanslarSatir?.urunKod ?? ''}
+        aciklama={referanslarSatir?.aciklama || referanslarSatir?.urunAdi || ''}
+        marka={referanslarSatir?.marka || ''}
+        aktifTeklifId={teklif.id}
+        aktifCariId={teklif.cari?.id}
+      />
     </div>
   );
 }

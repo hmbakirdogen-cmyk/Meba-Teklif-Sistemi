@@ -83,7 +83,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
           width: `${DOCUMENT_PAGE.widthMm}mm`,
       boxSizing: 'border-box',
       padding: '12mm 10mm 0',
-      fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
+      fontFamily: 'var(--font-sans)',
       backgroundColor: '#FAFAF8',
       WebkitPrintColorAdjust: 'exact',
       printColorAdjust: 'exact',

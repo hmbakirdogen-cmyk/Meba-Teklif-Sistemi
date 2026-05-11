@@ -55,11 +55,27 @@ export function DescText({ text, className }: { text: string; className?: string
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || !clean) return;
-    const parent = el.parentElement;
-    if (!parent) return;
 
-    const available = parent.clientWidth - 4; // hücre kenarında nefes payı
-    if (available <= 0) return;
+    // Ölçüm kaynağı: DescText'in DIREKT parent'ı bazen inline bir
+    // <span class="editable-field"> oluyor (canlı A4 düzenleyici tarafında).
+    // Inline non-replaced element'lerde clientWidth = 0 → erken çıkıştı ve
+    // fitLevel = 1 (df-1, 12px nowrap) sabit kalıyordu. PDF render tarafında
+    // (TeklifPagedDocument / TeklifSablonu) ise DescText doğrudan <td>
+    // içindeydi, parent.clientWidth gerçek kolon genişliğini veriyordu →
+    // fitLevel doğru hesaplanıyor, gerektiğinde df-4 wrap'e düşüyordu.
+    // Sonuç: canlı A4'te tek satır, PDF'te iki satır görünüyordu.
+    //
+    // Düzeltme: ilk pozitif clientWidth'e sahip atayı bul (td hücresi). Bu,
+    // EditableField wrapper'ı olsun olmasın aynı ölçüyü garanti eder ve
+    // canlı A4 ile PDF arasında birebir aynı fitLevel'i üretir.
+    let measureHost: HTMLElement | null = el.parentElement;
+    let available = 0;
+    while (measureHost) {
+      const w = measureHost.clientWidth;
+      if (w > 0) { available = w - 4; break; } // hücre kenarında nefes payı
+      measureHost = measureHost.parentElement;
+    }
+    if (!measureHost || available <= 0) return;
 
     const cs = window.getComputedStyle(el);
     const measurer = document.createElement('span');
@@ -380,8 +396,8 @@ export const OFFER_TABLE_COLUMN_COUNT = 9;
  * kalan tüm boşluğu alır — en esnek ve en geniş kolon o olur. Böylece
  * gereksiz boş duran sağ kolonlar varsa, bu alan açıklamaya aktarılır.
  */
-const DOCUMENT_FONT_FAMILY =
-  '"Inter", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+// Tek kaynak: index.css :root --font-sans → Inter primary + system fallback.
+const DOCUMENT_FONT_FAMILY = 'var(--font-sans)';
 
 /** Off-DOM metin ölçüm yardımcısı — bir kerede sadece bir <span> kullanır. */
 function measureTextWidth(
@@ -863,7 +879,7 @@ export const DOCUMENT_ROOT_STYLE: CSSProperties = {
   margin: '0 auto',
   backgroundColor: '#FFFFFF',
   colorScheme: 'light',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
+  fontFamily: 'var(--font-sans)',
   fontSize: '11.7px',
   lineHeight: 1.52,
   letterSpacing: '0.01em',

@@ -14,7 +14,7 @@ export const FIELD = {
   radius:        '4px',
   transition:    'all 0.15s ease',
   focusLine:     'inset 0 -2px 0 rgba(37, 99, 235, 0.20)',
-  caret:         '#1e40af',
+  caret:         '#0a0f1a',
 } as const;
 
 /* ─────────────────────────────────────────────────────────────────
@@ -945,11 +945,16 @@ export const FIELD_CSS = `
   --offer-col-separator: rgba(26, 43, 66, 0.15);
 }
 
-/* Aktif hücre — sol kenarda kalın parlak mavi şerit, soluk lavanta bg */
+/* Aktif hücre — Faz 2: nötr inset glow (Faz 1 hover 0.04, aktif 0.08 ≈ 2x belirgin).
+   Eski 3px mavi şerit + lavanta bg KALDIRILDI ("Excel hissi yasak"). */
 .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
-  box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.6);
-  background: rgba(237, 242, 251, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.015);
   transition: box-shadow 120ms ease, background 120ms ease;
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
   --offer-col-separator: rgba(26, 43, 66, 0.16);
@@ -1087,6 +1092,103 @@ export const FIELD_CSS = `
 }
 [data-theme="dark"] .belge-inline .offer-table tbody td.set-parent-step {
   border-bottom: 0.9px solid rgba(148, 163, 184, 0.50) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EditableField — Faz 1 görsel altyapı (cam yüzey hover)
+
+   Hedef: hücre seçilmiş hissi VERMEMEK. Excel/input/dikdörtgen highlight
+   yasak. Sadece üst-sol kaynaklı çok hafif radial cam ışığı — "ben
+   buradayım" der ama "seçildim" demez.
+
+   Teknik:
+   - Hücrenin gerçek background'u DOKUNULMAZ.
+   - Border / inset shadow / kalın çerçeve YOK.
+   - Sadece pseudo ::after overlay (pointer-events:none, layout shift sıfır).
+   - Radial gradient + çok düşük opacity (max ~%55 görünür yoğunluk).
+   - PDF: html2canvas pseudo ::after'i render etmez + clone safety stylesheet
+     (pdfService.ts CLONE_QUALITY_STYLESHEET) ekstra koruma.
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline [data-editable="true"] {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Pseudo overlay'in komşu hücrelere sızmasını engelle. Span'larda
+     overflow inline'da pratik olarak no-op olsa da div as='div' senaryolarında
+     ve gelecekteki herhangi bir pozisyonel eklentide ek güvenlik. */
+  overflow: hidden;
+  /* Pseudo'nun z-index'i kendi içinde kalsın; tablonun stacking context'ine
+     sızıp Açıklama hücresinin clip alanının üstüne çıkmasın. */
+  isolation: isolate;
+}
+.belge-inline [data-editable="true"]::after {
+  content: '';
+  position: absolute;
+  /* SIFIR inset → pseudo asla parent'ın gerçek bounds'unun dışına çıkmaz.
+     Önceki -2px -4px değeri komşu td'lerin (Açıklama) görsel alanına sızıyor,
+     hover yapılan hücrenin sağında/solunda gizli kalan içerik gibi
+     algılanan radial gradient şeridi bırakıyordu. */
+  inset: 0;
+  pointer-events: none;
+  border-radius: 2px;
+  /* Üstten gelen yumuşak cam ışığı. inset:0 ile pseudo alanı küçüldüğü için
+     optical balance için yoğunluk hafif arttı (0.13→0.15 / 0.055→0.06). */
+  background:
+    radial-gradient(
+      140% 240% at 50% -30%,
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0.06) 38%,
+      rgba(255, 255, 255, 0) 80%
+    );
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+[data-theme="dark"] .belge-inline [data-editable="true"]::after {
+  /* Koyu zeminde beyaz ışık zaten daha görünür; alfa düşür, "yanma"
+     hissi vermesin. */
+  background:
+    radial-gradient(
+      140% 240% at 50% -30%,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.04) 38%,
+      rgba(255, 255, 255, 0) 80%
+    );
+}
+.belge-inline [data-editable="true"]:hover::after {
+  opacity: 0.9;
+}
+
+/* readOnly veya belge-readonly: hover pseudo'su TAMAMEN kaldırılır
+   (display:none → render hattından çıkar; opacity:0'dan daha kati).
+   Kilit kapalı modda alan "PDF önizleme" gibi hissetsin: dekoratif efekt yok. */
+.belge-inline [data-editable="false"],
+.belge-readonly .belge-inline [data-editable="true"],
+.belge-inline.belge-readonly [data-editable="true"] {
+  cursor: default;
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+.belge-inline [data-editable="false"]::after,
+.belge-readonly .belge-inline [data-editable="true"]::after,
+.belge-inline.belge-readonly [data-editable="true"]::after {
+  display: none;
+}
+
+/* Aktif hücrede (CellEditPopup açıkken) hover ışığı kapalı —
+   "seçili" ve "üzerinden geç" sinyalleri karışmasın. Aktif hücre kendi
+   görsel diliyle (td.is-active-cell kuralı) gösterilir. */
+.belge-inline td.is-active-cell [data-editable="true"]::after {
+  opacity: 0 !important;
+}
+
+/* Tablo td-level mevcut hover (mavi şerit + filter) artık EditableField
+   pseudo overlay'ine devredilir. td hover background/filter iptal — kutu
+   hissi vermesin. */
+.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) {
+  background-color: transparent !important;
+  filter: none !important;
+  box-shadow: none !important;
 }
 `;
 

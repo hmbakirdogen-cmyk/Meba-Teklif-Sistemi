@@ -35,16 +35,16 @@ export default function IlgiliKisiSecimModal({
 }: Props) {
   const [personel, setPersonel] = useState<PersonelOpt[]>([]);
   const [yukleniyor, setYukleniyor] = useState(false);
+  // mevcutId ilk mount'ta initial olarak alınır. Modal her açılışta parent'ta
+  // key prop ile remount eder (TeklifEditor.tsx) — bu sayede setState-in-effect
+  // anti-pattern'ine gerek yok, sync yine sağlanır.
   const [seciliId, setSeciliId] = useState<string | undefined>(mevcutId);
-
-  useEffect(() => {
-    if (!open) return;
-    setSeciliId(mevcutId);
-  }, [open, mevcutId]);
 
   useEffect(() => {
     if (!open || !teklifFirmaId) return;
     let aktif = true;
+    // Async fetch başlangıcı — yükleme bayrağı external sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setYukleniyor(true);
     api.firmalar.personel(teklifFirmaId)
       .then((liste) => {

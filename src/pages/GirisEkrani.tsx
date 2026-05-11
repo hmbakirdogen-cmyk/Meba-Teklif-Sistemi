@@ -8,6 +8,7 @@ import { ROL_ETIKET, type KullaniciRol } from '../types/kullanici';
 import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
 import { LogoContainer } from '../components/LogoContainer';
 import { api } from '../services/apiClient';
+import { authStorage } from '../services/authStorage';
 import { formatAdSoyad, formatUnvan, splitUnvanWithParen } from '../utils/formatters';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 
@@ -1861,8 +1862,7 @@ export default function GirisEkrani() {
         background: 'linear-gradient(160deg, #04081a 0%, #0a132a 45%, #060c1c 100%)',
         display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        fontFamily:
-          '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Inter","Arial",sans-serif',
+        fontFamily: 'var(--font-sans)',
         overflow: 'hidden',
         color: 'rgba(220,232,250,0.92)',
       }}
@@ -1922,7 +1922,7 @@ export default function GirisEkrani() {
             fontSize: isMobile ? 30 : 56,
             fontWeight: 300,
             letterSpacing: isMobile ? 2 : 6,
-            fontFamily: '"Manrope","Inter","Helvetica Neue","Arial",sans-serif',
+            fontFamily: 'var(--font-sans)',
             background: 'linear-gradient(180deg, #ffffff 0%, #e8eef8 28%, #b8c8de 65%, #7a8eb0 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
@@ -2042,7 +2042,7 @@ export default function GirisEkrani() {
               letterSpacing: isMobile ? 1.4 : 2.4,
               lineHeight: 1.05,
               fontFamily:
-                '"Manrope","Inter","Helvetica Neue","Arial",sans-serif',
+                'var(--font-sans)',
               background:
                 'linear-gradient(180deg, #ffffff 0%, #e8eef8 28%, #b8c8de 65%, #7a8eb0 100%)',
               WebkitBackgroundClip: 'text',
@@ -2053,14 +2053,14 @@ export default function GirisEkrani() {
               TEKLİF SİSTEMİ
             </div>
 
-            {/* MEBA · ELMOS · MESA — sade banner (Manrope) */}
+            {/* MEBA · ELMOS · MESA — sade banner */}
             <div style={{
               marginTop: 28, display: 'flex',
               alignItems: 'center', justifyContent: 'center', gap: 18,
               fontSize: isMobile ? 11 : 13, letterSpacing: 5,
               fontWeight: 500,
               fontFamily:
-                '"Manrope","Inter","Helvetica Neue","Arial",sans-serif',
+                'var(--font-sans)',
               textTransform: 'uppercase',
               color: ink(0.62),
             }}>
@@ -2170,7 +2170,7 @@ function PersonelAvatar({
       fontSize: Math.round(size * 0.40), fontWeight: 700,
       color: 'rgba(232,242,255,0.92)',
       letterSpacing: 0.5, flexShrink: 0,
-      fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Arial",sans-serif',
+      fontFamily: 'var(--font-sans)',
     }}>
       {kullanici.initials}
     </div>
@@ -2222,7 +2222,7 @@ function PersonelKartSecimi({
           </div>
           <div style={{
             fontSize: isMobile ? 15 : 17, fontWeight: 500, letterSpacing: 0.3,
-            fontFamily: '"Manrope","Inter","Helvetica Neue","Arial",sans-serif',
+            fontFamily: 'var(--font-sans)',
             color: 'rgba(232,242,255,0.96)',
             textShadow: '0 1px 12px rgba(120,170,240,0.18)',
             wordBreak: 'break-word', lineHeight: 1.25,
@@ -2403,7 +2403,9 @@ function PersonelKart({
   // odaklanir.
   const [acik, setAcik] = useState(false);
   const [sifre, setSifre] = useState('');
-  const [hatirla, setHatirla] = useState<boolean>(true);
+  // "Beni Hatırla" lazy init: bir önceki giriş tercihi authStorage'da
+  // saklanır (sadece flag — ŞİFRE YOK). Varsayılan true (yeni kullanıcı).
+  const [hatirla, setHatirla] = useState<boolean>(() => authStorage.getRememberFlag());
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
@@ -2508,7 +2510,7 @@ function PersonelKart({
             display: 'flex', alignItems: 'flex-start', gap: 6,
             fontSize: 14.5, fontWeight: 600,
             color: 'rgba(232,242,255,0.96)',
-            fontFamily: '"Manrope","Inter","Helvetica Neue","Arial",sans-serif',
+            fontFamily: 'var(--font-sans)',
             letterSpacing: 0.1,
             // 2 satir yer rezerve et — kisa isimli kartlarda da uzun isimli
             // kartlarla ayni yukseklik, ayni unvan baslangic noktasi.

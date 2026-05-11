@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Dropdown, Input, Modal, Popconfirm, Select, Tooltip } from 'antd';
@@ -11,7 +11,21 @@ import {
   ArrowLeftOutlined,
   CaretDownOutlined,
   FlagOutlined,
+  AimOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
+import {
+  FolderSingleIcon,
+  FolderStackIcon,
+  DocumentSingleIcon,
+  DocumentStackIcon,
+} from '../components/ToolbarIcons';
+import { YoneticiOzeti } from '../components/YoneticiOzeti';
+import {
+  KAYIP_SEBEBI_LABEL,
+  computeYoneticiOzeti,
+  type YoneticiOzetiData,
+} from './teklifListesiShared';
 import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
@@ -22,9 +36,13 @@ import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
 import { isYonetici } from '../utils/yetkiUtils';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { buttonClassNames, tabButtonClassName } from '../styles/buttonStyles';
+import { buttonClassNames } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
 import { useTheme } from '../context/useTheme';
+
+// SONUC_CFG, KAYIP_SEBEBI_LABEL, computeYoneticiOzeti, YoneticiOzetiData
+// → ./teklifListesiShared'e taşındı (react-refresh constraint).
+// YoneticiOzeti component → ../components/YoneticiOzeti'e taşındı.
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 
@@ -44,26 +62,6 @@ const DURUM_CFG_DARK: Record<TeklifDurum, { label: string; color: string; bg: st
   onaylandi:  { label: 'Onaylandı',  color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.22)'  },
   reddedildi:  { label: 'Reddedildi',  color: '#f87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.22)' },
   iptal:      { label: 'İptal',      color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
-};
-
-// Sonuç görünüm config'i — direkt durum'a bağlı.
-// (Önceden ayrı bir 'sonuc' alanı tutuluyordu; o redundant alan kaldırıldı,
-// sonuç gösterimleri artık doğrudan durum'dan türetiliyor.)
-// Sadece sonuçlanmış durumlar için tanımlı (taslak/hazir/gonderildi'de "sonuç badge" yok).
-export const SONUC_CFG: Partial<Record<TeklifDurum, { label: string; color: string; bg: string; border: string; emoji: string }>> = {
-  onaylandi:  { label: 'Onaylandı',  color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', emoji: '✓' },
-  reddedildi: { label: 'Kaybedildi', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', emoji: '✕' },
-  iptal:      { label: 'İptal',      color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', emoji: '○' },
-};
-
-// Sebep listesi — hem Kaybedildi hem İptal için aynı havuz; kullanıcı seçer.
-// (Öncesinde sadece kaybedildi'ye özeldi; iptal'e de açıldı.)
-export const KAYIP_SEBEBI_LABEL: Record<KayipSebebi, string> = {
-  fiyat:       'Fiyat',
-  rakip:       'Rakip',
-  zaman:       'Zaman/Süre',
-  ihtiyac_yok: 'İhtiyaç düştü',
-  diger:       'Diğer',
 };
 
 interface PersonelRenk {
@@ -92,6 +90,18 @@ function personelRenk(isim: string): PersonelRenk {
 
 function initials(isim: string): string {
   return isim.trim().split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase();
+}
+
+/** Dakikada bir tick eden "şimdi" timestamp'i. Component'lerde
+ *  Date.now() render scope'unda çağırmak yerine bu hook'tan alınır;
+ *  React 19 purity kuralı korunur ve gün-fark hesapları taze kalır. */
+function useNow(intervalMs = 60_000): number {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
 }
 
 /**
@@ -363,17 +373,46 @@ export default function TeklifListesi() {
     message.success('Teklif silindi.');
   }
 
-  async function teklifKopyala(id: string) {
+  // ── Çoğalt akışı ────────────────────────────────────────────────────
+  // Kart üzerinden Çoğalt'a basınca tek mini modal: Revize mi / yeni teklif mi.
+  // Modal state üst seviyede; KlasorGorunumu ve DetayGorunumu kartlardan
+  // sadece teklif objesini iletir.
+  const [cogaltAdayi, setCogaltAdayi] = useState<Teklif | null>(null);
+
+  async function cogaltUygula(mod: 'revize' | 'yeni') {
+    const kaynak = cogaltAdayi;
+    setCogaltAdayi(null);
+    if (!kaynak) return;
     const ki = aktifKullanici
-      ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol }
+      ? {
+          id: aktifKullanici.id,
+          adSoyad: aktifKullanici.adSoyad,
+          rol: aktifKullanici.rol,
+          unvan: aktifKullanici.unvan,
+        }
       : undefined;
-    const yeni = teklifService.teklifKopyala(id, ki);
-    if (yeni) {
-      const teklifNo = await teklifService.teklifNoUretAsync();
-      teklifService.teklifKaydet({ ...yeni, teklifNo });
-      teklifleriYukle();
-      message.success(`Kopyalandı: ${teklifNo}`);
+    if (mod === 'revize') {
+      const yeni = teklifService.revizeOlustur(kaynak.id, ki);
+      if (yeni) {
+        teklifService.teklifKaydet(yeni);
+        teklifleriYukle();
+        message.success(`Revize oluşturuldu: ${yeni.teklifNo}`);
+        navigate(`/teklif/${yeni.id}`);
+      }
+    } else {
+      const yeni = teklifService.teklifKopyala(kaynak.id, ki);
+      if (yeni) {
+        const teklifNo = await teklifService.teklifNoUretAsync();
+        teklifService.teklifKaydet({ ...yeni, teklifNo });
+        teklifleriYukle();
+        message.success(`Yeni teklif: ${teklifNo}`);
+        navigate(`/teklif/${yeni.id}`);
+      }
     }
+  }
+
+  function teklifCogaltBaslat(t: Teklif) {
+    setCogaltAdayi(t);
   }
 
   function klasoreGir(klasorAdi: string) {
@@ -437,6 +476,7 @@ export default function TeklifListesi() {
 
   const benimSayisi   = useMemo(() => teklifler.filter((t) => t.hazirlayanKullaniciId === benimId).length, [teklifler, benimId]);
   const atananSayisi  = useMemo(() => teklifler.filter((t) => t.ilgiliKisiId === benimId).length, [teklifler, benimId]);
+  const tumSayisi     = teklifler.length;
 
   // ── Yönetici özeti — yalnızca super_admin/firma_admin için ───────────────
   const isAdmin = useMemo(() => isYonetici(aktifKullanici?.rol), [aktifKullanici]);
@@ -445,15 +485,6 @@ export default function TeklifListesi() {
     if (!isAdmin) return null;
     return computeYoneticiOzeti(teklifler);
   }, [teklifler, isAdmin]);
-
-  // 3 tab birleşik: Son aktivite (flat liste) + Benim Tekliflerim + Tüm Teklifler (klasör grid).
-  // Eski "Teklif Klasörleri" sıralama toggle'ı kaldırıldı, yerine sekme satırına entegre.
-  const sekmeler: Array<{ key: Filtre; label: string; count: number }> = [
-    { key: 'aktiflik', label: 'Son aktivite',      count: teklifler.length },
-    { key: 'benim',    label: 'Benim Tekliflerim', count: benimSayisi },
-    { key: 'atanan',   label: 'Bana Atanan',       count: atananSayisi },
-    { key: 'tumu',     label: 'Tüm Teklifler',     count: teklifler.length },
-  ];
 
   // ── Klasör detay başlık bilgisi ──────────────────────────────────────────────
   const seciliKlasorBilgi = seciliKlasor
@@ -485,7 +516,9 @@ export default function TeklifListesi() {
           setSiralama={setSiralama}
           gorunumModu={gorunumModu}
           setGorunumModu={setGorunumModu}
-          sekmeler={sekmeler}
+          benimSayisi={benimSayisi}
+          atananSayisi={atananSayisi}
+          tumSayisi={tumSayisi}
           yoneticiOzeti={yoneticiOzeti}
           aktifKullaniciAd={aktifKullanici?.adSoyad ?? ''}
           onKlasorTikla={klasoreGir}
@@ -493,7 +526,7 @@ export default function TeklifListesi() {
           navigate={navigate}
           benimId={benimId}
           onSil={teklifSil}
-          onKopyala={teklifKopyala}
+          onCogalt={teklifCogaltBaslat}
           onRefresh={teklifleriYukle}
         />
       ) : (
@@ -507,16 +540,52 @@ export default function TeklifListesi() {
           setAramaMetni={setAramaMetni}
           aktifFiltre={aktifFiltre}
           setAktifFiltre={setAktifFiltre}
-          sekmeler={sekmeler}
+          benimSayisi={benimSayisi}
+          atananSayisi={atananSayisi}
+          tumSayisi={tumSayisi}
           benimId={benimId}
           navigate={navigate}
           onGeri={klasordenCik}
           onSil={teklifSil}
-          onKopyala={teklifKopyala}
+          onCogalt={teklifCogaltBaslat}
           onRefresh={teklifleriYukle}
         />
       )}
 
+      {/* Çoğalt mini modal — kullanıcı revize / yeni teklif arasında seçer */}
+      <Modal
+        open={!!cogaltAdayi}
+        onCancel={() => setCogaltAdayi(null)}
+        title="Çoğalt"
+        width={400}
+        centered
+        destroyOnHidden
+        footer={[
+          <Button key="cancel" onClick={() => setCogaltAdayi(null)}>
+            Vazgeç
+          </Button>,
+          <Button key="kopya" onClick={() => void cogaltUygula('yeni')}>
+            Yeni Teklif
+          </Button>,
+          <Button key="rev" type="primary" onClick={() => void cogaltUygula('revize')}>
+            Revize
+          </Button>,
+        ]}
+      >
+        <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.55 }}>
+          <strong style={{ color: C.textPrimary }}>{cogaltAdayi?.teklifNo}</strong>
+          {' — '}
+          {cogaltAdayi?.cari?.firmaAdi}
+          <div style={{ marginTop: 10 }}>
+            Bu teklifi <strong>revize</strong> olarak mı oluşturmak istersin?
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: C.textFaint }}>
+            Revize → aynı teklif numarası altında <code>-Rev</code> olarak.
+            <br />
+            Yeni Teklif → bağımsız yeni numara, geçmiş zinciri yok.
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -537,7 +606,9 @@ interface KlasorGorunumuProps {
   setSiralama: (s: Siralama) => void;
   gorunumModu: GorunumModu;
   setGorunumModu: (g: GorunumModu) => void;
-  sekmeler: Array<{ key: Filtre; label: string; count: number }>;
+  benimSayisi: number;
+  atananSayisi: number;
+  tumSayisi: number;
   yoneticiOzeti: YoneticiOzetiData | null;
   aktifKullaniciAd: string;
   onKlasorTikla: (k: string) => void;
@@ -546,94 +617,43 @@ interface KlasorGorunumuProps {
   // Aktivite (flat) mod için gerekli ek aksiyonlar:
   benimId: string | undefined;
   onSil: (id: string) => void;
-  onKopyala: (id: string) => void;
+  onCogalt: (t: Teklif) => void;
   onRefresh: () => void;
-}
-
-export interface YoneticiOzetiData {
-  funnel: Record<TeklifDurum, number>;
-  sonucSayim: { kazanildi: number; kaybedildi: number; iptal: number; beklemede: number; girilmemis: number };
-  acikPipeline: Record<string, number>;
-  winRate: number | null;
-  topSebepler: Array<[KayipSebebi, number]>;
-  topPersonel: Array<{ ad: string; kazanildi: number; kayipli: number; toplam: number }>;
-  kararliToplam: number;
-}
-
-/** Pure helper — teklif listesinden yönetici özeti metriklerini hesaplar.
- *  Yeni mantık: durum tek model — onaylandı=kazandı, kapanmadı=kaybetti, iptal=iptal. */
-export function computeYoneticiOzeti(teklifler: Teklif[]): YoneticiOzetiData {
-  const funnel: Record<TeklifDurum, number> = {
-    taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, reddedildi: 0, iptal: 0,
-  };
-  const sonucSayim = { kazanildi: 0, kaybedildi: 0, iptal: 0, beklemede: 0, girilmemis: 0 };
-  const acikPipeline: Record<string, number> = { TRY: 0, EUR: 0, USD: 0 };
-  const sebepSayim: Record<string, number> = {};
-  const personelMap = new Map<string, { ad: string; kazanildi: number; kayipli: number; toplam: number }>();
-
-  for (const t of teklifler) {
-    if (t.durum && funnel[t.durum] !== undefined) funnel[t.durum] += 1;
-
-    // Durum → sonuç eşlemesi (eski sonuc field'ı yerine)
-    if (t.durum === 'onaylandi') sonucSayim.kazanildi += 1;
-    else if (t.durum === 'reddedildi') sonucSayim.kaybedildi += 1;
-    else if (t.durum === 'iptal') sonucSayim.iptal += 1;
-    else sonucSayim.girilmemis += 1;
-
-    // Açık pipeline: durum henüz sonuçlanmadıysa (taslak/hazır/gönderildi)
-    const sonuclu = t.durum === 'onaylandi' || t.durum === 'reddedildi' || t.durum === 'iptal';
-    if (!sonuclu) {
-      const pb = t.paraBirimi || 'TRY';
-      acikPipeline[pb] = (acikPipeline[pb] || 0) + (t.genelToplam || 0);
-    }
-
-    if (t.durum === 'reddedildi' && t.kayipSebebi) {
-      sebepSayim[t.kayipSebebi] = (sebepSayim[t.kayipSebebi] || 0) + 1;
-    }
-
-    const pid = t.hazirlayanKullaniciId;
-    if (pid) {
-      const ad = t.hazirlayanAdSoyad || pid;
-      if (!personelMap.has(pid)) personelMap.set(pid, { ad, kazanildi: 0, kayipli: 0, toplam: 0 });
-      const p = personelMap.get(pid)!;
-      p.toplam += 1;
-      if (t.durum === 'onaylandi') p.kazanildi += 1;
-      if (t.durum === 'reddedildi') p.kayipli += 1;
-    }
-  }
-
-  const karar = sonucSayim.kazanildi + sonucSayim.kaybedildi;
-  const winRate = karar > 0 ? Math.round((sonucSayim.kazanildi / karar) * 100) : null;
-  const topSebepler = Object.entries(sebepSayim)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3) as Array<[KayipSebebi, number]>;
-  const topPersonel = Array.from(personelMap.values())
-    .sort((a, b) => b.kazanildi - a.kazanildi || b.toplam - a.toplam)
-    .slice(0, 3);
-
-  return { funnel, sonucSayim, acikPipeline, winRate, topSebepler, topPersonel, kararliToplam: karar };
 }
 
 function KlasorGorunumu({
   isMobile, C, teklifler, klasorler, kullaniciMap, aramaMetni, setAramaMetni,
   aktifFiltre, setAktifFiltre, siralama, setSiralama, gorunumModu, setGorunumModu,
-  sekmeler, yoneticiOzeti, aktifKullaniciAd, onKlasorTikla, onCariGuncelle,
-  navigate, benimId, onSil, onKopyala, onRefresh,
+  benimSayisi, atananSayisi, tumSayisi,
+  yoneticiOzeti, aktifKullaniciAd, onKlasorTikla, onCariGuncelle,
+  navigate, benimId, onSil, onCogalt, onRefresh,
 }: KlasorGorunumuProps) {
   const { isDark } = useTheme();
   const { aktifKullanici } = useKullanici();
   const { message, modal } = App.useApp();
 
-  // Aktif sekme: siralama 'aktiflik' ise üstün, değilse aktifFiltre değeri.
-  const aktifSekme: Filtre = siralama === 'aktiflik' ? 'aktiflik' : aktifFiltre;
-  // Sekme tıklamasını işle — siralama ve aktifFiltre'yi birlikte ayarlar.
-  function sekmeyeTikla(k: Filtre) {
-    if (k === 'aktiflik') {
-      setSiralama('aktiflik');
-    } else {
-      setAktifFiltre(k);
-      setSiralama('alfabe');
-    }
+  // Yeni navigasyon mantığı:
+  //   • PDF Geçmişi   → siralama='aktiflik' + aktifFiltre 'benim' | 'tumu'
+  //   • Teklif Klasör → siralama='alfabe'   + aktifFiltre 'benim' | 'tumu'
+  //   • Bana Atanan   → siralama='alfabe'   + aktifFiltre='atanan'
+  const pdfMode = siralama === 'aktiflik';
+  const klasorBenimAktif = !pdfMode && aktifFiltre === 'benim';
+  const klasorTumAktif   = !pdfMode && aktifFiltre === 'tumu';
+  const pdfBenimAktif    = pdfMode  && aktifFiltre === 'benim';
+  const pdfTumAktif      = pdfMode  && aktifFiltre === 'tumu';
+  const atananAktif      = aktifFiltre === 'atanan';
+
+  function klasorScope(scope: 'benim' | 'tumu') {
+    setAktifFiltre(scope);
+    setSiralama('alfabe');
+  }
+  function pdfScope(scope: 'benim' | 'tumu') {
+    setAktifFiltre(scope);
+    setSiralama('aktiflik');
+  }
+  function atananaGec() {
+    setAktifFiltre('atanan');
+    setSiralama('alfabe');
   }
   const [sonucModalTeklif, setSonucModalTeklif] = useState<Teklif | null>(null);
 
@@ -712,25 +732,13 @@ function KlasorGorunumu({
   return (
     <>
       {/* Başlık + Hoşgeldin */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: C.textPrimary, letterSpacing: '-0.03em', lineHeight: 1.15 }}>
-            Tekliflerim
-          </div>
-          <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 6, fontWeight: 400, letterSpacing: '0.005em' }}>
-            {ilkAd ? `${selam}, ${ilkAd}.` : selam} Bugün ne ekleyelim?
-          </div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: C.textPrimary, letterSpacing: '-0.03em', lineHeight: 1.15 }}>
+          Tekliflerim
         </div>
-        <Button
-          type="primary"
-          size="large"
-          icon={<PlusOutlined />}
-          className={buttonClassNames.primary}
-          onClick={() => navigate('/teklif/yeni')}
-          style={{ height: 40, fontWeight: 600, paddingLeft: 18, paddingRight: 18, letterSpacing: '0.005em' }}
-        >
-          Yeni Teklif
-        </Button>
+        <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 6, fontWeight: 400, letterSpacing: '0.005em' }}>
+          {ilkAd ? `${selam}, ${ilkAd}.` : selam} Bugün ne ekleyelim?
+        </div>
       </div>
 
       {/* Yönetici Özeti şeridi — sadece admin/super_admin/firma_admin */}
@@ -744,125 +752,128 @@ function KlasorGorunumu({
         />
       )}
 
-      {/* Filtreler + Arama */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 272px',
-        alignItems: 'center',
-        columnGap: 16,
-        rowGap: 10,
-        marginBottom: 28,
-      }}>
-        <div style={{
-          display: 'flex',
-          width: 'fit-content',
-          maxWidth: '100%',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}>
-          {/* 3 birleşik tab: Son aktivite | Benim Tekliflerim | Tüm Teklifler */}
-          <div style={{
-            display: 'flex',
-            width: 'fit-content',
-            maxWidth: '100%',
-            gap: 3,
-            alignItems: 'center',
-            background: C.bgElevated,
-            borderRadius: 9,
-            padding: '3px',
-            overflowX: isMobile ? 'auto' : 'visible',
-          }}>
-            {sekmeler.map((s) => {
-              const aktif = aktifSekme === s.key;
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => sekmeyeTikla(s.key)}
-                  className={tabButtonClassName(aktif)}
-                  style={aktif ? {
-                    background: 'var(--tab-active-bg)',
-                    color: 'var(--text-primary)',
-                    borderColor: '#1E3A5F',
-                    boxShadow: '0 0 0 2px rgba(30,58,95,0.18), 0 1px 3px rgba(15,30,60,0.10)',
-                    fontWeight: 700,
-                  } : undefined}
-                >
-                  {s.label}
-                  <span className="app-tab-count">{s.count}</span>
-                </button>
-              );
-            })}
+      {/* ═══════════════════════════════════════════════════════════════════
+          LEVEL 1 — Ana operasyon satırı
+          Sadece: Benim Tekliflerim · Tüm Teklifler · Yeni Teklif (CTA).
+          ─────────────────────────────────────────────────────────────────── */}
+      <div className="app-ops-l1">
+        <div className="app-ops-l1-cards">
+          <button
+            type="button"
+            onClick={() => klasorScope('benim')}
+            className={`app-folder-card${klasorBenimAktif ? ' is-active' : ''}`}
+          >
+            <span className="app-folder-card-icon">
+              <FolderSingleIcon size={26} tone={klasorBenimAktif ? 'dark' : 'light'} />
+            </span>
+            <span className="app-folder-card-label">Benim Tekliflerim</span>
+            <span className="app-folder-card-count">{benimSayisi}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => klasorScope('tumu')}
+            className={`app-folder-card${klasorTumAktif ? ' is-active' : ''}`}
+          >
+            <span className="app-folder-card-icon">
+              <FolderStackIcon size={26} tone={klasorTumAktif ? 'dark' : 'light'} />
+            </span>
+            <span className="app-folder-card-label">Tüm Teklifler</span>
+            <span className="app-folder-card-count">{tumSayisi}</span>
+          </button>
+        </div>
+        <Button
+          type="primary"
+          size="large"
+          icon={<PlusOutlined />}
+          className={buttonClassNames.primary}
+          onClick={() => navigate('/teklif/yeni')}
+          style={{ height: 44, fontWeight: 600, paddingLeft: 18, paddingRight: 18, letterSpacing: '0.005em' }}
+        >
+          Yeni Teklif
+        </Button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          LEVEL 2 — Yardımcı araç satırı
+          PDF Geçmişi (slim segment) · Bana Atanan (pill) · Arama · Görünüm.
+          ─────────────────────────────────────────────────────────────────── */}
+      <div className="app-ops-l2">
+        <div className="app-ops-l2-pdf">
+          <span className="app-ops-pdf-label">PDF Geçmişi</span>
+          <div className="app-pdf-segment">
+            <button
+              type="button"
+              onClick={() => pdfScope('benim')}
+              className={`app-pdf-segment-button${pdfBenimAktif ? ' is-active' : ''}`}
+            >
+              <DocumentSingleIcon size={14} tone={pdfBenimAktif ? 'dark' : 'light'} />
+              <span>Benim PDF&apos;lerim</span>
+              <span className="app-tab-count">{benimSayisi}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => pdfScope('tumu')}
+              className={`app-pdf-segment-button${pdfTumAktif ? ' is-active' : ''}`}
+            >
+              <DocumentStackIcon size={14} tone={pdfTumAktif ? 'dark' : 'light'} />
+              <span>Tüm PDF&apos;ler</span>
+              <span className="app-tab-count">{tumSayisi}</span>
+            </button>
           </div>
         </div>
-        <div style={{ width: isMobile ? '100%' : 272, justifySelf: isMobile ? 'stretch' : 'end' }}>
+
+        <div className="app-ops-l2-tools">
+          <Tooltip title="Sadece bana atanmış teklifler" mouseEnterDelay={0.3}>
+            <button
+              type="button"
+              onClick={atananaGec}
+              className={`app-secondary-pill${atananAktif ? ' is-active' : ''}`}
+            >
+              <AimOutlined />
+              <span>Bana Atanan</span>
+              <span className="app-secondary-pill-count">{atananSayisi}</span>
+            </button>
+          </Tooltip>
           <Input
             placeholder="Müşteri veya klasör ara..."
             prefix={<SearchOutlined style={{ color: C.textFaint }} />}
             value={aramaMetni}
             onChange={(e) => setAramaMetni(e.target.value)}
             allowClear
-            style={{ width: '100%', height: 36, borderRadius: 7 }}
+            className="app-ops-search"
           />
+          {siralama !== 'aktiflik' && (
+            <div className="app-ops-view-toggle">
+              {([
+                { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
+                { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
+              ]).map(({ k, l, icon: Icon }) => {
+                const aktif = gorunumModu === k;
+                return (
+                  <Tooltip key={k} title={l} mouseEnterDelay={0.3}>
+                    <button
+                      type="button"
+                      onClick={() => setGorunumModu(k)}
+                      aria-label={l}
+                      className={`app-ops-view-btn${aktif ? ' is-active' : ''}`}
+                    >
+                      <Icon active={aktif} />
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Sıralama satırı → şimdi sayı + grid/liste toggle */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 12,
-        marginBottom: 14,
-      }}>
-        <div style={{ fontSize: 11, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
+      {/* Sayım satırı (yalnız bilgi) */}
+      <div className="app-ops-meta">
+        <span className="app-ops-meta-count">
           {siralama === 'aktiflik'
             ? `${aktiviteler.length} teklif`
             : `${klasorler.length} müşteri`}
-        </div>
-        {/* Grid / Liste toggle — sadece klasör modunda (aktivite modunda teklif listesi her zaman liste görünümü) */}
-        {siralama !== 'aktiflik' && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            background: C.bgElevated,
-            borderRadius: 7,
-            border: `1px solid ${C.borderSubtle}`,
-          }}>
-            {([
-              { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
-              { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
-            ]).map(({ k, l, icon: Icon }) => {
-              const aktif = gorunumModu === k;
-              return (
-                <Tooltip key={k} title={l} mouseEnterDelay={0.3}>
-                  <button
-                    onClick={() => setGorunumModu(k)}
-                    aria-label={l}
-                    style={{
-                      width: 28,
-                      height: 24,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: aktif ? C.bgSurface : 'transparent',
-                      border: 'none',
-                      borderRadius: 5,
-                      cursor: 'pointer',
-                      color: aktif ? C.textPrimary : C.textSecondary,
-                      padding: 0,
-                      boxShadow: aktif ? '0 1px 2px rgba(15,30,60,0.06)' : 'none',
-                    }}
-                  >
-                    <Icon active={aktif} />
-                  </button>
-                </Tooltip>
-              );
-            })}
-          </div>
-        )}
+        </span>
       </div>
 
       {/* Aktivite modu: flat teklif listesi (en yeniden eskiye).
@@ -893,7 +904,7 @@ function KlasorGorunumu({
                 C={C}
                 navigate={navigate}
                 onSil={onSil}
-                onKopyala={onKopyala}
+                onCogalt={onCogalt}
                 onSonucAc={() => setSonucModalTeklif(t)}
                 onSonucHizli={(durum) => hizliSonuc(t, durum)}
               />
@@ -928,6 +939,7 @@ function KlasorGorunumu({
       )}
 
       <SonucModal
+        key={sonucModalTeklif?.id ?? 'closed'}
         open={sonucModalTeklif !== null}
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalTeklif(null)}
@@ -937,358 +949,7 @@ function KlasorGorunumu({
   );
 }
 
-// ─── Yönetici Özeti (admin/super_admin/firma_admin) ─────────────────────────
-
-interface YoneticiOzetiProps {
-  isMobile: boolean;
-  C: ReturnType<typeof useColors>;
-  data: YoneticiOzetiData;
-  /** 'serit' = tek satır kompakt (Tekliflerim sayfası); 'panel' = tam görünüm (Analiz sayfası) */
-  mode?: 'serit' | 'panel';
-  /** 'serit' modunda tıklamada çağrılır (varsayılan: yok). */
-  onDetay?: () => void;
-}
-
-export function YoneticiOzeti({ isMobile, C, data, mode = 'serit', onDetay }: YoneticiOzetiProps) {
-  const { isDark } = useTheme();
-  const cardBg = isDark ? '#161922' : '#F4F3EF';
-  const cardBorder = isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8';
-  const sectionBg = isDark ? '#161922' : '#F4F3EF';
-
-  const formatTRY = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
-  const formatKisa = (n: number) => {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-    if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`;
-    return formatTRY(n);
-  };
-
-  const funnelSteps: Array<{ key: TeklifDurum; label: string; color: string }> = [
-    { key: 'taslak',     label: 'Taslak',      color: '#94a3b8' },
-    { key: 'hazir',      label: 'Hazır',       color: '#3b82f6' },
-    { key: 'gonderildi', label: 'Gönderildi',  color: '#f59e0b' },
-    { key: 'onaylandi',  label: 'Onaylandı',   color: '#16a34a' },
-  ];
-  const kazanildi = data.sonucSayim.kazanildi;
-
-  // ── ŞERİT MODU ─────────────────────────────────────────────────────────────
-  if (mode === 'serit') {
-    const pipelineSeg = (['TRY', 'EUR', 'USD'] as const)
-      .filter((pb) => (data.acikPipeline[pb] || 0) > 0)
-      .map((pb) => {
-        const sym = pb === 'TRY' ? '₺' : pb === 'EUR' ? '€' : '$';
-        return `${sym}${formatKisa(data.acikPipeline[pb])}`;
-      })
-      .join(' · ');
-
-    const funnelMini = funnelSteps.map((s) => data.funnel[s.key]).join('›');
-
-    return (
-      <button
-        onClick={() => onDetay?.()}
-        style={{
-          width: '100%',
-          background: sectionBg,
-          border: `1px solid ${cardBorder}`,
-          borderRadius: 10,
-          padding: isMobile ? '10px 14px' : '11px 16px',
-          marginBottom: 22,
-          display: 'flex',
-          alignItems: 'center',
-          gap: isMobile ? 10 : 14,
-          cursor: 'pointer',
-          textAlign: 'left',
-          color: 'inherit',
-          transition: 'border-color 0.14s, box-shadow 0.14s',
-          flexWrap: 'wrap',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#D7D3CC';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.borderColor = cardBorder;
-        }}
-      >
-        <span style={{
-          fontSize: 10.5, fontWeight: 700, color: C.textFaint,
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-          flexShrink: 0,
-        }}>
-          Yönetici Özeti
-        </span>
-
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, color: C.textFaint, letterSpacing: '0.02em' }}>Win-rate</span>
-          <span style={{
-            fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
-            color: data.winRate === null ? C.textFaint : data.winRate >= 50 ? '#16a34a' : '#dc2626',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {data.winRate === null ? '—' : `%${data.winRate}`}
-          </span>
-        </span>
-
-        {pipelineSeg && (
-          <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0 }}>
-            <span style={{ fontSize: 11, color: C.textFaint, letterSpacing: '0.02em' }}>Pipeline</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
-              {pipelineSeg}
-            </span>
-          </span>
-        )}
-
-        {!isMobile && (
-          <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0 }}>
-            <span style={{ fontSize: 11, color: C.textFaint, letterSpacing: '0.02em' }}>Funnel</span>
-            <span style={{ fontSize: 13, color: C.textSecondary, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em', fontWeight: 600 }}>
-              {funnelMini}
-            </span>
-          </span>
-        )}
-
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', fontVariantNumeric: 'tabular-nums' }}>
-            ✓ {kazanildi}
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>
-            ✕ {data.sonucSayim.kaybedildi}
-          </span>
-        </span>
-
-        <span style={{ flex: 1 }} />
-
-        <span style={{
-          fontSize: 11, color: C.textSecondary, fontWeight: 500,
-          display: 'flex', alignItems: 'center', gap: 3,
-          flexShrink: 0,
-        }}>
-          Detay <span style={{ fontSize: 14 }}>›</span>
-        </span>
-      </button>
-    );
-  }
-
-  // ── PANEL MODU (Analiz sayfası) ────────────────────────────────────────────
-  return (
-    <div style={{
-      background: sectionBg,
-      border: `1px solid ${cardBorder}`,
-      borderRadius: 10,
-      padding: isMobile ? 14 : 18,
-      marginBottom: 22,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16,
-    }}>
-
-      {/* Top metrik satırı: Win-rate + Pipeline */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 2fr)',
-        gap: 14,
-      }}>
-        {/* Win-rate */}
-        <div style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          borderRadius: 8,
-          padding: '12px 16px',
-        }}>
-          <div style={{ fontSize: 10.5, fontWeight: 500, color: C.textFaint, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 4 }}>
-            Win-rate
-          </div>
-          <div style={{
-            fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.05,
-            color: data.winRate === null ? C.textFaint : data.winRate >= 50 ? '#16a34a' : '#dc2626',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {data.winRate === null ? '—' : `%${data.winRate}`}
-          </div>
-          <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2 }}>
-            {kazanildi} kazanıldı / {data.kararliToplam} kararlı
-          </div>
-        </div>
-
-        {/* Açık pipeline */}
-        <div style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          borderRadius: 8,
-          padding: '12px 16px',
-        }}>
-          <div style={{ fontSize: 10.5, fontWeight: 500, color: C.textFaint, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 4 }}>
-            Açık pipeline (sonuç bekleyen)
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? 12 : 24, alignItems: 'baseline' }}>
-            {(['TRY', 'EUR', 'USD'] as const).map((pb) => {
-              const v = data.acikPipeline[pb] || 0;
-              if (v === 0) return null;
-              const sym = pb === 'TRY' ? '₺' : pb === 'EUR' ? '€' : '$';
-              return (
-                <div key={pb}>
-                  <span style={{ fontSize: 22, fontWeight: 700, color: C.textPrimary, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                    {sym}{formatTRY(v)}
-                  </span>
-                  <span style={{ fontSize: 11, color: C.textFaint, marginLeft: 4 }}>{pb}</span>
-                </div>
-              );
-            })}
-            {(['TRY','EUR','USD'] as const).every((pb) => (data.acikPipeline[pb] || 0) === 0) && (
-              <span style={{ fontSize: 14, color: C.textFaint }}>—</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Funnel */}
-      <div>
-        <div style={{ fontSize: 10.5, fontWeight: 500, color: C.textFaint, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Funnel
-        </div>
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, flexWrap: 'wrap' }}>
-          {funnelSteps.map((s, i) => (
-            <React.Fragment key={s.key}>
-              <div style={{
-                background: cardBg,
-                border: `1px solid ${cardBorder}`,
-                borderLeft: `3px solid ${s.color}`,
-                borderRadius: 6,
-                padding: '8px 12px',
-                minWidth: 88,
-                flex: 1,
-              }}>
-                <div style={{ fontSize: 10, color: C.textFaint, fontWeight: 500, letterSpacing: '0.03em' }}>{s.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: C.textPrimary, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-                  {data.funnel[s.key]}
-                </div>
-              </div>
-              {i < funnelSteps.length - 1 && !isMobile && (
-                <div style={{ display: 'flex', alignItems: 'center', color: C.textFaint, fontSize: 14 }}>›</div>
-              )}
-            </React.Fragment>
-          ))}
-          {/* Kazanıldı (kapanan) */}
-          <div style={{ display: 'flex', alignItems: 'center', color: C.textFaint, fontSize: 14 }}>{!isMobile && '›'}</div>
-          <div style={{
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            borderLeft: '3px solid #16a34a',
-            borderRadius: 6,
-            padding: '8px 12px',
-            minWidth: 88,
-            flex: 1,
-          }}>
-            <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, letterSpacing: '0.03em' }}>✓ Kazanıldı</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#065f46', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              {kazanildi}
-            </div>
-          </div>
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderLeft: '3px solid #dc2626',
-            borderRadius: 6,
-            padding: '8px 12px',
-            minWidth: 88,
-            flex: 1,
-          }}>
-            <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 600, letterSpacing: '0.03em' }}>✕ Kaybedildi</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#7f1d1d', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              {data.sonucSayim.kaybedildi}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top kayıp sebebi + Top personel — yan yana */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        gap: 14,
-      }}>
-        {/* Kayıp sebepleri */}
-        <div style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          borderRadius: 8,
-          padding: '12px 16px',
-        }}>
-          <div style={{ fontSize: 10.5, fontWeight: 500, color: C.textFaint, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-            En çok kaybedilen sebep
-          </div>
-          {data.topSebepler.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.textFaint }}>Henüz kayıp sebebi girilmemiş.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {data.topSebepler.map(([sebep, n], i) => (
-                <div key={sebep} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <span style={{
-                      width: 18, height: 18, borderRadius: 4,
-                      background: i === 0 ? '#fee2e2' : i === 1 ? '#fef3c7' : '#f1f5f9',
-                      color: i === 0 ? '#b91c1c' : i === 1 ? '#a16207' : '#475569',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {i + 1}
-                    </span>
-                    <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>
-                      {KAYIP_SEBEBI_LABEL[sebep]}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 12, color: C.textSecondary, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                    {n} kayıp
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Personel leaderboard */}
-        <div style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          borderRadius: 8,
-          padding: '12px 16px',
-        }}>
-          <div style={{ fontSize: 10.5, fontWeight: 500, color: C.textFaint, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-            En çok kazandıran personel
-          </div>
-          {data.topPersonel.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.textFaint }}>Henüz kazandığı teklif girilmemiş.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {data.topPersonel.map((p, i) => (
-                <div key={p.ad} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <span style={{
-                      width: 18, height: 18, borderRadius: 4,
-                      background: i === 0 ? '#fef3c7' : i === 1 ? '#f1f5f9' : '#f5f5f4',
-                      color: i === 0 ? '#a16207' : '#475569',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {i + 1}
-                    </span>
-                    <span style={{
-                      fontSize: 13, color: C.textPrimary, fontWeight: 500,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {p.ad}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 12, color: '#16a34a', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
-                    {p.kazanildi} kazan
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// YoneticiOzeti component → ../components/YoneticiOzeti.tsx (top import)
 
 // ─── Toggle ikonları ──────────────────────────────────────────────────────────
 
@@ -1339,14 +1000,14 @@ function KlasorIzgarasi({
     ? {
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-        gap: isMobile ? 6 : 8,
+        gap: isMobile ? 5 : 6,
       }
     : {
         display: 'grid',
         gridTemplateColumns: isMobile
-          ? 'repeat(auto-fill, minmax(170px, 1fr))'
-          : 'repeat(auto-fill, minmax(210px, 1fr))',
-        gap: isMobile ? 10 : 12,
+          ? 'repeat(auto-fill, minmax(150px, 1fr))'
+          : 'repeat(auto-fill, minmax(184px, 1fr))',
+        gap: isMobile ? 7 : 8,
       };
 
   const itemEl = (klasor: CustomerFolder, idx: number, total: number) =>
@@ -1388,29 +1049,29 @@ function KlasorIzgarasi({
   const harfler = Array.from(harfGruplari.keys()).sort((a, b) => a.localeCompare(b, 'tr'));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: liste ? 18 : 22 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: liste ? 9 : 11 }}>
       {harfler.map((harf) => {
         const grup = harfGruplari.get(harf)!;
         return (
           <div key={harf}>
             <div style={{
               display: 'flex',
-              alignItems: 'baseline',
-              gap: 10,
-              marginBottom: liste ? 8 : 12,
-              paddingBottom: 6,
+              alignItems: 'center',
+              marginBottom: liste ? 4 : 5,
+              paddingBottom: 2,
               borderBottom: `1px solid ${C.borderSubtle}`,
             }}>
-              <div style={{
-                fontSize: liste ? 26 : 32,
-                fontWeight: 700,
-                color: C.textPrimary,
-                letterSpacing: '-0.02em',
-                fontVariantNumeric: 'tabular-nums',
+              <span style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: C.textFaint,
+                letterSpacing: '0.08em',
                 lineHeight: 1,
+                opacity: 0.55,
+                textTransform: 'uppercase',
               }}>
                 {harf}
-              </div>
+              </span>
             </div>
             <div style={gridStyle}>
               {grup.map((k, i) => itemEl(k, i, grup.length))}
@@ -1603,7 +1264,11 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
 
 function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDark?: boolean }) {
   void isDark;
-  const uid = `pki-${size}-${Math.random().toString(36).slice(2, 7)}`;
+  // Stable, deterministic id — React 19 useId() ile gradient defs collision'sız.
+  // ":" sanitize ediyoruz çünkü url(#…) referansında bazı tarayıcılar
+  // çift-kolon'u escape gerektiriyor.
+  const reactId = useId().replace(/:/g, '');
+  const uid = `pki-${size}-${reactId}`;
   return (
     <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -1773,7 +1438,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
   const cardStyle: CSSProperties = {
     background: hover ? cardBgHover : cardBg,
     border: `1px solid ${hover ? (isDark ? 'rgba(255,255,255,0.16)' : '#CDC7BD') : (isDark ? 'rgba(255,255,255,0.10)' : '#D7D3CC')}`,
-    borderRadius: 10,
+    borderRadius: 9,
     cursor: 'pointer',
     transition: 'background 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease',
     userSelect: 'none',
@@ -1782,13 +1447,13 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
     flexDirection: 'column',
     position: 'relative',
     boxShadow: hover
-      ? (isDark ? '0 4px 14px rgba(0,0,0,0.32)' : '0 2px 8px rgba(40,30,15,0.06)')
+      ? (isDark ? '0 3px 10px rgba(0,0,0,0.28)' : '0 2px 6px rgba(40,30,15,0.05)')
       : 'none',
   };
 
-  const logoSize = 72;
-  // Premium klasör ikon kutusu — eski cari logo yerine zarif kabartmalı klasör.
-  // Şeffaf arka plan: ikonun kendi gradient'i ön planda kalsın.
+  const logoSize = 54;
+  // Premium klasör ikon kutusu — liste görünümüne yakın oran (liste 48 px),
+  // operasyon dosya yöneticisi yoğunluğunda ama premium hissi koruyacak boy.
   const logoBoxStyle: CSSProperties = {
     width: logoSize,
     height: logoSize,
@@ -1831,9 +1496,9 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       {/* Üst blok: logo + isim/altyazı */}
       <div style={{
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         gap: 9,
-        padding: isMobile ? '8px 10px 6px' : '10px 12px 8px',
+        padding: isMobile ? '6px 9px 5px' : '6px 10px 5px',
         position: 'relative',
         zIndex: 1,
       }}>
@@ -1843,7 +1508,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{
-            fontSize: isMobile ? 12 : 13,
+            fontSize: 12,
             fontWeight: 600,
             color: 'var(--text-primary, inherit)',
             letterSpacing: '-0.01em',
@@ -1860,7 +1525,7 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
       </div>
 
       {/* Ayraç */}
-      <div style={{ height: 1, background: C.borderSubtle, margin: '0 12px', position: 'relative', zIndex: 1 }} />
+      <div style={{ height: 1, background: C.borderSubtle, margin: '0 10px', position: 'relative', zIndex: 1 }} />
 
       {/* Alt meta */}
       <div style={{
@@ -1868,11 +1533,11 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 6,
-        padding: isMobile ? '6px 10px 8px' : '7px 12px 10px',
+        padding: isMobile ? '4px 9px 5px' : '4px 10px 6px',
         position: 'relative',
         zIndex: 1,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
           <span style={{
             fontSize: 10,
             color: C.textSecondary,
@@ -1897,8 +1562,8 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
             {hazirlayanlar.slice().reverse().map((k, i) => (
               <Tooltip key={k.id} title={k.adSoyad} mouseEnterDelay={0.3}>
                 <div style={{
-                  width: 18,
-                  height: 18,
+                  width: 17,
+                  height: 17,
                   borderRadius: '50%',
                   border: `2px solid ${C.bgSurface}`,
                   marginLeft: i === 0 ? 0 : -6,
@@ -1947,12 +1612,14 @@ interface DetayGorunumuProps {
   setAramaMetni: (v: string) => void;
   aktifFiltre: Filtre;
   setAktifFiltre: (f: Filtre) => void;
-  sekmeler: Array<{ key: Filtre; label: string; count: number }>;
+  benimSayisi: number;
+  atananSayisi: number;
+  tumSayisi: number;
   benimId: string | undefined;
   navigate: (path: string) => void;
   onGeri: () => void;
   onSil: (id: string) => void;
-  onKopyala: (id: string) => void;
+  onCogalt: (t: Teklif) => void;
   /** Ust state'teki teklifler array'ini yeniden cek — durum/sonuc kaydedildikten
    *  sonra UI'in guncel veriyle re-render olmasi icin cagrilir. */
   onRefresh: () => void;
@@ -1960,7 +1627,9 @@ interface DetayGorunumuProps {
 
 function DetayGorunumu({
   isMobile, C, klasorAdi, firmaAdiDisplay, teklifler, aramaMetni, setAramaMetni,
-  aktifFiltre, setAktifFiltre, sekmeler, benimId, navigate, onGeri, onSil, onKopyala,
+  aktifFiltre, setAktifFiltre,
+  benimSayisi, atananSayisi, tumSayisi,
+  benimId, navigate, onGeri, onSil, onCogalt,
   onRefresh,
 }: DetayGorunumuProps) {
   const { isDark } = useTheme();
@@ -2073,7 +1742,7 @@ function DetayGorunumu({
         </Button>
       </div>
 
-      {/* Filtreler + Arama */}
+      {/* Filtreler + Arama — klasör içinde yalnızca scope filtresi anlamlı */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 272px',
@@ -2082,23 +1751,36 @@ function DetayGorunumu({
         rowGap: 10,
         marginBottom: 20,
       }}>
-        <div style={{
-          display: 'flex',
-          width: 'fit-content',
-          maxWidth: '100%',
-          gap: 3,
-          alignItems: 'center',
-          background: C.bgElevated,
-          borderRadius: 9,
-          padding: '3px',
-          overflowX: isMobile ? 'auto' : 'visible',
-        }}>
-          {sekmeler.map((s) => (
-            <button key={s.key} onClick={() => setAktifFiltre(s.key)} className={tabButtonClassName(aktifFiltre === s.key)}>
-              {s.label}
-              <span className="app-tab-count">{s.count}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="app-pdf-segment">
+            <button
+              type="button"
+              onClick={() => setAktifFiltre('benim')}
+              className={`app-pdf-segment-button${aktifFiltre === 'benim' ? ' is-active' : ''}`}
+            >
+              <FolderSingleIcon size={14} tone={aktifFiltre === 'benim' ? 'dark' : 'light'} />
+              <span>Benim Tekliflerim</span>
+              <span className="app-tab-count">{benimSayisi}</span>
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setAktifFiltre('tumu')}
+              className={`app-pdf-segment-button${(aktifFiltre === 'tumu' || aktifFiltre === 'aktiflik') ? ' is-active' : ''}`}
+            >
+              <FolderStackIcon size={14} tone={(aktifFiltre === 'tumu' || aktifFiltre === 'aktiflik') ? 'dark' : 'light'} />
+              <span>Tüm Teklifler</span>
+              <span className="app-tab-count">{tumSayisi}</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAktifFiltre('atanan')}
+            className={`app-secondary-pill${aktifFiltre === 'atanan' ? ' is-active' : ''}`}
+          >
+            <AimOutlined />
+            <span>Bana Atanan</span>
+            <span className="app-secondary-pill-count">{atananSayisi}</span>
+          </button>
         </div>
         <div style={{ width: isMobile ? '100%' : 272, justifySelf: isMobile ? 'stretch' : 'end' }}>
           <Input
@@ -2151,7 +1833,7 @@ function DetayGorunumu({
                   C={C}
                   navigate={navigate}
                   onSil={onSil}
-                  onKopyala={onKopyala}
+                  onCogalt={onCogalt}
                   onSonucAc={() => setSonucModalTeklif(teklif)}
                   onSonucHizli={(sonuc) => hizliSonuc(teklif, sonuc)}
                 />
@@ -2162,6 +1844,7 @@ function DetayGorunumu({
       </div>
 
       <SonucModal
+        key={sonucModalTeklif?.id ?? 'closed'}
         open={sonucModalTeklif !== null}
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalTeklif(null)}
@@ -2177,13 +1860,15 @@ function DetayGorunumu({
  * (3 sonuç: Onaylandı/Reddedildi/İptal).
  */
 function DurumSonucCell({
-  teklif, durumGosterim, onSonucHizli,
+  teklif, durumGosterim, onSonucHizli, now,
 }: {
   teklif: Teklif;
   durumGosterim: { label: string; color: string; bg: string; border: string };
   onSonucAc: () => void;
   onSonucHizli: (sonuc: TeklifDurum) => void;
   C: ReturnType<typeof useColors>;
+  /** Parent'tan geçirilen "şimdi" timestamp'i — render purity için Date.now() yerine. */
+  now: number;
 }) {
   const isGonderildi = teklif.durum === 'gonderildi';
 
@@ -2227,7 +1912,7 @@ function DurumSonucCell({
   // 2+ gündür gönderildi durumda kalan teklif → "Sonuç gir" butonunun yanında
   // belli belirsiz yanıp sönen amber dot (kullanıcının "müsait bir yer" tarifi)
   const olusTs = new Date(teklif.olusturmaTarihi || teklif.tarih).getTime();
-  const gunFark = Number.isFinite(olusTs) ? Math.floor((Date.now() - olusTs) / (24 * 3600 * 1000)) : 0;
+  const gunFark = Number.isFinite(olusTs) ? Math.floor((now - olusTs) / (24 * 3600 * 1000)) : 0;
   const yanitBekleniyor = isGonderildi && gunFark >= 2;
 
   // (Önceden burada "✎ Revize" rozeti durum sütununa eklenmişti — kullanıcı
@@ -2331,17 +2016,12 @@ interface SonucModalProps {
 function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
   // Sade modal: sebep + (reddedildi'de) rakip firma + opsiyonel not.
   // Durum dışarıdan zaten reddedildi veya iptal olarak gelir.
-  const [sebep, setSebep] = useState<KayipSebebi | undefined>();
-  const [rakip, setRakip] = useState('');
-  const [not, setNot] = useState('');
-
-  useEffect(() => {
-    if (teklif) {
-      setSebep(teklif.kayipSebebi);
-      setRakip(teklif.rakipFirma ?? '');
-      setNot(teklif.sonucNotu ?? '');
-    }
-  }, [teklif]);
+  // NOT: Initial state'ler doğrudan teklif prop'undan türetilir; her yeni teklif
+  // açılışında parent <SonucModal key={teklif?.id} /> ile remount eder, böylece
+  // setState-in-effect anti-pattern'ine gerek kalmaz.
+  const [sebep, setSebep] = useState<KayipSebebi | undefined>(teklif?.kayipSebebi);
+  const [rakip, setRakip] = useState(teklif?.rakipFirma ?? '');
+  const [not, setNot] = useState(teklif?.sonucNotu ?? '');
 
   function kaydet() {
     if (!teklif) return;
@@ -2428,12 +2108,12 @@ interface TeklifKartiProps {
   C: ReturnType<typeof useColors>;
   navigate: (path: string) => void;
   onSil: (id: string) => void;
-  onKopyala: (id: string) => void;
+  onCogalt: (t: Teklif) => void;
   onSonucAc: () => void;
   onSonucHizli: (yeniDurum: TeklifDurum) => void;
 }
 
-function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onSonucAc, onSonucHizli }: TeklifKartiProps) {
+function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSonucAc, onSonucHizli }: TeklifKartiProps) {
   const isim = teklif.hazirlayanAdSoyad ?? '';
   const toplamSatirlari = teklifToplamOzeti(teklif);
   const renk = isim ? personelRenk(isim) : PALET[0];
@@ -2442,6 +2122,14 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
     (isDark ? DURUM_CFG_DARK[teklif.durum] : DURUM_CFG[teklif.durum]) ??
     (isDark ? DURUM_CFG_DARK.taslak : DURUM_CFG.taslak);
   const silinebilir = !(['onaylandi', 'reddedildi', 'iptal'] as TeklifDurum[]).includes(teklif.durum);
+  // Dakikada bir tick eden "şimdi" — gun farkı hesapları render purity'yi koruyarak taze kalır.
+  const now = useNow();
+  function pdfAc() {
+    // Tarayıcıda yeni sekmede print görünüm — taslak / kayıtlı / gönderilmiş
+    // her durumda canlı belge önizlemesi açar. Kullanıcı oradan PDF olarak
+    // kaydedebilir veya yazıcıdan çıkabilir.
+    window.open(`/teklif/${teklif.id}/print`, '_blank', 'noopener');
+  }
 
   // Gösterge lambası — gönderilmiş ve 2+ gün eski mi?
   const hasOverdueOffers = useMemo(() => {
@@ -2449,9 +2137,9 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
     const tarih = teklif.guncellemeTarihi || teklif.tarih;
     if (!tarih) return false;
     const teklifTarihi = new Date(tarih);
-    const gunFarki = Math.floor((new Date().getTime() - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
+    const gunFarki = Math.floor((now - teklifTarihi.getTime()) / (1000 * 60 * 60 * 24));
     return gunFarki >= 2;
-  }, [teklif.durum, teklif.guncellemeTarihi, teklif.tarih]);
+  }, [teklif.durum, teklif.guncellemeTarihi, teklif.tarih, now]);
 
 
   const actionButtonStyle: CSSProperties = {
@@ -2580,7 +2268,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
               background: benim ? 'rgba(15,31,69,0.10)' : renk.avatarBg,
               border: `1.5px solid ${benim ? 'rgba(15,31,69,0.28)' : renk.avatarBorder}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9.5, fontWeight: 700, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Arial", sans-serif',
+              fontSize: 9.5, fontWeight: 700, fontFamily: 'var(--font-sans)',
               color: benim ? C.textPrimary : renk.avatarText,
             }}>
               {inits}
@@ -2625,16 +2313,20 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onKopyala, onS
           onSonucAc={onSonucAc}
           onSonucHizli={onSonucHizli}
           C={C}
+          now={now}
         />
 
-        {/* Aksiyonlar — sadeleşti: Aç / Kopyala / Sil */}
+        {/* Aksiyonlar — Aç · PDF · Çoğalt · Sil (sade premium ikonlar) */}
         <div style={{ paddingLeft: 6, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
             <Tooltip title="Aç">
               <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/teklif/${teklif.id}`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
             </Tooltip>
-            <Tooltip title="Kopyala">
-              <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => onKopyala(teklif.id)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
+            <Tooltip title="PDF görünüm">
+              <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={pdfAc} style={actionButtonStyle} className={buttonClassNames.smallAction} />
+            </Tooltip>
+            <Tooltip title="Çoğalt">
+              <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => onCogalt(teklif)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
             </Tooltip>
             {silinebilir ? (
               <Popconfirm
