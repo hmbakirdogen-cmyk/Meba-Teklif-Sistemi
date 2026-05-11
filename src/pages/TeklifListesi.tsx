@@ -2125,10 +2125,10 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
   // Dakikada bir tick eden "şimdi" — gun farkı hesapları render purity'yi koruyarak taze kalır.
   const now = useNow();
   function pdfAc() {
-    // Tarayıcıda yeni sekmede print görünüm — taslak / kayıtlı / gönderilmiş
-    // her durumda canlı belge önizlemesi açar. Kullanıcı oradan PDF olarak
-    // kaydedebilir veya yazıcıdan çıkabilir.
-    window.open(`/teklif/${teklif.id}/print`, '_blank', 'noopener');
+    // Cloud/PWA ortamında window.open ayrı standalone window açıyordu
+    // ("masaüstü uygulaması" gibi görünüyordu). Bunun yerine editor sayfasına
+    // navigate ediyoruz — orada "PDF İndir" butonu zaten mevcut.
+    navigate(`/teklif/${teklif.id}`);
   }
 
   // Gösterge lambası — gönderilmiş ve 2+ gün eski mi?
