@@ -106,6 +106,16 @@ model Kullanici {
   olusturanKullaniciId        String?
   silmeTarihi                 DateTime?
 
+  // SMTP — her kullanıcı kendi e-posta hesabından teklif gönderir.
+  // Şifre AES-256-GCM ile encrypt edilir (SMTP_ENCRYPTION_KEY env).
+  smtpHost                    String?
+  smtpPort                    Int?
+  smtpSecure                  Boolean?  @default(true)
+  smtpUser                    String?
+  smtpPasswordEncrypted       String?   // base64(iv|ciphertext|authTag)
+  smtpFromName                String?
+  smtpFromAddress             String?
+
   firma                       Firma?    @relation(fields: [firmaId], references: [id], onDelete: SetNull)
   oturumlar                   Oturum[]
   geriBildirimler             GeriBildirim[] @relation("GonderenKullanici")

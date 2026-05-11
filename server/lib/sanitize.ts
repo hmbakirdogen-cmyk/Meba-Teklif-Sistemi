@@ -1,13 +1,16 @@
 import type { Firma, Kullanici } from '@prisma/client';
 
-type SanitizedKullanici = Omit<Kullanici, 'sifreHash'>;
+type SanitizedKullanici = Omit<Kullanici, 'sifreHash' | 'smtpPasswordEncrypted'> & {
+  /** Frontend, kullanıcının SMTP şifresi tanımlı mı bilsin diye boolean flag. */
+  smtpPasswordSet?: boolean;
+};
 
-/** sifreHash'i client'a sızdırma. */
+/** sifreHash + smtpPasswordEncrypted'i client'a sızdırma. */
 export function sanitizeUser(u: Kullanici | null): SanitizedKullanici | null {
   if (!u) return null;
-  const { sifreHash: _omit, ...rest } = u;
-  void _omit;
-  return rest;
+  const { sifreHash: _hash, smtpPasswordEncrypted: _smtp, ...rest } = u;
+  void _hash;
+  return { ...rest, smtpPasswordSet: Boolean(_smtp) };
 }
 
 const FIRMA_TEXT_FALLBACKS: Record<string, Partial<Firma>> = {

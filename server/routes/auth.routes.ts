@@ -5,6 +5,7 @@ import { olusturOturum, oturumKapat, kullaniciOturumlariniIptalEt } from '../lib
 import { canAccessFirma } from '../lib/firmaScope.js';
 import { sanitizeUser, sanitizeFirma, uretInitials } from '../lib/sanitize.js';
 import { uploadFile, decodeDataUrl, mimeToExt, MAX_PHOTO_BYTES } from '../lib/storage.js';
+import { encryptPassword, verifySMTP, sendViaSMTP, SMTP_PRESETS } from '../lib/smtp.js';
 import { audit, auditPrune } from '../lib/audit.js';
 import { checkLoginRateLimit, getClientIp, recordLoginAttempt, resetLoginRateLimit } from '../lib/loginRateLimit.js';
 import { requireAuth } from '../middleware/requireAuth.js';
@@ -195,5 +196,137 @@ authRouter.post(
 
     await audit('profil_foto_yuklendi', { kullaniciId: k.id, kullaniciAdi: k.kullaniciAdi, firmaId: k.firmaId });
     res.json({ profilFotoUrl: cacheBust, kullanici: sanitizeUser(updated) });
+  }),
+);
+
+// ── GET /api/auth/smtp-ayarlar ──────────────────────────────────
+// Kullanıcının mevcut SMTP konfigürasyonunu döner (şifre dahil DEĞİL).
+authRouter.get(
+  '/smtp-ayarlar',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const k = req.authCtx!.kullanici;
+    res.json({
+      smtpHost: k.smtpHost ?? null,
+      smtpPort: k.smtpPort ?? null,
+      smtpSecure: k.smtpSecure ?? null,
+      smtpUser: k.smtpUser ?? null,
+      smtpFromName: k.smtpFromName ?? null,
+      smtpFromAddress: k.smtpFromAddress ?? null,
+      hasPassword: Boolean(k.smtpPasswordEncrypted),
+      presets: SMTP_PRESETS,
+    });
+  }),
+);
+
+// ── PATCH /api/auth/smtp-ayarlar ────────────────────────────────
+// Kullanıcı kendi SMTP credentials'larını günceller.
+// password ya boş bırakılır (mevcut şifre korunur) ya da yeni şifre verilir.
+authRouter.patch(
+  '/smtp-ayarlar',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const k = req.authCtx!.kullanici;
+    const body = req.body ?? {};
+    const data: Record<string, unknown> = {};
+    if ('smtpHost' in body) data.smtpHost = String(body.smtpHost || '').trim() || null;
+    if ('smtpPort' in body) {
+      const port = Number(body.smtpPort);
+      data.smtpPort = Number.isFinite(port) && port > 0 ? Math.floor(port) : null;
+    }
+    if ('smtpSecure' in body) data.smtpSecure = Boolean(body.smtpSecure);
+    if ('smtpUser' in body) data.smtpUser = String(body.smtpUser || '').trim() || null;
+    if ('smtpFromName' in body) data.smtpFromName = String(body.smtpFromName || '').trim() || null;
+    if ('smtpFromAddress' in body) data.smtpFromAddress = String(body.smtpFromAddress || '').trim() || null;
+    if (typeof body.smtpPassword === 'string' && body.smtpPassword.length > 0) {
+      try {
+        data.smtpPasswordEncrypted = encryptPassword(body.smtpPassword);
+      } catch (err) {
+        throw new HttpError(500, err instanceof Error ? err.message : 'SMTP şifresi şifrelenemedi.');
+      }
+    }
+    if ('clearPassword' in body && body.clearPassword === true) {
+      data.smtpPasswordEncrypted = null;
+    }
+    const updated = await prisma.kullanici.update({ where: { id: k.id }, data });
+    await audit('smtp_ayarlar_guncellendi', { kullaniciId: k.id, kullaniciAdi: k.kullaniciAdi, firmaId: k.firmaId });
+    res.json({
+      ok: true,
+      smtpHost: updated.smtpHost,
+      smtpPort: updated.smtpPort,
+      smtpSecure: updated.smtpSecure,
+      smtpUser: updated.smtpUser,
+      smtpFromName: updated.smtpFromName,
+      smtpFromAddress: updated.smtpFromAddress,
+      hasPassword: Boolean(updated.smtpPasswordEncrypted),
+    });
+  }),
+);
+
+// ── POST /api/auth/smtp-test ────────────────────────────────────
+// Verilen SMTP config ile bağlantı testi yapar (mail göndermez).
+// Form gönderiminden ÖNCE çağrılır; password body'den gelir (henüz DB'de değil).
+authRouter.post(
+  '/smtp-test',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const host = String(body.smtpHost || '').trim();
+    const port = Number(body.smtpPort);
+    const secure = Boolean(body.smtpSecure);
+    const user = String(body.smtpUser || '').trim();
+    const password = String(body.smtpPassword || '');
+    if (!host || !port || !user || !password) {
+      throw new HttpError(400, 'SMTP host, port, user ve password zorunlu.');
+    }
+    const result = await verifySMTP({ host, port, secure, user, password });
+    if (!result.ok) {
+      res.status(400).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true });
+  }),
+);
+
+// ── POST /api/auth/smtp-test-mail ───────────────────────────────
+// Kullanıcının kayıtlı SMTP credentials'ları ile kendisine test maili gönderir.
+authRouter.post(
+  '/smtp-test-mail',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const k = req.authCtx!.kullanici;
+    if (!k.smtpHost || !k.smtpUser || !k.smtpPasswordEncrypted) {
+      throw new HttpError(400, 'Önce SMTP ayarlarınızı kaydedin.');
+    }
+    const { decryptPassword } = await import('../lib/smtp.js');
+    let plainPassword: string;
+    try {
+      plainPassword = decryptPassword(k.smtpPasswordEncrypted);
+    } catch (err) {
+      throw new HttpError(500, err instanceof Error ? err.message : 'SMTP şifresi okunamadı.');
+    }
+    const toAddress = k.smtpFromAddress || k.smtpUser;
+    const result = await sendViaSMTP(
+      {
+        host: k.smtpHost,
+        port: k.smtpPort ?? 587,
+        secure: k.smtpSecure ?? true,
+        user: k.smtpUser,
+        password: plainPassword,
+        fromName: k.smtpFromName || k.adSoyad,
+        fromAddress: toAddress,
+      },
+      {
+        to: toAddress,
+        subject: 'MEBA Teklif Sistemi — SMTP Test',
+        text: 'Bu bir test mailidir. SMTP ayarlarınız doğru çalışıyor.',
+        html: '<p>Bu bir test mailidir. SMTP ayarlarınız <strong>doğru çalışıyor</strong>.</p>',
+      },
+    );
+    if (!result.ok) {
+      res.status(502).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true, to: toAddress, messageId: result.messageId });
   }),
 );

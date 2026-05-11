@@ -24,10 +24,11 @@ services:
         value: production
       - key: SESSION_SECRET
         generateValue: true
-      - key: RESEND_API_KEY
-        sync: false
-      - key: EMAIL_FROM
-        sync: false
+      # SMTP_ENCRYPTION_KEY — 32 byte (64 hex char). Kullanıcı SMTP şifrelerini
+      # AES-256-GCM ile şifreler. generateValue Render'da otomatik üretir.
+      # NOT: Bu key değişirse mevcut şifrelenmiş şifreler decrypt edilemez!
+      - key: SMTP_ENCRYPTION_KEY
+        generateValue: true
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID

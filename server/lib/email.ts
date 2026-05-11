@@ -1,18 +1,5 @@
-import { Resend } from 'resend';
-import type { Firma, Teklif } from '@prisma/client';
-
-const apiKey = process.env.RESEND_API_KEY || '';
-const fromAddress = process.env.EMAIL_FROM || 'noreply@example.com';
-
-let _resend: Resend | null = null;
-function getResend(): Resend {
-  if (_resend) return _resend;
-  if (!apiKey) throw new Error('RESEND_API_KEY env yok.');
-  _resend = new Resend(apiKey);
-  return _resend;
-}
-
-export const emailConfigured = Boolean(apiKey);
+import type { Firma, Teklif, Kullanici } from '@prisma/client';
+import { decryptPassword, sendViaSMTP, type SMTPConfig } from './smtp.js';
 
 function normalizeWhitespace(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -149,41 +136,53 @@ export interface SendTeklifMailParams {
   subject: string;
   html: string;
   text: string;
-  replyTo?: string;
   pdfBuffer: Buffer;
   pdfFileName: string;
 }
 
 export interface SendTeklifMailResult {
   ok: boolean;
-  resendId?: string;
+  messageId?: string;
   error?: string;
 }
 
-export async function sendTeklifEmail(params: SendTeklifMailParams): Promise<SendTeklifMailResult> {
-  if (!emailConfigured) {
-    return { ok: false, error: 'Resend yapılandırılmamış (RESEND_API_KEY eksik).' };
+/** Kullanıcının kendi SMTP credentials'ları ile gönderim (multi-tenant doğal akış). */
+export async function sendTeklifEmailFromUser(
+  kullanici: Kullanici,
+  params: SendTeklifMailParams,
+): Promise<SendTeklifMailResult> {
+  if (!kullanici.smtpHost || !kullanici.smtpUser || !kullanici.smtpPasswordEncrypted) {
+    return {
+      ok: false,
+      error: 'E-posta hesabınız tanımlı değil. Profilden SMTP ayarlarını ekleyin.',
+    };
   }
+  let plainPassword: string;
   try {
-    const result = await getResend().emails.send({
-      from: fromAddress,
-      to: [params.to],
-      replyTo: params.replyTo || undefined,
-      subject: params.subject,
-      html: params.html,
-      text: params.text,
-      attachments: [
-        {
-          filename: params.pdfFileName,
-          content: params.pdfBuffer,
-        },
-      ],
-    });
-    if (result.error) {
-      return { ok: false, error: result.error.message || 'Resend gönderim hatası.' };
-    }
-    return { ok: true, resendId: result.data?.id };
+    plainPassword = decryptPassword(kullanici.smtpPasswordEncrypted);
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Bilinmeyen e-posta hatası.' };
+    return {
+      ok: false,
+      error: `SMTP şifresi okunamadı: ${err instanceof Error ? err.message : 'bilinmeyen hata'}`,
+    };
   }
+  const fromAddress = kullanici.smtpFromAddress || kullanici.smtpUser;
+  const config: SMTPConfig = {
+    host: kullanici.smtpHost,
+    port: kullanici.smtpPort ?? 587,
+    secure: kullanici.smtpSecure ?? true,
+    user: kullanici.smtpUser,
+    password: plainPassword,
+    fromName: kullanici.smtpFromName || kullanici.adSoyad,
+    fromAddress,
+  };
+  const result = await sendViaSMTP(config, {
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+    attachments: [{ filename: params.pdfFileName, content: params.pdfBuffer }],
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, messageId: result.messageId };
 }

@@ -336,6 +336,43 @@ export const api = {
       post<{ ok: boolean; mustChangePassword: boolean }>('/auth/change-password', { mevcutSifre, yeniSifre }),
     uploadPhoto: (fotoBase64: string) =>
       post<{ profilFotoUrl: string; kullanici: Kullanici }>('/auth/upload-photo', { fotoBase64 }),
+
+    // ── SMTP (kullanıcının kendi e-posta hesabından gönderim) ─────────
+    smtpAyarlar: () =>
+      get<{
+        smtpHost: string | null;
+        smtpPort: number | null;
+        smtpSecure: boolean | null;
+        smtpUser: string | null;
+        smtpFromName: string | null;
+        smtpFromAddress: string | null;
+        hasPassword: boolean;
+        presets: Record<string, { host: string; port: number; secure: boolean; label: string }>;
+      }>('/auth/smtp-ayarlar'),
+    smtpAyarlariGuncelle: (payload: {
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecure?: boolean;
+      smtpUser?: string;
+      smtpFromName?: string;
+      smtpFromAddress?: string;
+      smtpPassword?: string;
+      clearPassword?: boolean;
+    }) =>
+      patch<{
+        ok: boolean;
+        smtpHost: string | null;
+        smtpPort: number | null;
+        smtpSecure: boolean | null;
+        smtpUser: string | null;
+        smtpFromName: string | null;
+        smtpFromAddress: string | null;
+        hasPassword: boolean;
+      }>('/auth/smtp-ayarlar', payload),
+    smtpTest: (payload: { smtpHost: string; smtpPort: number; smtpSecure: boolean; smtpUser: string; smtpPassword: string }) =>
+      post<{ ok: true } | { ok: false; error: string }>('/auth/smtp-test', payload),
+    smtpTestMail: () =>
+      post<{ ok: boolean; to?: string; messageId?: string; error?: string }>('/auth/smtp-test-mail', {}),
   },
 
   // ── Firmalar ────────────────────────────────────────────────────────────────

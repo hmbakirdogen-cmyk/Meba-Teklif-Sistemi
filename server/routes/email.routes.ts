@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { canAccessFirma } from '../lib/firmaScope.js';
-import { mailKonuUret, mailGovdesiUretText, mailHtmlGovdesiUret, sendTeklifEmail } from '../lib/email.js';
+import { mailKonuUret, mailGovdesiUretText, mailHtmlGovdesiUret, sendTeklifEmailFromUser } from '../lib/email.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
 
@@ -56,12 +56,12 @@ emailRouter.post(
     if (pdfBuffer.length === 0) throw new HttpError(400, 'PDF verisi geçersiz.');
     const fileName = buildFileName(teklif.teklifNo, cariSnap?.firmaAdi ?? null);
 
-    const sonuc = await sendTeklifEmail({
+    const me = req.authCtx!.kullanici;
+    const sonuc = await sendTeklifEmailFromUser(me, {
       to,
       subject,
       html,
       text,
-      replyTo: firma?.eposta || undefined,
       pdfBuffer,
       pdfFileName: fileName,
     });
@@ -71,9 +71,9 @@ emailRouter.post(
         teklifId: teklif.id,
         teklifNo: teklif.teklifNo,
         aliciEposta: to,
-        gonderen: firma?.eposta || null,
+        gonderen: me.smtpFromAddress || me.smtpUser || null,
         durum: sonuc.ok ? 'sent' : 'failed',
-        resendId: sonuc.resendId || null,
+        resendId: sonuc.messageId || null,
         hata: sonuc.error || null,
       },
     });
@@ -82,6 +82,6 @@ emailRouter.post(
       res.status(502).json({ ok: false, error: sonuc.error || 'E-posta gönderilemedi.' });
       return;
     }
-    res.json({ ok: true, resendId: sonuc.resendId, fileName, subject });
+    res.json({ ok: true, messageId: sonuc.messageId, fileName, subject });
   }),
 );

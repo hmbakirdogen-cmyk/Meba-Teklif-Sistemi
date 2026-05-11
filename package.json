@@ -35,10 +35,10 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "node-cron": "^4.0.0",
+    "nodemailer": "^7.0.13",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.0",
-    "resend": "^4.0.0",
     "xlsx": "^0.18.5"
   },
   "prisma": {
@@ -51,6 +51,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^24.12.2",
     "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.11",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
