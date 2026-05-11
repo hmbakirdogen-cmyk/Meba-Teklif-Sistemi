@@ -1,15 +1,20 @@
 /**
- * TeklifPrintSayfasi.tsx — Server-side Puppeteer için minimal A4 sayfası.
+ * TeklifPrintSayfasi.tsx — Tarayıcı print preview (Ctrl+P) için minimal A4 dokümanı.
+ *
+ * NOT: Render bulut deployment'ında server-side Puppeteer kaldırıldı; PDF
+ * üretimi tamamen client-side `src/services/pdfService.ts` (html2canvas +
+ * jsPDF) üzerinden yapılıyor. Bu sayfa şimdi yalnızca tarayıcının built-in
+ * print/önizleme akışı için (kullanıcı /teklif/:id/print URL'sini yeni
+ * tab'da açıp Ctrl+P ile çıkarabilir).
  *
  * Akış:
  *  1. URL'den teklifId al
- *  2. /api/teklifler ile teklifi çek (GET liste, find by id; backend'de
- *     /api/teklifler/:id endpoint'i şu an yok)
- *  3. TeklifSablonu (lineer, offscreen) + KompaktAntet ile DOM ölçümü yap
+ *  2. /api/teklifler ile teklifi çek (GET liste, find by id)
+ *  3. TeklifSablonu (lineer, offscreen) + KompaktAntet ile DOM ölçümü
  *  4. calculateTeklifPagination ile sayfa planı çıkar
  *  5. TeklifPagedDocument render et
  *  6. document.fonts.ready bekle, sonra data-print-ready="true" set et
- *     (Puppeteer page.waitForSelector için signal)
+ *     (kullanıcının tarayıcı print API'si için signal)
  *
  * Bu sayfada toolbar, sağ panel, header — hiçbir UI elementi yok.
  * Sadece A4 kağıt rendering. Body margin 0, padding 0.

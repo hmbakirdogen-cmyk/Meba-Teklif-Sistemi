@@ -37,6 +37,7 @@ export interface Snapshot {
   ilgiliKisiAdSoyad?: string;
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
+  firmaId: string;
 }
 
 const MAX_SIZE = 50;
@@ -64,7 +65,8 @@ export function snapshotChanged(a: Snapshot | null, b: Snapshot | null): boolean
     a.ilgiliKisiId !== b.ilgiliKisiId ||
     a.ilgiliKisiAdSoyad !== b.ilgiliKisiAdSoyad ||
     a.satirBazliParaBirimi !== b.satirBazliParaBirimi ||
-    a.satirBazliIskonto !== b.satirBazliIskonto
+    a.satirBazliIskonto !== b.satirBazliIskonto ||
+    a.firmaId !== b.firmaId
   );
 }
 

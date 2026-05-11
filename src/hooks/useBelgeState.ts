@@ -70,6 +70,10 @@ export interface BelgeState {
   gorseller: ImageItem[];
   status: TeklifStatus;
   visibility: TeklifVisibility;
+  /** Aktif teklifin firmaId'si — multi-tenant izolasyon için kritik. PDF üretiminde
+   *  ve e-posta gönderiminde teklifin gerçek firmasını belirler (kullanıcının
+   *  aktif firmasıyla karıştırılmaz). */
+  firmaId: string;
 
   // ── Düzenleme bağlamı ──
   panelModu: PanelModu;
@@ -145,6 +149,9 @@ interface BelgeActions {
   // Görünürlük yetkisi (private = gizli, team = ekibe açık)
   setVisibility: (v: TeklifVisibility) => void;
 
+  /** Teklifin firmaId'sini değiştir (super_admin/firma_admin akışlarında nadir). */
+  setFirmaId: (firmaId: string) => void;
+
   // Undo/Redo desteği — snapshot okuma + toplu restore.
   // Undo stack'i useUndoRedo hook'unda yaşar; useBelgeState ona durum API'si sunar.
   getSnapshot: () => Snapshot;
@@ -212,6 +219,22 @@ export function useBelgeState(
     if (mevcut) return mevcut.visibility ?? 'team';
     return isYonetici(kullanici?.rol) ? 'private' : 'team';
   });
+
+  // firmaId — multi-tenant kritik: PDF/e-posta'da teklifin firması bu state'ten okunur.
+  // Öncelik: mevcut teklif.firmaId → aktifFirma.id → 'meba' (defansif fallback).
+  const [firmaId, setFirmaIdState] = useState<string>(() => {
+    if (mevcut?.firmaId) return mevcut.firmaId;
+    return aktifFirma?.id ?? 'meba';
+  });
+
+  // aktifFirma yüklenirken null gelmiş olabilir → context dolduğunda firmaId boşsa
+  // doldur. Mevcut teklif yükleyenler etkilenmez (mevcut.firmaId zaten set'liydi).
+  useEffect(() => {
+    if (!firmaId && aktifFirma?.id) {
+      setFirmaIdState(aktifFirma.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktifFirma?.id]);
 
   // Panel state — yalnızca araç çubuğundan erişilir (ikincil)
   const [panelModu, setPanelModu] = useState<PanelModu>(null);
@@ -365,6 +388,7 @@ export function useBelgeState(
       gorseller: gorseller.length > 0 ? gorseller : undefined,
       status: 'taslak',
       visibility,
+      firmaId,
     });
   }, [
     cari,
@@ -391,6 +415,7 @@ export function useBelgeState(
     dovizKuru,
     gorseller,
     visibility,
+    firmaId,
   ]);
 
   const setSatirlar = useCallback((yeniSatirlar: TeklifSatiri[]) => {
@@ -603,8 +628,9 @@ export function useBelgeState(
       gorseller: gorseller.length > 0 ? gorseller : undefined,
       status,
       visibility,
+      firmaId,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad, gecerlilikSuresi, dovizKuru, gorseller, status, visibility]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad, gecerlilikSuresi, dovizKuru, gorseller, status, visibility, firmaId]);
 
   /**
    * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
@@ -707,10 +733,11 @@ export function useBelgeState(
     ilgiliKisiAdSoyad,
     satirBazliParaBirimi,
     satirBazliIskonto,
+    firmaId,
   }), [
     satirlar, cari, contactName, contactTitle, paraBirimi, kdvOrani, iskontoOrani,
     odemeVadesi, gecerlilikSuresi, dovizKuru, notlar, notlarGosterilsin, tarih,
-    ilgiliKisiId, ilgiliKisiAdSoyad, satirBazliParaBirimi, satirBazliIskonto,
+    ilgiliKisiId, ilgiliKisiAdSoyad, satirBazliParaBirimi, satirBazliIskonto, firmaId,
   ]);
 
   const restoreSnapshot = useCallback((s: Snapshot) => {
@@ -731,6 +758,7 @@ export function useBelgeState(
     setIlgiliKisiAdSoyadState(s.ilgiliKisiAdSoyad);
     setSatirBazliParaBirimiState(s.satirBazliParaBirimi);
     setSatirBazliIskontoState(s.satirBazliIskonto);
+    setFirmaIdState(s.firmaId);
   }, []);
 
   return {
@@ -765,6 +793,7 @@ export function useBelgeState(
     gorseller,
     status,
     visibility,
+    firmaId,
     panelModu,
     seciliSatirId,
     hoverSatirId,
@@ -816,6 +845,7 @@ export function useBelgeState(
     kaydet,
     kaydetWithStatus,
     setVisibility: setVisibilityState,
+    setFirmaId: setFirmaIdState,
     getSnapshot,
     restoreSnapshot,
   };

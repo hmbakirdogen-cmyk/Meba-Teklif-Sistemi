@@ -28,7 +28,6 @@
     "@prisma/client": "^6.0.0",
     "antd": "^6.3.5",
     "compression": "^1.7.5",
-    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dayjs": "^1.11.20",
     "dotenv": "^17.0.0",
@@ -48,7 +47,6 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@types/compression": "^1.7.5",
-    "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.0",
     "@types/node": "^24.12.2",

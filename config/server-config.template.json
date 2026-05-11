@@ -1,9 +1,0 @@
-{
-  "_comment": "Server (ana bilgisayar) yapılandırma şablonu. MEBA-KUR.bat server modunda bu dosyayı server-config.json'a kopyalar.",
-  "mode": "server",
-  "deviceId": "REPLACE_WITH_UUID_AT_INSTALL",
-  "deviceLabel": "Ofis Ana Bilgisayar",
-  "listenPort": 3001,
-  "frontendPort": 5173,
-  "logLevel": "info"
-}

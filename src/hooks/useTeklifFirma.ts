@@ -5,17 +5,27 @@ import { formatFirmaUnvan } from '../utils/formatters';
 
 /**
  * Bir teklif kaydına bakarak gösterilmesi gereken firma profilini döner.
- *  - teklif.firmaId varsa o firma
- *  - yoksa aktif firma
- *  - hiçbiri yoksa null (UI fallback değer kullanır)
+ *  - teklif.firmaId varsa: o firma (firmalar listesinde bulamazsa null → UI fallback)
+ *  - teklif yoksa: aktif firma (yeni teklif öncesi splash/preview için)
+ *  - teklif var ama firmaId yok: null + dev warn (data integrity sorunu)
+ *
+ * Eski davranış teklif.firmaId yokken silent olarak aktifFirma'ya düşüyordu;
+ * bu MESA aktif iken MEBA teklifi PDF'inde MESA logosu görünmesi bug'ına yol
+ * açtı. Şimdi açık-fail: null dönülür, UI hardcoded fallback (MEBA defaults)
+ * kullanır VE konsola warn düşer.
  */
 export function useTeklifFirma(teklif: Teklif | null | undefined): Firma | null {
   const { firmalar, aktifFirma } = useFirma();
   if (!teklif) return aktifFirma;
   if (teklif.firmaId) {
-    return firmalar.find((f) => f.id === teklif.firmaId) ?? aktifFirma;
+    const found = firmalar.find((f) => f.id === teklif.firmaId);
+    if (!found) {
+      console.warn('[useTeklifFirma] teklif.firmaId=' + teklif.firmaId + ' firmalar listesinde yok — fallback null');
+    }
+    return found ?? null;
   }
-  return aktifFirma;
+  console.warn('[useTeklifFirma] teklif.firmaId yok — multi-tenant bug riski. Teklif id=' + (teklif.id || '?'));
+  return null;
 }
 
 /**

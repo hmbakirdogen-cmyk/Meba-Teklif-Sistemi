@@ -28,7 +28,9 @@ export default defineConfig({
     sourcemap: false,
     terserOptions: {
       compress: {
-        drop_console: true,
+        // Sadece bilgilendirme log'larını drop et; warn/error prod'da Render
+        // Logs üzerinden görünebilir kalsın (debug için kritik).
+        pure_funcs: ['console.log', 'console.debug', 'console.info'],
         drop_debugger: true,
         passes: 2,
       },

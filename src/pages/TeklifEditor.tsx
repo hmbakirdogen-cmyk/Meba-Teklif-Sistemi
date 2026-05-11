@@ -294,6 +294,10 @@ export default function TeklifEditor() {
       contactName: state.contactName.trim() || undefined,
       contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
       gorseller: state.gorseller.length > 0 ? state.gorseller : undefined,
+      // Multi-tenant kritik: teklifin gerçek firmasını PDF/e-posta render'ına
+      // aktar. Aksi halde useTeklifFirma silent fallback ile kullanıcının
+      // aktif firmasını kullanır → yanlış logo (MEBA fallback bug'ı).
+      firmaId: state.firmaId,
     };
   }, [
     state.teklifId,
@@ -307,6 +311,7 @@ export default function TeklifEditor() {
     state.araToplam,
     state.toplamIndirim,
     state.toplamVergi,
+    state.firmaId,
     state.genelToplam,
     state.kdvOrani,
     state.iskontoOrani,

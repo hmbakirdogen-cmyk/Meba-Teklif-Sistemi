@@ -82,6 +82,14 @@ const DEFAULT_MAIL_FIRMALAR: Record<string, MailFirmaProfili> = {
 };
 
 function buildMailFirmaProfili(teklif: Teklif, firmaProfil?: Firma): MailFirmaProfili {
+  // Öncelik sırası:
+  //  1) firmaProfil parametresi (caller'ın teklif.firmaId ile çözdüğü gerçek firma)
+  //  2) teklif.firmaId üzerinden hardcoded DEFAULT (firmaProfil eksikse)
+  //  3) DEFAULT_MAIL_FIRMALAR.meba (son çare)
+  // Defansif fallback — gerçek prod'da teklif.firmaId her zaman olmalı.
+  if (!firmaProfil && !teklif.firmaId) {
+    console.warn('[pdfKayitService] teklif.firmaId yok + firmaProfil yok — MEBA fallback');
+  }
   const fallback = DEFAULT_MAIL_FIRMALAR[firmaProfil?.id || teklif.firmaId || 'meba'] ?? DEFAULT_MAIL_FIRMALAR.meba;
   return {
     id: normalizeWhitespace(firmaProfil?.id || fallback.id),

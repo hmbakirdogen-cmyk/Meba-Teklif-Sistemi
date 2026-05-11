@@ -56,14 +56,13 @@ app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
 
 // ── Health check ───────────────────────────────────────────────
+// Render Postgres latency yüksekse health check timeout'ta sıkışmasın diye
+// 3 saniye Promise.race ile fast-fail. prismaOk=false → Render restart kararı.
 app.get('/api/health', async (_req, res) => {
-  let prismaOk = false;
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    prismaOk = true;
-  } catch {
-    prismaOk = false;
-  }
+  const prismaOk = await Promise.race([
+    prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false),
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
+  ]);
   res.json({
     ok: true,
     service: 'group-companies-teklif-api',
