@@ -1715,7 +1715,7 @@ function FirmaKarti({ firma, onSecim, isMobile, index }: {
 /* ─────────── Ana Giriş Ekranı ─────────── */
 export default function GirisEkrani() {
   const isMobile = useIsMobile(640);
-  const { firmalar } = useFirma();
+  const { firmalar, yukleniyor: firmalarYukleniyor } = useFirma();
   const { loginYap } = useKullanici();
 
   const [adim, setAdim] = useState<Adim>('splash');
@@ -2110,7 +2110,9 @@ export default function GirisEkrani() {
               marginTop: 26, fontSize: 12, color: ink(0.5),
               letterSpacing: 1.2,
             }}>
-              Sunucuya bağlanılıyor...
+              {firmalarYukleniyor
+                ? 'Sunucuya bağlanılıyor...'
+                : 'Henüz firma kaydı yok. Sistem yöneticinizle iletişime geçin.'}
             </div>
           )}
         </div>
