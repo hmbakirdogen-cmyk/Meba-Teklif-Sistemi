@@ -1485,15 +1485,26 @@ button.app-btn:active,
   border-color: #2a3650 !important;
 }
 
-/* ── Müşteri arama dropdown (Antd v6 popup zorla geniş + portal pozisyon) ─── */
+/* ── Müşteri arama dropdown (Antd v6 popup — responsive width) ──────────────
+ * Splash card maxWidth 560px; dropdown da en geniş 560px olsun. Mobil/dar
+ * viewport'ta (100vw - 32px) ile kenarlardan 16px boşluk bırakır.
+ * - viewport ≥592px → dropdown 560px (kart ile aynı)
+ * - viewport 320-592px → dropdown viewport - 32px (kenar boşluğu)
+ * - viewport <320px → dropdown 280px (minimum okunabilir)
+ */
 .meba-cari-search-popup,
 .meba-cari-search-popup.ant-select-dropdown,
 .meba-cari-search-popup .ant-select-dropdown {
-  min-width: 560px !important;
-  max-width: 90vw !important;
-  /* Body'ye render olsa bile bazı parent stacking context'leri pozisyon
-   * hesabını bozabilir; z-index ile diğer overlay'lerin üstüne çıkar. */
+  width: min(560px, calc(100vw - 32px)) !important;
+  min-width: min(280px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 32px) !important;
   z-index: 2050 !important;
+}
+
+/* Dropdown listesi: yüksek viewport'ta daha fazla cari görünebilsin (60vh,
+ * en fazla 480px). Antd default ~256px, biz biraz daha geniş tutuyoruz. */
+.meba-cari-search-popup .rc-virtual-list-holder {
+  max-height: min(60vh, 480px) !important;
 }
 
 /* ── Print media ───────────────────────────────────────────────────────────── */
