@@ -31,6 +31,23 @@ const secretAccessKey = sanitizeEnv(process.env.R2_SECRET_ACCESS_KEY);
 const bucket = sanitizeEnv(process.env.R2_BUCKET) || 'meba-teklif';
 const publicBase = sanitizeEnv(process.env.R2_PUBLIC_URL).replace(/\/+$/, '');
 
+// Boot teşhisi — env durumunu maskeli logla. Sensitive değerler gizli, sadece
+// uzunluk ve ilk 4 karakter görünür. Render Logs'ta env değişimi sonrası
+// hangi değer geldiğini hızlıca kontrol etmek için.
+function maskValue(v: string): string {
+  if (!v) return '(BOŞ)';
+  if (v.length <= 8) return `(len=${v.length})`;
+  return `${v.slice(0, 4)}…(len=${v.length})`;
+}
+console.log('[storage] R2 boot config:', {
+  R2_ACCOUNT_ID: maskValue(accountId),
+  R2_ACCESS_KEY_ID: maskValue(accessKeyId),
+  R2_SECRET_ACCESS_KEY: maskValue(secretAccessKey),
+  R2_BUCKET: bucket,
+  R2_PUBLIC_URL: publicBase || '(BOŞ)',
+  configured: Boolean(accountId && accessKeyId && secretAccessKey && bucket),
+});
+
 export const r2Configured = Boolean(accountId && accessKeyId && secretAccessKey && bucket);
 
 let _client: S3Client | null = null;
