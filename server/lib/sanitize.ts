@@ -19,15 +19,23 @@ const FIRMA_TEXT_FALLBACKS: Record<string, Partial<Firma>> = {
   },
 };
 
-/** Eski db'de bazı firma kayıtlarının `ad` alanı bozulmuş olabilir; fallback uygula. */
-export function sanitizeFirma<T extends Firma>(f: T): T {
-  if (!f) return f;
+/**
+ * Frontend kontratıyla uyumlu firma object. Prisma'da kolon adı `logoUrl`
+ * ama eski frontend kodu her yerde `firma.logoPath` okuyor. shape transformer:
+ *  - logoPath = logoUrl ?? `/logo-{id}.png` (fallback: lokal public/ asset'i)
+ *  - logoUrl alanı da response'ta korunur (yeni kod isterse okuyabilir).
+ *
+ * Aynı zamanda bozuk MESA `ad` alanı için tarihsel fallback uygulanır.
+ */
+export function sanitizeFirma<T extends Firma>(f: T): T & { logoPath: string } {
+  if (!f) return f as T & { logoPath: string };
   const fallback = FIRMA_TEXT_FALLBACKS[f.id];
-  if (!fallback) return f;
-  if (/Taahhut|Muhendislik|Danismanlik| Sti\.?/i.test(String(f.ad || ''))) {
-    return { ...f, ad: fallback.ad ?? f.ad };
-  }
-  return f;
+  const ad =
+    fallback && /Taahhut|Muhendislik|Danismanlik| Sti\.?/i.test(String(f.ad || ''))
+      ? (fallback.ad ?? f.ad)
+      : f.ad;
+  const logoPath = f.logoUrl || `/logo-${f.id}.png`;
+  return { ...f, ad, logoPath };
 }
 
 export function uretInitials(adSoyad: string | null | undefined): string {
