@@ -29,15 +29,9 @@ export function sanitizeUser(u: Kullanici | null): SanitizedKullanici | null {
   if (!u) return null;
   const { sifreHash: _hash, smtpPasswordEncrypted: _smtp, ...rest } = u;
   void _hash;
-  // GEÇİCİ: R2 token AccessDenied sorununu çözene kadar profilFotoUrl null
-  // gönderilir → frontend zaten boş URL'de avatar initials fallback'ine düşer
-  // (ad-soyadın baş harfleri renkli arka planda gösterilir). Bu sayede:
-  //   • Console temiz (500 retry zinciri yok)
-  //   • Kullanıcı kartları "kim olduğunu" net belli eder (isim + initials)
-  //   • R2 token düzeldiğinde tek satır geri alınarak fotolara dönülür
   return {
     ...rest,
-    profilFotoUrl: null,
+    profilFotoUrl: rewriteR2Url(rest.profilFotoUrl),
     smtpPasswordSet: Boolean(_smtp),
   };
 }

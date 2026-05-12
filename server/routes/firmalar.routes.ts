@@ -103,11 +103,7 @@ firmalarRouter.get(
         unvan: u.unvan || '',
         rol: u.rol,
         firmaId: u.firmaId || null,
-        // GEÇİCİ: R2 token AccessDenied sorununu çözene kadar profilFotoUrl
-        // null gönderilir → frontend avatar initials fallback'ine düşer.
-        // (sanitizeUser ile aynı davranış; bu endpoint sanitize'den geçmiyor
-        // çünkü PUBLIC, login ekranı için kısaltılmış shape döndürüyor.)
-        profilFotoUrl: null,
+        profilFotoUrl: u.profilFotoUrl || null,
         initials: u.initials || uretInitials(u.adSoyad),
         telefon: u.telefon || '',
         dahili: u.dahili || '',
