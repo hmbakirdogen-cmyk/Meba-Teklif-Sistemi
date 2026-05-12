@@ -136,13 +136,22 @@ authRouter.post(
     if (isVarsayilanSifre(yeni)) throw new HttpError(400, 'Yeni sifre varsayilan sifre (0000 / 1234) olamaz.');
 
     const k = req.authCtx!.kullanici;
-    if (!verifyPassword(mevcut, k.sifreHash)) {
-      await audit(
-        'change_password_failed',
-        { kullaniciId: k.id, kullaniciAdi: k.kullaniciAdi, firmaId: k.firmaId },
-        { reason: 'wrong_current' },
-      );
-      throw new HttpError(401, 'Mevcut sifre hatali.');
+
+    // İlk giriş akışı (mustChangePassword=true): mevcut şifre kontrolü ATLA.
+    // Kullanıcı zaten geçerli bir token ile authenticated (requireAuth doğruladı);
+    // ayrıca migration / reset sırasında frontend hangi default şifrenin hash'lendiğini
+    // bilemediği için "1234" denemesi başarısız oluyordu. Bu state özel: kullanıcının
+    // yeni şifre belirlemek zorunda olduğu zorunlu bir adım, mevcut sifre tekrar
+    // sorulmaz. Normal şifre değişimlerinde (mustChangePassword=false) kontrol devam eder.
+    if (!k.mustChangePassword) {
+      if (!verifyPassword(mevcut, k.sifreHash)) {
+        await audit(
+          'change_password_failed',
+          { kullaniciId: k.id, kullaniciAdi: k.kullaniciAdi, firmaId: k.firmaId },
+          { reason: 'wrong_current' },
+        );
+        throw new HttpError(401, 'Mevcut sifre hatali.');
+      }
     }
 
     const yeniHash = hashPassword(yeni);
