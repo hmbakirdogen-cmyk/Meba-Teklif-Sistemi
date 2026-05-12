@@ -5,14 +5,23 @@ import type { ImageItem } from './imageItem';
 export type ParaBirimi = 'TRY' | 'EUR' | 'USD';
 /**
  * Teklif durumu — tek-model yaklaşımı: durum hem aşamayı hem iş sonucunu gösterir.
- *  - taslak     : üzerinde çalışılıyor
- *  - hazir      : PDF üretildi, gönderim için hazır
- *  - gonderildi : müşteriye gönderildi, yanıt bekleniyor
- *  - onaylandi  : müşteri onayladı / sipariş alındı
- *  - reddedildi : müşteri teklifi reddetti (rakipte kaldı, fiyat tutmadı vb.)
- *  - iptal      : süreç iptal edildi (proje iptal, müşteri vazgeçti vb.)
+ *  - taslak         : üzerinde çalışılıyor (Hazırlanıyor)
+ *  - hazir          : PDF üretildi, gönderim için hazır
+ *  - gonderildi     : müşteriye gönderildi, yanıt bekleniyor
+ *  - onaylandi      : müşteri onayladı
+ *  - siparis_alindi : onaylandı sonrası sipariş açıldı (PO geldi)
+ *  - reddedildi     : müşteri teklifi reddetti
+ *  - iptal          : süreç iptal edildi (proje iptal, müşteri vazgeçti vb.)
+ * Revize edildi durumu ayrı bir değer değil — `revizyonNo > 0` ile UI'da etiketlenir.
  */
-export type TeklifDurum = 'taslak' | 'hazir' | 'gonderildi' | 'onaylandi' | 'reddedildi' | 'iptal';
+export type TeklifDurum =
+  | 'taslak'
+  | 'hazir'
+  | 'gonderildi'
+  | 'onaylandi'
+  | 'siparis_alindi'
+  | 'reddedildi'
+  | 'iptal';
 
 /** Reddedildi/iptal durumunda — kök neden segmentasyonu (sebep raporları için). */
 export type KayipSebebi = 'fiyat' | 'rakip' | 'zaman' | 'ihtiyac_yok' | 'diger';
@@ -44,6 +53,10 @@ export interface Teklif {
   paraBirimi: ParaBirimi;
   durum: TeklifDurum;
   cari: Cari;
+  /** Backend Prisma'da `cariSnapshot` Json alanı — teklif anındaki cari verisinin
+   *  donmuş kopyası. Frontend genelde `cari` alanını kullanır; cariSnapshot
+   *  analiz/legacy okuma için. */
+  cariSnapshot?: unknown;
   satirlar: TeklifSatiri[];
   araToplam: number;
   toplamIndirim: number;

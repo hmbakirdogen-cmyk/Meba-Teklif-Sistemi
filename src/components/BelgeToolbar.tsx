@@ -51,30 +51,33 @@ interface BelgeToolbarProps {
 }
 
 const DURUM_RENK: Record<TeklifDurum, { color: string; bg: string; border: string }> = {
-  taslak:     { color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
-  hazir:      { color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
-  gonderildi: { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
-  onaylandi:  { color: '#15803d', bg: '#ecfdf5', border: '#a7f3d0' },
-  reddedildi:  { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
-  iptal:      { color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
+  taslak:         { color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
+  hazir:          { color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
+  gonderildi:     { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  onaylandi:      { color: '#15803d', bg: '#ecfdf5', border: '#a7f3d0' },
+  siparis_alindi: { color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
+  reddedildi:     { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+  iptal:          { color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 
 const DURUM_ETIKET: Record<TeklifDurum, string> = {
-  taslak:     'Taslak',
-  hazir:      'Hazır',
-  gonderildi: 'Gönderildi',
-  onaylandi:  'Onaylandı',
-  reddedildi:  'Reddedildi',
-  iptal:      'İptal',
+  taslak:         'Hazırlanıyor',
+  hazir:          'Hazır',
+  gonderildi:     'Gönderildi',
+  onaylandi:      'Onaylandı',
+  siparis_alindi: 'Siparişe Döndü',
+  reddedildi:     'Reddedildi',
+  iptal:          'İptal',
 };
 
 const DURUM_ACIKLAMA: Record<TeklifDurum, string> = {
-  taslak:     'Üzerinde çalışılıyor',
-  hazir:      'PDF üretildi, gönderim için hazır',
-  gonderildi: 'Müşteriye gönderildi, yanıt bekleniyor',
-  onaylandi:  'Müşteri onayladı / sipariş alındı',
-  reddedildi:  'Müşteri reddetti (rakip/fiyat/zaman)',
-  iptal:      'Süreç sonlandırıldı',
+  taslak:         'Üzerinde çalışılıyor',
+  hazir:          'PDF üretildi, gönderim için hazır',
+  gonderildi:     'Müşteriye gönderildi, yanıt bekleniyor',
+  onaylandi:      'Müşteri onayladı',
+  siparis_alindi: 'Onay sonrası sipariş açıldı',
+  reddedildi:     'Müşteri reddetti (rakip/fiyat/zaman)',
+  iptal:          'Süreç sonlandırıldı',
 };
 
 export default function BelgeToolbar({

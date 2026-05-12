@@ -31,7 +31,7 @@ export interface YoneticiOzetiData {
  *  Yeni mantık: durum tek model — onaylandı=kazandı, kapanmadı=kaybetti, iptal=iptal. */
 export function computeYoneticiOzeti(teklifler: Teklif[]): YoneticiOzetiData {
   const funnel: Record<TeklifDurum, number> = {
-    taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, reddedildi: 0, iptal: 0,
+    taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, siparis_alindi: 0, reddedildi: 0, iptal: 0,
   };
   const sonucSayim = { kazanildi: 0, kaybedildi: 0, iptal: 0, beklemede: 0, girilmemis: 0 };
   const acikPipeline: Record<string, number> = { TRY: 0, EUR: 0, USD: 0 };

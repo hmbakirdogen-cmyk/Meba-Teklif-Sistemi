@@ -47,21 +47,23 @@ import { useTheme } from '../context/useTheme';
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 
 const DURUM_CFG: Record<TeklifDurum, { label: string; color: string; bg: string; border: string }> = {
-  taslak:     { label: 'Taslak',     color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
-  hazir:      { label: 'Hazır',      color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  gonderildi: { label: 'Gönderildi', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-  onaylandi:  { label: 'Onaylandı',  color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
-  reddedildi:  { label: 'Reddedildi',  color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
-  iptal:      { label: 'İptal',      color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
+  taslak:         { label: 'Hazırlanıyor',    color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
+  hazir:          { label: 'Hazır',           color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  gonderildi:     { label: 'Gönderildi',      color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  onaylandi:      { label: 'Onaylandı',       color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  siparis_alindi: { label: 'Siparişe Döndü',  color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
+  reddedildi:     { label: 'Reddedildi',      color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+  iptal:          { label: 'İptal',           color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 
 const DURUM_CFG_DARK: Record<TeklifDurum, { label: string; color: string; bg: string; border: string }> = {
-  taslak:     { label: 'Taslak',     color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
-  hazir:      { label: 'Hazır',      color: '#60a5fa', bg: 'rgba(96,165,250,0.10)',  border: 'rgba(96,165,250,0.22)'  },
-  gonderildi: { label: 'Gönderildi', color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.22)'  },
-  onaylandi:  { label: 'Onaylandı',  color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.22)'  },
-  reddedildi:  { label: 'Reddedildi',  color: '#f87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.22)' },
-  iptal:      { label: 'İptal',      color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
+  taslak:         { label: 'Hazırlanıyor',    color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
+  hazir:          { label: 'Hazır',           color: '#60a5fa', bg: 'rgba(96,165,250,0.10)',  border: 'rgba(96,165,250,0.22)'  },
+  gonderildi:     { label: 'Gönderildi',      color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.22)'  },
+  onaylandi:      { label: 'Onaylandı',       color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.22)'  },
+  siparis_alindi: { label: 'Siparişe Döndü',  color: '#10b981', bg: 'rgba(16,185,129,0.14)',  border: 'rgba(16,185,129,0.30)'  },
+  reddedildi:     { label: 'Reddedildi',      color: '#f87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.22)' },
+  iptal:          { label: 'İptal',           color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
 };
 
 interface PersonelRenk {
@@ -192,7 +194,7 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
         teklifler: [],
         sonTarih: t.tarih,
         topHazirlayanIds: [],
-        durumDist: { taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, reddedildi: 0, iptal: 0 },
+        durumDist: { taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, siparis_alindi: 0, reddedildi: 0, iptal: 0 },
         ikiGunDurumsuzSayi: 0,
       });
     }
