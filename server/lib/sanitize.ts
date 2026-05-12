@@ -57,10 +57,13 @@ export function sanitizeFirma<T extends Firma>(f: T): T & { logoPath: string } {
     fallback && /Taahhut|Muhendislik|Danismanlik| Sti\.?/i.test(String(f.ad || ''))
       ? (fallback.ad ?? f.ad)
       : f.ad;
-  // r2.dev URL'lerini backend proxy'e yönlendir (response-time rewrite)
-  const rewrittenLogoUrl = rewriteR2Url(f.logoUrl);
-  const logoPath = rewrittenLogoUrl || `/logo-${f.id}.png`;
-  return { ...f, ad, logoUrl: rewrittenLogoUrl, logoPath };
+  // GEÇİCİ: R2 token AccessDenied sorununu çözene kadar firma logolarını
+  // doğrudan frontend'in /public dizinindeki sabit asset'lerden serve et.
+  // public/logo-meba.png, logo-elmos.png, logo-mesa.png — branding her zaman
+  // garantili görünür, R2 storage'a bağımlı değil. R2 düzeldikten sonra
+  // veritabanındaki logoUrl'ye geri dönülür (bir satırlık değişiklik).
+  const logoPath = `/logo-${f.id}.png`;
+  return { ...f, ad, logoUrl: logoPath, logoPath };
 }
 
 /**
