@@ -64,7 +64,7 @@ async function main() {
   const banner = isProd ? '🔴 PRODUCTION (Render Postgres)' : '🟢 lokal/development';
 
   console.log('━'.repeat(70));
-  console.log('MEBA Teklif Sistemi — Lansman Reset');
+  console.log('Teklif Yönetim Sistemi — Lansman Reset');
   console.log('Hedef:', banner);
   console.log('DB URL:', maskDbUrl(DB_URL) || '(boş)');
   console.log('Mod  :', CONFIRM ? '🔥 GERÇEK SİLME' : '👁  DRY RUN (yalnızca sayım, hiçbir şey silinmez)');

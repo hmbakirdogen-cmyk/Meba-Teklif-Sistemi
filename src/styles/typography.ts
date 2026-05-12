@@ -1,5 +1,5 @@
 /**
- * Meba Teklif Sistemi — Merkezi Tipografi Sistemi
+ * Teklif Yönetim Sistemi — Merkezi Tipografi Sistemi
  * ─────────────────────────────────────────────────
  * Tüm sayfa ve bileşenler bu sabitleri kullanır.
  * Aynı sabit → aynı görünüm. Sistemin dışında boyut verilmez.

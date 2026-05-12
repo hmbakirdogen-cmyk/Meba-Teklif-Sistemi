@@ -1,7 +1,7 @@
 {
-  "name": "Teklif Sistemi",
+  "name": "Teklif Yönetim Sistemi",
   "short_name": "Teklif",
-  "description": "MEBA · MESA · ELMOS Grup Şirketleri Teklif Yönetim Sistemi",
+  "description": "MEBA · ELMOS · MESA Grup Şirketleri — Teklif Yönetim Sistemi",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
@@ -28,7 +28,7 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Teklif Sistemi Ana Ekran"
+      "label": "Teklif Yönetim Sistemi Ana Ekran"
     }
   ]
 }

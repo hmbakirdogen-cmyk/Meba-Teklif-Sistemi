@@ -327,7 +327,7 @@ authRouter.post(
       },
       {
         to: toAddress,
-        subject: 'MEBA Teklif Sistemi — SMTP Test',
+        subject: 'Teklif Yönetim Sistemi — SMTP Test',
         text: 'Bu bir test mailidir. SMTP ayarlarınız doğru çalışıyor.',
         html: '<p>Bu bir test mailidir. SMTP ayarlarınız <strong>doğru çalışıyor</strong>.</p>',
       },
