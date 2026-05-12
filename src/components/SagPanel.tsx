@@ -15,7 +15,7 @@ import {
   ShoppingCartOutlined,
 } from '@ant-design/icons';
 import CariSecimi from './CariSecimi';
-import { referansVeriService } from '../services/referansVeriService';
+import { useAkilliReferans } from '../hooks/useAkilliReferans';
 import { urunService } from '../services/urunService';
 import { useColors } from '../hooks/useColors';
 import type { Cari, TeklifSatiri, ParaBirimi } from '../types';
@@ -156,8 +156,9 @@ function MusteriPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> 
 function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }) {
   const { C, satirlar, seciliSatirId, onSatirGuncelle, onSatirSil, onSatirEkle, onKapat, paraBirimi, satirBazliParaBirimi, satirBazliIskonto } = props;
   const satir = satirlar.find(s => s.id === seciliSatirId);
-  const markalar = referansVeriService.markalar.tumunuGetir();
-  const birimler = referansVeriService.birimler.tumunuGetir();
+  const markalar = useAkilliReferans('markalar');
+  const birimler = useAkilliReferans('birimler');
+  const teslimSecenekleri = useAkilliReferans('teslimSecenekleri');
   const urunler = urunService.tumUrunleriGetir();
 
   const satirIdx = satirlar.findIndex(s => s.id === seciliSatirId);
@@ -304,7 +305,7 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
                 value={satir.teslimTarihi ?? ''}
                 onChange={v => guncelle('teslimTarihi', v)}
                 style={{ width: '100%' }}
-                options={referansVeriService.teslimSecenekleri.tumunuGetir().map(v => ({ value: v }))}
+                options={teslimSecenekleri.map(v => ({ value: v }))}
               />
             </div>
 

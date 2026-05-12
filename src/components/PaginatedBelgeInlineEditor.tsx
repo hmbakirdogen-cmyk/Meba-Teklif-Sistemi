@@ -8,7 +8,7 @@ import type { Teklif, Cari, TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
 import { formatDate, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatAdres, formatAdSoyad } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
-import { referansVeriService } from '../services/referansVeriService';
+import { useAkilliReferans } from '../hooks/useAkilliReferans';
 import { urunService } from '../services/urunService';
 import { urunSetService } from '../services/urunSetService';
 import { formatPhone } from '../utils/phone';
@@ -245,6 +245,11 @@ function CellEditPopup({
 
   const W = CELL_POPUP_WIDTHS[satirFocusCell] ?? 280;
 
+  // Akıllı sıralı referans listeleri — aktif firmanın kullanım deseniyle
+  // sık kullanılanlar yukarıda, son kullanım sırasına göre.
+  const akilliMarkalar = useAkilliReferans('markalar');
+  const akilliTeslim = useAkilliReferans('teslimSecenekleri');
+
   // Pozisyon: Aktif hücreyi DOM'dan bul, popup'ı altına; yer yoksa üstüne yerleştir.
   // Sol kenar aktif hücreye, sağ kenar viewport'a clamp'lenir.
   useLayoutEffect(() => {
@@ -345,7 +350,7 @@ function CellEditPopup({
 
   if (satirFocusCell === 'marka') {
     title = 'Marka';
-    const markalar = referansVeriService.markalar.tumunuGetir();
+    const markalar = akilliMarkalar;
     body = (
       <Select
         autoFocus
@@ -465,7 +470,7 @@ function CellEditPopup({
     );
   } else if (satirFocusCell === 'teslimat') {
     title = 'Teslimat';
-    const teslimSecenekleri = referansVeriService.teslimSecenekleri.tumunuGetir();
+    const teslimSecenekleri = akilliTeslim;
     body = (
       <Select
         autoFocus
@@ -867,6 +872,15 @@ export default function PaginatedBelgeInlineEditor({
   // Hover edilen satırın id'si — aktif değilken bile Sil ikonu portal'da
   // gözüksün diye (active panel ile aynı pozisyonda).
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
+
+  // Akıllı sıralı referanslar — aktif firmanın kullanım deseniyle (sık ve son
+  // kullanım önce). Genel ayarlar menüsünde (para birimi, ödeme, KDV, geçerlilik,
+  // döviz kuru) kullanılır.
+  const akilliParaBirimleri = useAkilliReferans('paraBirimleri');
+  const akilliOdemeVadesi = useAkilliReferans('odemeVadesiSecenekleri');
+  const akilliKdvOranlari = useAkilliReferans('kdvOranlari');
+  const akilliGecerlilik = useAkilliReferans('gecerlilikSecenekleri');
+  const akilliDovizKuru = useAkilliReferans('dovizKuruSecenekleri');
   // Referanslar drawer'i — satırdaki ürünün geçmiş ticari kayıtlarını gösterir.
   const [referanslarSatir, setReferanslarSatir] = useState<TeklifSatiri | null>(null);
   // Satır başındaki numaraya tıklanınca satır işaretlenir; durum teklif
@@ -1432,11 +1446,11 @@ export default function PaginatedBelgeInlineEditor({
         const items = buildSettingsItems(teklif, satirBazliParaBirimi);
 
         const PB_LABEL: Record<string, string> = { TRY: 'Türk Lirası (TL)', EUR: 'Euro (EUR)', USD: 'Amerikan Doları (USD)' };
-        const paraBirimiMenuItems = referansVeriService.paraBirimleri.tumunuGetir().map(pb => ({ key: pb, label: PB_LABEL[pb] || pb }));
-        const odemeVadesiMenuItems = referansVeriService.odemeVadesiSecenekleri.tumunuGetir().map((v) => ({ key: v, label: v }));
-        const kdvMenuItems = referansVeriService.kdvOranlari.tumunuGetir().map((v) => ({ key: v, label: v === '0' ? 'Hariç' : `%${v}` }));
-        const gecerlilikMenuItems = referansVeriService.gecerlilikSecenekleri.tumunuGetir().map((v) => ({ key: v, label: v }));
-        const dovizKuruMenuItems = referansVeriService.dovizKuruSecenekleri.tumunuGetir().map((v) => ({ key: v, label: v }));
+        const paraBirimiMenuItems = akilliParaBirimleri.map(pb => ({ key: pb, label: PB_LABEL[pb] || pb }));
+        const odemeVadesiMenuItems = akilliOdemeVadesi.map((v) => ({ key: v, label: v }));
+        const kdvMenuItems = akilliKdvOranlari.map((v) => ({ key: v, label: v === '0' ? 'Hariç' : `%${v}` }));
+        const gecerlilikMenuItems = akilliGecerlilik.map((v) => ({ key: v, label: v }));
+        const dovizKuruMenuItems = akilliDovizKuru.map((v) => ({ key: v, label: v }));
 
         return (
           <div style={getSettingsGridStyle(items.length)}>

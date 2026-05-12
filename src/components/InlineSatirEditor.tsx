@@ -10,7 +10,7 @@ import type { InputRef } from 'antd';
 import { DeleteOutlined, HistoryOutlined, PercentageOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi, Urun, UrunSeti } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
-import { referansVeriService } from '../services/referansVeriService';
+import { useAkilliReferans } from '../hooks/useAkilliReferans';
 import { urunService } from '../services/urunService';
 import { urunSetService } from '../services/urunSetService';
 import {
@@ -69,7 +69,7 @@ export function SatirCellEditor({
 }
 
 function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
-  const markalar = useMemo(() => referansVeriService.markalar.tumunuGetir(), []);
+  const markalar = useAkilliReferans('markalar');
   return (
     <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
       <InlineTableSelectField
@@ -598,10 +598,7 @@ function BirimFiyatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdi
 }
 
 function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
-  const teslimSecenekleri = useMemo(
-    () => referansVeriService.teslimSecenekleri.tumunuGetir(),
-    [],
-  );
+  const teslimSecenekleri = useAkilliReferans('teslimSecenekleri');
   return (
     <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
       <InlineTableSelectField
