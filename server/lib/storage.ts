@@ -1,11 +1,35 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const accountId = process.env.R2_ACCOUNT_ID || '';
-const accessKeyId = process.env.R2_ACCESS_KEY_ID || '';
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || '';
-const bucket = process.env.R2_BUCKET || 'meba-teklif';
-const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+/**
+ * Render UI'da env değerleri yapıştırılırken yaygın yapıştırma hataları:
+ *   - "KEY=value" satırı tamamı kopyalanmış (env editöründe sadece value alanı dolar)
+ *   - Değer çift veya tek tırnak içine alınmış ('"a58a..."')
+ *   - Başında/sonunda whitespace var
+ * Bu helper hepsini sessizce temizler ki R2 endpoint'i bozuk DNS'e gitmesin.
+ */
+function sanitizeEnv(raw: string | undefined): string {
+  if (!raw) return '';
+  let v = String(raw).trim();
+  // "R2_ACCOUNT_ID=a58a..." gibi → solu kırp
+  const eqMatch = v.match(/^[A-Z_][A-Z0-9_]*\s*=\s*(.+)$/i);
+  if (eqMatch) v = eqMatch[1].trim();
+  // "..." veya '...' içinde → tırnakları soy
+  if (v.length >= 2) {
+    const first = v[0];
+    const last = v[v.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      v = v.slice(1, -1);
+    }
+  }
+  return v.trim();
+}
+
+const accountId = sanitizeEnv(process.env.R2_ACCOUNT_ID);
+const accessKeyId = sanitizeEnv(process.env.R2_ACCESS_KEY_ID);
+const secretAccessKey = sanitizeEnv(process.env.R2_SECRET_ACCESS_KEY);
+const bucket = sanitizeEnv(process.env.R2_BUCKET) || 'meba-teklif';
+const publicBase = sanitizeEnv(process.env.R2_PUBLIC_URL).replace(/\/+$/, '');
 
 export const r2Configured = Boolean(accountId && accessKeyId && secretAccessKey && bucket);
 
