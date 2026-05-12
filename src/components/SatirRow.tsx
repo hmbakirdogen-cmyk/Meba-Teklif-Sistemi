@@ -327,7 +327,12 @@ function SatirRowImpl({
           </EditableField>
         )}
         {(satir.indirimOrani || 0) > 0 && !isRowActive && !isHoverRow && !isPanelInteracting && (
-          <SatirIskontoRozeti rowId={satir.id} oran={satir.indirimOrani || 0} />
+          <SatirIskontoRozeti
+            rowId={satir.id}
+            oran={satir.indirimOrani || 0}
+            onHover={setIsPanelInteracting}
+            onActivate={() => setIsPanelInteracting(true)}
+          />
         )}
         {!readOnly && (isRowActive || isHoverRow || isPanelInteracting) && (
           <SatirAksiyonlariPanel

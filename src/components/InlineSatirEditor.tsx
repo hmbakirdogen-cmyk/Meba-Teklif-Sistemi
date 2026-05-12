@@ -831,9 +831,16 @@ export function SatirAksiyonlariPanel({
 interface IskontoRozetiProps {
   rowId: string;
   oran: number;
+  /** Rozet üzerine mouse gelince çağrılır → parent satırı "panel etkileşimde"
+   *  sayar → rozet+panel kapanmaz, kullanıcı iskonto input'una tıklayabilir.
+   *  Çıkınca false döner. */
+  onHover?: (active: boolean) => void;
+  /** Tıklama: doğrudan iskonto input'una geçiş için tetik. Parent panel'i
+   *  açar ve isPanelInteracting=true tutar. */
+  onActivate?: () => void;
 }
 
-export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
+export function SatirIskontoRozeti({ rowId, oran, onHover, onActivate }: IskontoRozetiProps) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; height: number } | null>(null);
@@ -884,6 +891,13 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
           ref={badgeRef}
           className="no-export"
           data-html2canvas-ignore="true"
+          onMouseEnter={() => onHover?.(true)}
+          onMouseLeave={() => onHover?.(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onActivate?.();
+          }}
+          title="İskonto oranını düzenle"
           style={{
             position: 'fixed',
             top: pos.top,
@@ -897,13 +911,18 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
             padding: '0 5px',
             lineHeight: `${pos.height}px`,
             letterSpacing: '0.02em',
-            pointerEvents: 'none',
+            // Mouse rozeti yakalayabilsin → hover/click çalışır. Önceden 'none'
+            // idi, satırdan rozete geçişte hover kayboluyordu.
+            pointerEvents: 'auto',
+            cursor: 'pointer',
             zIndex: 1055,
             whiteSpace: 'nowrap',
             display: 'flex',
             alignItems: 'center',
           }}
-          aria-hidden="true"
+          role="button"
+          tabIndex={0}
+          aria-label={`İskonto %${oranText} — düzenlemek için tıklayın`}
         >
           -{oranText}%
         </div>,
