@@ -15,7 +15,7 @@
  * stable useCallback olduğu sürece memo bozulmaz.
  */
 
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import type { TeklifSatiri } from '../types';
 import { formatDisplayNumber, formatMarka } from '../utils/formatters';
 import type { SatirCellField } from './inlineSatirEditorShared';
@@ -94,6 +94,11 @@ function SatirRowImpl({
   const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
   const handleClick = (cell: SatirCellField) => (e: React.MouseEvent) =>
     onCellClick(satir.id, cell, e);
+
+  // Aksiyon paneli ile etkileşim (mouse hover veya input focus). Kullanıcı
+  // iskonto yazarken satır hover'ı kaybolsa bile panel açık kalsın diye
+  // local state. Panel onInteract callback ile true/false bildirir.
+  const [isPanelInteracting, setIsPanelInteracting] = useState(false);
 
   return (
     <tr
@@ -321,16 +326,17 @@ function SatirRowImpl({
             {satir.teslimTarihi || '-'}
           </EditableField>
         )}
-        {(satir.indirimOrani || 0) > 0 && !isRowActive && !isHoverRow && (
+        {(satir.indirimOrani || 0) > 0 && !isRowActive && !isHoverRow && !isPanelInteracting && (
           <SatirIskontoRozeti rowId={satir.id} oran={satir.indirimOrani || 0} />
         )}
-        {!readOnly && (isRowActive || isHoverRow) && (
+        {!readOnly && (isRowActive || isHoverRow || isPanelInteracting) && (
           <SatirAksiyonlariPanel
             satir={satir}
-            satirBazliIskonto={!satir.setAltKalem && isRowActive && satirBazliIskonto}
+            satirBazliIskonto={!satir.setAltKalem && (isRowActive || isPanelInteracting) && satirBazliIskonto}
             onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
             onSil={() => onSatirSil(satir.id)}
             onReferanslar={() => onReferanslarAc(satir.id)}
+            onInteract={setIsPanelInteracting}
           />
         )}
       </RowCell>

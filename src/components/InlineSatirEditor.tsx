@@ -658,6 +658,10 @@ interface ActionPanelProps {
   onSil: () => void;
   /** Ürün geçmişi panelini aç. urunKod boşsa tıklanamaz. */
   onReferanslar?: () => void;
+  /** Panel ile etkileşim (mouse veya input focus). True iken parent
+   *  satırı "aktif" sayar → panel kapanmaz (kullanıcı iskonto yazarken
+   *  hover satırdan çıksa bile input ve panel ekranda kalır). */
+  onInteract?: (active: boolean) => void;
 }
 
 export function SatirAksiyonlariPanel({
@@ -666,6 +670,7 @@ export function SatirAksiyonlariPanel({
   onGuncelle,
   onSil,
   onReferanslar,
+  onInteract,
 }: ActionPanelProps) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -731,6 +736,8 @@ export function SatirAksiyonlariPanel({
           data-html2canvas-ignore="true"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
+          onMouseEnter={() => onInteract?.(true)}
+          onMouseLeave={() => onInteract?.(false)}
           style={{
             ...portalPanelStyle,
             top: pos.top,
@@ -751,7 +758,12 @@ export function SatirAksiyonlariPanel({
                 onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
                 formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
                 parser={(value) => parseLocaleNumber(value ?? '')}
-                onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+                onFocus={(e) => {
+                  (e.target as HTMLInputElement).select?.();
+                  // Input odakta → panel kapanmasın (parent isPanelInteracting=true)
+                  onInteract?.(true);
+                }}
+                onBlur={() => onInteract?.(false)}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
               />
