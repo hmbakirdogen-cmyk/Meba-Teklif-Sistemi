@@ -65,6 +65,12 @@ interface TeklifPagedDocumentProps {
   totals: TeklifToplam;
   pages: TeklifPagePlan[];
   renderPageOverlay?: (pageIndex: number) => React.ReactNode;
+  /** Kullanıcının satır numarasına tıklayarak işaretlediği satırların id
+   *  kümesi. CanliA4Belge'den (lift up) gelir; PDF/print render'ında da aynı
+   *  görünüm — root div'de `belge-inline` class'ı zaten var, mevcut CSS
+   *  (`tr[data-marked="true"] > td { background-color: #E4E9F1 }`) hem
+   *  ekranda hem PDF clone'unda uygulanır. */
+  markedRowIds?: Set<string>;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -276,11 +282,13 @@ function TableSection({
   rowStart,
   rowEnd,
   showTitle,
+  markedRowIds,
 }: {
   teklif: Teklif;
   rowStart: number;
   rowEnd: number;
   showTitle: boolean;
+  markedRowIds?: Set<string>;
 }) {
   const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
   const satirlar = teklif.satirlar.slice(rowStart, rowEnd);
@@ -334,10 +342,12 @@ function TableSection({
             const renderSpacer = !isLastInPage && setGroupPos !== 'top' && setGroupPos !== 'middle';
             const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
 
+            const isMarked = markedRowIds?.has(satir.id) ?? false;
             return (
               <React.Fragment key={satir.id}>
               <tr
                 data-satir-id={satir.id}
+                data-marked={isMarked ? 'true' : undefined}
                 style={{
                   pageBreakInside: 'avoid',
                   breakInside: 'avoid',
@@ -626,7 +636,7 @@ function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageN
   );
 }
 
-export default function TeklifPagedDocument({ teklif, totals, pages, renderPageOverlay }: TeklifPagedDocumentProps) {
+export default function TeklifPagedDocument({ teklif, totals, pages, renderPageOverlay, markedRowIds }: TeklifPagedDocumentProps) {
   return (
     <div style={{
       WebkitPrintColorAdjust: 'exact',
@@ -687,6 +697,7 @@ export default function TeklifPagedDocument({ teklif, totals, pages, renderPageO
                 rowStart={page.rowStartIndex}
                 rowEnd={page.rowEndIndex}
                 showTitle={page.showFullHeader}
+                markedRowIds={markedRowIds}
               />
             )}
             {page.includeTotals && <TotalsBlock teklif={teklif} totals={totals} />}

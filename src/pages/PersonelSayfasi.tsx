@@ -312,7 +312,7 @@ export default function PersonelSayfasi() {
                 { pattern: /^[a-z0-9._-]+$/i, message: 'Sadece harf, rakam, . _ -' },
                 { min: 3, message: 'En az 3 karakter' },
               ]}
-              extra="Personel ilk girişte 0000 şifresiyle giriş yapacak ve yeni şifre belirleyecek"
+              extra="Personel ilk girişte varsayılan şifre (personel 0000 / yönetici 1234) ile giriş yapacak ve yeni şifre belirleyecek"
             >
               <Input placeholder="örn. ahmet" autoComplete="off" />
             </Form.Item>

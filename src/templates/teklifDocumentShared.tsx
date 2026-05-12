@@ -13,19 +13,22 @@ export function stripMagnetSvg(s: string): string {
   return s.replace(/<svg[\s\S]*?<\/svg>/gi, '').replace(/\s+$/, '').trim();
 }
 
-/** Mıknatıs ikonunu React SVG olarak render eder (font/emoji bağımsız) */
+/** Mıknatıs ikonunu React SVG olarak render eder (font/emoji bağımsız).
+ *  shape-rendering="geometricPrecision" — html2canvas SVG rasterizasyonunda
+ *  stroke anti-alias kalitesini iyileştirir; A4 ve PDF'te keskin ikon. */
 export function MagnetIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="11" height="9"
       viewBox="0 0 14 12"
+      shapeRendering="geometricPrecision"
       style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 4, marginBottom: 1, flexShrink: 0 }}
       aria-label="Manyetik Pistonlu"
     >
-      <path d="M2 0v6a5 5 0 0 0 10 0V0" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinejoin="miter"/>
-      <path d="M0.5 0h3" stroke="#dc2626" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M10.5 0h3" stroke="#1d4ed8" strokeWidth="3" strokeLinecap="round"/>
+      <path d="M2 0v6a5 5 0 0 0 10 0V0" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinejoin="miter" vectorEffect="non-scaling-stroke" />
+      <path d="M0.5 0h3" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <path d="M10.5 0h3" stroke="#1d4ed8" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

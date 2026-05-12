@@ -3,6 +3,11 @@ import type { CSSProperties } from 'react';
 import { useKullanici } from '../context/useKullanici';
 import { dosyaToVesikalikBase64 } from '../utils/profilFoto';
 import { formatAdSoyad } from '../utils/formatters';
+import { isYonetici } from '../utils/yetkiUtils';
+
+/** Backend ile birebir aynı varsayılan şifreler (rol bazlı). */
+const VARSAYILAN_SIFRE_PERSONEL = '0000';
+const VARSAYILAN_SIFRE_YONETICI = '1234';
 
 // Önceki "gold" tonu nötr griye çevrildi — modal'da hiçbir kahve/altın hue yok.
 const gold = (a: number) => `rgba(180,180,180,${a})`;
@@ -35,9 +40,17 @@ export default function IlkGirisModal() {
       setSifreHata('Şifreler eşleşmiyor.');
       return;
     }
+    if (yeniSifre === VARSAYILAN_SIFRE_PERSONEL || yeniSifre === VARSAYILAN_SIFRE_YONETICI) {
+      setSifreHata('Yeni şifre varsayılan şifre (0000 / 1234) olamaz.');
+      return;
+    }
     setYukleniyor(true);
-    // Mevcut şifre = varsayılan (0000) — ilk girişte mecburen 0000 ile login oldu
-    const r = await sifreDegistir('0000', yeniSifre);
+    // Mevcut şifre = role göre varsayılan (personel 0000 / yönetici 1234).
+    // İlk girişte kullanıcı bu varsayılan ile giriş yapmış zaten oluyor.
+    const mevcutSifre = isYonetici(aktifKullanici?.rol)
+      ? VARSAYILAN_SIFRE_YONETICI
+      : VARSAYILAN_SIFRE_PERSONEL;
+    const r = await sifreDegistir(mevcutSifre, yeniSifre);
     setYukleniyor(false);
     if (!r.ok) {
       setSifreHata(r.error || 'Şifre değiştirilemedi.');

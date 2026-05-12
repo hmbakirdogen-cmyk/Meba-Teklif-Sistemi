@@ -67,7 +67,6 @@ import type { TeklifPagePlan } from '../services/documentPagination';
 import {
   computeCellPopupPosition,
   findSatirCellElement,
-  useMarkedRows,
 } from './paginatedBelgeInlineHelpers';
 
 const C = DOCUMENT_COLORS;
@@ -110,6 +109,12 @@ interface PaginatedBelgeInlineEditorProps {
   /** Faz 2 undo stack push — popup commit + cari/ayar değişikliklerinde tetiklenir. */
   pushUndo: (snapshot: Snapshot) => void;
   getSnapshot: () => Snapshot;
+  /** Üst seviye (CanliA4Belge) — işaretli satır kümesi. PDF kaynağı
+   *  (TeklifPagedDocument) ile paylaşılır ki PDF çıktısı satır işaretlerini
+   *  aynı şekilde yansıtsın. */
+  markedRowIds: Set<string>;
+  /** Satır başı numara tıklamasında çağrılır (toggle). */
+  toggleRowMark: (satirId: string) => (e: React.MouseEvent) => void;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -829,6 +834,8 @@ export default function PaginatedBelgeInlineEditor({
   scale = 1,
   pushUndo,
   getSnapshot,
+  markedRowIds,
+  toggleRowMark,
 }: PaginatedBelgeInlineEditorProps) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
@@ -883,9 +890,9 @@ export default function PaginatedBelgeInlineEditor({
   const akilliDovizKuru = useAkilliReferans('dovizKuruSecenekleri');
   // Referanslar drawer'i — satırdaki ürünün geçmiş ticari kayıtlarını gösterir.
   const [referanslarSatir, setReferanslarSatir] = useState<TeklifSatiri | null>(null);
-  // Satır başındaki numaraya tıklanınca satır işaretlenir; durum teklif
-  // state'ine yazılmaz, sadece editör görsel işaretidir.
-  const { markedRowIds, toggleRowMark } = useMarkedRows();
+  // Satır başındaki numaraya tıklanınca satır işaretlenir; markedRowIds +
+  // toggleRowMark prop olarak CanliA4Belge'den (lift up) gelir → aynı state
+  // PDF kaynağı (TeklifPagedDocument) ile paylaşılır.
   const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
   const fullLogo = getAdaptiveLogoPlacement({
     firmaId: firmaBilgi.id,

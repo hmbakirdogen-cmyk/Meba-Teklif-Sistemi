@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { hashPassword, verifyPassword, VARSAYILAN_SIFRE } from '../lib/auth.js';
+import { hashPassword, verifyPassword, isVarsayilanSifre } from '../lib/auth.js';
 import { olusturOturum, oturumKapat, kullaniciOturumlariniIptalEt } from '../lib/sessions.js';
 import { canAccessFirma } from '../lib/firmaScope.js';
 import { sanitizeUser, sanitizeFirma, uretInitials } from '../lib/sanitize.js';
@@ -133,7 +133,7 @@ authRouter.post(
     const mevcut = String(body.mevcutSifre || '');
     const yeni = String(body.yeniSifre || '');
     if (yeni.length < 4) throw new HttpError(400, 'Yeni sifre en az 4 karakter olmali.');
-    if (yeni === VARSAYILAN_SIFRE) throw new HttpError(400, 'Yeni sifre varsayilan sifre (0000) olamaz.');
+    if (isVarsayilanSifre(yeni)) throw new HttpError(400, 'Yeni sifre varsayilan sifre (0000 / 1234) olamaz.');
 
     const k = req.authCtx!.kullanici;
     if (!verifyPassword(mevcut, k.sifreHash)) {

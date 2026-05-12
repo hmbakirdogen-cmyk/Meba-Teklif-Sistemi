@@ -586,11 +586,16 @@ export const FIELD_CSS = `
      df-4 → 10.5px + kontrollü wrap (son çare)
    ══════════════════════════════════════════════════════════════════════ */
 .description-cell {
-  /* Default: tek satır. df-4 ise inline-block override ile wrap'e izin verilir. */
+  /* Default: tek satır. df-4 ise inline-block override ile wrap'e izin verilir.
+     contain: paint  → hover ışığı / pseudo overlay'leri ASLA komşu hücreye
+     (miktar / birim fiyat) taşıramaz. Paint containment layout/style etkilemez,
+     yalnızca render alanını hücrenin bounding-box'una sıkıştırır. PDF kayıt
+     açısından sorunsuz — html2canvas DOM bounds'unu kullanır. */
   white-space: nowrap;
   overflow: visible !important;
   text-overflow: clip !important;
   line-height: 1.15 !important;
+  contain: paint;
 }
 /* df-4 (wrap modu) cell üzerinde white-space: normal'i zorlar — !important ile
    parent default'unu yener, böylece 10.5px'te bile sığmayan metin gerçekten
@@ -945,64 +950,135 @@ export const FIELD_CSS = `
   --offer-col-separator: rgba(26, 43, 66, 0.15);
 }
 
-/* Aktif hücre — Faz 2: nötr inset glow (Faz 1 hover 0.04, aktif 0.08 ≈ 2x belirgin).
-   Eski 3px mavi şerit + lavanta bg KALDIRILDI ("Excel hissi yasak"). */
-.belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.015);
-  transition: box-shadow 120ms ease, background 120ms ease;
-}
-[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-}
-.belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
-  --offer-col-separator: rgba(26, 43, 66, 0.16);
-}
+/* ══════════════════════════════════════════════════════════════════════
+   HÜCRE HOVER & AKTİF — TECH OVERLAY SİSTEMİ
+   ──────────────────────────────────────────────────────────────────────
+   PROBLEM: rcCell() hücreye 'background' + 'boxShadow'u INLINE style ile
+   veriyor (zebra desen + satır kenarlığı). CSS ':hover { background:... }'
+   inline'ı !important olmadan ezemez → eski hover yapısı görünmüyordu.
 
-/* Hover — sadece aktif olmayanda, sol kenarda ince mavi çizgi + minik tint */
-.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) {
-  box-shadow: inset 2.5px 0 0 rgba(37, 99, 235, 0.35);
-  background: rgba(37, 99, 235, 0.025);
-  transition: box-shadow 0.15s ease, background 0.15s ease;
-}
-.belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
-  --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.head};
-}
-.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) span,
-.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) div {
-  filter: brightness(0.85);
-  transition: filter 0.15s ease;
-}
+   ÇÖZÜM: hover/active sinyalini hücrenin kendi '::after' PSEUDO katmanına
+   taşıdık. Pseudo absolute + inset:1px → tablo akışını / inline style'ı
+   etkilemez, sadece üstüne biner. İçerik z-index:1 ile pseudo'nun üstünde
+   kalır. Geometric containment garantili — komşu hücreye 1 px bile sızmaz.
 
-/* Sub-item ve readOnly — hiç efekt olmasın */
-.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"]:hover,
-.belge-inline .offer-table tbody tr[data-satir-id] > td.no-click:hover {
-  box-shadow: none !important;
-  background: transparent !important;
-  cursor: default !important;
-}
-.belge-readonly .offer-table tbody tr[data-satir-id] > td:hover {
-  box-shadow: none !important;
-  background: transparent !important;
-}
+   TECH AESTHETIC: Excel dikdörtgen yerine indigo→mavi diagonal gradient,
+   parlak üst kenar (cam ışığı), soft inner glow, hafif outer halo.
+   Sayfa A4 ölçüleri ve PDF render hattı BOZULMAZ — pseudo PDF clone'da
+   pdfService CLONE_QUALITY_STYLESHEET ile zaten sıfırlanıyor.
+   ══════════════════════════════════════════════════════════════════════ */
 
-/* Cursor */
+/* Tüm hücrelere relative ata → pseudo overlay için stacking context.
+   Layout etkisi sıfır (td zaten static akışta). */
 .belge-inline .offer-table tbody tr[data-satir-id] > td {
+  position: relative;
   cursor: pointer !important;
   user-select: none;
 }
+/* İçerik (DescText, EditableField vb.) pseudo overlay'in üstünde kalsın.
+   Wrapper span/div'lerin doğal akışı bozulmaz; sadece z-index'i 1 olur. */
+.belge-inline .offer-table tbody tr[data-satir-id] > td > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hover/active overlay — varsayılan görünmez, opacity transition ile gelir.
+   inset:1px → komşu hücre sınırına 1px boşluk, tablo border'ı temiz kalır.
+   border-radius:4px → "tech" yumuşak köşe (Excel dikdörtgen YOK). */
+.belge-inline .offer-table tbody tr[data-satir-id] > td::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 0;
+  transition: opacity 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+/* ── HOVER: ince indigo gradient + cam parlama + ince çevre çizgi ────────── */
+.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell)::after {
+  opacity: 1;
+  background:
+    linear-gradient(135deg,
+      rgba(99, 102, 241, 0.06) 0%,
+      rgba(59, 130, 246, 0.03) 55%,
+      rgba(14, 165, 233, 0.045) 100%
+    );
+  box-shadow:
+    inset 0 0 0 1px rgba(99, 102, 241, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 0 rgba(99, 102, 241, 0.08);
+}
+
+/* ── AKTİF HÜCRE: kuvvetli gradient + parlak çevre + soft glow halo ──────── */
 .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
   cursor: text !important;
 }
-.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"] {
-  cursor: default !important;
+.belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell::after {
+  opacity: 1;
+  background:
+    linear-gradient(135deg,
+      rgba(99, 102, 241, 0.11) 0%,
+      rgba(59, 130, 246, 0.06) 55%,
+      rgba(14, 165, 233, 0.09) 100%
+    );
+  box-shadow:
+    inset 0 0 0 1.5px rgba(99, 102, 241, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(99, 102, 241, 0.18),
+    inset 0 0 14px rgba(99, 102, 241, 0.10),
+    0 0 0 1px rgba(99, 102, 241, 0.16);
 }
 
-/* ── A4 hücre hover/aktif efektleri — dark mode override ───────────────────── */
-[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) {
-  box-shadow: inset 2.5px 0 0 rgba(59, 130, 246, 0.4);
-  background: rgba(59, 130, 246, 0.04);
+/* Optical separator (dikey ayraç) hover/active renk tonunu uyumlu yap */
+.belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
+  --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.head};
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
+  --offer-col-separator: rgba(99, 102, 241, 0.40);
+}
+
+/* Sub-item / no-click / readOnly — efekt sıfır */
+.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"]::after,
+.belge-inline .offer-table tbody tr[data-satir-id] > td.no-click::after {
+  display: none !important;
+}
+.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"],
+.belge-inline .offer-table tbody tr[data-satir-id] > td.no-click {
+  cursor: default !important;
+}
+.belge-readonly .offer-table tbody tr[data-satir-id] > td::after,
+.belge-inline.belge-readonly .offer-table tbody tr[data-satir-id] > td::after {
+  display: none !important;
+}
+
+/* ── DARK MODE — aynı tech görünüm, koyu zeminde daha parlak ton ─────────── */
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell)::after {
+  background:
+    linear-gradient(135deg,
+      rgba(129, 140, 248, 0.10) 0%,
+      rgba(96, 165, 250, 0.06) 55%,
+      rgba(56, 189, 248, 0.08) 100%
+    );
+  box-shadow:
+    inset 0 0 0 1px rgba(129, 140, 248, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(129, 140, 248, 0.12);
+}
+[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell::after {
+  background:
+    linear-gradient(135deg,
+      rgba(129, 140, 248, 0.18) 0%,
+      rgba(96, 165, 250, 0.10) 55%,
+      rgba(56, 189, 248, 0.14) 100%
+    );
+  box-shadow:
+    inset 0 0 0 1.5px rgba(129, 140, 248, 0.70),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(129, 140, 248, 0.20),
+    inset 0 0 14px rgba(129, 140, 248, 0.18),
+    0 0 0 1px rgba(129, 140, 248, 0.20);
 }
 [data-theme="dark"] .belge-inline .offer-table thead th.optical-separator-col,
 [data-theme="dark"] .belge-inline .offer-table tbody td.optical-separator-col {
@@ -1014,10 +1090,9 @@ export const FIELD_CSS = `
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
   --offer-col-separator: rgba(226, 232, 240, 0.20);
 }
-[data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.is-active-cell {
-  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.7);
-  background: rgba(59, 130, 246, 0.08);
-}
+/* Eski dark-mode td.is-active-cell box-shadow/background kuralı kaldırıldı —
+   inline style (rcCell) ezdiği için zaten görünmüyordu. Yeni dark-mode
+   td.is-active-cell::after overlay artık tüm tech görsel diliyle çalışıyor. */
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
   --offer-col-separator: rgba(241, 245, 249, 0.24);
 }
@@ -1131,48 +1206,72 @@ export const FIELD_CSS = `
      algılanan radial gradient şeridi bırakıyordu. */
   inset: 0;
   pointer-events: none;
-  border-radius: 2px;
-  /* Üstten gelen yumuşak cam ışığı. inset:0 ile pseudo alanı küçüldüğü için
-     optical balance için yoğunluk hafif arttı (0.13→0.15 / 0.055→0.06). */
+  border-radius: 4px;
+  /* Tablo dışı editable alanlar (alıcı, ayarlar, notlar, tarih, teklif no,
+     hazırlayan, yetkili) için tech tarzı overlay — tablo içindeki td-level
+     overlay ile aynı dil. Indigo→mavi diagonal gradient + parlak üst kenar
+     + ince çevre çizgi. */
   background:
-    radial-gradient(
-      140% 240% at 50% -30%,
-      rgba(255, 255, 255, 0.15) 0%,
-      rgba(255, 255, 255, 0.06) 38%,
-      rgba(255, 255, 255, 0) 80%
+    linear-gradient(135deg,
+      rgba(99, 102, 241, 0.06) 0%,
+      rgba(59, 130, 246, 0.03) 55%,
+      rgba(14, 165, 233, 0.045) 100%
     );
+  box-shadow:
+    inset 0 0 0 1px rgba(99, 102, 241, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   opacity: 0;
   transition: opacity 180ms ease-out;
 }
 [data-theme="dark"] .belge-inline [data-editable="true"]::after {
-  /* Koyu zeminde beyaz ışık zaten daha görünür; alfa düşür, "yanma"
-     hissi vermesin. */
   background:
-    radial-gradient(
-      140% 240% at 50% -30%,
-      rgba(255, 255, 255, 0.10) 0%,
-      rgba(255, 255, 255, 0.04) 38%,
-      rgba(255, 255, 255, 0) 80%
+    linear-gradient(135deg,
+      rgba(129, 140, 248, 0.10) 0%,
+      rgba(96, 165, 250, 0.06) 55%,
+      rgba(56, 189, 248, 0.08) 100%
     );
+  box-shadow:
+    inset 0 0 0 1px rgba(129, 140, 248, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .belge-inline [data-editable="true"]:hover::after {
-  opacity: 0.9;
+  opacity: 1;
 }
 
-/* readOnly veya belge-readonly: hover pseudo'su TAMAMEN kaldırılır
-   (display:none → render hattından çıkar; opacity:0'dan daha kati).
+/* Tablo İÇİNDEKİ EditableField'lar için pseudo ::after SÖNDÜRÜLÜR:
+   tablo hücresinde td-level ::after overlay zaten tüm hücre alanını sarıyor;
+   span ::after ile çakışıp çift sinyal vermesin. */
+.belge-inline .offer-table [data-editable="true"]::after {
+  display: none !important;
+}
+
+/* readOnly veya belge-readonly: hover pseudo'su TAMAMEN kaldırılır.
    Kilit kapalı modda alan "PDF önizleme" gibi hissetsin: dekoratif efekt yok. */
 .belge-inline [data-editable="false"],
 .belge-readonly .belge-inline [data-editable="true"],
-.belge-inline.belge-readonly [data-editable="true"] {
-  cursor: default;
-  user-select: auto;
-  -webkit-user-select: auto;
+.belge-inline.belge-readonly [data-editable="true"],
+.belge-readonly [data-editable="true"] {
+  cursor: default !important;
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
 }
 .belge-inline [data-editable="false"]::after,
 .belge-readonly .belge-inline [data-editable="true"]::after,
-.belge-inline.belge-readonly [data-editable="true"]::after {
-  display: none;
+.belge-inline.belge-readonly [data-editable="true"]::after,
+.belge-readonly [data-editable="true"]::after {
+  display: none !important;
+}
+
+/* belge-readonly altında td hover/active stilleri TAMAMEN sustur — PDF
+   görünümü temiz, kilitli mod PDF'e birebir. */
+.belge-readonly .offer-table tbody tr[data-satir-id] > td:hover,
+.belge-readonly .offer-table tbody tr[data-satir-id] > td.is-active-cell,
+.belge-inline.belge-readonly .offer-table tbody tr[data-satir-id] > td:hover,
+.belge-inline.belge-readonly .offer-table tbody tr[data-satir-id] > td.is-active-cell {
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  cursor: default !important;
 }
 
 /* Aktif hücrede (CellEditPopup açıkken) hover ışığı kapalı —
@@ -1184,12 +1283,8 @@ export const FIELD_CSS = `
 
 /* Tablo td-level mevcut hover (mavi şerit + filter) artık EditableField
    pseudo overlay'ine devredilir. td hover background/filter iptal — kutu
-   hissi vermesin. */
-.belge-inline .offer-table tbody tr[data-satir-id] > td:hover:not(.is-active-cell) {
-  background-color: transparent !important;
-  filter: none !important;
-  box-shadow: none !important;
-}
+   hissi vermesin. (Bu kural td-level hover'ın YENİ premium versiyonunu
+   geçersiz kılmamalı: artık iptal ediyoruz, üstteki yeni hover stili kalır.) */
 `;
 
 export type EditingAlan =

@@ -7,10 +7,15 @@
  *
  * "Beni Hatırla" semantiği:
  *   - remember=true  → localStorage  (tarayıcı kapansa bile oturum kalır)
+ *                     + kullanıcı şifresi obfuscate edilmiş halde kaydedilir
+ *                     ki bir sonraki ziyarette otomatik giriş yapılabilsin.
  *   - remember=false → sessionStorage (sekme/tarayıcı kapanınca biter)
+ *                     + varsa kayıtlı şifre derhal temizlenir.
  *
- * Şifre HİÇBİR koşulda saklanmaz — yalnızca kullanıcı adı (`username`)
- * `meba_remember_username` key'ine yazılabilir, opsiyoneldir.
+ * Kayıtlı şifre güvenliği: device-id türevli sabit anahtarla XOR + base64
+ * obfuscation. Browser autofill ile eşdeğer kolaylık-güvenlik trade-off'u;
+ * fiziksel cihaz erişimi olan biri zaten oturuma sahip kabul edilir. Asıl
+ * kimlik doğrulama daima backend `scrypt` hash'i ile yapılır.
  *
  * Migration: eski `gc_*` key'leri ilk load'da `meba_auth_*`'a kopyalanır
  * ve eskiler silinir. Mevcut açık oturumlar bozulmaz.
@@ -27,6 +32,8 @@ const K = {
   REMEMBER_USERNAME: 'meba_remember_username',
   REMEMBER_FLAG: 'meba_remember_flag',
   DEVICE_ID: 'meba_device_id',
+  /** Kayıtlı şifre prefix'i — sonuna kullaniciId eklenir (örn. meba_remember_pw_u-abc123). */
+  REMEMBER_PW_PREFIX: 'meba_remember_pw_',
 } as const;
 
 // Storage event isimlendirmesi (multi-tab senkronizasyon için dışarı export)
@@ -223,12 +230,13 @@ function clearAuth(): void {
   }
 }
 
-/** Hem auth hem remember verilerini temizler (örn. "remember username" reset). */
+/** Hem auth hem remember verilerini (kayıtlı şifre dahil) temizler. */
 function clearAll(): void {
   if (!isBrowser()) return;
   clearAuth();
   safeRemove(window.localStorage, K.REMEMBER_USERNAME);
   safeRemove(window.localStorage, K.REMEMBER_FLAG);
+  clearAllRememberedPasswords();
 }
 
 /** Sadece token'ı oku (header inject için hızlı erişim). */
@@ -299,6 +307,108 @@ function setRememberUsername(username: string | null): void {
   else safeRemove(window.localStorage, K.REMEMBER_USERNAME);
 }
 
+// ─── Şifre hatırlama (obfuscated, browser autofill UX'i) ───────────────
+//
+// XOR + base64 dönüşümü: localStorage'da "0000" gibi plain text bırakmamak
+// için yeterli. Asıl güvenlik scrypt hash'i + session token'da; bu sadece
+// "DevTools'a bakan biri tek bakışta şifre okusun" senaryosunu engeller.
+
+function pwStorageKey(kullaniciId: string): string {
+  return `${K.REMEMBER_PW_PREFIX}${kullaniciId}`;
+}
+
+/** Per-cihaz kararlı XOR anahtarı — device-id türevi. */
+function getObfKey(): string {
+  return getDeviceId() + '|meba-pw-obf|v1';
+}
+
+function utf8Encode(s: string): number[] {
+  if (typeof TextEncoder !== 'undefined') {
+    return Array.from(new TextEncoder().encode(s));
+  }
+  const out: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) {
+      out.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+    } else {
+      out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+    }
+  }
+  return out;
+}
+
+function utf8Decode(bytes: number[]): string {
+  if (typeof TextDecoder !== 'undefined') {
+    return new TextDecoder().decode(new Uint8Array(bytes));
+  }
+  let s = '';
+  let i = 0;
+  while (i < bytes.length) {
+    const b = bytes[i++];
+    if (b < 0x80) s += String.fromCharCode(b);
+    else if (b < 0xe0) s += String.fromCharCode(((b & 0x1f) << 6) | (bytes[i++] & 0x3f));
+    else s += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f));
+  }
+  return s;
+}
+
+function obfuscate(plain: string): string {
+  const key = utf8Encode(getObfKey());
+  const data = utf8Encode(plain);
+  const out: number[] = [];
+  for (let i = 0; i < data.length; i++) out.push(data[i] ^ key[i % key.length]);
+  let bin = '';
+  for (const b of out) bin += String.fromCharCode(b);
+  try { return btoa(bin); } catch { return ''; }
+}
+
+function deobfuscate(stored: string): string | null {
+  try {
+    const bin = atob(stored);
+    const bytes: number[] = [];
+    for (let i = 0; i < bin.length; i++) bytes.push(bin.charCodeAt(i));
+    const key = utf8Encode(getObfKey());
+    const out: number[] = [];
+    for (let i = 0; i < bytes.length; i++) out.push(bytes[i] ^ key[i % key.length]);
+    return utf8Decode(out);
+  } catch {
+    return null;
+  }
+}
+
+function getRememberedPassword(kullaniciId: string): string | null {
+  if (!isBrowser() || !kullaniciId) return null;
+  const raw = safeGet(window.localStorage, pwStorageKey(kullaniciId));
+  if (!raw) return null;
+  return deobfuscate(raw);
+}
+
+function setRememberedPassword(kullaniciId: string, sifre: string): void {
+  if (!isBrowser() || !kullaniciId || !sifre) return;
+  const obf = obfuscate(sifre);
+  if (obf) safeSet(window.localStorage, pwStorageKey(kullaniciId), obf);
+}
+
+function clearRememberedPassword(kullaniciId: string): void {
+  if (!isBrowser() || !kullaniciId) return;
+  safeRemove(window.localStorage, pwStorageKey(kullaniciId));
+}
+
+/** Tüm kullanıcıların kayıtlı şifrelerini temizler (logout-all / reset). */
+function clearAllRememberedPasswords(): void {
+  if (!isBrowser()) return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith(K.REMEMBER_PW_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) safeRemove(window.localStorage, k);
+  } catch { /* ignore */ }
+}
+
 // ─── Device ID — auth'tan bağımsız, daima localStorage'da persistent ───
 function getDeviceId(): string {
   if (!isBrowser()) return 'server';
@@ -325,6 +435,10 @@ export const authStorage = {
   setRememberFlag,
   getRememberUsername,
   setRememberUsername,
+  getRememberedPassword,
+  setRememberedPassword,
+  clearRememberedPassword,
+  clearAllRememberedPasswords,
   getDeviceId,
 };
 

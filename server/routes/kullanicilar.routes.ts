@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { paramStr } from '../lib/params.js';
 import { prisma } from '../lib/prisma.js';
-import { hashPassword, VARSAYILAN_SIFRE } from '../lib/auth.js';
+import { hashPassword, getVarsayilanSifre } from '../lib/auth.js';
 import { kullaniciOturumlariniIptalEt } from '../lib/sessions.js';
 import { sanitizeUser, uretInitials } from '../lib/sanitize.js';
 import { audit } from '../lib/audit.js';
@@ -72,11 +72,12 @@ kullanicilarRouter.post(
     if (cakisma) throw new HttpError(409, 'Bu kullanici adi zaten kullanimda.');
 
     const yeniId = 'u-' + Math.random().toString(36).slice(2, 10);
+    const varsayilanSifre = getVarsayilanSifre(istenenRol);
     const yeni = await prisma.kullanici.create({
       data: {
         id: yeniId,
         kullaniciAdi,
-        sifreHash: hashPassword(VARSAYILAN_SIFRE),
+        sifreHash: hashPassword(varsayilanSifre),
         adSoyad,
         unvan,
         initials: uretInitials(adSoyad),
@@ -95,7 +96,7 @@ kullanicilarRouter.post(
       { kullaniciId: me.id, kullaniciAdi: me.kullaniciAdi, firmaId: me.firmaId },
       { yeniKullaniciId: yeni.id, firmaId },
     );
-    res.json({ kullanici: sanitizeUser(yeni), varsayilanSifre: VARSAYILAN_SIFRE });
+    res.json({ kullanici: sanitizeUser(yeni), varsayilanSifre });
   }),
 );
 
@@ -152,10 +153,11 @@ kullanicilarRouter.post(
     if (me.rol !== 'super_admin' && target.rol === 'super_admin') {
       throw new HttpError(403, 'Süper Yöneticinin şifresini sıfırlamak için Süper Yönetici yetkisi gereklidir.');
     }
+    const varsayilanSifre = getVarsayilanSifre(target.rol);
     await prisma.kullanici.update({
       where: { id },
       data: {
-        sifreHash: hashPassword(VARSAYILAN_SIFRE),
+        sifreHash: hashPassword(varsayilanSifre),
         mustChangePassword: true,
         sifreDegisikligi: new Date(),
       },
@@ -166,7 +168,7 @@ kullanicilarRouter.post(
       { kullaniciId: me.id, kullaniciAdi: me.kullaniciAdi, firmaId: me.firmaId },
       { hedefId: id },
     );
-    res.json({ ok: true, varsayilanSifre: VARSAYILAN_SIFRE });
+    res.json({ ok: true, varsayilanSifre });
   }),
 );
 

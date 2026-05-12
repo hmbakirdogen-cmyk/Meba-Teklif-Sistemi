@@ -5,7 +5,7 @@
  */
 import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { App, Input } from 'antd';
+import { App, Input, Tooltip } from 'antd';
 import type { InputRef } from 'antd';
 import { DeleteOutlined, HistoryOutlined, PercentageOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi, Urun, UrunSeti } from '../types';
@@ -727,7 +727,8 @@ export function SatirAksiyonlariPanel({
       {createPortal(
         <div
           ref={panelRef}
-          className="satir-aksiyonlari satir-aksiyon-panel"
+          className="satir-aksiyonlari satir-aksiyon-panel no-export"
+          data-html2canvas-ignore="true"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           style={{
@@ -738,68 +739,76 @@ export function SatirAksiyonlariPanel({
         >
           {satirBazliIskonto && (
         <>
-          <span style={{ ...actionBtnStyle, color: C.textMid }}>
-            <PercentageOutlined style={{ fontSize: 9 }} />
-            <InlineTableNumberField
-              style={{ width: 26, fontSize: '9px', fontWeight: 700, textAlign: 'center', padding: 0 }}
-              value={satir.indirimOrani}
-              min={0}
-              max={100}
-              step={1}
-              onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
-              formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
-              parser={(value) => parseLocaleNumber(value ?? '')}
-              onFocus={(e) => (e.target as HTMLInputElement).select?.()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </span>
+          <Tooltip title="Bu satıra özel iskonto oranı (%)" mouseEnterDelay={0.5}>
+            <span style={{ ...actionBtnStyle, color: C.textMid }}>
+              <PercentageOutlined style={{ fontSize: 9 }} />
+              <InlineTableNumberField
+                style={{ width: 26, fontSize: '9px', fontWeight: 700, textAlign: 'center', padding: 0 }}
+                value={satir.indirimOrani}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
+                formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
+                parser={(value) => parseLocaleNumber(value ?? '')}
+                onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </span>
+          </Tooltip>
           <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
         </>
       )}
       {onReferanslar && (satir.urunKod || '').trim() !== '' && (
         <>
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              onReferanslar();
-            }}
-            title="Bu ürünün geçmiş referanslarını gör"
-            aria-label="Referanslar"
-            style={{ ...actionBtnStyle, color: '#1E3A5F', opacity: 0.78, padding: '2px 5px' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(30,58,95,0.10)';
-              e.currentTarget.style.opacity = '1';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.opacity = '0.78';
-            }}
-          >
-            <HistoryOutlined style={{ fontSize: 10 }} />
-          </span>
+          <Tooltip title="Bu ürünün geçmiş tekliflerini gör" mouseEnterDelay={0.5}>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onReferanslar();
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Geçmiş referansları aç"
+              style={{ ...actionBtnStyle, color: '#1E3A5F', opacity: 0.78, padding: '2px 5px' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(30,58,95,0.10)';
+                e.currentTarget.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.opacity = '0.78';
+              }}
+            >
+              <HistoryOutlined style={{ fontSize: 10 }} />
+            </span>
+          </Tooltip>
           <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
         </>
       )}
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          onSil();
-        }}
-        title="Satırı sil"
-        aria-label="Satırı sil"
-        style={{ ...actionBtnStyle, color: '#b91c1c', opacity: 0.75, padding: '2px 5px' }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(185,28,28,0.08)';
-          e.currentTarget.style.opacity = '1';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.opacity = '0.75';
-        }}
-      >
-        <DeleteOutlined style={{ fontSize: 10 }} />
-      </span>
+      <Tooltip title="Bu satırı sil" mouseEnterDelay={0.5}>
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            onSil();
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Satırı sil"
+          style={{ ...actionBtnStyle, color: '#b91c1c', opacity: 0.75, padding: '2px 5px' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(185,28,28,0.08)';
+            e.currentTarget.style.opacity = '1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.opacity = '0.75';
+          }}
+        >
+          <DeleteOutlined style={{ fontSize: 10 }} />
+        </span>
+      </Tooltip>
         </div>,
         document.body,
       )}
@@ -861,6 +870,8 @@ export function SatirIskontoRozeti({ rowId, oran }: IskontoRozetiProps) {
       {createPortal(
         <div
           ref={badgeRef}
+          className="no-export"
+          data-html2canvas-ignore="true"
           style={{
             position: 'fixed',
             top: pos.top,

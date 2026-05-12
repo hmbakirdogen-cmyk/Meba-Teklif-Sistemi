@@ -235,7 +235,7 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
           showIcon
           style={{ marginBottom: 12 }}
           message="Lütfen şifrenizi değiştirin"
-          description="Hesabınız varsayılan şifre (0000) ile çalışıyor. Güvenliğiniz için yeni bir şifre belirleyin."
+          description="Hesabınız varsayılan şifre (0000 / 1234) ile çalışıyor. Güvenliğiniz için yeni bir şifre belirleyin."
         />
       )}
 
@@ -255,8 +255,8 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
             { min: 4, message: 'En az 4 karakter olmalı' },
             {
               validator: (_r, val: string) =>
-                val === '0000'
-                  ? Promise.reject(new Error('Yeni şifre 0000 olamaz'))
+                val === '0000' || val === '1234'
+                  ? Promise.reject(new Error('Yeni şifre varsayılan şifre (0000 / 1234) olamaz'))
                   : Promise.resolve(),
             },
           ]}

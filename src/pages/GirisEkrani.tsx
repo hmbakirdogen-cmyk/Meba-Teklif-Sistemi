@@ -2387,9 +2387,17 @@ function PersonelKartSecimi({
  *   - Kart elemani role="button"; tum yuzeyi tikla (ya da Enter/Space) =>
  *     ilk tikla input acilir, ikinci tikla (sifre yazildiktan sonra) login
  *     denemesi yapilir.
- *   - Sifre HICBIR yerde saklanmaz; kullanici her oturumda yeniden yazar.
- *   - "Beni Hatirla" checkbox'i → backend session TTL'i 30 gune cikarir
- *     (varsayilan 12 saat). Sayfa yenilense bile login state korunur.
+ *   - "Şifreyi Hatırla" işaretliyse: başarılı giriş sonrası şifre kullanıcı
+ *     id'sine göre localStorage'a obfuscate edilmiş şekilde kaydedilir. Bir
+ *     sonraki ziyarette kart açık gelir, input önceden dolu, 600ms sonra
+ *     otomatik giriş denenir (yan taraftaki ✕ butonu ile iptal edilebilir).
+ *   - "Şifreyi Hatırla" işaretsizse: kaydedilmiş şifre derhal silinir,
+ *     backend session de 12 saat ile sınırlanır.
+ *   - Varsayılan şifre (0000 personel / 1234 yönetici) yazıldığında 300ms
+ *     beklenip otomatik giriş denenir — ilk giriş süreci sürtünmesiz.
+ *   - Diğer şifrelerde otomatik gönderim YOK; kullanıcı Enter veya kart
+ *     yüzeyine tıkla ile gönderir. Karakter sayısı ve durum görsel olarak
+ *     altta gösterilir (kabul edilir / az / fazla yok — sınır 4).
  */
 function PersonelKart({
   kullanici, haloColor,
@@ -2400,21 +2408,33 @@ function PersonelKart({
   onLoginDene: (sifre: string, beniHatirla: boolean) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const isYonetici = isYoneticiRol(kullanici.rol);
-  // `acik`: sifre giris alani gorunur mu? Kart varsayilan KAPALI gelir
-  // (yalnizca avatar+ad+unvan); kullanici karta tiklayinca acilir, input
-  // odaklanir.
-  const [acik, setAcik] = useState(false);
-  const [sifre, setSifre] = useState('');
-  // "Beni Hatırla" lazy init: bir önceki giriş tercihi authStorage'da
-  // saklanır (sadece flag — ŞİFRE YOK). Varsayılan true (yeni kullanıcı).
-  const [hatirla, setHatirla] = useState<boolean>(() => authStorage.getRememberFlag());
+  // Kayıtlı şifre — kullanıcı tek seferlik karta-özgü auto-fill almak için
+  // yalnız mount sırasında okunur. Sonraki state değişiklikleri input'tan
+  // gelir.
+  const kayitliSifre = useMemo(
+    () => authStorage.getRememberedPassword(kullanici.id) || '',
+    [kullanici.id],
+  );
+  // Kart varsayılan KAPALI gelir; kayıtlı şifre varsa AÇIK + dolu gelir.
+  const [acik, setAcik] = useState<boolean>(() => Boolean(kayitliSifre));
+  const [sifre, setSifre] = useState<string>(() => kayitliSifre);
+  // Şifre auto-fill'den mi geldi? ✕ "Şifreyi Unut" butonunu göstermek ve
+  // mount auto-submit'i bir kez tetiklemek için.
+  const [autoFilled, setAutoFilled] = useState<boolean>(() => Boolean(kayitliSifre));
+  // "Şifreyi Hatırla" varsayılan: önceki tercih, kayıtlı şifre varsa true.
+  const [hatirla, setHatirla] = useState<boolean>(() =>
+    Boolean(kayitliSifre) || authStorage.getRememberFlag(),
+  );
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
   const sifreInputRef = useRef<HTMLInputElement | null>(null);
+  // Auto-submit yarış koruması — aynı tetikleme zincirinde iki kez login
+  // çağrısı atılmasın diye.
+  const submittingRef = useRef(false);
 
   async function dene() {
-    if (yukleniyor) return;
+    if (yukleniyor || submittingRef.current) return;
     // Ilk tikla → ac + odakla; ikinci tikla → submit
     if (!acik) {
       setAcik(true);
@@ -2426,16 +2446,91 @@ function PersonelKart({
       sifreInputRef.current?.focus();
       return;
     }
+    submittingRef.current = true;
     setYukleniyor(true);
     setHata(null);
-    const r = await onLoginDene(sifre, hatirla);
+    const denenenSifre = sifre;
+    const r = await onLoginDene(denenenSifre, hatirla);
     setYukleniyor(false);
-    if (!r.ok) {
+    submittingRef.current = false;
+    if (r.ok) {
+      // "Şifreyi Hatırla" işaretliyse şifreyi kullanıcı id'ye göre sakla;
+      // değilse herhangi bir kayıt varsa temizle.
+      if (hatirla) authStorage.setRememberedPassword(kullanici.id, denenenSifre);
+      else authStorage.clearRememberedPassword(kullanici.id);
+    } else {
       setHata(r.error);
+      // Yanlış şifre → eski kayıtlı şifre artık geçersiz; temizle ki bir
+      // sonraki sefer otomatik döngüye girmesin.
+      authStorage.clearRememberedPassword(kullanici.id);
+      setAutoFilled(false);
       setSifre('');
       setTimeout(() => sifreInputRef.current?.focus(), 50);
     }
   }
+
+  // dene() referansının daima son render'a işaret etmesi için ref. Auto-submit
+  // timer'ları fire ettiğinde stale closure yerine güncel state'i okuyan
+  // dene'yi çağırırlar.
+  const deneRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  deneRef.current = dene;
+
+  // ── Auto-submit #1: kayıtlı şifre ile açıldığında 600ms sonra dene.
+  // Kullanıcı bu süre içinde ✕ ile iptal edip kendi şifresini yazabilir
+  // (autoFilled false olunca timer cleanup ile iptal edilir).
+  useEffect(() => {
+    if (!autoFilled) return;
+    const t = window.setTimeout(() => { void deneRef.current(); }, 600);
+    return () => window.clearTimeout(t);
+  }, [autoFilled]);
+
+  // ── Auto-submit #2: kullanıcı varsayılan şifreyi (0000 / 1234) yazınca
+  // 300ms beklenip otomatik giriş denenir. autoFilled false olduğundan emin
+  // olalım — auto-fill'den gelen "0000" değeri için #1 zaten çalışır.
+  useEffect(() => {
+    if (autoFilled || !acik || yukleniyor || hata) return;
+    const varsayilan = isYonetici ? '1234' : '0000';
+    if (sifre !== varsayilan) return;
+    const t = window.setTimeout(() => { void deneRef.current(); }, 300);
+    return () => window.clearTimeout(t);
+  }, [sifre, acik, yukleniyor, hata, autoFilled, isYonetici]);
+
+  function handleSifreChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setSifre(e.target.value);
+    if (autoFilled) setAutoFilled(false); // kullanıcı düzenledi → auto-fill marker temizlenir
+    if (hata) setHata(null);
+  }
+
+  function handleHatirlaToggle(yeni: boolean) {
+    setHatirla(yeni);
+    authStorage.setRememberFlag(yeni);
+    // Tik kaldırıldıysa hemen kayıtlı şifreyi sil — "iptal" anlık olsun.
+    if (!yeni) {
+      authStorage.clearRememberedPassword(kullanici.id);
+      setAutoFilled(false);
+    }
+  }
+
+  function sifreyiUnut(e: React.MouseEvent) {
+    e.stopPropagation();
+    authStorage.clearRememberedPassword(kullanici.id);
+    setSifre('');
+    setAutoFilled(false);
+    setHata(null);
+    setTimeout(() => sifreInputRef.current?.focus(), 0);
+  }
+
+  // Şifre uzunluğu / durum bilgisi — input altında küçük metin.
+  const feedback = (() => {
+    if (yukleniyor) return { renk: ink(0.65), metin: 'Giriş yapılıyor…' };
+    if (autoFilled) return { renk: ink(0.65), metin: 'Kayıtlı şifre yüklendi — otomatik giriş…' };
+    if (sifre.length === 0) return { renk: ink(0.45), metin: 'Şifrenizi girin' };
+    if (sifre.length < 4) return { renk: 'rgba(245,158,11,0.95)', metin: `${sifre.length} karakter — en az 4 karakter gerekli` };
+    if (sifre === '0000' || sifre === '1234') {
+      return { renk: 'rgba(110,231,183,0.92)', metin: 'Varsayılan şifre — otomatik giriş…' };
+    }
+    return { renk: 'rgba(110,231,183,0.92)', metin: `${sifre.length} karakter — Enter ile giriş yap` };
+  })();
 
   function kartKey(e: React.KeyboardEvent) {
     // Kart kendisi buton: Enter veya Space ile login dene
@@ -2593,45 +2688,83 @@ function PersonelKart({
 
       {/* Sifre alanı + "Beni Hatırla" — kart KAPALI ise GORUNMEZ.
           Kart kapali → kullanici tiklar → acik=true → input belirir + auto-focus.
-          "Beni Hatırla" işaretlenirse session 30 gün sürer (yoksa 12 saat). */}
+          "Şifreyi Hatırla" işaretlenirse session 30 gün sürer (yoksa 12 saat)
+          ve şifre kullanıcı id'ye göre obfuscate edilmiş şekilde kaydedilir. */}
       {acik && (
         <div onClick={stop} onKeyDown={stop}>
-          <input
-            ref={sifreInputRef}
-            type="password"
-            value={sifre}
-            onChange={(e) => setSifre(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                void dene();
-              }
-            }}
-            placeholder="Şifre"
-            autoComplete="current-password"
-            disabled={yukleniyor}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '10px 12px',
-              background: 'rgba(5,11,26,0.7)',
-              border: `1px solid ${ink(0.18)}`,
-              borderRadius: 10,
-              color: 'rgba(225,235,250,0.96)',
-              fontSize: 13, fontFamily: 'inherit', letterSpacing: 1,
-              outline: 'none',
-              transition: 'border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = haloColor;
-              e.currentTarget.style.boxShadow = `0 0 0 3px ${haloColor}1f`;
-              e.currentTarget.style.background = 'rgba(8,16,34,0.85)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = ink(0.18);
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.background = 'rgba(5,11,26,0.7)';
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              ref={sifreInputRef}
+              type="password"
+              value={sifre}
+              onChange={handleSifreChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void dene();
+                }
+              }}
+              placeholder="Şifre"
+              autoComplete="current-password"
+              disabled={yukleniyor}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '10px 12px',
+                // Sağda ✕ butonuna yer aç (autoFilled olduğunda)
+                paddingRight: autoFilled ? 36 : 12,
+                background: 'rgba(5,11,26,0.7)',
+                border: `1px solid ${ink(0.18)}`,
+                borderRadius: 10,
+                color: 'rgba(225,235,250,0.96)',
+                fontSize: 13, fontFamily: 'inherit', letterSpacing: 1,
+                outline: 'none',
+                transition: 'border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = haloColor;
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${haloColor}1f`;
+                e.currentTarget.style.background = 'rgba(8,16,34,0.85)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = ink(0.18);
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.background = 'rgba(5,11,26,0.7)';
+              }}
+            />
+            {autoFilled && (
+              <button
+                type="button"
+                onClick={sifreyiUnut}
+                onMouseDown={(e) => e.stopPropagation()}
+                aria-label="Kayıtlı şifreyi unut"
+                title="Kayıtlı şifreyi unut"
+                disabled={yukleniyor}
+                style={{
+                  position: 'absolute',
+                  right: 6, top: '50%', transform: 'translateY(-50%)',
+                  width: 24, height: 24, borderRadius: 6,
+                  background: 'transparent',
+                  border: `1px solid ${ink(0.18)}`,
+                  color: ink(0.7),
+                  cursor: yukleniyor ? 'not-allowed' : 'pointer',
+                  fontSize: 13, lineHeight: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {/* Karakter sayısı / durum bilgisi */}
+          <div style={{
+            marginTop: 6,
+            fontSize: 10.5, color: feedback.renk,
+            letterSpacing: 0.3, lineHeight: 1.3,
+            minHeight: 14,
+          }}>
+            {feedback.metin}
+          </div>
           <label style={{
             display: 'flex', alignItems: 'center', gap: 8,
             marginTop: 9, fontSize: 11, color: ink(0.65),
@@ -2641,7 +2774,7 @@ function PersonelKart({
             <input
               type="checkbox"
               checked={hatirla}
-              onChange={(e) => setHatirla(e.target.checked)}
+              onChange={(e) => handleHatirlaToggle(e.target.checked)}
               disabled={yukleniyor}
               style={{
                 width: 14, height: 14, accentColor: haloColor,

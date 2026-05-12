@@ -71,10 +71,20 @@ const CLONE_QUALITY_STYLESHEET = `
   img {
     image-rendering: auto !important;
   }
-  /* Faz 2 safety: aktif hücre highlight'ı veya runtime dekorasyonlar clone'a sızmasın. */
-  .no-export, td.is-active-cell {
+  /* Düzenleme yardımcıları (action paneli, iskonto rozeti, ToolbarIcons vb.)
+     PDF clone'unda HER KOŞULDA gizli kalır. html2canvas data-html2canvas-ignore
+     attribute'unu da honor eder; bu stylesheet ikinci güvenlik katmanı. */
+  .no-export,
+  [data-html2canvas-ignore="true"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  /* Aktif hücre highlight'ı (mavi inset shadow + soluk arka plan) PDF'te
+     görünmemeli — clone'da td.is-active-cell stilini sıfırla. */
+  td.is-active-cell {
     box-shadow: none !important;
     background-color: transparent !important;
+    border-radius: 0 !important;
   }
 `;
 
@@ -129,7 +139,16 @@ function nextFrame(): Promise<void> {
 
 async function waitForPagedDomReady(pagedRootEl: HTMLElement): Promise<PagedDomSnapshot> {
   const startedAt = Date.now();
-  const timeoutMs = 3000;
+  // 5s — paged layout effect, async logo fetch, fitLevel ölçümü ve
+  // DescText useLayoutEffect zincirlerinin tümünün tamamlanması için
+  // konservatif tavan. Stable-DOM tespiti gerçek bekleyişi kısa tutar.
+  const timeoutMs = 5000;
+  // Sayfalar render edildikten sonra ardışık `stableWindowMs` boyunca
+  // sayfa sayısı / ready bayrağı değişmediğinde DOM "kararlı" sayılır.
+  // ~150ms iki frame'den daha uzun → React commit chain'in oturmasına yeter.
+  const stableWindowMs = 150;
+  let stableSince: number | null = null;
+  let lastSignature = '';
 
   while (Date.now() - startedAt < timeoutMs) {
     const snapshot = inspectPagedDom(pagedRootEl);
@@ -137,8 +156,18 @@ async function waitForPagedDomReady(pagedRootEl: HTMLElement): Promise<PagedDomS
     const expectedMatches = snapshot.expectedPageCount == null
       || snapshot.renderedPageCount === snapshot.expectedPageCount;
 
-    if (markedReady && snapshot.renderedPageCount > 0 && expectedMatches) {
-      return snapshot;
+    const ready = markedReady && snapshot.renderedPageCount > 0 && expectedMatches;
+    const signature = `${markedReady}|${snapshot.renderedPageCount}|${snapshot.expectedPageCount}`;
+    if (ready) {
+      if (signature !== lastSignature) {
+        lastSignature = signature;
+        stableSince = Date.now();
+      } else if (stableSince != null && Date.now() - stableSince >= stableWindowMs) {
+        return snapshot;
+      }
+    } else {
+      stableSince = null;
+      lastSignature = signature;
     }
 
     await nextFrame();
@@ -156,6 +185,64 @@ async function waitForPagedDomReady(pagedRootEl: HTMLElement): Promise<PagedDomS
     pdfPageCount,
     expectedPageCount: snapshot.expectedPageCount,
   });
+}
+
+/**
+ * Paged DOM'daki tüm <img>'lerin (firma logoları + müşteri logosu + overlay
+ * görselleri) yüklenmesini bekler. html2canvas yüklenmeyen img'leri boş
+ * çerçeveyle yakalardı; bu yardımcı, render öncesi async resim trafiğinin
+ * bittiğini garanti eder. Per-image timeout 5s — slow R2 / cold CDN için
+ * yeterli pay. Yüklenemeyen img sessizce atlanır (PDF render bloklanmaz).
+ */
+async function ensureImagesLoaded(pagedRootEl: HTMLElement): Promise<void> {
+  const imgs = Array.from(pagedRootEl.querySelectorAll<HTMLImageElement>('img'));
+  if (imgs.length === 0) return;
+
+  await Promise.all(
+    imgs.map((img) => {
+      // already-loaded shortcut
+      if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          img.removeEventListener('load', done);
+          img.removeEventListener('error', done);
+          resolve();
+        };
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+        // Per-image safety net — CDN/R2 yavaşlığında bütün PDF akışını bloklamasın.
+        setTimeout(done, 5000);
+      });
+    }),
+  );
+}
+
+/**
+ * Browser bazı font subset'lerini (latin-ext: ı, ğ, ş, ç, ö, ü) yalnızca o
+ * karakterler ekranda kullanıldığında lazily indirir. `document.fonts.ready`
+ * o anda DOM'da olmayan ama clone'da olabilecek karakterleri kapsamaz.
+ * Burada Türkçe karakterleri içeren bir test stringi ile fontu explicit
+ * load ederek subset'in PDF render anında hazır olmasını sağlıyoruz.
+ */
+async function ensureTurkishFontSubsetReady(): Promise<void> {
+  try {
+    // Inter 11px-13px ana boyutlar, 400/600/700 ağırlıklar A4'te kullanılan
+    // varyantları kapsar. Türkçe karakterler subset'i tetikler.
+    const probes = [
+      '11px "Inter"',
+      '12px "Inter"',
+      '13px 600 "Inter"',
+      '13px 700 "Inter"',
+    ];
+    const tr = 'ığüşöçİĞÜŞÖÇ — abcABC';
+    await Promise.all(probes.map((p) => document.fonts.load(p, tr).catch(() => null)));
+    await document.fonts.ready;
+  } catch {
+    // document.fonts API not available — silently continue.
+  }
 }
 
 /**
@@ -216,9 +303,22 @@ function applyCloneQualityFixes(clonedDoc: Document, clonedEl: HTMLElement): voi
 async function renderPageCanvases(
   pagedRootEl: HTMLElement,
 ): Promise<{ canvases: HTMLCanvasElement[]; renderedPageCount: number; expectedPageCount: number | null }> {
-  await document.fonts.ready;
+  // 1) Font subset garantisi — Türkçe karakterler dahil tüm glyph'ler için
+  //    Inter weight/size matrisi yüklenir. document.fonts.ready tek başına
+  //    bazı lazy subset'leri atlayabiliyor.
+  await ensureTurkishFontSubsetReady();
 
+  // 2) Layout / pagination kararlı olana kadar bekle.
   const { pageEls, renderedPageCount, expectedPageCount } = await waitForPagedDomReady(pagedRootEl);
+
+  // 3) Tüm <img>'lerin (firma logosu, müşteri logosu, overlay görseller)
+  //    decode edilmiş olduğundan emin ol — aksi halde html2canvas boş
+  //    çerçeve çizebilir.
+  await ensureImagesLoaded(pagedRootEl);
+
+  // 4) Son layout commit + paint için iki frame nefes payı.
+  await nextFrame();
+  await nextFrame();
 
   if (pageEls.length === 0) {
     throw new Error('PDF sayfaları bulunamadı.');

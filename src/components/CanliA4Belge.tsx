@@ -2,6 +2,7 @@
 import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
 import TeklifPagedDocument from '../templates/TeklifPagedDocument';
 import PaginatedBelgeInlineEditor, { type EditingAlan } from './PaginatedBelgeInlineEditor';
+import { useMarkedRows } from './paginatedBelgeInlineHelpers';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { calculateTeklifPagination, type TeklifPaginationResult } from '../services/documentPagination';
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
@@ -106,6 +107,12 @@ export default function CanliA4Belge({
   const [naturalH, setNaturalH] = useState(Math.round(mmToPx(DOCUMENT_PAGE.heightMm)));
   const [pagination, setPagination] = useState<TeklifPaginationResult>(FALLBACK_PAGINATION);
   const [paginationReady, setPaginationReady] = useState(false);
+
+  // Satır işaretleme state'i — kullanıcı satır numarasına tıklayınca toggle.
+  // Burada üst seviyede tutuyoruz çünkü hem canlı düzenleyici (PaginatedBelgeInlineEditor)
+  // hem de PDF kaynağı (TeklifPagedDocument) aynı state'e ihtiyaç duyar: işaretli
+  // satır PDF çıktısında da görsel olarak aynı şekilde işaretli görünür.
+  const { markedRowIds, toggleRowMark } = useMarkedRows();
 
   const totals = useMemo(
     () => hesaplamaMotoru.teklifToplamlariniHesapla({
@@ -229,6 +236,7 @@ export default function CanliA4Belge({
           teklif={teklif}
           totals={totals}
           pages={pagination.pages}
+          markedRowIds={markedRowIds}
           renderPageOverlay={(pageIndex) => (
             <ImageOverlayLayer
               pageIndex={pageIndex}
@@ -284,6 +292,8 @@ export default function CanliA4Belge({
             totals={totals}
             pages={pagination.pages}
             scale={scale}
+            markedRowIds={markedRowIds}
+            toggleRowMark={toggleRowMark}
             editingAlan={editingAlan}
             onEditingAlanDegistir={onEditingAlanDegistir}
             onCariDegistir={onCariDegistir}
