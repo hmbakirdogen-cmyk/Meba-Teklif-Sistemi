@@ -295,6 +295,26 @@ export default function IlkGirisModal() {
             >
               {yukleniyor ? 'Yükleniyor…' : 'Fotoğrafı Yükle ve Bitir'}
             </button>
+
+            {/* "Sonra Yükle" — fotoğraf adımı opsiyonel. Kullanıcı isterse
+                bu adımı atlar, daha sonra Profil sayfasından yükler. R2 erişim
+                sorunu yaşandığında veya hızlı geçmek isteyenler için. */}
+            <button
+              type="button"
+              onClick={() => setFotoYuklendi(true)}
+              disabled={yukleniyor}
+              style={{
+                width: '100%', padding: '10px 16px', marginTop: 10,
+                background: 'transparent',
+                color: silver(0.55),
+                border: `1px solid ${gold(0.18)}`,
+                borderRadius: 10,
+                fontSize: 12, fontWeight: 500, letterSpacing: 0.6,
+                cursor: yukleniyor ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Sonra Yükle — şimdi atla
+            </button>
           </div>
         )}
       </div>
