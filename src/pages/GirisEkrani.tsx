@@ -2428,7 +2428,17 @@ function PersonelKart({
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
+  // Spotlight efekti — imleç kartın içinde gezerken takip eden ışık halesi.
+  const [spot, setSpot] = useState({ x: 50, y: 50 });
   const sifreInputRef = useRef<HTMLInputElement | null>(null);
+
+  function handleSpotMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSpot({
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    });
+  }
   // Auto-submit yarış koruması — aynı tetikleme zincirinde iki kez login
   // çağrısı atılmasın diye.
   const submittingRef = useRef(false);
@@ -2533,6 +2543,9 @@ function PersonelKart({
     e.stopPropagation();
   }
 
+  // Spotlight için ışık rengi — yöneticiye sıcak amber, normal personele firma haloColor.
+  const spotColor = isYonetici ? 'rgba(251,191,36,1)' : haloColor;
+
   return (
     <div
       role="button"
@@ -2542,6 +2555,7 @@ function PersonelKart({
       onKeyDown={kartKey}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onMouseMove={handleSpotMove}
       style={{
         position: 'relative',
         background: 'rgba(8,15,32,0.72)',
@@ -2562,8 +2576,59 @@ function PersonelKart({
         width: '100%',
         boxSizing: 'border-box',
         minHeight: 0,
+        overflow: 'hidden',
+        // Yeni stacking context — overlay'ler z-index: -1 ile içerik
+        // altında ama kart arka planının üstünde kalır (cam katman).
+        isolation: 'isolate',
       }}
     >
+      {/* ═══════ SPOTLIGHT KATMANLARI ═══════ */}
+      {hover && !yukleniyor && (
+        <>
+          {/* (1) Yumuşak büyük havuz — alan ışığı */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: -1,
+              background: `radial-gradient(circle 180px at ${spot.x}% ${spot.y}%, ${spotColor}33 0%, ${spotColor}14 30%, transparent 60%)`,
+              transition: 'background 0.12s ease-out',
+              borderRadius: 14,
+            }}
+          />
+          {/* (2) Specular highlight — cam yansıması */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: -1,
+              background: `radial-gradient(circle 70px at ${spot.x}% ${spot.y}%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 35%, transparent 60%)`,
+              transition: 'background 0.08s ease-out',
+              borderRadius: 14,
+            }}
+          />
+          {/* (3) Cam kenar — imleç yakınında parlayan ince hairline */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              borderRadius: 14,
+              padding: 1,
+              background: `radial-gradient(circle 220px at ${spot.x}% ${spot.y}%, ${spotColor}cc 0%, ${spotColor}33 35%, transparent 65%)`,
+              WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              transition: 'background 0.15s ease-out',
+            }}
+          />
+        </>
+      )}
       {/* Üst kısım: avatar (sol) + (ad → unvan → etiket) kolonu (sag).
           alignItems: flex-start → ISIM resmin UST kenari ile ayni seviyede.
           Sira: name -> kucuk bosluk -> unvan -> (varsa) etiket en altta.

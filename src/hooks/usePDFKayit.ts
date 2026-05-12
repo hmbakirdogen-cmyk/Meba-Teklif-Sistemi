@@ -16,8 +16,13 @@
  *
  * Çıktı yapısı:
  *   <SeçilenKlasör>/
- *     AKCANLAR PETROL/
- *       2605-010_AKCANLAR_PETROL.pdf
+ *     MEBA MEKANİK TEKLİFLER/         ← teklifi hazırlayan firmanın pdfKlasorAdi
+ *       AKCANLAR PETROL/              ← cari ilk 2 kelime BÜYÜK harf (tr locale)
+ *         AKCANLAR PETROL_2605-010.pdf
+ *         AKCANLAR PETROL_2605-010-Rev1.pdf   ← revizyon (teklifNo suffix taşır)
+ *
+ *   Firma klasör adı yoksa (eski çağrılar / fallback) ilk seviye atlanır:
+ *     <SeçilenKlasör>/AKCANLAR PETROL/AKCANLAR PETROL_2605-010.pdf
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -28,6 +33,11 @@ const STORE = 'handles';
 const KEY_PREFIX = 'rootDir';
 const LS_NAME_PREFIX = 'mebaPdfKlasorAdi';
 const DB_VERSION = 1;
+
+// Aynı tab'de localStorage `storage` event'i fırlatmadığı için klasör seçimi
+// sonrası diğer hook instance'larını (BelgeToolbar, TeklifEditor) haberdar
+// etmek için kullandığımız custom event. Çapraz-instance state senkronu sağlar.
+const PDF_KAYIT_CHANGE_EVENT = 'meba:pdf-kayit-change';
 
 const WIN_FORBIDDEN_CHARS = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
@@ -203,9 +213,13 @@ function safeFsName(raw: string, fallback: string, maxLen = 120): string {
   return cleaned || fallback;
 }
 
-function ilk2Kelime(adi: string): string {
+/**
+ * Cari adından ilk 2 kelimeyi alıp Türkçe locale ile büyük harfe çevirir.
+ * Sunucu tarafındaki `folderUtils.klasorAdiUret` ile aynı davranış.
+ */
+function ilk2KelimeBuyuk(adi: string): string {
   const ws = sanitizeAd(adi).split(/\s+/).filter(Boolean).slice(0, 2);
-  return ws.join(' ');
+  return ws.join(' ').toLocaleUpperCase('tr-TR');
 }
 
 export function usePDFKayit() {
@@ -226,13 +240,31 @@ export function usePDFKayit() {
   // Aktif kullanıcı değişince LS adını yeniden yükle (klasör IDB'de saklı,
   // adı LS'de — UI'nin doğru kullanıcının klasör adını göstermesi için).
   // localStorage external state'tir; effect ile sync etmek doğru pattern.
+  //
+  // Ayrıca: aynı tab'de farklı hook instance'larının state'ini senkronize etmek
+  // için custom event ve diğer tab'lerden gelen değişiklikler için `storage`
+  // event dinlenir. Bu sayede Profilim modal'da klasör seçimi sonrası
+  // TeklifEditor'ün üst barı + PDF butonu davranışı anında güncellenir.
   useEffect(() => {
     if (!supported || !lsKey) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setKlasorAdi(null);
       return;
     }
-    try { setKlasorAdi(localStorage.getItem(lsKey)); } catch { setKlasorAdi(null); }
+    function reload() {
+      try { setKlasorAdi(localStorage.getItem(lsKey)); } catch { setKlasorAdi(null); }
+    }
+    reload();
+    function onStorage(e: StorageEvent) {
+      // Diğer tab'lerden gelen yazımlar — sadece bizim anahtarımız ilgilendirir.
+      if (e.key === null || e.key === lsKey) reload();
+    }
+    window.addEventListener(PDF_KAYIT_CHANGE_EVENT, reload);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(PDF_KAYIT_CHANGE_EVENT, reload);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [supported, lsKey]);
 
   /** IDB'den handle'ı oku; izin tazele. Picker AÇMAZ. */
@@ -297,6 +329,8 @@ export function usePDFKayit() {
       }
       try { localStorage.setItem(lsKey, h.name); } catch { /* ignore */ }
       setKlasorAdi(h.name);
+      // Aynı tab'deki diğer hook instance'larını (BelgeToolbar, TeklifEditor) uyandır.
+      try { window.dispatchEvent(new Event(PDF_KAYIT_CHANGE_EVENT)); } catch { /* ignore */ }
       return { ok: true, path: h.name };
     } catch (e) {
       const err = e as Error;
@@ -333,6 +367,7 @@ export function usePDFKayit() {
     try { await idbDelete(idbKey); } catch { /* ignore */ }
     try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
     setKlasorAdi(null);
+    try { window.dispatchEvent(new Event(PDF_KAYIT_CHANGE_EVENT)); } catch { /* ignore */ }
   }, [idbKey, lsKey]);
 
   /**
@@ -356,6 +391,7 @@ export function usePDFKayit() {
     blob: Blob,
     teklifNo: string,
     firmaAdi: string,
+    firmaPdfKlasorAdi?: string,
   ): Promise<PDFKayitSonucu> => {
     if (!supported) return { ok: false, desteklenmiyor: true };
     if (!idbKey) return { ok: false, klasorYok: true };
@@ -371,34 +407,58 @@ export function usePDFKayit() {
       // Handle yok veya izin reddedildi → adı da temizle, UI "seçilmedi" göstersin.
       try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
       setKlasorAdi(null);
+      try { window.dispatchEvent(new Event(PDF_KAYIT_CHANGE_EVENT)); } catch { /* ignore */ }
       return { ok: false, klasorYok: true };
     }
 
-    const folderName = safeFsName(ilk2Kelime(firmaAdi), 'Diger', 80);
-    const fileNameBase = folderName.replace(/\s+/g, '_');
-    const safeTeklifNoRaw = sanitizeAd(teklifNo).replace(/\s+/g, '_');
-    const safeTeklifNo = safeFsName(safeTeklifNoRaw, 'teklif', 80);
-    const fileName = safeFsName(`${safeTeklifNo}_${fileNameBase}`, 'teklif', 200) + '.pdf';
+    // İlk seviye: teklifi hazırlayan firmanın klasörü (ör. "MEBA MEKANİK TEKLİFLER").
+    // Boş/undefined gelirse atlanır → eski tek-seviye yapı korunur.
+    const firmaFolderRaw = (firmaPdfKlasorAdi || '').trim();
+    const firmaFolder = firmaFolderRaw ? safeFsName(firmaFolderRaw, '', 120) : '';
+    // İkinci seviye + dosya adı tabanı: cari ilk 2 kelime, BÜYÜK harf (tr).
+    // Örn. "Akcanlar Petrol Tic." → "AKCANLAR PETROL"
+    const cariFolder = safeFsName(ilk2KelimeBuyuk(firmaAdi), 'DIGER', 80);
+    // teklifNo zaten revizyon suffix'i içeriyor olabilir: "2605-010" / "2605-010-Rev1"
+    const safeTeklifNo = safeFsName(sanitizeAd(teklifNo), 'teklif', 80);
+    // Dosya adı: "{CARİ İLK 2 KELİME} _ {teklifNo}.pdf"
+    const fileName = safeFsName(`${cariFolder}_${safeTeklifNo}`, 'teklif', 200) + '.pdf';
+
+    console.info('[pdfKayit] kaydetPDF yol planı:', {
+      root: root.name,
+      firmaFolder: firmaFolder || '(yok — eski tek-seviye)',
+      cariFolder,
+      fileName,
+    });
 
     try {
-      const subDir = await root.getDirectoryHandle(folderName, { create: true });
+      const firmaDir = firmaFolder
+        ? await root.getDirectoryHandle(firmaFolder, { create: true })
+        : root;
+      console.info('[pdfKayit] firmaDir hazır:', firmaDir.name);
+      const subDir = await firmaDir.getDirectoryHandle(cariFolder, { create: true });
+      console.info('[pdfKayit] cari subDir hazır:', subDir.name);
       const fileHandle = await subDir.getFileHandle(fileName, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
+      console.info('[pdfKayit] dosya yazıldı ✓');
       // İlk başarılı yazımda klasör adını da senkronla (bazı tarayıcılarda
       // ad sonradan güncellenir).
       try { localStorage.setItem(lsKey, root.name); } catch { /* ignore */ }
       if (klasorAdi !== root.name) setKlasorAdi(root.name);
-      return { ok: true, path: root.name + '\\' + folderName + '\\' + fileName };
+      const pathParts = firmaFolder
+        ? [root.name, firmaFolder, cariFolder, fileName]
+        : [root.name, cariFolder, fileName];
+      return { ok: true, path: pathParts.join('\\') };
     } catch (e) {
       const err = e as Error;
       const msg = err?.message || String(e);
-      console.warn('[pdfKayit] kaydetPDF yazma hatası:', err, { folderName, fileName });
+      console.warn('[pdfKayit] kaydetPDF yazma hatası:', err, { firmaFolder, cariFolder, fileName });
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || msg.includes('NotAllowed') || msg.includes('denied')) {
         try { await idbDelete(idbKey); } catch { /* ignore */ }
         try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
         setKlasorAdi(null);
+        try { window.dispatchEvent(new Event(PDF_KAYIT_CHANGE_EVENT)); } catch { /* ignore */ }
         return { ok: false, klasorYok: true, error: 'Klasör izni reddedildi. Profilinizden yeniden seçim yapabilirsiniz.' };
       }
       if (err?.name === 'TypeError' && /invalid character/i.test(msg)) {

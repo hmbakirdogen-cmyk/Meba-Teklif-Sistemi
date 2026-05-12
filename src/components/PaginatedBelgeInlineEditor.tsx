@@ -880,6 +880,62 @@ export default function PaginatedBelgeInlineEditor({
   // gözüksün diye (active panel ile aynı pozisyonda).
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
+  // ─── Spotlight efekti — imleci takip eden cam yüzey ışığı ─────────────
+  // Tablo hücreleri (td[data-cell-field]) üzerinde imleç gezerken,
+  // hücredeki ::before pseudo-element'in radial-gradient pozisyonu CSS
+  // variable'larla (--mx, --my) güncellenir → cursor-following spotlight.
+  //
+  // Tek delegate listener (editor root), RAF throttled — tablodaki yüzlerce
+  // hücreye ayrı listener takılmıyor. CSS pseudo-element render ediyor;
+  // PDF capture'da JS listener aktif değil + :hover state yok → görsel sızıntı yok.
+  const editorRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = editorRootRef.current;
+    if (!root || readOnly) return;
+    let raf = 0;
+    let currentCell: HTMLElement | null = null;
+
+    function clearVars(cell: HTMLElement | null) {
+      if (cell) {
+        cell.style.removeProperty('--mx');
+        cell.style.removeProperty('--my');
+      }
+    }
+
+    function onMove(e: MouseEvent) {
+      if (raf) return; // RAF throttle — frame başına en fazla 1 update
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const target = e.target as HTMLElement | null;
+        const td = target?.closest('td[data-cell-field]') as HTMLElement | null;
+        if (td !== currentCell) {
+          clearVars(currentCell);
+          currentCell = td;
+        }
+        if (td) {
+          const r = td.getBoundingClientRect();
+          td.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+          td.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+        }
+      });
+    }
+
+    function onLeave() {
+      clearVars(currentCell);
+      currentCell = null;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    }
+
+    root.addEventListener('mousemove', onMove);
+    root.addEventListener('mouseleave', onLeave);
+    return () => {
+      root.removeEventListener('mousemove', onMove);
+      root.removeEventListener('mouseleave', onLeave);
+      if (raf) cancelAnimationFrame(raf);
+      clearVars(currentCell);
+    };
+  }, [readOnly]);
+
   // Akıllı sıralı referanslar — aktif firmanın kullanım deseniyle (sık ve son
   // kullanım önce). Genel ayarlar menüsünde (para birimi, ödeme, KDV, geçerlilik,
   // döviz kuru) kullanılır.
@@ -1835,7 +1891,14 @@ export default function PaginatedBelgeInlineEditor({
 
   return (
     <div
-      className={readOnly ? 'belge-inline belge-readonly' : 'belge-inline'}
+      ref={editorRootRef}
+      className={
+        // `belge-editor` → on-screen editor; PDF source (TeklifPagedDocument)
+        // bu class'a SAHİP DEĞİL → PDF görsel modu sadece editöre uygulanır.
+        readOnly
+          ? 'belge-inline belge-editor belge-readonly'
+          : 'belge-inline belge-editor'
+      }
       onKeyDown={handleTab}
     >
       <style>{FIELD_CSS}{`

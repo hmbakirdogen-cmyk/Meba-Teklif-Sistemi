@@ -485,9 +485,28 @@ export default function TeklifEditor() {
       // bilgi geçilir → showSaveFilePicker / browser download bypass edilir.
       let yerelKayitYapildi: { saved: boolean; path?: string } | undefined;
       if (pdfKayit.supported && pdfKayit.hasKlasor && state.cari) {
-        const ksonuc = await pdfKayit.kaydetPDF(blob, state.teklifNo, state.cari.firmaAdi);
+        console.info('[TeklifEditor] kaydetPDF çağrılıyor', {
+          teklifNo: state.teklifNo,
+          cariFirmaAdi: state.cari.firmaAdi,
+          firmaPdfKlasorAdi,
+        });
+        const ksonuc = await pdfKayit.kaydetPDF(blob, state.teklifNo, state.cari.firmaAdi, firmaPdfKlasorAdi);
+        console.info('[TeklifEditor] kaydetPDF sonuç:', ksonuc);
         if (ksonuc.ok && ksonuc.path) {
           yerelKayitYapildi = { saved: true, path: ksonuc.path };
+          // Foreground'da aç — kullanıcı az önce kaydedileni anında görsün.
+          // Sadece PDF hedefi için (email modunda confirm modal'ı zaten gösteriyor).
+          if (hedef === 'pdf') {
+            try {
+              const url = URL.createObjectURL(blob);
+              const win = window.open(url, '_blank');
+              // Yeni sekmeye yükleme süresi tanı, sonra blob URL'i temizle.
+              if (win) setTimeout(() => URL.revokeObjectURL(url), 60_000);
+              else URL.revokeObjectURL(url);
+            } catch (e) {
+              console.warn('[TeklifEditor] PDF foreground açma hatası:', e);
+            }
+          }
         } else if (ksonuc.klasorYok) {
           // İzin/handle kaybı — UI'da klasor "seçilmedi"ye düşer; kullanıcı
           // profilden tekrar seçebilir. Bu PDF için download fallback'e geç.

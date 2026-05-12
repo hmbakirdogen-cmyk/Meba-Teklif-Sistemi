@@ -1285,6 +1285,175 @@ export const FIELD_CSS = `
    pseudo overlay'ine devredilir. td hover background/filter iptal — kutu
    hissi vermesin. (Bu kural td-level hover'ın YENİ premium versiyonunu
    geçersiz kılmamalı: artık iptal ediyoruz, üstteki yeni hover stili kalır.) */
+
+/* ══════════════════════════════════════════════════════════════════════
+   SPOTLIGHT — tablo hücrelerinde imleci takip eden cam yüzey efekti
+
+   Hücreye girince yumuşak radial ışık halesi + küçük specular parıltı
+   imleci takip eder. Üst-sol kaynak gibi değil, imlecin tam altında —
+   gerçek el feneri hissi.
+
+   Teknik:
+   - JS tarafı (PaginatedBelgeInlineEditor useEffect) mousemove ile
+     hücredeki --mx, --my CSS variable'larını set eder. RAF throttled,
+     tek delegate listener.
+   - ::before pseudo-element radial-gradient ile o değerleri kullanır.
+   - z-index: -1 + isolation: isolate → metin/input her zaman üstte.
+   - :hover ile opacity 0→1; is-active-cell'de daha yoğun.
+   - readonly + PDF capture'da görünmez (no hover, no JS listener).
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline .offer-table td[data-cell-field] {
+  position: relative;
+  isolation: isolate;
+}
+.belge-inline .offer-table td[data-cell-field]::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  pointer-events: none;
+  z-index: -1;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+  /* İki katmanlı:
+       1) Alan ışığı — büyük yumuşak açık-pastel mavi havuz (sky-300)
+       2) Specular cam parıltısı — imlecin tam altında küçük beyaz spot */
+  background:
+    radial-gradient(circle 90px at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.50) 40%,
+      transparent 70%
+    ),
+    radial-gradient(circle 26px at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 80%
+    );
+}
+.belge-inline .offer-table td[data-cell-field]:hover::before {
+  opacity: 1;
+}
+.belge-inline .offer-table td[data-cell-field].is-active-cell::before {
+  opacity: 1;
+  background:
+    radial-gradient(circle 110px at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 0.62) 40%,
+      transparent 75%
+    ),
+    radial-gradient(circle 32px at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 0.65) 50%,
+      transparent 80%
+    );
+}
+/* readonly modda hücre seçilemediği için spotlight gereksiz; tamamen kapat. */
+.belge-readonly .offer-table td[data-cell-field]::before,
+.belge-inline.belge-readonly .offer-table td[data-cell-field]::before {
+  display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   BELGE MODU — Kilit kapalı (paper) vs Kilit açık (PDF viewer) hissi
+
+   .belge-editor sınıfı SADECE on-screen editor'a takılı; PDF kaynağı
+   (TeklifPagedDocument @ sablonRef offscreen) bu sınıfa SAHİP DEĞİL →
+   bu kuralların hiçbiri PDF capture'ı etkilemez, indirilen PDF saf paper
+   olarak kalır.
+
+   • belge-editor:not(.belge-readonly) → gerçek A4 kağıt: saf beyaz, hafif
+     gölge "masaüstünde duruyor" hissi, ince warm tint paper feel.
+   • belge-editor.belge-readonly → Adobe Reader PDF görüntüsü: hafif cool
+     gray bg, güçlü drop shadow "viewer'da yüzüyor", ince çerçeve.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Geçişler — modlar arası yumuşak fade */
+.belge-editor [data-pdf-page] {
+  transition:
+    background-color 320ms ease,
+    box-shadow 320ms ease,
+    border-color 320ms ease,
+    transform 320ms ease;
+}
+
+/* ─── KİLİT AÇIK — gerçek A4 kağıt (paper feel) ─── */
+.belge-editor:not(.belge-readonly) [data-pdf-page] {
+  /* Warm paper white — saf 255'ten hafif ılık, kağıt hissi */
+  background-color: #FFFEFB;
+  /* Hafif drop shadow — masaüstünde duran kağıt */
+  box-shadow:
+    0 1px 2px rgba(60, 50, 30, 0.04),
+    0 3px 8px rgba(60, 50, 30, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* ─── KİLİT KAPALI — Adobe Reader PDF görüntüsü hissi ─── */
+.belge-editor.belge-readonly [data-pdf-page] {
+  /* Cool digital gray — PDF viewer'larda sayfa gri zemine oturur */
+  background-color: #FAFBFC;
+  /* Güçlü drop shadow — viewer içinde "yüzen" sayfa */
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.06),
+    0 8px 24px rgba(15, 23, 42, 0.14),
+    0 16px 48px rgba(15, 23, 42, 0.06);
+  /* İnce gri çerçeve — PDF viewer'larındaki sayfa frame'i */
+  border: 1px solid #DCE2EB;
+}
+
+/* Kilit kapalıyken metin/input cursor'ları "pasif izleme" haline geçer */
+.belge-editor.belge-readonly,
+.belge-editor.belge-readonly [data-editable="true"],
+.belge-editor.belge-readonly .offer-table td {
+  cursor: default !important;
+}
+
+/* Kilit kapalıyken hareketli mikro animasyonları (gradient sweep, glow vs.)
+   dondur — donmuş PDF hissi. Tabii global animation'lar (logo vb.) kalır;
+   sadece editor içindeki hover-driven animasyonlar etkilenir. */
+.belge-editor.belge-readonly *:not(.satir-aksiyonlari):not(.satir-aksiyonlari *) {
+  animation-play-state: paused !important;
+}
+
+/* ─── KÖŞE ROZETİ — mod göstergesi ─── */
+/* Sayfa üstüne yapışık küçük chip — kullanıcı modu net görür.
+   ::before pseudo content kullanıyoruz, JSX'e dokunmadan. */
+.belge-editor [data-pdf-page]:first-of-type::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-family: var(--font-sans, system-ui), sans-serif;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+.belge-editor [data-pdf-page]:first-of-type {
+  position: relative;
+}
+.belge-editor:not(.belge-readonly) [data-pdf-page]:first-of-type::before {
+  content: '✎  Düzenleme';
+  background: rgba(34, 197, 94, 0.10);
+  color: rgb(22, 101, 52);
+  border: 1px solid rgba(34, 197, 94, 0.30);
+  opacity: 1;
+  transform: translateY(0);
+}
+.belge-editor.belge-readonly [data-pdf-page]:first-of-type::before {
+  content: '📄  PDF Görünümü';
+  background: rgba(100, 116, 139, 0.10);
+  color: rgb(51, 65, 85);
+  border: 1px solid rgba(100, 116, 139, 0.30);
+  opacity: 1;
+  transform: translateY(0);
+}
 `;
 
 export type EditingAlan =

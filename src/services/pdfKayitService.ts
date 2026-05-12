@@ -4,7 +4,6 @@ import type { Firma, Teklif } from '../types';
 
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
-const PDF_ROOT_FOLDER_NAME_FALLBACK = 'GRUP ŞİRKETLERİ TEKLİFLER';
 
 export type TeklifDisaAktarimHedefi = 'pdf' | 'email';
 export type TeklifDisaAktarimYontemi = 'otomatik' | 'tarayici';
@@ -122,14 +121,15 @@ function buildFallbackFileName(teklif: Teklif): string {
   return teklifNo ? `${cariStem} - ${teklifNo}.pdf` : `${cariStem}.pdf`;
 }
 
-function buildAutoDownloadFileName(teklif: Teklif, firmaPdfKlasorAdi?: string): string {
-  const firma = sanitizeWindowsSegment(
-    (firmaPdfKlasorAdi || PDF_ROOT_FOLDER_NAME_FALLBACK).replace(/\s+TEKL[İI]FLER$/i, '').trim(),
-    'GRUP',
-  );
+function buildAutoDownloadFileName(teklif: Teklif, _firmaPdfKlasorAdi?: string): string {
+  // Format: "{CARİ İLK 2 KELİME BÜYÜK}_{teklifNo}.pdf"
+  // Hazırlayan firma adı dahil edilmez — File System Access yolundaki dosya adı
+  // ile birebir aynı. (FS Access'te hazırlayan firma klasör hiyerarşisinden
+  // gelir; fallback'te klasör hiyerarşisi yok ama isim tutarlılığı korunur.)
+  // Revizyonlar teklifNo suffix'i ile doğal olarak ayrılır: "2605-010-Rev1"
   const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
   const teklifNo = sanitizeWindowsSegment(teklif.teklifNo ?? '', '').trim();
-  const parts = [firma, cariStem, teklifNo].filter(Boolean);
+  const parts = [cariStem, teklifNo].filter(Boolean);
   return `${parts.join('_')}.pdf`;
 }
 
