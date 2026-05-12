@@ -619,21 +619,47 @@ async function migrate() {
     stats.urunler++;
   }
   if (writeAllowed && urunBatch.length > 0) {
-    console.log(`    … Urun upsert: ${urunBatch.length} kayıt batch'lerde işleniyor`);
-    const BATCH = 500;
-    for (let i = 0; i < urunBatch.length; i += BATCH) {
-      const slice = urunBatch.slice(i, i + BATCH);
-      await prisma.$transaction(
-        slice.map((u) =>
-          prisma.urun.upsert({
-            where: { id: u.id! },
-            update: { ...u, firma: undefined, firmaId: (u.firma as { connect: { id: string } }).connect.id },
-            create: u,
-          }),
-        ),
-      );
-      if ((i + BATCH) % 5000 === 0 || i + BATCH >= urunBatch.length) {
-        console.log(`      Urun ${Math.min(i + BATCH, urunBatch.length)}/${urunBatch.length}`);
+    // Eksik ürünleri belirle: önce Render Postgres'te mevcut id'leri çek,
+    // sonra db.json'daki id'lerden farkı al. Yalnız eksikleri createMany ile
+    // insert et — Render basic-256mb'da upsert paralel transaction connection
+    // drop yaratıyordu (10054 / P1017). createMany tek prepared statement,
+    // skipDuplicates ile race-safe.
+    console.log(`    … Mevcut Urun id'leri çekiliyor (Render Postgres)`);
+    const mevcutIds = new Set<string>();
+    const existingRows = (await prisma.urun.findMany({ select: { id: true } })) as Array<{ id: string }>;
+    for (const r of existingRows) mevcutIds.add(r.id);
+    console.log(`      Mevcut: ${mevcutIds.size}, db.json: ${urunBatch.length}`);
+    const eksikler = urunBatch.filter((u) => !mevcutIds.has(u.id!));
+    console.log(`      Eksik: ${eksikler.length} (insert edilecek)`);
+
+    if (eksikler.length > 0) {
+      const BATCH = 500;
+      let yapildi = 0;
+      let retryCount = 0;
+      for (let i = 0; i < eksikler.length; i += BATCH) {
+        const slice = eksikler.slice(i, i + BATCH);
+        // createMany için firma connect yerine doğrudan firmaId kullan.
+        const data = slice.map((u) => ({
+          ...u,
+          firma: undefined,
+          firmaId: (u.firma as { connect: { id: string } }).connect.id,
+        }));
+        let attempt = 0;
+        while (true) {
+          try {
+            await prisma.urun.createMany({ data: data as never, skipDuplicates: true });
+            break;
+          } catch (err) {
+            attempt++;
+            if (attempt > 5) throw err;
+            retryCount++;
+            const wait = 2000 * attempt;
+            console.log(`      retry ${attempt}/5 (${wait}ms bekleniyor)…`);
+            await new Promise((r) => setTimeout(r, wait));
+          }
+        }
+        yapildi += slice.length;
+        console.log(`      Urun ${yapildi}/${eksikler.length}${retryCount > 0 ? ` (retry: ${retryCount})` : ''}`);
       }
     }
   }
