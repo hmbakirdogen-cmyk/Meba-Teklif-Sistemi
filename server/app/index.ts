@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import { expiredOturumlariSil } from '../lib/sessions.js';
 import { auditPrune } from '../lib/audit.js';
 import { errorHandler } from '../middleware/errorHandler.js';
+import { rewriteR2UrlsMiddleware } from '../middleware/rewriteR2Urls.js';
 
 import { authRouter } from '../routes/auth.routes.js';
 import { firmalarRouter } from '../routes/firmalar.routes.js';
@@ -55,6 +56,11 @@ app.use(compression());
 // Body parser — base64 PDF'ler için yüksek limit
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
+
+// Tüm JSON response'larda r2.dev URL'lerini /api/storage'a rewrite et.
+// DB'de tarihsel r2.dev URL'leri var; production'da hızlı çözüm için
+// response-time rewrite (migration script'i istenirse ayrıca çalıştırılır).
+app.use(rewriteR2UrlsMiddleware);
 
 // ── Health check ───────────────────────────────────────────────
 // Render Postgres latency yüksekse health check timeout'ta sıkışmasın diye

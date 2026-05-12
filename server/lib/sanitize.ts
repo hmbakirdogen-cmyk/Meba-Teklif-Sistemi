@@ -1,16 +1,39 @@
 import type { Firma, Kullanici } from '@prisma/client';
 
+/**
+ * DB'de tarihsel olarak Cloudflare r2.dev public URL'leri saklı:
+ *   https://pub-XXXXXX.r2.dev/firmalar/meba/logo.png?v=...
+ * r2.dev URL'leri production'da güvenilmez (SSL handshake fail, kurumsal
+ * firewall, rate limit). Response level'da bu URL'leri kendi backend proxy
+ * endpoint'imize (/api/storage/...) yeniden yazıyoruz. DB'ye dokunulmaz —
+ * remap-r2-domain.ts script'i istenirse kalıcı temizlik için ayrıca çalıştırılır.
+ */
+const R2_DEV_HOST_RE = /^https?:\/\/pub-[a-f0-9]+\.r2\.dev/i;
+
+function rewriteR2Url(url: string | null | undefined): string | null {
+  if (!url) return url ?? null;
+  // r2.dev domain'i → /api/storage path'i (frontend kendi origin'inden çağırır)
+  if (R2_DEV_HOST_RE.test(url)) {
+    return url.replace(R2_DEV_HOST_RE, '/api/storage');
+  }
+  return url;
+}
+
 type SanitizedKullanici = Omit<Kullanici, 'sifreHash' | 'smtpPasswordEncrypted'> & {
   /** Frontend, kullanıcının SMTP şifresi tanımlı mı bilsin diye boolean flag. */
   smtpPasswordSet?: boolean;
 };
 
-/** sifreHash + smtpPasswordEncrypted'i client'a sızdırma. */
+/** sifreHash + smtpPasswordEncrypted'i client'a sızdırma. URL'leri rewrite et. */
 export function sanitizeUser(u: Kullanici | null): SanitizedKullanici | null {
   if (!u) return null;
   const { sifreHash: _hash, smtpPasswordEncrypted: _smtp, ...rest } = u;
   void _hash;
-  return { ...rest, smtpPasswordSet: Boolean(_smtp) };
+  return {
+    ...rest,
+    profilFotoUrl: rewriteR2Url(rest.profilFotoUrl),
+    smtpPasswordSet: Boolean(_smtp),
+  };
 }
 
 const FIRMA_TEXT_FALLBACKS: Record<string, Partial<Firma>> = {
@@ -34,8 +57,27 @@ export function sanitizeFirma<T extends Firma>(f: T): T & { logoPath: string } {
     fallback && /Taahhut|Muhendislik|Danismanlik| Sti\.?/i.test(String(f.ad || ''))
       ? (fallback.ad ?? f.ad)
       : f.ad;
-  const logoPath = f.logoUrl || `/logo-${f.id}.png`;
-  return { ...f, ad, logoPath };
+  // r2.dev URL'lerini backend proxy'e yönlendir (response-time rewrite)
+  const rewrittenLogoUrl = rewriteR2Url(f.logoUrl);
+  const logoPath = rewrittenLogoUrl || `/logo-${f.id}.png`;
+  return { ...f, ad, logoUrl: rewrittenLogoUrl, logoPath };
+}
+
+/**
+ * Cari, Urun gibi modellerde de logoUrl/resimUrl alanları olabilir. Bunları da
+ * response level'da rewrite etmek için generic helper — handler'lar isterse
+ * direkt kullanır. (Cari route'unda da spread map'ten geçer; orada da
+ * çağrılmalı.)
+ */
+export function rewriteResponseUrls<T extends Record<string, unknown>>(obj: T): T {
+  if (!obj || typeof obj !== 'object') return obj;
+  const result: Record<string, unknown> = { ...obj };
+  for (const key of ['logoUrl', 'profilFotoUrl', 'resimUrl', 'pdfUrl']) {
+    if (typeof result[key] === 'string') {
+      result[key] = rewriteR2Url(result[key] as string);
+    }
+  }
+  return result as T;
 }
 
 export function uretInitials(adSoyad: string | null | undefined): string {
