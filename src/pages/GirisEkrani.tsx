@@ -2469,31 +2469,10 @@ function PersonelKart({
     }
   }
 
-  // dene() referansının daima son render'a işaret etmesi için ref. Auto-submit
-  // timer'ları fire ettiğinde stale closure yerine güncel state'i okuyan
-  // dene'yi çağırırlar.
-  const deneRef = useRef<() => Promise<void>>(() => Promise.resolve());
-  deneRef.current = dene;
-
-  // ── Auto-submit #1: kayıtlı şifre ile açıldığında 600ms sonra dene.
-  // Kullanıcı bu süre içinde ✕ ile iptal edip kendi şifresini yazabilir
-  // (autoFilled false olunca timer cleanup ile iptal edilir).
-  useEffect(() => {
-    if (!autoFilled) return;
-    const t = window.setTimeout(() => { void deneRef.current(); }, 600);
-    return () => window.clearTimeout(t);
-  }, [autoFilled]);
-
-  // ── Auto-submit #2: kullanıcı varsayılan şifreyi (0000 / 1234) yazınca
-  // 300ms beklenip otomatik giriş denenir. autoFilled false olduğundan emin
-  // olalım — auto-fill'den gelen "0000" değeri için #1 zaten çalışır.
-  useEffect(() => {
-    if (autoFilled || !acik || yukleniyor || hata) return;
-    const varsayilan = isYonetici ? '1234' : '0000';
-    if (sifre !== varsayilan) return;
-    const t = window.setTimeout(() => { void deneRef.current(); }, 300);
-    return () => window.clearTimeout(t);
-  }, [sifre, acik, yukleniyor, hata, autoFilled, isYonetici]);
+  // OTOMATİK GİRİŞ KAPALI — kullanıcı isteği üzerine. Kayıtlı şifre input'a
+  // dolar (auto-fill) ama Enter veya kart tıklaması olmadan submit YAPILMAZ.
+  // Her giriş manuel onay ister; kullanıcı yanlışlıkla başka hesapla
+  // login olmaz, doğru kullanıcıyı seçtiğinden emin olur.
 
   function handleSifreChange(e: React.ChangeEvent<HTMLInputElement>) {
     setSifre(e.target.value);
@@ -2523,13 +2502,10 @@ function PersonelKart({
   // Şifre uzunluğu / durum bilgisi — input altında küçük metin.
   const feedback = (() => {
     if (yukleniyor) return { renk: ink(0.65), metin: 'Giriş yapılıyor…' };
-    if (autoFilled) return { renk: ink(0.65), metin: 'Kayıtlı şifre yüklendi — otomatik giriş…' };
+    if (autoFilled) return { renk: ink(0.65), metin: 'Kayıtlı şifre yüklendi — Enter ile giriş yapın' };
     if (sifre.length === 0) return { renk: ink(0.45), metin: 'Şifrenizi girin' };
     if (sifre.length < 4) return { renk: 'rgba(245,158,11,0.95)', metin: `${sifre.length} karakter — en az 4 karakter gerekli` };
-    if (sifre === '0000' || sifre === '1234') {
-      return { renk: 'rgba(110,231,183,0.92)', metin: 'Varsayılan şifre — otomatik giriş…' };
-    }
-    return { renk: 'rgba(110,231,183,0.92)', metin: `${sifre.length} karakter — Enter ile giriş yap` };
+    return { renk: 'rgba(110,231,183,0.92)', metin: `${sifre.length} karakter — Enter ile giriş yapın` };
   })();
 
   function kartKey(e: React.KeyboardEvent) {
