@@ -22,6 +22,7 @@ import { bildirimlerRouter } from '../routes/bildirimler.routes.js';
 import { geribildirimRouter } from '../routes/geribildirim.routes.js';
 import { initRouter } from '../routes/init.routes.js';
 import { emailRouter } from '../routes/email.routes.js';
+import { storageRouter } from '../routes/storage.routes.js';
 import { mountStaticServe } from './staticServe.js';
 
 const app = express();
@@ -86,6 +87,7 @@ app.use('/api/bildirimler', bildirimlerRouter);
 app.use('/api/geribildirim', geribildirimRouter);
 app.use('/api/init', initRouter);
 app.use('/api/teklif', emailRouter); // /api/teklif/eposta-gonder
+app.use('/api/storage', storageRouter); // R2 nesneleri için backend proxy
 
 // 404 for unmatched /api/*
 app.use('/api', (_req, res) => {

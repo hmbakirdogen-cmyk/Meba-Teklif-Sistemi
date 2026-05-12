@@ -54,6 +54,37 @@ export async function deleteFile(key: string): Promise<void> {
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
+/**
+ * R2'den bir objeyi Node.js Readable stream olarak getirir. Bulunamazsa null.
+ * Backend storage proxy endpoint'inde (GET /api/storage/*) kullanılır —
+ * dosyalar Cloudflare R2 public URL'i yerine kendi domain'imizden serve edilir.
+ */
+export async function streamObject(key: string): Promise<{
+  body: NodeJS.ReadableStream;
+  contentType?: string;
+  contentLength?: number;
+  etag?: string;
+  lastModified?: Date;
+} | null> {
+  const client = getClient();
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    if (!result.Body) return null;
+    return {
+      body: result.Body as NodeJS.ReadableStream,
+      contentType: result.ContentType,
+      contentLength: typeof result.ContentLength === 'number' ? result.ContentLength : undefined,
+      etag: result.ETag,
+      lastModified: result.LastModified,
+    };
+  } catch (err) {
+    const meta = (err as { name?: string; $metadata?: { httpStatusCode?: number } })?.$metadata;
+    const name = (err as { name?: string })?.name;
+    if (name === 'NoSuchKey' || meta?.httpStatusCode === 404) return null;
+    throw err;
+  }
+}
+
 export async function presignedDownloadUrl(key: string, expiresInSec = 600): Promise<string> {
   const client = getClient();
   return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: expiresInSec });
