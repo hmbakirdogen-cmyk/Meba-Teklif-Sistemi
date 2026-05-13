@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Modal, Form, Input, message, Divider, Button, Alert, Space, Tag, Tooltip } from 'antd';
-import { LockOutlined, FolderOpenOutlined, FolderOutlined, SwapOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { LockOutlined, FolderOpenOutlined, FolderOutlined, SwapOutlined, DisconnectOutlined, CopyOutlined } from '@ant-design/icons';
 import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
+import { useFirma } from '../context/useFirma';
 import { usePDFKayit } from '../hooks/usePDFKayit';
 import { formatAdSoyad, formatUnvan } from '../utils/formatters';
 
@@ -32,7 +33,16 @@ interface SifreFormValues {
  */
 export default function ProfilDuzenleModal({ open, onClose }: Props) {
   const { aktifKullanici, refreshKullanici, sifreDegistir } = useKullanici();
+  const { firmalar } = useFirma();
   const pdfKayit = usePDFKayit();
+  // Kullanıcının firmasının PDF klasör adı (rehber UI'da göstermek için).
+  // Örn. ELMOS kullanıcısı için "ELMOS OTOMASYON TEKLİFLER".
+  const firmaPdfKlasorAdi =
+    firmalar.find((f) => f.id === aktifKullanici?.firmaId)?.pdfKlasorAdi || '';
+  // Mevcut seçili klasör tam olarak firma adı mı (tutarlı yapıda mı)?
+  const klasorTutarli = !!pdfKayit.klasorAdi
+    && !!firmaPdfKlasorAdi
+    && pdfKayit.klasorAdi.toLocaleLowerCase('tr-TR') === firmaPdfKlasorAdi.toLocaleLowerCase('tr-TR');
   const [form] = Form.useForm<FormValues>();
   const [sifreForm] = Form.useForm<SifreFormValues>();
   const [yukleniyor, setYukleniyor] = useState(false);
@@ -223,6 +233,69 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
               Seçtiğiniz klasör yalnızca bu tarayıcıda ve hesabınızda saklanır; sunucuya iletilmez.
               Klasör seçildikten sonra PDF ve e-posta için oluşturulan teklif PDF'leri otomatik olarak buraya kaydedilir.
             </div>
+
+            {/* Önerilen yapı rehberi — kullanıcı masaüstünde firma adında bir
+               klasör oluşturup onu seçerse, sistem alt cari klasörlerini
+               otomatik açar ve "iç içe duplikasyon" olmaz. */}
+            {firmaPdfKlasorAdi && !klasorTutarli && (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginTop: 12 }}
+                message={
+                  <span style={{ fontSize: 13 }}>
+                    Önerilen yapı: <strong>masaüstünde</strong> aşağıdaki adda bir klasör oluşturup onu seçin
+                  </span>
+                }
+                description={
+                  <div style={{ fontSize: 12.5, lineHeight: 1.7, marginTop: 6 }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px',
+                      background: '#fff',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      marginBottom: 8,
+                      fontFamily: 'monospace',
+                    }}>
+                      <FolderOutlined style={{ color: '#1E3A5F' }} />
+                      <span style={{ flex: 1, fontWeight: 600, color: '#1E3A5F' }}>{firmaPdfKlasorAdi}</span>
+                      <Tooltip title="Klasör adını kopyala">
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={<CopyOutlined />}
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(firmaPdfKlasorAdi);
+                              message.success('Klasör adı kopyalandı');
+                            } catch {
+                              message.warning('Kopyalanamadı, manuel seçip kopyalayın.');
+                            }
+                          }}
+                        />
+                      </Tooltip>
+                    </div>
+                    <ol style={{ margin: 0, paddingLeft: 20 }}>
+                      <li>Yukarıdaki adı kopyalayın (<CopyOutlined />)</li>
+                      <li>Masaüstünde sağ tık → Yeni → Klasör → adı yapıştırın</li>
+                      <li>"Klasör Seç" butonuyla bu klasörü seçin</li>
+                      <li>İlk PDF'iniz cari adıyla alt klasör olarak otomatik düzenlenir</li>
+                    </ol>
+                  </div>
+                }
+              />
+            )}
+            {firmaPdfKlasorAdi && klasorTutarli && (
+              <Alert
+                type="success"
+                showIcon
+                style={{ marginTop: 12, fontSize: 12.5 }}
+                message={`Klasör yapınız doğru: PDF'ler "${firmaPdfKlasorAdi}" altında cari klasörlere düzenli kaydedilir.`}
+              />
+            )}
           </>
         )}
       </div>
