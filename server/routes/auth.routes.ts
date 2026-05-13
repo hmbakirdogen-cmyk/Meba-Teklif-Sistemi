@@ -192,7 +192,32 @@ authRouter.post(
     const k = req.authCtx!.kullanici;
     const ext = mimeToExt(mime);
     const key = `kullanicilar/${k.id}.${ext}`;
-    const { url } = await uploadFile(key, buffer, mime);
+    let url: string;
+    try {
+      const result = await uploadFile(key, buffer, mime);
+      url = result.url;
+    } catch (err) {
+      // R2'den AccessDenied/Forbidden gelirse kullanıcıya teşhis dostu mesaj.
+      // Render env'inde R2_* yanlış/eksik veya R2 token yazma izni yoksa burada
+      // takılır. Net mesaj → kullanıcı doğrudan ayarlara yönelir.
+      const e = err as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number }; message?: string };
+      const code = e?.Code || e?.name || '';
+      const http = e?.$metadata?.httpStatusCode;
+      console.error('[upload-photo] R2 yazma hatası:', { code, http, message: e?.message, key });
+      if (code === 'AccessDenied' || http === 403) {
+        throw new HttpError(
+          502,
+          'Profil fotoğrafı kaydedilemedi: R2 sunucusu yazma iznini reddetti (AccessDenied). Render ayarlarında R2 API token izni "Object Read & Write" olmalı ve R2_BUCKET adı doğru olmalı.',
+        );
+      }
+      if (http === 404 || code === 'NoSuchBucket') {
+        throw new HttpError(
+          502,
+          `Profil fotoğrafı kaydedilemedi: R2 bucket bulunamadı. R2_BUCKET env değerini kontrol edin.`,
+        );
+      }
+      throw new HttpError(502, `Profil fotoğrafı kaydedilemedi: ${code || 'bilinmeyen R2 hatası'} (${http ?? '-'}).`);
+    }
     const cacheBust = `${url}?v=${Date.now()}`;
 
     const updated = await prisma.kullanici.update({
