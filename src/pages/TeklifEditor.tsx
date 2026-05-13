@@ -61,11 +61,18 @@ function KurWidgetA4Hizali() {
 
   useLayoutEffect(() => {
     let ro: ResizeObserver | null = null;
+    // A4 kartının GERÇEK üst kenarı = ilk [data-pdf-page] elementi.
+    // .belge-screen-view wrapper'ı "PDF GÖRÜNÜMÜ" rozetini de kapsadığı için
+    // (margin alanı) onu kullanırsak hizalama rozete göre olur — yanlış.
+    // Hedef gerçek A4 kartı kenarı.
+    const findA4 = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-pdf-page]');
+
     const measure = () => {
-      const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
+      const a4El = findA4();
       if (!a4El) return;
       const rect = a4El.getBoundingClientRect();
-      // A4'ün üst kenarı: rect.top + scrollY (scroll'da sabit document-mutlak Y)
+      // A4 kartının üst kenarı: rect.top + scrollY (scroll'da sabit document-mutlak Y)
       const docTop = Math.round(rect.top + window.scrollY);
       // A4'ün sol kenarının solunda 16px boşluk
       const desiredLeft = Math.round(rect.left) - KUR_WIDGET_WIDTH - GAP;
@@ -79,7 +86,7 @@ function KurWidgetA4Hizali() {
 
     // A4'i bekle — render olduğunda hemen ölç + ResizeObserver bağla
     const attach = () => {
-      const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
+      const a4El = findA4();
       if (!a4El) {
         // Bir sonraki frame'de tekrar dene
         rafId = requestAnimationFrame(attach);

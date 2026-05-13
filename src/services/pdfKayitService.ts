@@ -298,31 +298,14 @@ export async function teklifDisaAktar(
     };
   }
 
-  // hedef === 'email': Resend ile gönder
-  const pdfBase64 = await blobToBase64(blob);
-  const sendResult = await resendIleGonder(pdfBase64, teklif, firmaProfil);
-  if (sendResult.ok) {
-    const firmaKisa = buildMailFirmaProfili(teklif, firmaProfil).kisaAd;
-    return {
-      hedef,
-      teklif,
-      pdfYolu: '',
-      pdfDosyaAdi: fallbackFileName,
-      klasorYolu: '',
-      masaustuYolu: '',
-      kayitYontemi: 'tarayici',
-      dosyaAcildi: false,
-      epostaHazirlandi: true,
-      epostaTaslakYontemi: 'resend',
-      aliciEposta,
-      mailKonu: sendResult.subject || mailKonu,
-      mailGovdesi,
-      yerelKayitYolu: localSave.relativePath,
-      epostaHatasi: `E-posta ${aliciEposta || 'alıcıya'} (${firmaKisa}) Resend üzerinden başarıyla gönderildi.`,
-    };
-  }
-
-  // Resend başarısız → mailto fallback (kullanıcı kendi istemcisini açar)
+  // hedef === 'email': SADECE sistem varsayılan e-posta uygulaması (mailto)
+  // Eski Resend yolu bypass edildi — kullanıcı tercihiyle her zaman kendi
+  // e-posta istemcisi (Outlook desktop / Apple Mail / Thunderbird / vs.)
+  // açılır. PDF eki manuel; İndirilenler'e zaten kaydedildi.
+  // (Eski resendIleGonder() / Resend env hala mevcut, kullanılmıyor — ileride
+  //  istenirse seçenek olarak ekleyebiliriz.)
+  void resendIleGonder; // unused — ileride seçenek olarak geri açılabilir
+  void blobToBase64;    // unused — Resend bypass nedeniyle PDF base64 gerekmez
   const mailtoOpened = openMailtoDraft(aliciEposta, mailKonu, mailGovdesi);
   return {
     hedef,
@@ -336,8 +319,8 @@ export async function teklifDisaAktar(
     epostaHazirlandi: mailtoOpened,
     epostaTaslakYontemi: mailtoOpened ? 'mailto' : null,
     epostaHatasi: mailtoOpened
-      ? `E-posta otomatik gönderilemedi (${sendResult.error || 'sunucu hatası'}). Tarayıcı taslağı açıldı; PDF eki manuel ekleyin.`
-      : sendResult.error || 'E-posta gönderilemedi.',
+      ? 'E-posta taslağı varsayılan e-posta uygulamanızda açıldı. PDF\'i İndirilenler klasöründen ekleyiniz.'
+      : 'E-posta uygulaması açılamadı. PDF İndirilenler klasörüne kaydedildi.',
     aliciEposta,
     mailKonu,
     mailGovdesi,

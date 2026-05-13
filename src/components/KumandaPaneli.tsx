@@ -156,7 +156,10 @@ export default function KumandaPaneli({
     { top: K.TOP, left: 0, scale: 1 },
   );
   const measureA4 = () => {
-    const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
+    // A4 KARTI gerçek üst kenarı = [data-pdf-page]. .belge-screen-view
+    // wrapper'ı "PDF GÖRÜNÜMÜ" rozetini kapsar (margin alanı) → kart
+    // kenarı için yanlış. KurWidget ile tutarlı hizalama.
+    const a4El = document.querySelector<HTMLElement>('[data-pdf-page]');
     if (!a4El) return;
     const rect = a4El.getBoundingClientRect();
     const a4Right = Math.round(rect.right);
@@ -205,10 +208,13 @@ export default function KumandaPaneli({
         width: K.WIDTH,
         maxHeight: `calc((100vh - ${pos.top + K.BOTTOM_GAP}px) / ${pos.scale})`,
         zIndex: 80,
-        pointerEvents: 'auto',
+        // SagPanel (Notlar/Müşteri/Satır paneli) açıkken paneli gizle —
+        // sağ kenarda çakışmasın. Smooth opacity transition ile.
+        opacity: sagPanelOpen ? 0 : 1,
+        pointerEvents: sagPanelOpen ? 'none' : 'auto',
         transform: `scale(${pos.scale})`,
         transformOrigin: 'top left',
-        transition: 'transform 200ms ease, left 200ms ease',
+        transition: 'opacity 200ms ease, transform 200ms ease, left 200ms ease',
         overflow: 'visible',
       }}
     >
