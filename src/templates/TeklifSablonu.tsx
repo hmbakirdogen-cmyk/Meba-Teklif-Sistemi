@@ -315,11 +315,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           </div>
           <div style={PARTY_BODY_STYLE}>
             {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
-            {firmaBilgi.iban && (
-              <div style={{ fontSize: '9.5px', color: C.textMuted, letterSpacing: '0.02em', marginTop: '2px' }}>
-                IBAN: {firmaBilgi.iban}
-              </div>
-            )}
+            {/* IBAN footer'a taşındı (her sayfada görünür) — burada dublike olmasın */}
           </div>
         </div>
         {/* Alıcı */}
@@ -820,8 +816,19 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
         </div>
 
         {/* ── FOOTER (navy şerit) ── */}
-        <div id="pdf-page-footer" style={FOOTER_BAR_STYLE}>
-          <div>{firmaBilgi.ad}</div>
+        <div id="pdf-page-footer" style={{ ...FOOTER_BAR_STYLE, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+            <div>{firmaBilgi.ad}</div>
+            {firmaBilgi.iban && (
+              <div style={{
+                fontSize: '8.5px', opacity: 0.88,
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.04em', whiteSpace: 'nowrap',
+              }}>
+                IBAN: {firmaBilgi.iban}
+              </div>
+            )}
+          </div>
           <div style={{ fontSize: '8px', opacity: 0.7, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
             Sayfa 1 / 1
           </div>

@@ -822,8 +822,19 @@ function AciklamaPopupBody({
 function FooterBlock({ teklif, pageNumber, totalPages }: { teklif: Teklif; pageNumber: number; totalPages: number }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   return (
-    <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto' }}>
-      <div>{firmaBilgi.ad}</div>
+    <div style={{ ...FOOTER_BAR_STYLE, marginTop: 'auto', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+        <div>{firmaBilgi.ad}</div>
+        {firmaBilgi.iban && (
+          <div style={{
+            fontSize: '8.5px', opacity: 0.88,
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.04em', whiteSpace: 'nowrap',
+          }}>
+            IBAN: {firmaBilgi.iban}
+          </div>
+        )}
+      </div>
       <div style={{ fontSize: '8px', opacity: 0.7, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
         Sayfa {pageNumber} / {totalPages}
       </div>
@@ -1309,11 +1320,7 @@ export default function PaginatedBelgeInlineEditor({
           <div style={PARTY_NAME_STYLE}>{firmaBilgi.ad}</div>
           <div style={PARTY_BODY_STYLE}>
             {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
-            {firmaBilgi.iban && (
-              <div style={{ fontSize: '9.5px', color: C.textMuted, letterSpacing: '0.02em', marginTop: '2px' }}>
-                IBAN: {firmaBilgi.iban}
-              </div>
-            )}
+            {/* IBAN footer'a taşındı (her sayfada görünür) — burada dublike olmasın */}
           </div>
         </div>
         <div data-alan="musteri" style={{ ...PARTY_CARD_STYLE, background: 'transparent' }}>
