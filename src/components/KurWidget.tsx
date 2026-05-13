@@ -81,7 +81,8 @@ interface KurWidgetProps {
 
 /**
  * Tam kart varyantı — teklif editörü sol kenarında floating.
- * Boyut ~140×100, slide-in animasyonu ile soldan girer.
+ * Elit dark görünüm: navy gradient zemin, altın aksesuar, alış+satış 2-sütun.
+ * Slide-in animasyonu ile soldan girer.
  */
 function KurWidgetFull({ animate = true }: { animate?: boolean }) {
   const { kur, yukleniyor, hata } = useKur();
@@ -100,54 +101,101 @@ function KurWidgetFull({ animate = true }: { animate?: boolean }) {
       <div
         className={animate ? 'kur-widget-slide-in' : undefined}
         style={{
-          width: 148,
-          padding: '10px 12px',
-          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-          border: '0.75px solid rgba(15,23,42,0.10)',
-          borderRadius: 10,
-          boxShadow: '0 4px 14px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.04)',
+          width: 192,
+          padding: '12px 14px 11px',
+          // Elit dark gradient — TotalsCard dark variant ile uyumlu
+          background: 'linear-gradient(180deg, #1E3350 0%, #152740 55%, #0F1D30 100%)',
+          border: '0.75px solid #1A2B42',
+          borderRadius: 12,
+          boxShadow:
+            '0 8px 24px rgba(15, 25, 40, 0.28), 0 0 0 1px rgba(255,255,255,0.04) inset',
           cursor: 'pointer',
           fontFamily: 'inherit',
           userSelect: 'none',
+          color: 'rgba(255,255,255,0.92)',
         }}
         title={kur ? `TCMB · ${tarihGoster(kur.tarih)}` : 'Kur bilgisi yükleniyor'}
       >
+        {/* Başlık — altın aksent */}
         <div style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-          textTransform: 'uppercase', color: '#94a3b8',
-          marginBottom: 6, textAlign: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 8,
         }}>
-          TCMB Kuru
-        </div>
-        <KurSatir label="USD" deger={kur?.usd.satis ?? 0} yok={yok} hata={!!hata && !kur} />
-        <div style={{ height: 4 }} />
-        <KurSatir label="EUR" deger={kur?.eur.satis ?? 0} yok={yok} hata={!!hata && !kur} />
-        {kur && (
           <div style={{
-            marginTop: 7, paddingTop: 5,
-            borderTop: '0.5px solid rgba(15,23,42,0.06)',
-            fontSize: 8.5, color: '#cbd5e1', textAlign: 'center',
-            letterSpacing: '0.04em',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: '#d4af6a', // altın tonu — elit aksent
           }}>
-            {tarihGoster(kur.tarih)}
+            TCMB
           </div>
-        )}
+          <div style={{
+            fontSize: 8.5, fontWeight: 600,
+            color: 'rgba(255,255,255,0.42)',
+            letterSpacing: '0.04em',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {kur ? tarihGoster(kur.tarih) : '—'}
+          </div>
+        </div>
+
+        {/* Alt başlık satırı — Alış / Satış kolonları */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '34px 1fr 1fr',
+          alignItems: 'baseline',
+          gap: 6,
+          fontSize: 8.5, fontWeight: 700, letterSpacing: '0.10em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.38)',
+          paddingBottom: 4,
+          borderBottom: '0.5px solid rgba(212,175,106,0.18)',
+          marginBottom: 6,
+        }}>
+          <span />
+          <span style={{ textAlign: 'right' }}>Alış</span>
+          <span style={{ textAlign: 'right' }}>Satış</span>
+        </div>
+
+        <KurSatir label="USD" alis={kur?.usd.alis ?? 0} satis={kur?.usd.satis ?? 0} yok={yok} hata={!!hata && !kur} />
+        <div style={{ height: 5 }} />
+        <KurSatir label="EUR" alis={kur?.eur.alis ?? 0} satis={kur?.eur.satis ?? 0} yok={yok} hata={!!hata && !kur} />
       </div>
     </Popover>
   );
 }
 
-function KurSatir({ label, deger, yok, hata }: { label: string; deger: number; yok: boolean; hata: boolean }) {
+function KurSatir({ label, alis, satis, yok, hata }: {
+  label: string; alis: number; satis: number; yok: boolean; hata: boolean;
+}) {
+  const text = yok || hata ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.95)';
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '34px 1fr 1fr',
+      alignItems: 'baseline',
+      gap: 6,
+    }}>
       <span style={{
-        fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em',
+        fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
+        color: '#d4af6a', // altın etiket
       }}>{label}</span>
       <span style={{
-        fontSize: 13.5, fontWeight: 700, color: yok || hata ? '#cbd5e1' : '#1A2B42',
-        fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em',
+        fontSize: 12, fontWeight: 600,
+        color: text,
+        fontVariantNumeric: 'tabular-nums',
+        letterSpacing: '-0.01em',
+        textAlign: 'right',
       }}>
-        {yok ? '—' : fmtCompact(deger)}
+        {yok ? '—' : fmtCompact(alis)}
+      </span>
+      <span style={{
+        fontSize: 12, fontWeight: 700,
+        color: text,
+        fontVariantNumeric: 'tabular-nums',
+        letterSpacing: '-0.01em',
+        textAlign: 'right',
+      }}>
+        {yok ? '—' : fmtCompact(satis)}
       </span>
     </div>
   );

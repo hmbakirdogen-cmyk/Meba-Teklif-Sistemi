@@ -85,8 +85,10 @@ geribildirimRouter.patch(
       data.cevap = yeniCevap;
       data.cevapTarihi = yeniCevap ? new Date() : null;
 
-      // Cevap yeni eklendi/değiştiyse, geri bildirim sahibine bildirim aç
-      if (yeniCevap && yeniCevap !== eskiCevap && mevcut.gonderenKullaniciId !== me.id) {
+      // Sadece İLK cevap eklendiğinde geri bildirim sahibine bildirim aç.
+      // Admin cevabı sonradan düzenlerse (yazım, eklenti vb.) yeni bildirim
+      // açılmaz — kullanıcıya spam olmaması için.
+      if (yeniCevap && !eskiCevap && mevcut.gonderenKullaniciId !== me.id) {
         const ozet = yeniCevap.length > 140 ? yeniCevap.slice(0, 140) + '…' : yeniCevap;
         await prisma.bildirim.create({
           data: {

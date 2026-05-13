@@ -812,10 +812,12 @@ export default function TeklifEditor() {
       background: C.bgBody,
     }}>
       {/* TCMB Kur widget — viewport sol kenarında floating. Sadece teklif
-          editörü sayfasında render edilir. Sayfa açılışında soldan slide-in. */}
+          editörü sayfasında render edilir. Sayfa açılışında soldan slide-in.
+          top: AppLayout header (~56) + BelgeToolbar (~52) + nefes payı.
+          120px güvenli aralık — bar'ın altında kalmaz. */}
       <div style={{
         position: 'fixed',
-        top: 80,
+        top: 124,
         left: 16,
         zIndex: 50,
       }}>
