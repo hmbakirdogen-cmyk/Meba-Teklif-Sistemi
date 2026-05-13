@@ -341,7 +341,10 @@ export function usePDFKayit() {
       // içerdiği ':' nedeniyle TypeError "contains invalid character" fırlatır.
       // Bu yüzden yalnızca güvenli karakterleri bırakıp 32 karakterle sınırlıyoruz.
       const safePickerId = `meba-pdf-${userKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`.slice(0, 32);
-      const h = await w.showDirectoryPicker({ id: safePickerId, mode: 'readwrite' });
+      // startIn: 'desktop' → picker masaüstünden açılır (Chrome güvenlik gereği
+      // masaüstünü kök olarak SEÇTİRMEZ, ama orada bir alt klasör seçmek
+      // kolaylaşır). Kullanıcı isterse Documents/farklı yere de gidebilir.
+      const h = await w.showDirectoryPicker({ id: safePickerId, mode: 'readwrite', startIn: 'desktop' });
       // Yazma izni ön-ısıt → ilk PDF kaydında ek prompt çıkmasın. Hata olsa
       // bile devam et; izin sonradan da istenebilir.
       try { await ensurePermission(h); } catch { /* ignore */ }
@@ -449,15 +452,24 @@ export function usePDFKayit() {
     // Dosya adı: "{CARİ İLK 2 KELİME} _ {teklifNo}.pdf"
     const fileName = safeFsName(`${cariFolder}_${safeTeklifNo}`, 'teklif', 200) + '.pdf';
 
+    // Kök klasörün adı zaten firma klasörü adıyla birebir eşleşiyorsa, içine
+    // bir kez daha firma klasörü oluşturma (iç içe duplikasyon bug'ı önlenir).
+    // Örn. kullanıcı "D:\Teklifler\MEBA MEKANİK TEKLİFLER" seçtiyse, kök zaten
+    // firma katmanı sayılır → cari klasörü doğrudan içine açılır.
+    const rootIsFirmaFolder = root.name.toLocaleLowerCase('tr-TR') === firmaFolder.toLocaleLowerCase('tr-TR');
+
     console.info('[pdfKayit] kaydetPDF yol planı:', {
       root: root.name,
       firmaFolder,
       cariFolder,
       fileName,
+      rootIsFirmaFolder,
     });
 
     try {
-      const firmaDir = await root.getDirectoryHandle(firmaFolder, { create: true });
+      const firmaDir = rootIsFirmaFolder
+        ? root
+        : await root.getDirectoryHandle(firmaFolder, { create: true });
       console.info('[pdfKayit] firmaDir hazır:', firmaDir.name);
       const subDir = await firmaDir.getDirectoryHandle(cariFolder, { create: true });
       console.info('[pdfKayit] cari subDir hazır:', subDir.name);
@@ -470,7 +482,11 @@ export function usePDFKayit() {
       // ad sonradan güncellenir).
       try { localStorage.setItem(lsKey, root.name); } catch { /* ignore */ }
       if (klasorAdi !== root.name) setKlasorAdi(root.name);
-      return { ok: true, path: [root.name, firmaFolder, cariFolder, fileName].join('\\') };
+      // Yol etiketi: kök zaten firma klasörü ise tekrarlama
+      const pathParts = rootIsFirmaFolder
+        ? [root.name, cariFolder, fileName]
+        : [root.name, firmaFolder, cariFolder, fileName];
+      return { ok: true, path: pathParts.join('\\') };
     } catch (e) {
       const err = e as Error;
       const msg = err?.message || String(e);
