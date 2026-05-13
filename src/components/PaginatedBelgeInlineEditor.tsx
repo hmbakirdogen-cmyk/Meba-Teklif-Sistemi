@@ -14,7 +14,6 @@ import { urunSetService } from '../services/urunSetService';
 import { formatPhone } from '../utils/phone';
 import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 import { POPUP } from '../styles/popupTokens';
-import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { TotalsCard } from './TotalsCard';
 import { RowResizerLayer } from './RowResizerLayer';
 import { InlineCariAutocompleteField } from './InlineCariAutocompleteField';
@@ -1864,9 +1863,12 @@ export default function PaginatedBelgeInlineEditor({
           <tr>
             <td colSpan={2} style={{ padding: '6px 10px 8px', borderBottom: 'none' }}>
               <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '10px' }}>
+                {/* Çoklu para birimi — her biri için TotalsCard (tek tip
+                    modu ile birebir aynı yapı). Wrapper'dan border/bg/shadow
+                    kaldırıldı; TotalsCard kendi kart görselini sağlar. */}
                 {kullanilanParaKartlari.map((item) => (
-                  <div key={item.pb} style={{ width: '220px', minWidth: '220px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '10px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
-                    <FinansalOzetKartIci araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="pdf" />
+                  <div key={item.pb} style={{ width: '220px', minWidth: '220px', flexShrink: 0 }}>
+                    <TotalsCard araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="light" />
                   </div>
                 ))}
               </div>

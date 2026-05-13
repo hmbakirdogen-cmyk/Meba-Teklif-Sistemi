@@ -5,7 +5,6 @@ import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi, form
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
-import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
 import { TotalsCard } from '../components/TotalsCard';
 import type { TeklifPagePlan } from '../services/documentPagination';
 import {
@@ -497,9 +496,13 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
           <tr>
             <td colSpan={2} style={{ padding: '6px 10px 8px', borderBottom: 'none' }}>
               <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: kullanilanParaKartlari.length >= 3 ? 'flex-start' : 'flex-end', alignItems: 'flex-start', gap: '10px' }}>
+                {/* Çoklu para birimi kartları — her biri için TOTALSCARD render edilir.
+                    Tek tip durumunda kullanılan TotalsCard ile birebir aynı görünüm
+                    (font, hiza, başlık, sembol, rakam). Sadece çoklu olduğu için
+                    yan yana 220px sabit genişliklerde dizilirler. */}
                 {kullanilanParaKartlari.map((item) => (
-                  <div key={item.pb} style={{ width: '220px', minWidth: '220px', flexShrink: 0, position: 'relative', boxSizing: 'border-box', borderRadius: '12px', border: `0.75px solid ${C.border}`, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(26,43,66,0.05)' }}>
-                    <FinansalOzetKartIci
+                  <div key={item.pb} style={{ width: '220px', minWidth: '220px', flexShrink: 0 }}>
+                    <TotalsCard
                       araToplam={item.araToplam}
                       iskontoOrani={iskontoOrani}
                       iskontoTutar={item.iskontoTutar}
@@ -507,7 +510,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                       kdvTutar={item.kdvTutar}
                       genelToplam={item.total}
                       paraBirimi={item.pb}
-                      variant="pdf"
+                      variant="dark"
                     />
                   </div>
                 ))}

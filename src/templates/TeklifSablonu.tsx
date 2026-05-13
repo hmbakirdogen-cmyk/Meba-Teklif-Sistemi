@@ -5,7 +5,6 @@ import { formatDate, formatDisplayNumber, formatTitleCaseTr, formatCariAdi, form
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { formatPhone } from '../utils/phone';
 import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
-import { FinansalOzetKartIci } from '../components/FinansalOzetKartIci';
 import { TotalsCard } from '../components/TotalsCard';
 import {
   ACIKLAMA_OVERFLOW,
@@ -673,22 +672,16 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     alignItems: 'flex-start',
                     gap: `${KART_GAP}px`,
                   }}>
+                    {/* Çoklu para birimi — her biri için TotalsCard (tek tip
+                        modunda kullanılan ile birebir aynı görünüm). */}
                     {kartlar.map((item) => (
                       <div key={item.pb} style={{
                         width:    `${KART_W}px`,
                         minWidth: `${KART_W}px`,
                         maxWidth: `${KART_W}px`,
                         flexShrink: 0,
-                        position: 'relative',
-                        boxSizing: 'border-box',
-                        borderRadius: '12px',
-                        border: '0.75px solid #E8E6E3',
-                        background: '#FFFFFF',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                        printColorAdjust: 'exact',
-                        WebkitPrintColorAdjust: 'exact',
-                      } as React.CSSProperties}>
-                        <FinansalOzetKartIci
+                      }}>
+                        <TotalsCard
                           araToplam={item.araToplam}
                           iskontoOrani={iskontoOrani}
                           iskontoTutar={item.iskontoTutar}
@@ -696,7 +689,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                           kdvTutar={item.kdvTutar}
                           genelToplam={item.total}
                           paraBirimi={item.pb}
-                          variant="pdf"
+                          variant="dark"
                         />
                       </div>
                     ))}
