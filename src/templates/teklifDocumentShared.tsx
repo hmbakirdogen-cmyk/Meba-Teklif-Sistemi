@@ -1202,6 +1202,10 @@ export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
 
 export const NOTES_BOX_STYLE: CSSProperties = {
   fontSize: `${LINE_ITEM_METRICS.baseFontSizePx - 0.5}px`,
+  // marginTop: TotalsCard ile arasında nefes payı (tek/çoklu para birimi
+  // her iki modda tutarlı görsel ayrım). Üstündeki Totals'ın kendi
+  // marginBottom'u 0 (tek tip) veya 14px (çoklu) → toplam aralık 14-28px.
+  marginTop: '14px',
   marginBottom: '6px',
   padding: '8px 12px',
   border: `0.75px solid ${DOCUMENT_COLORS.border}`,
