@@ -47,41 +47,62 @@ function waitForNextPaint(): Promise<void> {
 }
 
 /**
- * KurWidget — A4 üst kenarına dikey hizalı + A4 sol kenarının 16px solunda.
- * KumandaPaneli (sağ tarafta A4'e yapışık) ile simetrik konum sağlar.
- * Pencere yeniden boyutlanır, A4 kayar veya scroll değişirse otomatik takip.
+ * KurWidget — A4 üst kenarına BIREBIR dikey hizalı + A4 sol kenarının 16px
+ * solunda. KumandaPaneli (sağ tarafta A4'e yapışık) ile simetrik konum.
+ * ResizeObserver A4 boyut/pozisyon değişimine reaktif; viewport scroll +
+ * resize listener'ları da bağlı.
+ *
+ * A4 ölçülene kadar widget GÖRÜNMEZ — fallback konumla zıplama oluşmasın.
  */
 function KurWidgetA4Hizali() {
   const KUR_WIDGET_WIDTH = 192;
   const GAP = 16;
-  const FALLBACK_TOP = 124;
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: FALLBACK_TOP, left: 16 });
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useLayoutEffect(() => {
+    let ro: ResizeObserver | null = null;
     const measure = () => {
       const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
       if (!a4El) return;
       const rect = a4El.getBoundingClientRect();
-      // KumandaPaneli pattern'i: docTop = rect.top + scrollY → scroll'da sabit kalır
+      // A4'ün üst kenarı: rect.top + scrollY (scroll'da sabit document-mutlak Y)
       const docTop = Math.round(rect.top + window.scrollY);
-      // A4'ün solunda, widget genişliği + GAP kadar daha sola
+      // A4'ün sol kenarının solunda 16px boşluk
       const desiredLeft = Math.round(rect.left) - KUR_WIDGET_WIDTH - GAP;
-      // Viewport kenarından minimum 8px boşluk; daha sol gidemez
       const safeLeft = Math.max(8, desiredLeft);
       setPos((prev) =>
-        prev.top === docTop && prev.left === safeLeft ? prev : { top: docTop, left: safeLeft },
+        prev && prev.top === docTop && prev.left === safeLeft
+          ? prev
+          : { top: docTop, left: safeLeft },
       );
     };
-    // İlk ölçüm için bir frame bekle (A4 render olsun diye)
-    const raf = requestAnimationFrame(() => requestAnimationFrame(measure));
+
+    // A4'i bekle — render olduğunda hemen ölç + ResizeObserver bağla
+    const attach = () => {
+      const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
+      if (!a4El) {
+        // Bir sonraki frame'de tekrar dene
+        rafId = requestAnimationFrame(attach);
+        return;
+      }
+      measure();
+      ro = new ResizeObserver(measure);
+      ro.observe(a4El);
+    };
+    let rafId = requestAnimationFrame(attach);
+
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(rafId);
+      ro?.disconnect();
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
   }, []);
+
+  // A4 ölçülene kadar render etme — fallback konum ile zıplama olmasın
+  if (!pos) return null;
 
   return (
     <div style={{
