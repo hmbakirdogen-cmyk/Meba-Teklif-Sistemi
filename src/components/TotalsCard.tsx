@@ -173,10 +173,13 @@ export function TotalsCard({
         {pbLabel}
       </span>
 
-      {/* Detay alanı — KDV/iskonto/ara toplam, hepsi aynı sağ X'te biter */}
+      {/* Detay alanı — KDV/iskonto/ara toplam, hepsi aynı sağ X'te biter.
+          paddingTop PB rozetinin altında başlar (rozet top:5 + font 7.5 +
+          satır yüksekliği 1.0 ≈ 13px → 18px güvenli aralık) → çoklu kart
+          modunda Ara Toplam rakamı PB rozeti ile çakışmaz. */}
       {hasDetail && (
         <div style={{
-          paddingTop:    '6px',
+          paddingTop:    '18px',
           paddingBottom: '5px',
           borderBottom:  `0.75px solid ${cl.separator}`,
         }}>
