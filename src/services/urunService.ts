@@ -26,6 +26,7 @@ function migrateUrun(u: Partial<Urun> & { id: string; urunKod: string; urunAdi: 
     urunAdi:         u.urunAdi,
     aciklama:        u.aciklama        ?? '',
     kategori:        u.kategori        ?? '',
+    marka:           u.marka           ?? '', // önceden eksikti → her okumada düşüyordu
     birim:           u.birim           ?? 'Adet',
     varsayilanFiyat: u.varsayilanFiyat ?? 0,
   };
@@ -56,6 +57,29 @@ function urunleriSifirla(): void {
   dataStore.bulkReplaceUrunler(varsayilanUrunler);
 }
 
+/**
+ * Marka senkronize — kullanıcı bir satırda ürün kodunu seçip marka değerini
+ * yazdığında, eğer ürün kataloğundaki marka BOŞSA, yazılan/seçilen markayı
+ * o ürünle KALICI olarak eşleştirir. Bir sonraki seferde aynı ürün kodu
+ * seçildiğinde marka otomatik gelir.
+ *
+ * Kurallar (üçü de sağlanmalı):
+ *   • urunKod ve marka boş olmamalı
+ *   • Ürün kataloğda kayıtlı olmalı
+ *   • Ürünün mevcut markası boş olmalı (var ise dokunmaz, kullanıcının
+ *     manuel marka değişimi DB'yi etkilemesin)
+ */
+function markaSenkronize(urunKod: string, marka: string): void {
+  const kod = (urunKod ?? '').trim();
+  const yeniMarka = (marka ?? '').trim();
+  if (!kod || !yeniMarka) return;
+  const tum = tumUrunleriGetir();
+  const urun = tum.find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+  if (!urun) return;
+  if ((urun.marka || '').trim()) return; // zaten dolu, sessizce çık
+  urunKaydet({ ...urun, marka: yeniMarka });
+}
+
 export const urunService = {
   tumUrunleriGetir,
   urunKaydet,
@@ -63,4 +87,5 @@ export const urunService = {
   urunIdUret,
   urunleriBulkAktar,
   urunleriSifirla,
+  markaSenkronize,
 };

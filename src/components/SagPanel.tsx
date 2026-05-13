@@ -189,7 +189,13 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
           <div style={{ ...sectionLabel, color: C.textFaint }}>Marka</div>
           <Select
             value={satir.marka}
-            onChange={v => guncelle('marka', v)}
+            onChange={v => {
+              guncelle('marka', v);
+              // Marka senkronize — ürün kataloğunda marka boşsa kalıcı kaydet
+              if (typeof v === 'string' && v.trim() && satir.urunKod) {
+                urunService.markaSenkronize(satir.urunKod, v);
+              }
+            }}
             style={{ width: '100%' }}
             showSearch
             options={markalar.map(m => ({ label: m, value: m }))}

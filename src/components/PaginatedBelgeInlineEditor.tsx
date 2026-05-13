@@ -380,7 +380,12 @@ function CellEditPopup({
         value={satir.marka || undefined}
         options={markalar.map((m) => ({ value: m, label: m }))}
         onChange={(value) => {
-          onSatirGuncelle(satir.id, 'marka', value ?? '');
+          const yeni = value ?? '';
+          onSatirGuncelle(satir.id, 'marka', yeni);
+          // Marka senkronize — ürün kataloğunda marka boşsa kalıcı kaydet
+          if (typeof yeni === 'string' && yeni.trim() && satir.urunKod) {
+            urunService.markaSenkronize(satir.urunKod, yeni);
+          }
           onClose();
         }}
         onInputKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}

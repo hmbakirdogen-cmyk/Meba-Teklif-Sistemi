@@ -80,6 +80,11 @@ function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorPr
         value={satir.marka || undefined}
         onChange={(value) => {
           onGuncelle('marka', value);
+          // Marka senkronize — ürün kataloğunda marka boşsa kalıcı kaydet
+          // → bir sonraki seçişte otomatik gelsin.
+          if (typeof value === 'string' && satir.urunKod) {
+            urunService.markaSenkronize(satir.urunKod, value);
+          }
           onEnterNext?.();
         }}
         options={markalar.map((m) => ({ value: m, label: m }))}
