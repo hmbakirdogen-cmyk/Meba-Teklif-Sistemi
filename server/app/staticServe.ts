@@ -46,7 +46,15 @@ export function mountStaticServe(app: Express): void {
       res.status(503).send('Frontend build edilmemiş. `npm run build` çalıştırın.');
       return;
     }
-    res.setHeader('Cache-Control', 'no-cache');
+    // Agresif no-cache (PWA + browser HTTP cache + proxy hepsi için):
+    //   no-store        → tarayıcı diske/belleğe yazmasın
+    //   no-cache        → her istekte server'a sor (etag/304 bile olmasın)
+    //   must-revalidate → eski sürümü asla kullanma
+    //   max-age=0       → expire immediate
+    //   Pragma + Expires → eski tarayıcılar / aradaki proxy'ler için
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(INDEX_HTML);
   });
 }
