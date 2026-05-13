@@ -603,7 +603,9 @@ function UrunKodPopupBody({
       if (item.payload.varsayilanFiyat && !satir.birimFiyat) {
         onSatirGuncelle(satir.id, 'birimFiyat', item.payload.varsayilanFiyat);
       }
-      if (item.payload.marka && !(satir.marka || '').trim()) {
+      // Marka HER ZAMAN ürünün markası ile değişir — kullanıcı ürün seçince
+      // ona ait markayı görmek ister (varsayılan veya eski marka eziLİR).
+      if (item.payload.marka) {
         onSatirGuncelle(satir.id, 'marka', item.payload.marka);
       }
       if (item.payload.birim && !(satir.birim || '').trim()) {
