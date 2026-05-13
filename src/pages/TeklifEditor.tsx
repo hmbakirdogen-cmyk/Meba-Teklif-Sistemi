@@ -8,7 +8,7 @@
  *
  * Layout: Toolbar (üst) + Canlı A4 Belge (merkez) + Sağ Panel (isteğe bağlı)
  */
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { useCallback, useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import type React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
@@ -44,6 +44,55 @@ function waitForNextPaint(): Promise<void> {
   return new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
+}
+
+/**
+ * KurWidget — A4 üst kenarına dikey hizalı + A4 sol kenarının 16px solunda.
+ * KumandaPaneli (sağ tarafta A4'e yapışık) ile simetrik konum sağlar.
+ * Pencere yeniden boyutlanır, A4 kayar veya scroll değişirse otomatik takip.
+ */
+function KurWidgetA4Hizali() {
+  const KUR_WIDGET_WIDTH = 192;
+  const GAP = 16;
+  const FALLBACK_TOP = 124;
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: FALLBACK_TOP, left: 16 });
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
+      if (!a4El) return;
+      const rect = a4El.getBoundingClientRect();
+      // KumandaPaneli pattern'i: docTop = rect.top + scrollY → scroll'da sabit kalır
+      const docTop = Math.round(rect.top + window.scrollY);
+      // A4'ün solunda, widget genişliği + GAP kadar daha sola
+      const desiredLeft = Math.round(rect.left) - KUR_WIDGET_WIDTH - GAP;
+      // Viewport kenarından minimum 8px boşluk; daha sol gidemez
+      const safeLeft = Math.max(8, desiredLeft);
+      setPos((prev) =>
+        prev.top === docTop && prev.left === safeLeft ? prev : { top: docTop, left: safeLeft },
+      );
+    };
+    // İlk ölçüm için bir frame bekle (A4 render olsun diye)
+    const raf = requestAnimationFrame(() => requestAnimationFrame(measure));
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, []);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: pos.top,
+      left: pos.left,
+      zIndex: 50,
+    }}>
+      <KurWidget variant="full" />
+    </div>
+  );
 }
 
 // Sonuçlanmış/gönderilmiş teklif düzenlemesi için revize zorunlu kapanan durumlar.
@@ -811,18 +860,10 @@ export default function TeklifEditor() {
       minHeight: '100vh',
       background: C.bgBody,
     }}>
-      {/* TCMB Kur widget — viewport sol kenarında floating. Sadece teklif
-          editörü sayfasında render edilir. Sayfa açılışında soldan slide-in.
-          top: AppLayout header (~56) + BelgeToolbar (~52) + nefes payı.
-          120px güvenli aralık — bar'ın altında kalmaz. */}
-      <div style={{
-        position: 'fixed',
-        top: 124,
-        left: 16,
-        zIndex: 50,
-      }}>
-        <KurWidget variant="full" />
-      </div>
+      {/* TCMB Kur widget — A4 üst kenarı hizasında, A4'ün solunda 16px boşluk.
+          KumandaPaneli (sağ taraf) ile simetrik konumlanır. measureA4 hook
+          ile A4 boyutu/pozisyonu değişimine reaktif. */}
+      <KurWidgetA4Hizali />
       {/* Toolbar */}
       <BelgeToolbar
         teklifNo={state.teklifNo}
