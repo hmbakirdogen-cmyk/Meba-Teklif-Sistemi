@@ -1297,16 +1297,30 @@ export interface SettingsItem {
 }
 
 export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean): SettingsItem[] {
-  const sembol = SEMBOL[teklif.paraBirimi] ?? teklif.paraBirimi;
+  // Smart fallback: "Satır bazlı para birimi" toggle açık olsa bile, eğer tüm
+  // satırlar tek bir para birimini kullanıyorsa kart "Satır Bazlı" yerine
+  // o tek tip değeri gösterir. Kullanıcı toggle'ı açık unutsa bile PDF'te
+  // yanlış/kafa karıştırıcı bilgi gitmez.
+  // Toggle kapalıysa zaten belge default'u kullanılır.
+  const efektifParaBirimi: string | null = (() => {
+    if (!satirBazliParaBirimi) return teklif.paraBirimi;
+    const satirler = teklif.satirlar ?? [];
+    if (satirler.length === 0) return teklif.paraBirimi;
+    const setOfPB = new Set(satirler.map((s) => s.paraBirimi || teklif.paraBirimi));
+    return setOfPB.size === 1 ? Array.from(setOfPB)[0] : null;
+  })();
 
   const items: SettingsItem[] = [
     {
       id: 'paraBirimi',
       tr: 'Para Birimi',
       en: 'Currency',
-      value: satirBazliParaBirimi
-        ? 'Satır Bazlı'
-        : (sembol !== teklif.paraBirimi ? `${teklif.paraBirimi} (${sembol})` : teklif.paraBirimi),
+      value: efektifParaBirimi
+        ? (() => {
+            const s = SEMBOL[efektifParaBirimi] ?? efektifParaBirimi;
+            return s !== efektifParaBirimi ? `${efektifParaBirimi} (${s})` : efektifParaBirimi;
+          })()
+        : 'Satır Bazlı',
     },
     { id: 'odemeVadesi', tr: 'Ödeme Vadesi', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
     {
