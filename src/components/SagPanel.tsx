@@ -17,6 +17,7 @@ import {
 import CariSecimi from './CariSecimi';
 import { useAkilliReferans } from '../hooks/useAkilliReferans';
 import { urunService } from '../services/urunService';
+import { formatAciklama } from '../utils/formatters';
 import { useColors } from '../hooks/useColors';
 import type { Cari, TeklifSatiri, ParaBirimi } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
@@ -31,9 +32,9 @@ interface SagPanelProps {
   cari: Cari | null;
   onCariDegistir: (cari: Cari) => void;
   contactName: string;
-  contactTitle: 'BEY' | 'HANIM';
+  contactTitle: 'BEY' | 'HANIM' | 'YETKILI';
   onContactNameDegistir: (name: string) => void;
-  onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
+  onContactTitleDegistir: (title: 'BEY' | 'HANIM' | 'YETKILI') => void;
 
   // Satırlar
   satirlar: TeklifSatiri[];
@@ -130,18 +131,20 @@ function MusteriPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> 
             <div style={{ ...sectionLabel, color: C.textFaint }}>Muhatap Kişi</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Input
-                placeholder="İsim"
-                value={contactName}
+                placeholder={contactTitle === 'YETKILI' ? 'Yetkili (isim gerekmez)' : 'İsim'}
+                value={contactTitle === 'YETKILI' ? '' : contactName}
+                disabled={contactTitle === 'YETKILI'}
                 onChange={e => onContactNameDegistir(e.target.value)}
-                style={{ flex: 1 }}
+                style={{ flex: 1, opacity: contactTitle === 'YETKILI' ? 0.5 : 1 }}
               />
               <Select
                 value={contactTitle}
                 onChange={onContactTitleDegistir}
-                style={{ width: 100 }}
+                style={{ width: 110 }}
                 options={[
                   { label: 'Bey', value: 'BEY' },
                   { label: 'Hanım', value: 'HANIM' },
+                  { label: 'Yetkili', value: 'YETKILI' },
                 ]}
               />
             </div>
@@ -203,7 +206,7 @@ function SatirPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> })
               guncelle('urunKod', upper);
               const urun = urunler.find(u => u.urunKod === upper);
               if (urun) {
-                guncelle('aciklama', urun.aciklama);
+                guncelle('aciklama', formatAciklama(urun.aciklama ?? ''));
                 if (urun.varsayilanFiyat) guncelle('birimFiyat', urun.varsayilanFiyat);
                 if (urun.birim) guncelle('birim', urun.birim);
               }

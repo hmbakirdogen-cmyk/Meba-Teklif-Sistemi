@@ -27,6 +27,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useKullanici } from '../context/useKullanici';
+import { klasorAdiUret } from '../utils/folderUtils';
 
 const DB_NAME = 'meba_pdf_kayit';
 const STORE = 'handles';
@@ -213,14 +214,8 @@ function safeFsName(raw: string, fallback: string, maxLen = 120): string {
   return cleaned || fallback;
 }
 
-/**
- * Cari adından ilk 2 kelimeyi alıp Türkçe locale ile büyük harfe çevirir.
- * Sunucu tarafındaki `folderUtils.klasorAdiUret` ile aynı davranış.
- */
-function ilk2KelimeBuyuk(adi: string): string {
-  const ws = sanitizeAd(adi).split(/\s+/).filter(Boolean).slice(0, 2);
-  return ws.join(' ').toLocaleUpperCase('tr-TR');
-}
+// ilk2KelimeBuyuk → folderUtils.klasorAdiUret ile birleştirildi (DRY).
+// İstemci ve sunucu tarafının tek kaynaktan ürettiğini garanti eder.
 
 export function usePDFKayit() {
   const supported = isSupported();
@@ -277,6 +272,36 @@ export function usePDFKayit() {
       return ok ? stored : null;
     } catch {
       return null;
+    }
+  }, [supported, idbKey]);
+
+  /**
+   * Klasör erişim durumunu KONTROL eder — değiştirme/yenileme yapmaz.
+   * Kullanım: PDF üretim akışının BAŞINDA (kullanıcı gesture context'i hâlâ
+   * etkinken) çağrılır. Eğer 'kayip' dönerse, çağıran taraf kullanıcıya
+   * net soru sorabilir (sessiz fallback yerine).
+   *
+   * Dönüş:
+   *   'ok'          → klasör seçili + izin granted (kaydetPDF doğrudan çalışır)
+   *   'klasorYok'   → klasör seçilmemiş veya handle yok
+   *   'izinKayip'   → klasör seçili ama browser izni 'prompt' veya 'denied'
+   *   'desteklenmiyor' → tarayıcı File System Access desteklemiyor
+   */
+  const erisimDurumu = useCallback(async (): Promise<
+    'ok' | 'klasorYok' | 'izinKayip' | 'desteklenmiyor'
+  > => {
+    if (!supported) return 'desteklenmiyor';
+    if (!idbKey) return 'klasorYok';
+    try {
+      const stored = await idbGet(idbKey) as DirHandle | undefined;
+      if (!stored) return 'klasorYok';
+      if (!stored.queryPermission) return 'ok';
+      const cur = await stored.queryPermission({ mode: 'readwrite' });
+      if (cur === 'granted') return 'ok';
+      return 'izinKayip';
+    } catch (e) {
+      console.warn('[pdfKayit] erisimDurumu hata:', e);
+      return 'klasorYok';
     }
   }, [supported, idbKey]);
 
@@ -412,12 +437,13 @@ export function usePDFKayit() {
     }
 
     // İlk seviye: teklifi hazırlayan firmanın klasörü (ör. "MEBA MEKANİK TEKLİFLER").
-    // Boş/undefined gelirse atlanır → eski tek-seviye yapı korunur.
-    const firmaFolderRaw = (firmaPdfKlasorAdi || '').trim();
-    const firmaFolder = firmaFolderRaw ? safeFsName(firmaFolderRaw, '', 120) : '';
+    // Boş/undefined gelirse eski/orphan teklifler "GRUP ŞİRKETLERİ" altına düşer
+    // → hiçbir teklif kök klasöre dağılmaz, hep tutarlı 3 katmanlı yapı korunur.
+    const firmaFolderRaw = (firmaPdfKlasorAdi || '').trim() || 'GRUP ŞİRKETLERİ';
+    const firmaFolder = safeFsName(firmaFolderRaw, 'GRUP ŞİRKETLERİ', 120);
     // İkinci seviye + dosya adı tabanı: cari ilk 2 kelime, BÜYÜK harf (tr).
     // Örn. "Akcanlar Petrol Tic." → "AKCANLAR PETROL"
-    const cariFolder = safeFsName(ilk2KelimeBuyuk(firmaAdi), 'DIGER', 80);
+    const cariFolder = safeFsName(klasorAdiUret(firmaAdi), 'DIGER', 80);
     // teklifNo zaten revizyon suffix'i içeriyor olabilir: "2605-010" / "2605-010-Rev1"
     const safeTeklifNo = safeFsName(sanitizeAd(teklifNo), 'teklif', 80);
     // Dosya adı: "{CARİ İLK 2 KELİME} _ {teklifNo}.pdf"
@@ -425,15 +451,13 @@ export function usePDFKayit() {
 
     console.info('[pdfKayit] kaydetPDF yol planı:', {
       root: root.name,
-      firmaFolder: firmaFolder || '(yok — eski tek-seviye)',
+      firmaFolder,
       cariFolder,
       fileName,
     });
 
     try {
-      const firmaDir = firmaFolder
-        ? await root.getDirectoryHandle(firmaFolder, { create: true })
-        : root;
+      const firmaDir = await root.getDirectoryHandle(firmaFolder, { create: true });
       console.info('[pdfKayit] firmaDir hazır:', firmaDir.name);
       const subDir = await firmaDir.getDirectoryHandle(cariFolder, { create: true });
       console.info('[pdfKayit] cari subDir hazır:', subDir.name);
@@ -446,10 +470,7 @@ export function usePDFKayit() {
       // ad sonradan güncellenir).
       try { localStorage.setItem(lsKey, root.name); } catch { /* ignore */ }
       if (klasorAdi !== root.name) setKlasorAdi(root.name);
-      const pathParts = firmaFolder
-        ? [root.name, firmaFolder, cariFolder, fileName]
-        : [root.name, cariFolder, fileName];
-      return { ok: true, path: pathParts.join('\\') };
+      return { ok: true, path: [root.name, firmaFolder, cariFolder, fileName].join('\\') };
     } catch (e) {
       const err = e as Error;
       const msg = err?.message || String(e);
@@ -485,6 +506,8 @@ export function usePDFKayit() {
     klasoruAc,
     klasoruUnut,
     kaydetPDF,
+    /** Tıklama anında erişim durumu sorgulama — sessiz fallback yerine bilinçli karar. */
+    erisimDurumu,
     sifirla,
   };
 }

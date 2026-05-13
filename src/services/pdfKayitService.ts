@@ -1,6 +1,7 @@
 import { APP_CONFIG } from '../config';
 import { getSessionToken, getActiveFirmaId } from './apiClient';
 import type { Firma, Teklif } from '../types';
+import { klasorAdiUret } from '../utils/folderUtils';
 
 const INVALID_WINDOWS_SEGMENT_REGEX = /[<>:"/\\|?*]/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
@@ -109,25 +110,20 @@ function sanitizeWindowsSegment(value: string, fallback: string): string {
   return sanitized || fallback;
 }
 
-function extractCariStem(cariAdi: string): string {
-  const words = normalizeWhitespace(cariAdi).split(' ').filter(Boolean);
-  const source = words.slice(0, 2).join(' ') || words.join(' ') || 'TEKLIF';
-  return sanitizeWindowsSegment(source.toLocaleUpperCase('tr-TR'), 'TEKLIF');
-}
+// extractCariStem → folderUtils.klasorAdiUret ile birleştirildi (DRY).
+// İstemci ve sunucu tarafının tek kaynaktan ürettiğini garanti eder.
 
-function buildFallbackFileName(teklif: Teklif): string {
-  const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
-  const teklifNo = sanitizeWindowsSegment(teklif.teklifNo ?? '', '').trim();
-  return teklifNo ? `${cariStem} - ${teklifNo}.pdf` : `${cariStem}.pdf`;
-}
-
-function buildAutoDownloadFileName(teklif: Teklif, _firmaPdfKlasorAdi?: string): string {
-  // Format: "{CARİ İLK 2 KELİME BÜYÜK}_{teklifNo}.pdf"
-  // Hazırlayan firma adı dahil edilmez — File System Access yolundaki dosya adı
-  // ile birebir aynı. (FS Access'te hazırlayan firma klasör hiyerarşisinden
-  // gelir; fallback'te klasör hiyerarşisi yok ama isim tutarlılığı korunur.)
-  // Revizyonlar teklifNo suffix'i ile doğal olarak ayrılır: "2605-010-Rev1"
-  const cariStem = extractCariStem(teklif.cari?.firmaAdi ?? '');
+/**
+ * Tek format kuralı — TÜM senaryolar için aynı: "{CARİ İLK 2 KELİME}_{teklifNo}.pdf"
+ *  • FS Access yolundaki yazılan dosya adı (usePDFKayit.kaydetPDF)
+ *  • Tarayıcı indirme fallback'i (autoSaveToDownloads)
+ *  • UI mesajında gösterilen pdfDosyaAdi alanı
+ *
+ * Eskiden buildFallbackFileName " - " tire kullanıyordu → UI mesajındaki ad ile
+ * gerçek diskteki dosya farklı görünüyordu (tutarsızlık bug'ı). Tek fonksiyon.
+ */
+function buildPdfDosyaAdi(teklif: Teklif): string {
+  const cariStem = klasorAdiUret(teklif.cari?.firmaAdi ?? '');
   const teklifNo = sanitizeWindowsSegment(teklif.teklifNo ?? '', '').trim();
   const parts = [cariStem, teklifNo].filter(Boolean);
   return `${parts.join('_')}.pdf`;
@@ -210,7 +206,8 @@ async function autoSaveToDownloads(
   firmaPdfKlasorAdi?: string,
 ): Promise<{ saved: boolean; cancelled?: boolean; relativePath?: string }> {
   try {
-    const fileName = buildAutoDownloadFileName(teklif, firmaPdfKlasorAdi);
+    const fileName = buildPdfDosyaAdi(teklif);
+    void firmaPdfKlasorAdi; // İndirme fallback'inde firma klasörü yok — sadece dosya adı.
     browserDownload(blob, fileName);
     return { saved: true, relativePath: `Downloads/${fileName}` };
   } catch {
@@ -273,7 +270,7 @@ export async function teklifDisaAktar(
   firmaProfil?: Firma,
   options?: { yerelKayitYapildi?: { saved: boolean; path?: string } },
 ): Promise<TeklifDisaAktarimSonucu> {
-  const fallbackFileName = buildFallbackFileName(teklif);
+  const fallbackFileName = buildPdfDosyaAdi(teklif);
   const aliciEposta = teklif.cari?.ePosta?.trim() || undefined;
   const mailKonu = buildMailSubject(teklif, firmaProfil);
   const mailGovdesi = buildMailBody(teklif, firmaProfil);

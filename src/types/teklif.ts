@@ -84,7 +84,7 @@ export interface Teklif {
   hazirlayanRol?: string;
   hazirlayanUnvan?: string;
   contactName?: string;
-  contactTitle?: 'BEY' | 'HANIM';
+  contactTitle?: 'BEY' | 'HANIM' | 'YETKILI';
   /** Teklif ile ilgilenen/takip eden kişi — kendi firmasından seçilir. */
   ilgiliKisiId?: string;
   ilgiliKisiAdSoyad?: string;

@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { POPUP } from '../styles/popupTokens';
 
 export interface EditableFieldContextMenuEventDetail {
   /** Mouse client X */
@@ -131,7 +132,7 @@ export default function EditableFieldContextMenu() {
     top: menu.y,
     left: menu.x,
     width: MENU_W,
-    zIndex: 9999,
+    zIndex: POPUP.zIndex.critical,
     padding: '4px',
     background: 'rgba(20, 22, 28, 0.92)',
     color: 'rgba(255, 255, 255, 0.92)',

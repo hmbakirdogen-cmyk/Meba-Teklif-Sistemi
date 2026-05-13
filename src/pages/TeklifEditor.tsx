@@ -62,6 +62,25 @@ export default function TeklifEditor() {
   const { aktifKullanici } = useKullanici();
   const { firmalar, aktifFirma } = useFirma();
   const pdfKayit = usePDFKayit();
+  // PDF kayıt klasörü erişim durumu — rozet 3 durumu (ok/izinKayip/klasorYok)
+  // göstersin diye state'te tut. Mount + pencere yeniden aktif olduğunda
+  // (visibilitychange) güncellenir — kullanıcı başka pencerede izin değişimi
+  // yaparsa veya tarayıcıyı yeniden açarsa rozet doğru duruma düşer.
+  const [pdfKayitDurum, setPdfKayitDurum] = useState<'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor'>('klasorYok');
+  useEffect(() => {
+    let iptal = false;
+    const sorgula = async () => {
+      const d = await pdfKayit.erisimDurumu();
+      if (!iptal) setPdfKayitDurum(d);
+    };
+    sorgula();
+    const onVis = () => { if (document.visibilityState === 'visible') sorgula(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      iptal = true;
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [pdfKayit]);
   const C = useColors();
 
   const sablonRef = useRef<HTMLDivElement>(null);
@@ -292,7 +311,7 @@ export default function TeklifEditor() {
       hazirlayanUnvan: state.hazirlayanUnvan,
       gecerlilikSuresi: state.gecerlilikSuresi,
       contactName: state.contactName.trim() || undefined,
-      contactTitle: state.contactName.trim() ? state.contactTitle : undefined,
+      contactTitle: (state.contactName.trim() || state.contactTitle === 'YETKILI') ? state.contactTitle : undefined,
       gorseller: state.gorseller.length > 0 ? state.gorseller : undefined,
       // Multi-tenant kritik: teklifin gerçek firmasını PDF/e-posta render'ına
       // aktar. Aksi halde useTeklifFirma silent fallback ile kullanıcının
@@ -430,6 +449,36 @@ export default function TeklifEditor() {
       return;
     }
 
+    // ── ERKEN KLASÖR ERİŞİM KONTROLÜ ──────────────────────────────────
+    // Klasör seçili ama browser izni 'prompt'/'denied' durumuna düşmüşse,
+    // sessizce indirme klasörüne düşmeyi önlüyoruz — kullanıcı buton
+    // davranışının "neden değiştiğini" görür ve bilinçli karar verir.
+    if (pdfKayit.supported && pdfKayit.hasKlasor) {
+      const erisim = await pdfKayit.erisimDurumu();
+      if (erisim === 'izinKayip') {
+        const yenile = await new Promise<boolean>((resolve) => {
+          modal.confirm({
+            title: 'Klasör erişimi yenilenmeli',
+            content: `Önceden seçtiğiniz "${pdfKayit.klasorAdi}" klasörü için tarayıcı izin yenilemenizi istiyor. Devam etmek için ne yapalım?`,
+            okText: 'İzin Yenile',
+            cancelText: 'İndirme klasörüne kaydet',
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false),
+          });
+        });
+        if (yenile) {
+          const r = await pdfKayit.klasorSec();
+          if (!r.ok) {
+            // İptal veya hata → kullanıcı zaten süreç dışı, çık.
+            if (!r.iptal && r.error) message.warning(r.error);
+            return;
+          }
+        }
+        // 'İndirme klasörüne' seçilmişse: mevcut akış zaten erişim yoksa
+        // sessiz olarak indirme klasörüne düşer; kullanıcı bilinçli onayladı.
+      }
+    }
+
     // 1) State'i önce "kaydedildi" olarak persist et. Canonical PDF kaynağı:
     //    editördeki CanliA4Belge'nin offscreen paged DOM'u (sablonRef).
     //    Bu DOM, /print route ile aynı TeklifPagedDocument'i kullanır;
@@ -473,6 +522,27 @@ export default function TeklifEditor() {
         if (!devam) return;
       }
 
+      // ── PDF foreground açma — klasöre kaydet veya indir farketmez ───────
+      // Kullanıcı az önce ürettiği PDF'i ANINDA yeni sekmede görür. .focus()
+      // sekmeyi ön plana getirir (pop-up blocker'da gizli kalmasın).
+      // Sadece hedef='pdf' için; email akışında zaten confirm modal'ı zaten
+      // PDF önizleme rolünde.
+      if (hedef === 'pdf') {
+        try {
+          const url = URL.createObjectURL(blob);
+          const win = window.open(url, '_blank');
+          if (win) {
+            try { win.focus(); } catch { /* ignore */ }
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          } else {
+            URL.revokeObjectURL(url);
+            console.warn('[TeklifEditor] window.open null döndü — pop-up engellenmiş olabilir.');
+          }
+        } catch (e) {
+          console.warn('[TeklifEditor] PDF foreground açma hatası:', e);
+        }
+      }
+
       // Offline/yedek yol için firmanın PDF klasör adı (server-side ile birebir aynı).
       // Teklifin firmaId'si üzerinden firmalar listesinden alınır → her kullanıcının
       // firmasına özel klasör (MEBA / ELMOS / MESA) açılır, hardcoded değil.
@@ -494,19 +564,7 @@ export default function TeklifEditor() {
         console.info('[TeklifEditor] kaydetPDF sonuç:', ksonuc);
         if (ksonuc.ok && ksonuc.path) {
           yerelKayitYapildi = { saved: true, path: ksonuc.path };
-          // Foreground'da aç — kullanıcı az önce kaydedileni anında görsün.
-          // Sadece PDF hedefi için (email modunda confirm modal'ı zaten gösteriyor).
-          if (hedef === 'pdf') {
-            try {
-              const url = URL.createObjectURL(blob);
-              const win = window.open(url, '_blank');
-              // Yeni sekmeye yükleme süresi tanı, sonra blob URL'i temizle.
-              if (win) setTimeout(() => URL.revokeObjectURL(url), 60_000);
-              else URL.revokeObjectURL(url);
-            } catch (e) {
-              console.warn('[TeklifEditor] PDF foreground açma hatası:', e);
-            }
-          }
+          // Foreground açma artık yukarıda her senaryoda tetikleniyor.
         } else if (ksonuc.klasorYok) {
           // İzin/handle kaybı — UI'da klasor "seçilmedi"ye düşer; kullanıcı
           // profilden tekrar seçebilir. Bu PDF için download fallback'e geç.
@@ -567,7 +625,7 @@ export default function TeklifEditor() {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message, showExportMessage, confirmEmailPdfReview, aktifKullanici?.firmaId, firmalar, pdfKayit]);
+  }, [teklifObj, state, message, modal, showExportMessage, confirmEmailPdfReview, aktifKullanici?.firmaId, firmalar, pdfKayit]);
 
   const handlePdfIndir = useCallback(async () => {
     await handleDisaAktar('pdf');
@@ -770,6 +828,7 @@ export default function TeklifEditor() {
         onIlgiliKisiAc={() => setIlgiliKisiModalAcik(true)}
         pdfKayitDestekli={pdfKayit.supported}
         pdfKayitKlasorAdi={pdfKayit.klasorAdi}
+        pdfKayitDurum={pdfKayitDurum}
       />
 
       {/* Revize banner — kapalı durumda (gönderildi/sonuçlanmış) düzenleme

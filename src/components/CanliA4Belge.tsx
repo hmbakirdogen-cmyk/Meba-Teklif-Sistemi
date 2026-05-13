@@ -22,9 +22,9 @@ interface CanliA4BelgeProps {
   onCariTelefonDegistir: (telefon: string) => void;
   onCariSehirDegistir: (sehir: string) => void;
   contactName: string;
-  contactTitle: 'BEY' | 'HANIM';
+  contactTitle: 'BEY' | 'HANIM' | 'YETKILI';
   onContactNameDegistir: (name: string) => void;
-  onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
+  onContactTitleDegistir: (title: 'BEY' | 'HANIM' | 'YETKILI') => void;
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;

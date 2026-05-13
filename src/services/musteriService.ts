@@ -18,14 +18,14 @@ function cariIdUret(): string {
 }
 
 /** Son kullanılan muhatap bilgisini cari kaydına yazar (sadece lastContact alanları). */
-function cariMuhatapGuncelle(cariId: string, name: string, title: 'BEY' | 'HANIM'): void {
+function cariMuhatapGuncelle(cariId: string, name: string, title: 'BEY' | 'HANIM' | 'YETKILI'): void {
   const liste = tumCarileriGetir();
   const cari  = liste.find((c) => c.id === cariId);
   if (!cari) return;
   dataStore.upsertCari({
     ...cari,
     lastContactName:  name || undefined,
-    lastContactTitle: name ? title : undefined,
+    lastContactTitle: (name || title === 'YETKILI') ? title : undefined,
   });
 }
 

@@ -27,6 +27,7 @@ import {
   PARTY_LABEL_STYLE,
   PARTY_NAME_STYLE,
   PARTY_BODY_STYLE,
+  PARTY_GREETING_STYLE,
   rcCell,
   computeSetGroupPos,
   computeMainItemIndex,
@@ -144,10 +145,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
   );
 
-  // Muhatap satırı: isim varsa title-case + hitap, yoksa yetkiliKisi
-  const muhatapSatiri = teklif.contactName?.trim()
-    ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
-    : (teklif.cari.yetkiliKisi || null);
+  // Muhatap satırı: YETKILI → "Sayın İlgili" (isim göz ardı edilir);
+  // isim varsa title-case + Bey/Hanım; yoksa yetkiliKisi fallback.
+  const muhatapSatiri = teklif.contactTitle === 'YETKILI'
+    ? 'Yetkili'
+    : teklif.contactName?.trim()
+      ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
+      : (teklif.cari.yetkiliKisi || null);
 
   return (
     <div
@@ -328,7 +332,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           </div>
           <div style={PARTY_BODY_STYLE}>
             {muhatapSatiri && (
-              <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>
+              <div style={PARTY_GREETING_STYLE}>Sayın {muhatapSatiri},</div>
             )}
             {teklif.cari.adres && (
               <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>

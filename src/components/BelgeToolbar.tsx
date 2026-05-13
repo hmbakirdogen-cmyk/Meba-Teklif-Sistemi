@@ -48,6 +48,8 @@ interface BelgeToolbarProps {
   /** PDF kayıt konumu durumu — küçük "PDF Konumu: …" etiketi için. */
   pdfKayitKlasorAdi?: string | null;
   pdfKayitDestekli?: boolean;
+  /** Klasör erişim durumu — rozet rengini ve mesajını belirler. */
+  pdfKayitDurum?: 'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor';
 }
 
 const DURUM_RENK: Record<TeklifDurum, { color: string; bg: string; border: string }> = {
@@ -97,6 +99,7 @@ export default function BelgeToolbar({
   onIlgiliKisiAc,
   pdfKayitKlasorAdi,
   pdfKayitDestekli,
+  pdfKayitDurum,
 }: BelgeToolbarProps) {
   const C = useColors();
   const { modal } = App.useApp();
@@ -324,38 +327,74 @@ export default function BelgeToolbar({
             Yazdır
           </Button>
         </Tooltip>
-        {pdfKayitDestekli && (
-          <Tooltip
-            title={
-              pdfKayitKlasorAdi
-                ? `PDF'ler "${pdfKayitKlasorAdi}" klasörüne kaydedilecek. Profilinizden değiştirebilirsiniz.`
-                : 'PDF kayıt konumu seçilmedi. Profilinizden klasör seçebilirsiniz; aksi halde PDF İndirilenler\'e kaydedilir.'
+        {pdfKayitDestekli && (() => {
+          // 3 durumlu rozet:
+          //   ok          → yeşil "Klasöre: {ad}"
+          //   izinKayip   → turuncu "Klasör erişimi yenilenmeli"
+          //   klasorYok/  → gri "İndirme klasörüne"
+          //   desteklenmiyor
+          const durum: 'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor' =
+            pdfKayitDurum ?? (pdfKayitKlasorAdi ? 'ok' : 'klasorYok');
+          const style: { color: string; bg: string; border: string; label: string; tooltip: string } =
+            durum === 'ok' ? {
+              color: '#15803d',
+              bg: '#ecfdf5',
+              border: '#a7f3d0',
+              label: `Klasöre: ${pdfKayitKlasorAdi ?? ''}`,
+              tooltip: `PDF'ler "${pdfKayitKlasorAdi}" klasörüne kaydedilecek. Profilinizden değiştirebilirsiniz.`,
             }
-            placement="bottom"
-          >
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '2px 8px',
-                fontSize: 11,
-                fontWeight: 500,
-                color: pdfKayitKlasorAdi ? '#15803d' : C.textFaint,
-                background: pdfKayitKlasorAdi ? '#ecfdf5' : C.bgSurface,
-                border: `1px solid ${pdfKayitKlasorAdi ? '#a7f3d0' : C.border}`,
-                borderRadius: 999,
-                whiteSpace: 'nowrap',
-                cursor: 'help',
-                userSelect: 'none',
-              }}
-            >
-              <FolderOutlined style={{ fontSize: 11 }} />
-              PDF Konumu: {pdfKayitKlasorAdi ? 'Seçili' : 'Seçilmedi'}
-            </span>
-          </Tooltip>
-        )}
-        <Tooltip title="PDF dosyası oluştur ve klasöre kaydet — durumu 'Hazır'a çeker" placement="bottom">
+            : durum === 'izinKayip' ? {
+              color: '#b45309',
+              bg: '#fffbeb',
+              border: '#fde68a',
+              label: 'Klasör izni yenilenmeli',
+              tooltip: `"${pdfKayitKlasorAdi ?? ''}" klasörüne erişim için tarayıcı izni yenilenmeli. PDF üretirken size sorulacak.`,
+            }
+            : {
+              color: C.textFaint,
+              bg: C.bgSurface,
+              border: C.border,
+              label: 'İndirme klasörüne',
+              tooltip: 'PDF kayıt konumu seçilmedi. PDF\'ler tarayıcının İndirilenler klasörüne kaydedilir. Profilinizden klasör seçebilirsiniz.',
+            };
+          return (
+            <Tooltip title={style.tooltip} placement="bottom">
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '2px 8px',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: style.color,
+                  background: style.bg,
+                  border: `1px solid ${style.border}`,
+                  borderRadius: 999,
+                  whiteSpace: 'nowrap',
+                  cursor: 'help',
+                  userSelect: 'none',
+                  maxWidth: 220,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                <FolderOutlined style={{ fontSize: 11 }} />
+                {style.label}
+              </span>
+            </Tooltip>
+          );
+        })()}
+        <Tooltip
+          title={
+            pdfKayitDurum === 'ok'
+              ? `PDF üret + "${pdfKayitKlasorAdi}" klasörüne kaydet → durumu 'Hazır'a çeker.`
+              : pdfKayitDurum === 'izinKayip'
+                ? `PDF üret + klasör izni iste (yenilemezsen İndirilenler\'e iner) → durumu 'Hazır'a çeker.`
+                : `PDF üret + İndirilenler klasörüne kaydet → durumu 'Hazır'a çeker. (Profilden kalıcı klasör seçebilirsin)`
+          }
+          placement="bottom"
+        >
           <Button
             icon={<FilePdfOutlined />}
             onClick={onPdfIndir}
@@ -365,7 +404,14 @@ export default function BelgeToolbar({
             PDF
           </Button>
         </Tooltip>
-        <Tooltip title="PDF üret + müşteriye e-posta taslağı aç — durumu 'Gönderildi'ye çeker" placement="bottom">
+        <Tooltip
+          title={
+            pdfKayitDurum === 'ok'
+              ? `PDF üret + "${pdfKayitKlasorAdi}" klasörüne arşivle + müşteriye e-posta aç → durumu 'Gönderildi'ye çeker.`
+              : `PDF üret + müşteriye e-posta taslağı aç → durumu 'Gönderildi'ye çeker.`
+          }
+          placement="bottom"
+        >
           <Button
             type="primary"
             icon={<MailOutlined />}

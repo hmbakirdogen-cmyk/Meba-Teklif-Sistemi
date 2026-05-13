@@ -61,49 +61,64 @@ export function DescText({ text, className }: { text: string; className?: string
 
     // Ölçüm kaynağı: DescText'in DIREKT parent'ı bazen inline bir
     // <span class="editable-field"> oluyor (canlı A4 düzenleyici tarafında).
-    // Inline non-replaced element'lerde clientWidth = 0 → erken çıkıştı ve
-    // fitLevel = 1 (df-1, 12px nowrap) sabit kalıyordu. PDF render tarafında
-    // (TeklifPagedDocument / TeklifSablonu) ise DescText doğrudan <td>
-    // içindeydi, parent.clientWidth gerçek kolon genişliğini veriyordu →
-    // fitLevel doğru hesaplanıyor, gerektiğinde df-4 wrap'e düşüyordu.
-    // Sonuç: canlı A4'te tek satır, PDF'te iki satır görünüyordu.
-    //
-    // Düzeltme: ilk pozitif clientWidth'e sahip atayı bul (td hücresi). Bu,
-    // EditableField wrapper'ı olsun olmasın aynı ölçüyü garanti eder ve
-    // canlı A4 ile PDF arasında birebir aynı fitLevel'i üretir.
+    // İlk pozitif clientWidth'e sahip atayı bul (td hücresi); canlı A4 ile
+    // PDF arasında birebir aynı fitLevel'i üretir.
     let measureHost: HTMLElement | null = el.parentElement;
-    let available = 0;
     while (measureHost) {
-      const w = measureHost.clientWidth;
-      if (w > 0) { available = w - 4; break; } // hücre kenarında nefes payı
+      if (measureHost.clientWidth > 0) break;
       measureHost = measureHost.parentElement;
     }
-    if (!measureHost || available <= 0) return;
+    if (!measureHost) return;
 
-    const cs = window.getComputedStyle(el);
-    const measurer = document.createElement('span');
-    measurer.style.position     = 'absolute';
-    measurer.style.left         = '-9999px';
-    measurer.style.top          = '0';
-    measurer.style.visibility   = 'hidden';
-    measurer.style.whiteSpace   = 'nowrap';
-    measurer.style.fontFamily   = cs.fontFamily;
-    measurer.style.fontWeight   = cs.fontWeight;
-    measurer.style.letterSpacing = cs.letterSpacing;
-    measurer.textContent        = clean;
-    document.body.appendChild(measurer);
+    /** fitLevel'i mevcut measureHost genişliğine göre yeniden hesapla.
+     *  ResizeObserver geldiğinde de çağrılır → kolon yeniden boyutlanırsa
+     *  satır otomatik küçülür/büyür. */
+    const recompute = () => {
+      const host = measureHost;
+      if (!host) return;
 
-    try {
-      measurer.style.fontSize = '12px';
-      if (measurer.offsetWidth <= available) { setFitLevel(1); return; }
-      measurer.style.fontSize = '11px';
-      if (measurer.offsetWidth <= available) { setFitLevel(2); return; }
-      measurer.style.fontSize = '10.5px';
-      if (measurer.offsetWidth <= available) { setFitLevel(3); return; }
-      setFitLevel(4);
-    } finally {
-      document.body.removeChild(measurer);
-    }
+      // Manuel alt satır (\n) varsa: tek satıra sığdırmayı atla, doğrudan
+      // wrap moduna (df-4) geç. CSS pre-wrap newline'ları saygılar.
+      if (clean.includes('\n')) {
+        setFitLevel(4);
+        return;
+      }
+
+      const available = host.clientWidth - 4; // hücre kenarında nefes payı
+      if (available <= 0) return;
+
+      const cs = window.getComputedStyle(el);
+      const measurer = document.createElement('span');
+      measurer.style.position      = 'absolute';
+      measurer.style.left          = '-9999px';
+      measurer.style.top           = '0';
+      measurer.style.visibility    = 'hidden';
+      measurer.style.whiteSpace    = 'nowrap';
+      measurer.style.fontFamily    = cs.fontFamily;
+      measurer.style.fontWeight    = cs.fontWeight;
+      measurer.style.letterSpacing = cs.letterSpacing;
+      measurer.textContent         = clean;
+      document.body.appendChild(measurer);
+
+      try {
+        measurer.style.fontSize = '12px';
+        if (measurer.offsetWidth <= available) { setFitLevel(1); return; }
+        measurer.style.fontSize = '11px';
+        if (measurer.offsetWidth <= available) { setFitLevel(2); return; }
+        measurer.style.fontSize = '10.5px';
+        if (measurer.offsetWidth <= available) { setFitLevel(3); return; }
+        setFitLevel(4);
+      } finally {
+        document.body.removeChild(measurer);
+      }
+    };
+
+    recompute();
+    // Kolon/hücre genişliği değişirse fitLevel yeniden hesaplansın
+    // (pencere boyutu, kolon resize, satır araya ekleme vs.).
+    const ro = new ResizeObserver(recompute);
+    ro.observe(measureHost);
+    return () => ro.disconnect();
   }, [clean]);
 
   if (!clean) return null;
@@ -940,6 +955,15 @@ export const PARTY_BODY_STYLE: CSSProperties = {
   color: DOCUMENT_COLORS.textMid,
   wordBreak: 'break-word',
   overflowWrap: 'break-word',
+};
+
+/* "Sayın {muhatap}" hitap satırı — adresten tipografik ayrışsın diye
+   semi-bold + navy ton + hafif tracking. Body 400/textMid'in üzerinde durur. */
+export const PARTY_GREETING_STYLE: CSSProperties = {
+  fontWeight: 600,
+  color: DOCUMENT_COLORS.navy,
+  letterSpacing: '0.01em',
+  marginBottom: '4px',
 };
 
 export const SETTINGS_GRID_STYLE: CSSProperties = {

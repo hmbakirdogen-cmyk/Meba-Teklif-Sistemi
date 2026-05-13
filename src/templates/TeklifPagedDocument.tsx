@@ -22,6 +22,7 @@ import {
   OFFER_TABLE_ROW_GAP_PX,
   PARA_BIRIMI_ETIKETI,
   PARTY_BODY_STYLE,
+  PARTY_GREETING_STYLE,
   PARTY_CARD_STYLE,
   PARTY_GRID_STYLE,
   PARTY_LABEL_STYLE,
@@ -131,9 +132,11 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
     surface: 'a4-full',
     objectPosition: 'left center',
   });
-  const muhatapSatiri = teklif.contactName?.trim()
-    ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
-    : (teklif.cari.yetkiliKisi || null);
+  const muhatapSatiri = teklif.contactTitle === 'YETKILI'
+    ? 'Yetkili'
+    : teklif.contactName?.trim()
+      ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
+      : (teklif.cari.yetkiliKisi || null);
 
   return (
     <>
@@ -231,7 +234,7 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
           <div style={PARTY_LABEL_STYLE}>Alıcı <span style={{ fontWeight: 400, opacity: 0.6 }}>/ To</span></div>
           <div style={PARTY_NAME_STYLE}>{formatCariAdi(teklif.cari.firmaAdi)}</div>
           <div style={PARTY_BODY_STYLE}>
-            {muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>}
+            {muhatapSatiri && <div style={PARTY_GREETING_STYLE}>Sayın {muhatapSatiri},</div>}
             {teklif.cari.adres && (
               <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {formatAdres(teklif.cari.adres)}

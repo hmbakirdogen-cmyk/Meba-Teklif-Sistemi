@@ -19,7 +19,7 @@ import { cariService } from '../services/musteriService';
 import { urunSetService } from '../services/urunSetService';
 import { referansVeriService, getVarsayilanMarka } from '../services/referansVeriService';
 import { useFirma } from '../context/useFirma';
-import { sanitizeMultilineText } from '../utils/formatters';
+import { sanitizeMultilineText, formatAciklama } from '../utils/formatters';
 import { isYonetici } from '../utils/yetkiUtils';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
 import type { KullaniciRol } from '../types/kullanici';
@@ -55,7 +55,7 @@ export interface BelgeState {
   iskontoOrani: number;
   odemeVadesi: string;
   contactName: string;
-  contactTitle: 'BEY' | 'HANIM';
+  contactTitle: 'BEY' | 'HANIM' | 'YETKILI';
   ilgiliKisiId?: string;
   ilgiliKisiAdSoyad?: string;
   gecerlilikSuresi: string;
@@ -99,7 +99,7 @@ interface BelgeActions {
   setCariTelefon: (telefon: string) => void;
   setCariSehir: (sehir: string) => void;
   setContactName: (name: string) => void;
-  setContactTitle: (title: 'BEY' | 'HANIM') => void;
+  setContactTitle: (title: 'BEY' | 'HANIM' | 'YETKILI') => void;
   setIlgiliKisi: (id: string | null, adSoyad: string | null) => void;
   setGecerlilikSuresi: (sure: string) => void;
   setDovizKuru: (kur: string) => void;
@@ -181,6 +181,9 @@ export function useBelgeState(
   // teklifGetir her render'da çağrılır; autoSave sonrası store'daki sahip değişirse
   // bu ref etkilenmez ve kontrol geçerliliğini korur.
   const teklifSahibiIdRef = useRef<string | undefined>(mevcut?.hazirlayanKullaniciId);
+  const teklifSahibiAdSoyadRef = useRef<string | undefined>(mevcut?.hazirlayanAdSoyad);
+  const teklifSahibiRolRef = useRef<string | undefined>(mevcut?.hazirlayanRol);
+  const teklifSahibiUnvanRef = useRef<string | undefined>(mevcut?.hazirlayanUnvan);
 
   const [teklifId] = useState(() => mevcut ? mevcutId! : teklifService.teklifIdUret());
   const [teklifNo, setTeklifNo] = useState(mevcut?.teklifNo ?? '...');
@@ -203,7 +206,7 @@ export function useBelgeState(
   const [iskontoOrani, setIskontoOraniState] = useState(mevcut?.iskontoOrani ?? v?.iskontoOrani ?? 0);
   const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? v?.odemeVadesi ?? '45 Gün');
   const [contactName, setContactNameState] = useState(mevcut?.contactName ?? '');
-  const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM'>(mevcut?.contactTitle ?? 'BEY');
+  const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM' | 'YETKILI'>(mevcut?.contactTitle ?? 'BEY');
   const [ilgiliKisiId, setIlgiliKisiIdState] = useState<string | undefined>(mevcut?.ilgiliKisiId);
   const [ilgiliKisiAdSoyad, setIlgiliKisiAdSoyadState] = useState<string | undefined>(mevcut?.ilgiliKisiAdSoyad);
   const [gecerlilikSuresi, setGecerlilikSuresiState] = useState<string>(mevcut?.gecerlilikSuresi ?? v?.gecerlilikSuresi ?? '1 Hafta');
@@ -328,7 +331,7 @@ export function useBelgeState(
     if (cari) cariService.cariMuhatapGuncelle(cari.id, name.trim(), contactTitle);
   }, [cari, contactTitle]);
 
-  const setContactTitle = useCallback((title: 'BEY' | 'HANIM') => {
+  const setContactTitle = useCallback((title: 'BEY' | 'HANIM' | 'YETKILI') => {
     setContactTitleState(title);
     if (cari) cariService.cariMuhatapGuncelle(cari.id, contactName.trim(), title);
   }, [cari, contactName]);
@@ -374,15 +377,15 @@ export function useBelgeState(
       notlarGosterilsin,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
-      // Orijinal sahibi koru — mevcut teklifte hazirlayanKullaniciId değişmemeli
+      // Orijinal sahibi koru — mevcut teklifte hazırlayan bilgisi değişmemeli
       hazirlayanKullaniciId: teklifSahibiIdRef.current ?? kullanici?.id,
-      hazirlayanAdSoyad: kullanici?.adSoyad,
-      hazirlayanRol: kullanici?.rol,
-      hazirlayanUnvan: kullanici?.unvan,
+      hazirlayanAdSoyad: teklifSahibiAdSoyadRef.current ?? kullanici?.adSoyad,
+      hazirlayanRol: teklifSahibiRolRef.current ?? kullanici?.rol,
+      hazirlayanUnvan: teklifSahibiUnvanRef.current ?? kullanici?.unvan,
       gecerlilikSuresi,
       dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
-      contactTitle: contactName.trim() ? contactTitle : undefined,
+      contactTitle: (contactName.trim() || contactTitle === 'YETKILI') ? contactTitle : undefined,
       ilgiliKisiId,
       ilgiliKisiAdSoyad,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
@@ -516,7 +519,7 @@ export function useBelgeState(
       const updatedParent: TeklifSatiri = {
         ...parent,
         urunKod: set.setKod,
-        aciklama: set.aciklama,
+        aciklama: formatAciklama(set.aciklama ?? ''),
         setId: set.id,
         setAltKalem: false,
       };
@@ -526,7 +529,7 @@ export function useBelgeState(
         marka: parent.marka || varsayilanMarka,
         urunKod: kalem.urunKod,
         urunAdi: '',
-        aciklama: kalem.aciklama,
+        aciklama: formatAciklama(kalem.aciklama ?? ''),
         paraBirimi: parent.paraBirimi ?? hesaplamaMotoru.varsayilanSatirParaBirimi(paraBirimi),
         miktar: kalem.miktar,
         birim: kalem.birim || birimler[0] || 'Adet',
@@ -614,15 +617,15 @@ export function useBelgeState(
       notlarGosterilsin,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
-      // Orijinal sahibi koru — mevcut teklifte hazirlayanKullaniciId değişmemeli
+      // Orijinal sahibi koru — mevcut teklifte hazırlayan bilgisi değişmemeli
       hazirlayanKullaniciId: teklifSahibiIdRef.current ?? kullanici?.id,
-      hazirlayanAdSoyad: kullanici?.adSoyad,
-      hazirlayanRol: kullanici?.rol,
-      hazirlayanUnvan: kullanici?.unvan,
+      hazirlayanAdSoyad: teklifSahibiAdSoyadRef.current ?? kullanici?.adSoyad,
+      hazirlayanRol: teklifSahibiRolRef.current ?? kullanici?.rol,
+      hazirlayanUnvan: teklifSahibiUnvanRef.current ?? kullanici?.unvan,
       gecerlilikSuresi,
       dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
-      contactTitle: contactName.trim() ? contactTitle : undefined,
+      contactTitle: (contactName.trim() || contactTitle === 'YETKILI') ? contactTitle : undefined,
       ilgiliKisiId,
       ilgiliKisiAdSoyad,
       gorseller: gorseller.length > 0 ? gorseller : undefined,
@@ -785,11 +788,11 @@ export function useBelgeState(
     gecerlilikSuresi,
     dovizKuru,
     olusturmaTarihi,
-    hazirlayanKullaniciId: kullanici?.id,
+    hazirlayanKullaniciId: teklifSahibiIdRef.current ?? kullanici?.id,
     teklifSahibiId: teklifSahibiIdRef.current,
-    hazirlayanAdSoyad: kullanici?.adSoyad,
-    hazirlayanRol: kullanici?.rol,
-    hazirlayanUnvan: kullanici?.unvan,
+    hazirlayanAdSoyad: teklifSahibiAdSoyadRef.current ?? kullanici?.adSoyad,
+    hazirlayanRol: teklifSahibiRolRef.current ?? kullanici?.rol,
+    hazirlayanUnvan: teklifSahibiUnvanRef.current ?? kullanici?.unvan,
     gorseller,
     status,
     visibility,

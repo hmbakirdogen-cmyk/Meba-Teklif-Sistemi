@@ -522,6 +522,27 @@ export const FIELD_CSS = `
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   AKTİF HÜCRE NET İNDİKATÖR — sadece düzenleme modunda.
+   • Kilit açık (.belge-editor:not(.belge-readonly)): sol kenarda 3px mavi
+     şerit + 1px ince iç çerçeve → kullanıcı "şu an buradayım" hissini
+     net görür, yanlış hücreye yazma endişesi kalkar.
+   • PDF görünümü (.belge-readonly): mevcut sıfır-değişim davranışı kalır.
+   • PDF capture (pdfService.ts clone): zaten box-shadow:none ile sıfırlar.
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline.belge-editor:not(.belge-readonly) td.is-active-cell {
+  background-color: rgba(37, 99, 235, 0.05) !important;
+  box-shadow:
+    inset 3px 0 0 0 rgba(37, 99, 235, 0.55),
+    inset 0 0 0 1px rgba(37, 99, 235, 0.16) !important;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+.belge-inline.belge-editor:not(.belge-readonly) td.is-active-cell:focus-within {
+  box-shadow:
+    inset 3px 0 0 0 rgba(37, 99, 235, 0.75),
+    inset 0 0 0 1px rgba(37, 99, 235, 0.28) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    LINE ITEM TABLE: satır yüksekliği taban (min) değerinde; açıklama
    2. satıra düştüğünde sadece o satır kontrollü şekilde büyür. Diğer
    satırlar varsayılan yüksekliğinde kalır.
@@ -621,7 +642,9 @@ export const FIELD_CSS = `
   display: block;
   font-size: 10.5px;
   line-height: 1.15;
-  white-space: normal !important;
+  /* pre-wrap: manuel alt satır (\n) saygılanır + uzun satır otomatik wrap.
+     Kullanıcı Shift+Enter ile yazdığı satır geçişi PDF'te de görünür. */
+  white-space: pre-wrap !important;
   overflow-wrap: anywhere;
   word-break: normal;
 }
@@ -1414,17 +1437,23 @@ export const FIELD_CSS = `
   animation-play-state: paused !important;
 }
 
-/* ─── KÖŞE ROZETİ — mod göstergesi ─── */
-/* Sayfa üstüne yapışık küçük chip — kullanıcı modu net görür.
-   ::before pseudo content kullanıyoruz, JSX'e dokunmadan. */
-.belge-editor [data-pdf-page]:first-of-type::before {
+/* ─── KAĞIT ÜSTÜ TAB — mod göstergesi ─── */
+/* Kağıdın dışında, üst kenarın hemen üzerinde duran küçük chip.
+   .belge-editor container'ına bağlı (data-pdf-page'in overflow:hidden'ına
+   takılmaz). ::before pseudo, JSX'e dokunmadan.
+   PDF kaynağı .belge-editor class'ına sahip değil → capture etkilenmez. */
+.belge-editor {
+  position: relative;
+  margin-top: 32px;
+}
+.belge-editor::before {
   content: '';
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: -26px;
+  right: 16px;
   z-index: 5;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 4px 12px;
+  border-radius: 6px 6px 2px 2px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.6px;
@@ -1432,25 +1461,25 @@ export const FIELD_CSS = `
   font-family: var(--font-sans, system-ui), sans-serif;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(4px);
   transition: opacity 240ms ease, transform 240ms ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
-.belge-editor [data-pdf-page]:first-of-type {
-  position: relative;
-}
-.belge-editor:not(.belge-readonly) [data-pdf-page]:first-of-type::before {
+.belge-editor:not(.belge-readonly)::before {
   content: '✎  Düzenleme';
-  background: rgba(34, 197, 94, 0.10);
+  background: rgba(34, 197, 94, 0.12);
   color: rgb(22, 101, 52);
-  border: 1px solid rgba(34, 197, 94, 0.30);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-bottom: none;
   opacity: 1;
   transform: translateY(0);
 }
-.belge-editor.belge-readonly [data-pdf-page]:first-of-type::before {
+.belge-editor.belge-readonly::before {
   content: '📄  PDF Görünümü';
-  background: rgba(100, 116, 139, 0.10);
+  background: rgba(100, 116, 139, 0.12);
   color: rgb(51, 65, 85);
-  border: 1px solid rgba(100, 116, 139, 0.30);
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  border-bottom: none;
   opacity: 1;
   transform: translateY(0);
 }

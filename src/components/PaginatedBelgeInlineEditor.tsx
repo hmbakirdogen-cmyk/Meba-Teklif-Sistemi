@@ -6,13 +6,14 @@ import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Teklif, Cari, TeklifSatiri, ParaBirimi, Urun } from '../types';
 import { useTeklifFirmaBilgileri } from '../hooks/useTeklifFirma';
-import { formatDate, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatAdres, formatAdSoyad } from '../utils/formatters';
+import { formatDate, formatTitleCaseTr, formatCariAdi, formatSehir, formatVKN, formatAdres, formatAdSoyad, formatAciklama } from '../utils/formatters';
 import { hesaplamaMotoru, type TeklifToplam } from '../services/hesaplamaMotoru';
 import { useAkilliReferans } from '../hooks/useAkilliReferans';
 import { urunService } from '../services/urunService';
 import { urunSetService } from '../services/urunSetService';
 import { formatPhone } from '../utils/phone';
 import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
+import { POPUP } from '../styles/popupTokens';
 import { FinansalOzetKartIci } from './FinansalOzetKartIci';
 import { TotalsCard } from './TotalsCard';
 import { RowResizerLayer } from './RowResizerLayer';
@@ -33,6 +34,7 @@ import {
   noBreak,
   NOTES_BOX_STYLE,
   PARTY_BODY_STYLE,
+  PARTY_GREETING_STYLE,
   PARTY_CARD_STYLE,
   PARTY_GRID_STYLE,
   PARTY_LABEL_STYLE,
@@ -86,9 +88,9 @@ interface PaginatedBelgeInlineEditorProps {
   onCariTelefonDegistir: (telefon: string) => void;
   onCariSehirDegistir: (sehir: string) => void;
   contactName: string;
-  contactTitle: 'BEY' | 'HANIM';
+  contactTitle: 'BEY' | 'HANIM' | 'YETKILI';
   onContactNameDegistir: (name: string) => void;
-  onContactTitleDegistir: (title: 'BEY' | 'HANIM') => void;
+  onContactTitleDegistir: (title: 'BEY' | 'HANIM' | 'YETKILI') => void;
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
@@ -213,14 +215,21 @@ function PageTableWithResizer({
 // kimlik korunur → input'lar her tuşta remount olmaz, focus kaybı yaşanmaz.
 // Antd Popover'ı kullanmıyoruz; kendi portal-tabanlı popup'ımız → boyutlandırma,
 // hizalama, dışarı tıklayınca kapatma davranışı bizde.
-const CELL_POPUP_WIDTHS: Record<SatirCellField, number> = {
-  marka: 280,
-  urunKod: 380,
-  aciklama: 480,
-  miktar: 320,
-  paraBirimi: 240,
-  birimFiyat: 240,
-  teslimat: 280,
+/* Popup genişliği artık SABİT değil — içeriğe göre otomatik (width: max-content).
+   Bu sabitler yalnızca min/max sınırlar:
+   - minWidth: input/select görsel olarak çok dar görünmesin diye taban
+   - maxWidth: gereksiz yere geniş olmaması için tavan
+   Tarayıcı bu aralıkta içeriğin gerçek ölçüsünü kullanır → optimum boyut.
+   Mantık: suggestion paneli olanlar genişlikte daha çok yer ister; tek
+   input/select olanlar kompakt durmalı. */
+const CELL_POPUP_CONSTRAINTS: Record<SatirCellField, { min: number; max: number }> = {
+  marka:      { min: 180, max: 280 },   // Select (kısa marka adları)
+  urunKod:    { min: 340, max: 520 },   // Suggestion paneli — uzun açıklama sığsın
+  aciklama:   { min: 360, max: 560 },   // TextArea — multi-line açıklama
+  miktar:     { min: 220, max: 300 },   // İki sütun (değer + birim)
+  paraBirimi: { min: 180, max: 260 },   // Select (TL/EUR/USD)
+  birimFiyat: { min: 160, max: 220 },   // Tek number input
+  teslimat:   { min: 200, max: 300 },   // Select (teslimat süreleri)
 };
 
 function CellEditPopup({
@@ -248,7 +257,11 @@ function CellEditPopup({
   const satirId = isOpen ? editingAlan!.slice(6) : null;
   const satir = satirId ? teklif.satirlar.find((s) => s.id === satirId) ?? null : null;
 
-  const W = CELL_POPUP_WIDTHS[satirFocusCell] ?? 280;
+  const constraints = CELL_POPUP_CONSTRAINTS[satirFocusCell] ?? { min: 220, max: 360 };
+  // Pozisyon hesaplaması için referans genişlik: min ile max arası ortalama.
+  // Gerçek popup içeriğine göre genişler (width: max-content), bu değer
+  // sadece viewport-clamp hesabı için kullanılır.
+  const W = Math.round((constraints.min + constraints.max) / 2);
 
   // Akıllı sıralı referans listeleri — aktif firmanın kullanım deseniyle
   // sık kullanılanlar yukarıda, son kullanım sırasına göre.
@@ -506,13 +519,18 @@ function CellEditPopup({
         position: 'fixed',
         top: pos.top,
         left: pos.left,
-        minWidth: pos.minWidth,
-        background: '#ffffff',
-        borderRadius: 10,
-        padding: '12px 14px',
-        boxShadow: '0 14px 40px rgba(15,23,42,0.20), 0 0 0 1px rgba(15,23,42,0.08)',
-        zIndex: 2000,
-        animation: 'cell-popup-fade-in 120ms ease-out',
+        // İçeriğe göre otomatik boyut — min/max sınırları içinde tarayıcı
+        // popup body'sinin gerçek genişliğini hesaplar. Tek input ise
+        // input doğal ölçüsünde, suggestion listesi varsa daha geniş.
+        width: 'max-content',
+        minWidth: Math.max(constraints.min, pos.minWidth),
+        maxWidth: constraints.max,
+        background: POPUP.surface.background,
+        borderRadius: POPUP.radius.base,
+        padding: POPUP.padding.base,
+        boxShadow: POPUP.shadow.level2,
+        zIndex: POPUP.zIndex.popup,
+        animation: `cell-popup-fade-in ${POPUP.animation.fadeIn}`,
       }}
     >
       {title && <div style={headerStyle}>{title}</div>}
@@ -574,12 +592,12 @@ function UrunKodPopupBody({
     initialKodRef.current = item.kod;
     if (item.kind === 'set') {
       onSatirGuncelle(satir.id, 'urunKod', item.kod);
-      onSatirGuncelle(satir.id, 'aciklama', item.payload.aciklama ?? '');
+      onSatirGuncelle(satir.id, 'aciklama', formatAciklama(item.payload.aciklama ?? ''));
       onSatiraSetUygula(satir.id, item.payload.id);
     } else {
       onSatirGuncelle(satir.id, 'urunKod', item.kod);
       onSatirGuncelle(satir.id, 'setId', undefined);
-      onSatirGuncelle(satir.id, 'aciklama', item.payload.aciklama ?? '');
+      onSatirGuncelle(satir.id, 'aciklama', formatAciklama(item.payload.aciklama ?? ''));
       // Akıllı doldurma: ürün katalog değerleri yalnızca BOŞ hücreleri doldurur,
       // kullanıcının daha önce girdiği değer ezilmez.
       if (item.payload.varsayilanFiyat && !satir.birimFiyat) {
@@ -738,7 +756,13 @@ function AciklamaPopupBody({
   const initialAciklamaRef = useRef(satir.aciklama);
 
   const promptAciklamaGuncelle = () => {
-    const yeniAciklama = (satir.aciklama ?? '').trim();
+    // Title Case normalize — kullanıcı yazdıklarını çıkışta tutarlı hale getirir.
+    const ham = (satir.aciklama ?? '').trim();
+    const normalize = ham ? formatAciklama(ham) : '';
+    if (normalize !== ham) {
+      onSatirGuncelle(satir.id, 'aciklama', normalize);
+    }
+    const yeniAciklama = normalize;
     const eski = (initialAciklamaRef.current ?? '').trim();
     if (yeniAciklama === eski) return;
     const kod = (satir.urunKod ?? '').trim();
@@ -843,9 +867,11 @@ export default function PaginatedBelgeInlineEditor({
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
   );
 
-  const muhatapSatiri = teklif.contactName?.trim()
-    ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
-    : (teklif.cari.yetkiliKisi || null);
+  const muhatapSatiri = teklif.contactTitle === 'YETKILI'
+    ? 'Yetkili'
+    : teklif.contactName?.trim()
+      ? `${formatTitleCaseTr(teklif.contactName.trim())} ${teklif.contactTitle === 'HANIM' ? 'Hanım' : 'Bey'}`
+      : (teklif.cari.yetkiliKisi || null);
 
   const editingSatirId   = !readOnly && editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
 
@@ -1331,7 +1357,7 @@ export default function PaginatedBelgeInlineEditor({
           <div style={PARTY_BODY_STYLE}>
             {/* Muhatap satırı — kendi popup'ı */}
             {readOnly ? (
-              muhatapSatiri && <div style={{ fontWeight: '500', marginBottom: '1px' }}>Sayın {muhatapSatiri}</div>
+              muhatapSatiri && <div style={PARTY_GREETING_STYLE}>Sayın {muhatapSatiri},</div>
             ) : (
               <Popover
                 open={editingAlan === 'musteri-muhatap'}
@@ -1348,26 +1374,31 @@ export default function PaginatedBelgeInlineEditor({
                         ref={muhatapRef}
                         autoFocus
                         size="middle"
-                        style={{ flex: 1 }}
-                        value={contactName}
+                        style={{ flex: 1, opacity: contactTitle === 'YETKILI' ? 0.5 : 1 }}
+                        value={contactTitle === 'YETKILI' ? '' : contactName}
+                        disabled={contactTitle === 'YETKILI'}
                         onChange={(e) => onContactNameDegistir(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={handleMuhatapKeyDown}
-                        placeholder="muhatap adı"
+                        placeholder={contactTitle === 'YETKILI' ? 'Yetkili (isim gerekmez)' : 'muhatap adı'}
                       />
                       <Select
                         size="middle"
-                        style={{ width: 100 }}
+                        style={{ width: 110 }}
                         value={contactTitle}
                         onChange={onContactTitleDegistir}
-                        options={[{ value: 'BEY', label: 'Bey' }, { value: 'HANIM', label: 'Hanım' }]}
+                        options={[
+                          { value: 'BEY', label: 'Bey' },
+                          { value: 'HANIM', label: 'Hanım' },
+                          { value: 'YETKILI', label: 'Yetkili' },
+                        ]}
                       />
                     </div>
                   </div>
                 }
               >
-                <EditableField as="div" type="text" fieldKey="musteri-muhatap" style={{ fontWeight: 500, marginBottom: '1px' }}>
-                  {muhatapSatiri ? <>Sayın {muhatapSatiri}</> : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>Muhatap ekle…</span>}
+                <EditableField as="div" type="text" fieldKey="musteri-muhatap" style={PARTY_GREETING_STYLE}>
+                  {muhatapSatiri ? <>Sayın {muhatapSatiri},</> : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>Muhatap ekle…</span>}
                 </EditableField>
               </Popover>
             )}
@@ -1920,6 +1951,23 @@ export default function PaginatedBelgeInlineEditor({
         .belge-inline [data-alan="musteri"] .ant-btn:hover { background: transparent !important; border: none !important; color: inherit !important; box-shadow: none !important; }
         .belge-inline [data-alan="musteri"] .anticon { color: inherit !important; }
         .belge-inline [data-alan="musteri"] .anticon:hover { color: inherit !important; }
+        /* Alıcı kartı: EditableField'ları yakalaması kolay olsun.
+           Hit-area padding/margin ile genişletildi (görsel pozisyon korunur),
+           imleç pointer + hover'da hafif tonlu zemin → tıklanabilir olduğu net.
+           PDF capture etkilenmez (belge-editor sadece on-screen). */
+        .belge-editor [data-alan="musteri"] .editable-field[data-editable="true"] {
+          cursor: pointer;
+          padding: 1px 5px;
+          margin: -1px -5px;
+          border-radius: 4px;
+          transition: background-color 120ms ease, box-shadow 120ms ease;
+        }
+        .belge-editor [data-alan="musteri"] .editable-field[data-editable="true"]:hover {
+          background-color: rgba(37, 99, 235, 0.08);
+        }
+        .belge-editor [data-alan="musteri"] .editable-field[data-editable="true"]:active {
+          background-color: rgba(37, 99, 235, 0.14);
+        }
         .belge-inline-cari-dropdown .ant-select-item { font-family: inherit; font-size: 11.5px; line-height: 1.35; letter-spacing: -0.01em; color: ${C.textMid}; }
         .belge-inline-cari-dropdown .ant-select-item-option { padding: 6px 10px; }
         .belge-inline-cari-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) { background: rgba(237, 242, 251, 0.92); }

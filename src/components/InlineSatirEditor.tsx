@@ -18,9 +18,10 @@ import {
   InlineTableSelectField,
 } from './InlineTableFields';
 import { UNIT_OPTIONS, ROW_SHELL, ROW_TEXT } from './InlineTableRowShared';
-import { parseLocaleNumber } from '../utils/formatters';
+import { parseLocaleNumber, formatAciklama } from '../utils/formatters';
 import { DOCUMENT_COLORS } from '../templates/teklifDocumentShared';
 import type { SatirCellField } from './inlineSatirEditorShared';
+import { POPUP } from '../styles/popupTokens';
 
 const C = DOCUMENT_COLORS;
 
@@ -247,7 +248,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
 
     if (item.type === 'set') {
       const set = item.payload as UrunSeti;
-      onGuncelle('aciklama', set.aciklama ?? '');
+      onGuncelle('aciklama', formatAciklama(set.aciklama ?? ''));
       onSetUygula?.(set.id);
       setShowSuggestions(false);
       onEnterNext?.();
@@ -256,7 +257,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
 
     onGuncelle('setId', undefined);
     const urun = item.payload as Urun;
-    onGuncelle('aciklama', urun.aciklama ?? '');
+    onGuncelle('aciklama', formatAciklama(urun.aciklama ?? ''));
     // Akıllı doldurma: ürün katalog değerleri yalnızca BOŞ hücreleri doldurur,
     // kullanıcının daha önce girdiği değer ezilmez.
     if (urun.marka && !(satir.marka || '').trim()) onGuncelle('marka', urun.marka);
@@ -401,9 +402,10 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
               maxWidth: 500,
               maxHeight: panelMaxH,
               overflowY: 'auto',
-              borderRadius: 6,
-              zIndex: 1050,
+              borderRadius: POPUP.radius.base,
+              zIndex: POPUP.zIndex.popup,
               fontSize: 12,
+              animation: `cell-popup-fade-in ${POPUP.animation.fadeIn}`,
             }}
           >
             {filtered.map((u, i) => (
@@ -458,12 +460,18 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
   const initialAciklamaRef = useRef(satir.aciklama);
 
   const handleBlur = () => {
+    // Title Case normalize — kullanıcı yazdıklarını çıkışta tutarlı hale getirir.
+    const ham = (satir.aciklama ?? '').trim();
+    const normalize = ham ? formatAciklama(ham) : '';
+    if (normalize !== ham) {
+      onGuncelle('aciklama', normalize);
+    }
     console.log('[Aciklama handleBlur]', {
-      yeniAciklama: (satir.aciklama ?? '').trim(),
+      yeniAciklama: normalize,
       eskiAciklama: (initialAciklamaRef.current ?? '').trim(),
       urunKod: (satir.urunKod ?? '').trim(),
     });
-    const yeniAciklama = (satir.aciklama ?? '').trim();
+    const yeniAciklama = normalize;
     const eski = (initialAciklamaRef.current ?? '').trim();
     if (yeniAciklama === eski) return; // değişiklik yok
     const kod = (satir.urunKod ?? '').trim();

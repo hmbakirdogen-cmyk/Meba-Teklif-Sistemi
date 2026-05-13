@@ -11,7 +11,7 @@ export interface Cari {
   vergiNo: string;
   /** Teklif bazlı — bu cari için en son kullanılan muhatap */
   lastContactName?: string;
-  lastContactTitle?: 'BEY' | 'HANIM';
+  lastContactTitle?: 'BEY' | 'HANIM' | 'YETKILI';
   /** Cariye yüklenmiş logo görseli (kapak kartında öncelikli kullanılır).
    *  Yoksa otomatik gradient + monogram fallback'e düşer. */
   logoUrl?: string;

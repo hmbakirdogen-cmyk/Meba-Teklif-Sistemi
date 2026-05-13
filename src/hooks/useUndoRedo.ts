@@ -23,7 +23,7 @@ export interface Snapshot {
   satirlar: TeklifSatiri[];
   cari: Cari | null;
   contactName: string;
-  contactTitle: 'BEY' | 'HANIM';
+  contactTitle: 'BEY' | 'HANIM' | 'YETKILI';
   paraBirimi: ParaBirimi;
   kdvOrani: number;
   iskontoOrani: number;

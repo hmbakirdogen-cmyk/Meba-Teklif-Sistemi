@@ -110,13 +110,18 @@ export function splitUnvanWithParen(text: string): { ana: string; paren: string 
 /**
  * formatCariAdi — firma adını tutarlı görsel formata çevirir.
  *
- * Kurallar:
- *   - Tüm kelimeler title case (ilk harf BÜYÜK, kalan küçük, tr-TR locale)
- *   - Nokta içeren kelimeler (A.Ş., LTD., SAN., TİC.) → tamamı BÜYÜK
- *   - 3 harf veya kısa tamamen alfabetik kelimeler → BÜYÜK (istisna: ve/da/de/ya/ki)
+ * Kurallar (sırasıyla uygulanır):
+ *   1) Bağlaçlar (ve, da, de, ya, ki, mı/mi/mu/mü) → küçük
+ *   2) Nokta içeren kelimeler (A.Ş., LTD., SAN., TİC.) → tamamı BÜYÜK
+ *   3) Sayı içeren kelimeler (ISO9001, 3M, 12V) → olduğu gibi korunur
+ *   4) Tamamı BÜYÜK harf + ≥2 karakter (MEBA, ÖZLER, ELMOS) → korunur
+ *      (Kullanıcı kasıtlı büyük yazmış marka/akronim sayılır)
+ *   5) ≤3 harfli alfabetik kelimeler → BÜYÜK (kısaltma sayılır)
+ *   6) Diğer → Title Case (ilk harf BÜYÜK, kalan küçük, tr-TR locale)
  *
  * Örnekler:
- *   "ÖZLER nalburiye san. tic. a.ş." → "Özler Nalburiye SAN. TİC. A.Ş."
+ *   "ÖZLER nalburiye san. tic. a.ş." → "ÖZLER Nalburiye SAN. TİC. A.Ş."
+ *   "MEBA mekanik"                   → "MEBA Mekanik"
  *   "abc firması"                    → "ABC Firması"
  *   "bilgi ve iletişim"              → "Bilgi ve İletişim"
  */
@@ -135,11 +140,19 @@ export function formatCariAdi(adi: string): string {
   return trimmed.split(' ').map((word) => {
     if (!word) return word;
     const lower = word.toLocaleLowerCase('tr-TR');
+    // 1) Bağlaçlar küçük
     if (CARI_ADI_LOWER_KELIMELER.has(lower)) return lower;
+    // 2) Nokta içerenler tamamen BÜYÜK
     if (word.includes('.')) return word.toLocaleUpperCase('tr-TR');
+    // 3) Sayı içerenler olduğu gibi (ISO9001, 3M, 100mm)
+    if (/\d/.test(word)) return word;
+    // 4) Tamamı BÜYÜK + ≥2 karakter → kasıtlı marka/akronim, koru
+    if (word.length >= 2 && /^[A-ZÇĞİÖŞÜÂÎÛ]+$/.test(word)) return word;
+    // 5) ≤3 harfli alfabetik kelimeler → BÜYÜK (kısaltma sayılır)
     if (word.length <= 3 && /^[a-zçğıöşüâîûA-ZÇĞİÖŞÜÂÎÛ]+$/.test(word)) {
       return word.toLocaleUpperCase('tr-TR');
     }
+    // 6) Varsayılan: Title Case
     return titleCaseWord(word);
   }).join(' ');
 }
@@ -259,6 +272,73 @@ export function sanitizeMultilineText(text: string): string {
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/**
+ * formatAciklama — ürün/satır açıklamasını Title Case'e normalize eder.
+ *
+ * Kurallar:
+ *   - Her kelimenin baş harfi BÜYÜK (Türkçe locale: i → İ)
+ *   - Bağlaçlar (ve, ile, için, gibi, kadar, mı/mi/mu/mü) küçük kalır
+ *   - Birim kısaltmaları (mm, cm, m, kg, bar, psi, nm, kw, hp vs.) küçük kalır
+ *   - Sayı içeren kelimeler (50mm, 3/4, M16) olduğu gibi korunur
+ *   - Tamamı BÜYÜK harf yazılmış ≥2 harfli kelimeler (MEBA, ÖZLER, ISO)
+ *     kasıtlı kabul edilir, dokunulmaz
+ *   - Satır araları (\n) korunur — manuel alt satırlar saygılanır
+ *
+ * Örnekler:
+ *   "hidrolik pistonlu silindir 100mm strok"
+ *     → "Hidrolik Pistonlu Silindir 100mm Strok"
+ *   "meba marka piston ile valf"
+ *     → "Meba Marka Piston ile Valf"
+ *   "MEBA marka piston" (zaten büyük)
+ *     → "MEBA Marka Piston"
+ */
+const ACIKLAMA_LOWER_KELIMELER = new Set([
+  // Bağlaçlar
+  've', 'ile', 'için', 'gibi', 'kadar', 'üzeri', 'üzere',
+  'mı', 'mi', 'mu', 'mü', 'da', 'de', 'ya', 'ki',
+  // Uzunluk birimleri
+  'mm', 'cm', 'm', 'km',
+  // Ağırlık/hacim
+  'kg', 'g', 'ml', 'l', 'lt', 'mg',
+  // Basınç/tork
+  'bar', 'psi', 'pa', 'kpa', 'mpa', 'nm',
+  // Elektrik
+  'a', 'v', 'w', 'kw', 'hp', 'va', 'kva',
+  // Sıralı / sınır
+  'min', 'max',
+]);
+
+function formatAciklamaWord(w: string): string {
+  if (!w) return w;
+
+  // 1) Tamamı BÜYÜK harf + en az 2 karakter + sadece harfler → kasıtlı kısaltma/marka, koru
+  if (w.length >= 2 && /^[A-ZÇĞİÖŞÜÂÎÛ]+$/.test(w)) return w;
+
+  // 2) Sayı içeren kelimeler olduğu gibi (100mm, 3/4, M16, Ø50)
+  if (/\d/.test(w)) return w;
+
+  // 3) Bağlaç / birim listesi → küçük
+  const lower = w.toLocaleLowerCase('tr-TR');
+  if (ACIKLAMA_LOWER_KELIMELER.has(lower)) return lower;
+
+  // 4) Varsayılan: title case (Türkçe locale)
+  return titleCaseWord(w);
+}
+
+export function formatAciklama(text: string): string {
+  if (!text) return '';
+  // Satır araları korunsun — her satırı ayrı ayrı formatla.
+  return text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim().replace(/\s+/g, ' ');
+      if (!trimmed) return '';
+      return trimmed.split(' ').map(formatAciklamaWord).join(' ');
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n'); // 3+ ardışık boş satırı 2'ye indir
 }
 
 export function parseNumber(val: string | number | null | undefined): number {
