@@ -1913,7 +1913,11 @@ export default function PaginatedBelgeInlineEditor({
           onChange={(e) => onNotlarDegistir(e.target.value)}
           autoSize={{ minRows: 1 }}
           readOnly={readOnly}
-          placeholder="burada not ekleyin..."
+          // Placeholder sadece düzenleme modunda anlamlı (yazma daveti).
+          // Kilit kapalıyken (PDF görünüm modu) kullanıcı yazamayacağı için
+          // "burada not ekleyin..." daveti tutarsız → gizlenir. PDF render
+          // (TeklifSablonu/TeklifPagedDocument) zaten placeholder kullanmıyor.
+          placeholder={readOnly ? undefined : 'burada not ekleyin...'}
           style={{
             flex: 1,
             minWidth: 0,
