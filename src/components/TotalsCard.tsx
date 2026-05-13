@@ -48,7 +48,6 @@ export interface TotalsCardProps {
 // Paylaşılan ölçüler — tek kaynak (tablo "Toplam" kolonu ile birebir eşleşir)
 const AMOUNT_FS    = `${LINE_ITEM_METRICS.baseFontSizePx}px`;        // 11px
 const AMOUNT_FW    = 700;
-const AMOUNT_PR    = `${LINE_ITEM_METRICS.cellPaddingXpx}px`;        // 4px
 const LABEL_FS     = '8.5px';
 const PB_LABEL_FS  = '7.5px';
 const SYMBOL_FS    = '12px';
@@ -156,11 +155,14 @@ export function TotalsCard({
 
   return (
     <div style={baseStyle}>
-      {/* Para birimi rozeti — ABSOLUTE top-right, layout'tan tamamen bağımsız */}
+      {/* Para birimi rozeti — ABSOLUTE top-CENTER, layout'tan tamamen bağımsız.
+          Ortalanmış konum sayesinde sağdaki Ara Toplam rakamlarıyla çakışmaz,
+          ek dikey boşluğa gerek kalmaz; kart kompakt kalır. */}
       <span style={{
         position: 'absolute',
         top: '5px',
-        right: AMOUNT_PR,
+        left: '50%',
+        transform: 'translateX(-50%)',
         fontSize: PB_LABEL_FS,
         fontWeight: 700,
         letterSpacing: '0.12em',
@@ -174,12 +176,10 @@ export function TotalsCard({
       </span>
 
       {/* Detay alanı — KDV/iskonto/ara toplam, hepsi aynı sağ X'te biter.
-          paddingTop PB rozetinin altında başlar (rozet top:5 + font 7.5 +
-          satır yüksekliği 1.0 ≈ 13px → 18px güvenli aralık) → çoklu kart
-          modunda Ara Toplam rakamı PB rozeti ile çakışmaz. */}
+          PB rozeti ortalandığı için sağda yer var; küçük üst padding yeterli. */}
       {hasDetail && (
         <div style={{
-          paddingTop:    '18px',
+          paddingTop:    '6px',
           paddingBottom: '5px',
           borderBottom:  `0.75px solid ${cl.separator}`,
         }}>
