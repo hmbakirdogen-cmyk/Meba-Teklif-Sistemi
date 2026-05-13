@@ -38,16 +38,21 @@ const PDF_C = {
 // ── Kolon genişlikleri ────────────────────────────────────────────────────────
 // 3 kolon: [etiket flex-1] [işaret sabit] [rakam sabit]
 // Sembol üst satırlardan kaldırıldı — sadece rakam kolonu
-const PDF_SIGN = 8;    // px — işaret kolonu (– / +)
-const PDF_NUM  = 64;   // px — rakam kolonu (tabular-nums)
+//
+// PDF rakam fontu TotalsCard.AMOUNT_FS (11px = LINE_ITEM_METRICS.baseFontSizePx)
+// ile eşitlendi → toggle açık + karışık modda da Ara Toplam/KDV satırları
+// tablo "Toplam" sütunuyla aynı boyut/ağırlıkta görünür. Daha geniş rakam
+// kolonu (90px) "1.234.567,89" gibi büyük tutarların sığması için.
+const PDF_SIGN = 10;   // px — işaret kolonu (– / +)
+const PDF_NUM  = 90;   // px — rakam kolonu (tabular-nums, 11px font için)
 const SCR_SIGN = 16;   // px — işaret kolonu
 const SCR_NUM  = 120;  // px — rakam kolonu
 
-// İç boşluklar (4pt ≈ 5.3px → screen 5px, pdf 3px)
+// İç boşluklar (4pt ≈ 5.3px → screen 5px, pdf 4px)
 const SCR_LABEL_PL = '5px';
 const SCR_NUM_PR   = '5px';
-const PDF_LABEL_PL = '3px';
-const PDF_NUM_PR   = '3px';
+const PDF_LABEL_PL = '4px';
+const PDF_NUM_PR   = '4px';
 
 // ── Tip ───────────────────────────────────────────────────────────────────────
 export interface FinansalOzetKartIciProps {
@@ -101,18 +106,21 @@ export function FinansalOzetKartIci({
     : { label: screenColors.textSecondary, value: screenColors.textPrimary, muted: screenColors.textFaint, total: screenColors.textPrimary, sep: screenColors.totalsRowBorder };
 
   // Tipografi ölçüleri
-  const rowFs  = isPdf ? '8.5px' : '13px';
-  const rowLH  = isPdf ? 1.2 : 1.4;
-  const rowMb  = isPdf ? '2px' : '5px';
-  const labelPL = isPdf ? PDF_LABEL_PL : SCR_LABEL_PL;
-  const numPR   = isPdf ? PDF_NUM_PR   : SCR_NUM_PR;
+  // PDF: rowFs = 11px (TotalsCard.AMOUNT_FS = LINE_ITEM_METRICS.baseFontSizePx
+  //  ile birebir eşit). Etiket biraz daha küçük (9px = TotalsCard.LABEL_FS).
+  const rowFs       = isPdf ? '11px' : '13px';     // rakam font
+  const rowLabelFs  = isPdf ? '9px'  : '13px';     // etiket font (rakamdan ufak)
+  const rowLH       = isPdf ? 1.25 : 1.4;
+  const rowMb       = isPdf ? '3px' : '5px';
+  const labelPL     = isPdf ? PDF_LABEL_PL : SCR_LABEL_PL;
+  const numPR       = isPdf ? PDF_NUM_PR   : SCR_NUM_PR;
 
   // Kolon genişlikleri
   const signW = isPdf ? PDF_SIGN : SCR_SIGN;
   const numW  = isPdf ? PDF_NUM  : SCR_NUM;
 
   // Virgül hizalama için ondalık genişlik
-  const decW = isPdf ? 16 : 22; // px — ",XX" kısmı sabit genişlik
+  const decW = isPdf ? 22 : 22; // px — ",XX" kısmı sabit genişlik (11px font için)
 
   // ── Satır renderer ─────────────────────────────────────────────────────────
   // 3 kolon: [etiket flex-1 + pl] [işaret sabit sağ-hizalı] [rakam sabit sağ-hizalı + pr]
@@ -130,11 +138,12 @@ export function FinansalOzetKartIci({
 
     return (
       <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: rowMb }}>
-        {/* 1. Kolon: etiket — esnek genişlik, soldan iç boşluk */}
+        {/* 1. Kolon: etiket — esnek genişlik, soldan iç boşluk
+            (PDF'te rowLabelFs küçük, rakam font'undan ayrı). */}
         <span style={{
           flex: 1,
           paddingLeft: labelPL,
-          fontSize: rowFs,
+          fontSize: rowLabelFs,
           lineHeight: rowLH,
           color,
           whiteSpace: 'nowrap',
@@ -169,7 +178,7 @@ export function FinansalOzetKartIci({
             flex: 1,
             textAlign: 'right',
             fontVariantNumeric: 'tabular-nums',
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: rowFs,
             lineHeight: rowLH,
             color,
@@ -181,7 +190,7 @@ export function FinansalOzetKartIci({
             width: decW,
             flexShrink: 0,
             fontVariantNumeric: 'tabular-nums',
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: rowFs,
             lineHeight: rowLH,
             color,
