@@ -35,6 +35,7 @@ import {
   NOTES_BOX_STYLE,
   PARTY_BODY_STYLE,
   PARTY_GREETING_STYLE,
+  efektifSatirBazliParaBirimi,
   PARTY_CARD_STYLE,
   PARTY_GRID_STYLE,
   PARTY_LABEL_STYLE,
@@ -1810,8 +1811,17 @@ export default function PaginatedBelgeInlineEditor({
     );
   };
 
+  // Smart fallback: toggle açık ama tüm satırlar tek tip ise sanki kapalı
+  // gibi davran → tek TotalsCard. Çoklu kart gereksiz görünmez.
+  const efektifSatirBazli = efektifSatirBazliParaBirimi(teklif);
+
   const renderTotals = () =>
-    !satirBazliParaBirimi ? (
+    !efektifSatirBazli ? (() => {
+      // Veri kaynağı: toggle açıkken hesap satır bazlı → kullanilanParaKartlari[0]
+      // doğru; toggle kapalıyken belge default totals doğru.
+      const tek = kullanilanParaKartlari[0];
+      const useKart = satirBazliParaBirimi && !!tek;
+      return (
       // Çerçeve 56%/44% yapıda; rakamlar amountRightOffsetPx ile tablonun
       // "Toplam" kolonu değer X'iyle birebir hizalanır. Üst ve alt boşluklar
       // "ortalama" — tablo ile arasında ferah ama abartısız nefes payı.
@@ -1827,13 +1837,13 @@ export default function PaginatedBelgeInlineEditor({
             <td style={{ borderTop: 'none', borderBottom: 'none' }} />
             <td style={{ padding: '0', borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
               <TotalsCard
-                araToplam={araToplam}
+                araToplam={useKart ? tek.araToplam : araToplam}
                 iskontoOrani={iskontoOrani}
-                iskontoTutar={iskontoTutar}
+                iskontoTutar={useKart ? tek.iskontoTutar : iskontoTutar}
                 kdvOrani={kdvOrani}
-                kdvTutar={kdvTutar}
-                genelToplam={genelToplam}
-                paraBirimi={teklif.paraBirimi}
+                kdvTutar={useKart ? tek.kdvTutar : kdvTutar}
+                genelToplam={useKart ? tek.total : genelToplam}
+                paraBirimi={useKart ? tek.pb : teklif.paraBirimi}
                 variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
@@ -1841,7 +1851,8 @@ export default function PaginatedBelgeInlineEditor({
           </tr>
         </tbody>
       </table>
-    ) : (
+      );
+    })() : (
       <table style={{
         width: '100%', borderCollapse: 'collapse',
         marginTop: '32px', marginBottom: '14px',

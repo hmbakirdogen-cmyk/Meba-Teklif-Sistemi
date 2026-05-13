@@ -56,6 +56,7 @@ import {
   DescText,
   OFFER_TABLE_COLUMN_COUNT,
   TABLE_TEXT,
+  efektifSatirBazliParaBirimi,
 } from './teklifDocumentShared';
 
 const C = DOCUMENT_COLORS;
@@ -601,7 +602,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       {/* Genel Toplam — her iki modda da tablonun hemen altında, sağa hizalı.
          Siparişi Veren'den tamamen bağımsız; bağımsız blok olarak konumlanır. */}
       <div id="pdf-totals-block">
-      {!satirBazliParaBirimi ? (
+      {/* Smart fallback: toggle açık ama tüm satırlar tek tip ise tek
+          TotalsCard. Toggle açıkken hesap satır bazlı yapılır → kullanilanParaKartlari[0]
+          doğru veri kaynağı; toggle kapalıyken belge default totals doğru. */}
+      {!efektifSatirBazliParaBirimi(teklif) ? (() => {
+        const tek = kullanilanParaKartlari[0];
+        const useKart = satirBazliParaBirimi && !!tek;
+        return (
         <table style={{
           width: '100%', borderCollapse: 'collapse',
           marginTop: '14px', marginBottom: '0',
@@ -617,13 +624,13 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               <td style={{ borderTop: 'none', borderBottom: 'none' }} />
               <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
                 <TotalsCard
-                  araToplam={araToplam}
+                  araToplam={useKart ? tek.araToplam : araToplam}
                   iskontoOrani={iskontoOrani}
-                  iskontoTutar={iskontoTutar}
+                  iskontoTutar={useKart ? tek.iskontoTutar : iskontoTutar}
                   kdvOrani={kdvOrani}
-                  kdvTutar={kdvTutar}
-                  genelToplam={genelToplam}
-                  paraBirimi={teklif.paraBirimi}
+                  kdvTutar={useKart ? tek.kdvTutar : kdvTutar}
+                  genelToplam={useKart ? tek.total : genelToplam}
+                  paraBirimi={useKart ? tek.pb : teklif.paraBirimi}
                   variant="dark"
                   amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
                 />
@@ -631,7 +638,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             </tr>
           </tbody>
         </table>
-      ) : (
+        );
+      })() : (
       <table style={{
         width: '100%',
         borderCollapse: 'collapse',

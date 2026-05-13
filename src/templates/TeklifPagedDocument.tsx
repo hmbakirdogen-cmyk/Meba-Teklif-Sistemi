@@ -43,6 +43,7 @@ import {
   computeTotalsAmountRightOffset,
   URUN_KOD_OVERFLOW,
   buildSettingsItems,
+  efektifSatirBazliParaBirimi,
   getOfferTableSeparatorClass,
   getOfferTableSeparatorStyle,
   getSetStepClass,
@@ -429,15 +430,21 @@ function TableSection({
 }
 
 function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam }) {
-  const satirBazliParaBirimi = teklif.satirBazliParaBirimi ?? false;
+  // Smart fallback: toggle açık ama tüm satırlar tek tip ise sanki kapalı
+  // gibi davran → tek TotalsCard render edilir, çoklu kart kafası karışmaz.
+  const efektifSatirBazli = efektifSatirBazliParaBirimi(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
   const kullanilanParaKartlari = hesaplamaMotoru.kullanilanParaBirimiKartlariniHesapla(
     teklif.satirlar, teklif.paraBirimi, kdvOrani, iskontoOrani,
   );
 
-  // Single-currency: TotalsCard tablonun hemen altında, sağa hizalı
-  // (56%/44% colgroup), Siparişi Veren'den tamamen bağımsız.
-  if (!satirBazliParaBirimi) {
+  // Single-currency (toggle kapalı VEYA toggle açık+tek tip): TotalsCard
+  // tablonun hemen altında, sağa hizalı (56%/44% colgroup).
+  if (!efektifSatirBazli) {
+    // Veri kaynağı: toggle açıkken hesap satır bazlı yapılır → kullanilanParaKartlari[0]
+    // doğru; toggle kapalıyken totals (belge default) doğru.
+    const tek = kullanilanParaKartlari[0];
+    const useKart = (teklif.satirBazliParaBirimi ?? false) && !!tek;
     return (
       <table style={{
         width: '100%', borderCollapse: 'collapse',
@@ -451,13 +458,13 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
             <td style={{ borderTop: 'none', borderBottom: 'none' }} />
             <td style={{ padding: 0, borderTop: 'none', borderBottom: 'none', verticalAlign: 'top' }}>
               <TotalsCard
-                araToplam={araToplam}
+                araToplam={useKart ? tek.araToplam : araToplam}
                 iskontoOrani={iskontoOrani}
-                iskontoTutar={iskontoTutar}
+                iskontoTutar={useKart ? tek.iskontoTutar : iskontoTutar}
                 kdvOrani={kdvOrani}
-                kdvTutar={kdvTutar}
-                genelToplam={genelToplam}
-                paraBirimi={teklif.paraBirimi}
+                kdvTutar={useKart ? tek.kdvTutar : kdvTutar}
+                genelToplam={useKart ? tek.total : genelToplam}
+                paraBirimi={useKart ? tek.pb : teklif.paraBirimi}
                 variant="dark"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />

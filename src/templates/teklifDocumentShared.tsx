@@ -1296,18 +1296,39 @@ export interface SettingsItem {
   value: string;
 }
 
+/**
+ * Smart fallback helper — kullanıcı "Satır Bazlı Para Birimi" toggle'ını
+ * açık unuttuğunda PDF/canlı belgede yanlış/karışık görünüm olmasın diye:
+ *
+ *   • Toggle KAPALI → false (belge default'u kullanılır, mevcut davranış)
+ *   • Toggle AÇIK + tüm satırlar TEK TİP → false (tek tip varmış gibi davran)
+ *   • Toggle AÇIK + GERÇEKTEN KARIŞIK (≥2 farklı para birimi) → true
+ *
+ * Tek noktadan karar → tüm caller'lar (TotalsSection, FinansalOzet kart,
+ * settings cards) aynı mantığı kullanır. Veriyi/toggle'ı değiştirmez,
+ * sadece efektif render davranışını döndürür.
+ */
+export function efektifSatirBazliParaBirimi(teklif: Teklif): boolean {
+  if (!teklif.satirBazliParaBirimi) return false;
+  const satirler = teklif.satirlar ?? [];
+  if (satirler.length === 0) return false;
+  const setOfPB = new Set(satirler.map((s) => s.paraBirimi || teklif.paraBirimi));
+  return setOfPB.size > 1; // sadece gerçekten karışıksa true
+}
+
 export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean): SettingsItem[] {
-  // Smart fallback: "Satır bazlı para birimi" toggle açık olsa bile, eğer tüm
-  // satırlar tek bir para birimini kullanıyorsa kart "Satır Bazlı" yerine
-  // o tek tip değeri gösterir. Kullanıcı toggle'ı açık unutsa bile PDF'te
-  // yanlış/kafa karıştırıcı bilgi gitmez.
-  // Toggle kapalıysa zaten belge default'u kullanılır.
+  // Smart fallback: efektif değer ile çalış (toggle açık + tek tip = false)
+  const efektifSatirBazli = satirBazliParaBirimi && efektifSatirBazliParaBirimi(teklif);
   const efektifParaBirimi: string | null = (() => {
-    if (!satirBazliParaBirimi) return teklif.paraBirimi;
-    const satirler = teklif.satirlar ?? [];
-    if (satirler.length === 0) return teklif.paraBirimi;
-    const setOfPB = new Set(satirler.map((s) => s.paraBirimi || teklif.paraBirimi));
-    return setOfPB.size === 1 ? Array.from(setOfPB)[0] : null;
+    if (!efektifSatirBazli) {
+      // Tek tip → o para birimi (toggle kapalıysa belge default; toggle açıksa
+      // satırların ortak para birimi). teklif.paraBirimi default fallback.
+      const satirler = teklif.satirlar ?? [];
+      const setOfPB = new Set(satirler.map((s) => s.paraBirimi || teklif.paraBirimi));
+      if (setOfPB.size === 1) return Array.from(setOfPB)[0] ?? teklif.paraBirimi;
+      return teklif.paraBirimi;
+    }
+    return null;
   })();
 
   const items: SettingsItem[] = [
