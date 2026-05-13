@@ -1882,8 +1882,14 @@ export default function PaginatedBelgeInlineEditor({
   // tutar; toggle ON/OFF arasında smooth bir geçiş sağlar. Toggle hiç
   // kullanılmadığında bile mount edilir ama 0 height + opacity 0 olduğu
   // için layout etkilemez.
+  // ÖZEL DURUM: Kilit KAPALI (PDF görünüm modu) + boş içerik durumunda
+  // PDF render ile birebir uyumlu olmak için container kapalı moda alınır
+  // → editör boş etiket göstermez, PDF'te de görünmez. Düzenleme modunda
+  // (kilit açık) boş içerik olsa bile etiket görünür ki kullanıcı yazabilsin.
+  const notesIcerikVar = !!(teklif.notlar?.trim());
+  const notesAcik = !!teklif.notlarGosterilsin && (notesIcerikVar || !readOnly);
   const renderNotes = () => (
-    <AnimatedNotesContainer open={!!teklif.notlarGosterilsin}>
+    <AnimatedNotesContainer open={notesAcik}>
       <div
         data-alan="notlar"
         style={{

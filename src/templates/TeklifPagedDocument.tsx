@@ -524,9 +524,11 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
 }
 
 function NotesBlock({ teklif }: { teklif: Teklif }) {
-  // Toggle kapalıysa hiç render etme. Toggle açıkken (boş içerik dahil)
-  // editörle birebir aynı flex layout PDF'e gider.
+  // Toggle kapalıysa veya içerik tamamen boşsa hiç render etme.
+  // PDF/print için boş "Notlar / Notes:" etiketi anlamsız ve profesyonel
+  // değil → yalnızca gerçek içerik varsa görünür.
   if (!teklif.notlarGosterilsin) return null;
+  if (!teklif.notlar?.trim()) return null;
 
   return (
     <div

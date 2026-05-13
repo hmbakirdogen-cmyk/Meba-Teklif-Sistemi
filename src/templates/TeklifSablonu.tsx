@@ -706,7 +706,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       {/* ══ NOT ALANI — kontrol panelinden toggle ile yönetilir ══ */}
       {/* Editör ile birebir aynı flex layout: pagination yüksekliği bu     */}
       {/* DOM'dan ölçülür ve PDF'te de aynı görünür.                        */}
-      {teklif.notlarGosterilsin && (
+      {/* Boş içerik durumunda hiç render etme — PDF'te "Notlar / Notes:"   */}
+      {/* etiketi anlamsız boş alan oluşturur, profesyonel değil.           */}
+      {teklif.notlarGosterilsin && teklif.notlar?.trim() && (
         <div
           id="pdf-notes-block"
           data-alan="notlar"
