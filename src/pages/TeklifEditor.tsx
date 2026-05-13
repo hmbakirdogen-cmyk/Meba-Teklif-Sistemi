@@ -873,8 +873,21 @@ export default function TeklifEditor() {
 
   // Düzenleme alanına tıklama yakalandığında: kilitli ise onay modalı aç ve
   // tıklamanın iç bileşenlere ulaşmasını engelle.
+  //
+  // ÖNEMLİ: Sadece DÜZENLENEBILIR elementlere tıklamada modal aç. Boş alan,
+  // başlık, kart kenarı vb. üzerine tıklamada sessiz kal — kullanıcı sadece
+  // teklifi okumak veya bir alanı incelemek isteyebilir. Bu davranış olmadan
+  // kilitli teklifte her tıklama "Yeni Revize?" modal'ı açıyordu (UX bug).
   const handleKilitliClickCapture = useCallback((e: React.MouseEvent) => {
     if (!kilitli) return;
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    // EditableField, form input'ları, contenteditable, butonlar →
+    // "düzenleme niyeti" sayılır. Bunlar dışına tıklama modal'ı tetiklemez.
+    const interactive = target.closest?.(
+      '[data-editable="true"], input, textarea, select, button, [contenteditable="true"], .editable-field, .ant-select, .ant-input-number, [data-cell-field], td[data-cell-field]',
+    );
+    if (!interactive) return; // boş alan → sessiz
     e.stopPropagation();
     e.preventDefault();
     revizeOnayAc();
