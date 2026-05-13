@@ -1313,7 +1313,10 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
       id: 'kdvOrani',
       tr: 'KDV Oranı',
       en: 'VAT Rate',
-      value: satirBazliParaBirimi ? 'Satır Bazlı' : (teklif.kdvOrani > 0 ? `%${teklif.kdvOrani}` : 'Hariç'),
+      // KDV oranı belge geneli — para birimi satır bazlı olsa bile (TL+EUR
+      // karışık ürünler) KDV oranı TCK gereği tek bir değerdir. "Satır Bazlı"
+      // ibaresi yalnızca para birimi için anlamlı.
+      value: teklif.kdvOrani > 0 ? `%${teklif.kdvOrani}` : 'Hariç',
     },
   ];
 
