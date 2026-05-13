@@ -1341,7 +1341,19 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
             const s = SEMBOL[efektifParaBirimi] ?? efektifParaBirimi;
             return s !== efektifParaBirimi ? `${efektifParaBirimi} (${s})` : efektifParaBirimi;
           })()
-        : 'Satır Bazlı',
+        : (() => {
+            // Karışık para birimi → kullanılanları liste olarak göster
+            // (örn. "TL · EUR · USD"). "Satır Bazlı" jargon'undan kaçın;
+            // müşteri kart üzerinden direkt hangi para birimleri olduğunu
+            // görür. Sıra: satırlarda ilk geçen para biriminden son geçene.
+            const seen: string[] = [];
+            for (const s of teklif.satirlar ?? []) {
+              const pb = s.paraBirimi || teklif.paraBirimi;
+              if (!seen.includes(pb)) seen.push(pb);
+            }
+            // TRY → TL kısa kodu (Türkçe iş dilinde yaygın)
+            return seen.map((pb) => (pb === 'TRY' ? 'TL' : pb)).join(' · ');
+          })(),
     },
     { id: 'odemeVadesi', tr: 'Ödeme Vadesi', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
     {
