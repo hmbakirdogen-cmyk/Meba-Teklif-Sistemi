@@ -38,6 +38,7 @@ import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
 import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 import { usePDFKayit } from '../hooks/usePDFKayit';
+import { KurWidget } from '../components/KurWidget';
 
 function waitForNextPaint(): Promise<void> {
   return new Promise((resolve) => {
@@ -810,6 +811,16 @@ export default function TeklifEditor() {
       minHeight: '100vh',
       background: C.bgBody,
     }}>
+      {/* TCMB Kur widget — viewport sol kenarında floating. Sadece teklif
+          editörü sayfasında render edilir. Sayfa açılışında soldan slide-in. */}
+      <div style={{
+        position: 'fixed',
+        top: 80,
+        left: 16,
+        zIndex: 50,
+      }}>
+        <KurWidget variant="full" />
+      </div>
       {/* Toolbar */}
       <BelgeToolbar
         teklifNo={state.teklifNo}

@@ -29,6 +29,7 @@ import { usePWAInstall } from './hooks/usePWAInstall';
 import { buttonClassNames } from './styles/buttonStyles';
 import { getAdaptiveLogoPlacement } from './styles/logoStyles';
 import { SyncStatusBar } from './components/SyncStatusBar';
+import { KurWidget } from './components/KurWidget';
 import EditableFieldContextMenu from './components/EditableFieldContextMenu';
 
 const { Header, Content } = Layout;
@@ -391,6 +392,9 @@ export default function AppLayout() {
 
         {/* ── SYNC STATUS BAR (sadece desktop, header sağında) ── */}
         {!isMobile && <SyncStatusBar />}
+
+        {/* ── TCMB Kur Gösterge (sadece desktop) ── */}
+        {!isMobile && <KurWidget variant="compact" />}
 
         {/* ── TEMA TOGGLE ── */}
         <Tooltip title={isDark ? 'Aydınlık Mod' : 'Koyu Mod'} placement="bottomRight">
