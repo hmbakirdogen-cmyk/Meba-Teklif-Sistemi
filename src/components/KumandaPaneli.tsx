@@ -156,10 +156,9 @@ export default function KumandaPaneli({
     { top: K.TOP, left: 0, scale: 1 },
   );
   const measureA4 = () => {
-    // A4 KARTI gerçek üst kenarı = [data-pdf-page]. .belge-screen-view
-    // wrapper'ı "PDF GÖRÜNÜMÜ" rozetini kapsar (margin alanı) → kart
-    // kenarı için yanlış. KurWidget ile tutarlı hizalama.
-    const a4El = document.querySelector<HTMLElement>('[data-pdf-page]');
+    // A4 wrapper — .belge-screen-view (eski davranış). [data-pdf-page] ile
+    // deneme yapısı bozdu (sağ kenar hesabı yanlış geliyordu).
+    const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
     if (!a4El) return;
     const rect = a4El.getBoundingClientRect();
     const a4Right = Math.round(rect.right);

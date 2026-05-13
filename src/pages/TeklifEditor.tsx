@@ -61,12 +61,11 @@ function KurWidgetA4Hizali() {
 
   useLayoutEffect(() => {
     let ro: ResizeObserver | null = null;
-    // A4 kartının GERÇEK üst kenarı = ilk [data-pdf-page] elementi.
-    // .belge-screen-view wrapper'ı "PDF GÖRÜNÜMÜ" rozetini de kapsadığı için
-    // (margin alanı) onu kullanırsak hizalama rozete göre olur — yanlış.
-    // Hedef gerçek A4 kartı kenarı.
+    // A4 wrapper — .belge-screen-view. Sol/sağ kenar bilgisi doğru (A4
+    // boyutu) ve top scroll/resize'a reaktif. [data-pdf-page] ile deneme
+    // konumları bozmuştu (sağ kenar hesap yanlış geliyordu).
     const findA4 = (): HTMLElement | null =>
-      document.querySelector<HTMLElement>('[data-pdf-page]');
+      document.querySelector<HTMLElement>('.belge-screen-view');
 
     const measure = () => {
       const a4El = findA4();
