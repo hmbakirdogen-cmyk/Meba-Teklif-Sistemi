@@ -43,14 +43,9 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// PWA service worker kaydı.
-// Browser security policy: HTTPS veya localhost gerekli. LAN HTTP'de
-// tarayıcı kaydı reddeder (SecurityError) — sessizce geç, normal web
-// app olarak çalışmaya devam eder.
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      /* HTTP LAN ortamında beklenir, kullanıcıyı rahatsız etmiyoruz */
-    });
-  });
-}
+// Service Worker kaydı KALDIRILDI — online-only sistemde SW gereksizdi ve
+// PWA kullanıcılarında deploy sonrası eski JS bundle cache'i bug yaratıyordu.
+// PWA hâlâ çalışır (manifest.json ile install edilebilir), sadece browser
+// HTTP cache'i (hash'li asset'lerle zaten doğru çalışır) kullanılır.
+// Eski kullanıcıların kayıtlı SW'leri index.html'deki vBust mekanizmasıyla
+// (her yeni vBust'ta) unregister edilir.

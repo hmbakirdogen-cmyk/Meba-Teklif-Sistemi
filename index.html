@@ -24,7 +24,7 @@
       } catch(e) {}
     </script>
     <!--
-      One-shot cache + service worker reset (vBust3).
+      One-shot cache + service worker reset (vBust4).
       index.html `Cache-Control: no-cache` ile her seferinde server'dan revalidate
       olduğu için bu script GARANTİLİ çalışır. Eski cache + SW kayıtları temizler,
       hiç sayfa açmamış kullanıcı için no-op (flag ile bir kez tetiklenir).
@@ -32,7 +32,7 @@
     -->
     <script>
       (function() {
-        var VBUST_KEY = 'meba_cache_bust_v3';
+        var VBUST_KEY = 'meba_cache_bust_v4';
         try {
           if (localStorage.getItem(VBUST_KEY) === '1') return;
         } catch (e) { return; }
