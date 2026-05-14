@@ -30,12 +30,20 @@ export interface KurVerisi {
 const LS_KEY = 'meba_kur_cache';
 const REFRESH_MS = 30 * 60 * 1000; // 30 dk
 
+function bugunYMD(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function readLocal(): KurVerisi | null {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as KurVerisi;
     if (!parsed?.usd || !parsed?.eur) return null;
+    // Tarih kontrolü: eğer cache'deki tarih bugün DEĞİLSE göz ardı et →
+    // mount'ta direkt fresh fetch tetiklenir, kullanıcı dünkü kuru görmez.
+    // (Hafta sonu/tatil senaryosunda server zaten last good cache döner.)
+    if (parsed.tarih !== bugunYMD()) return null;
     return parsed;
   } catch {
     return null;
@@ -87,9 +95,24 @@ export function useKur(): {
 
     cek();
     const id = window.setInterval(cek, REFRESH_MS);
+
+    // Tab tekrar görünür olunca kur'u tazele — kullanıcı sabah uygulamayı
+    // tekrar açıp pasif sekmeye geçtiyse, geri dönünce güncel kur görsün.
+    // Kontrol: cache tarih'i bugün değilse fetch.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        const local = readLocal();
+        if (!local || local.tarih !== bugunYMD()) {
+          cek();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       iptal = true;
       window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 

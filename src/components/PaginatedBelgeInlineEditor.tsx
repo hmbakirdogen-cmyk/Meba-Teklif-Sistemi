@@ -117,6 +117,8 @@ interface PaginatedBelgeInlineEditorProps {
   markedRowIds: Set<string>;
   /** Satır başı numara tıklamasında çağrılır (toggle). */
   toggleRowMark: (satirId: string) => (e: React.MouseEvent) => void;
+  /** PDF export kaynağı gibi özel readOnly varyantları için ek root class. */
+  rootClassName?: string;
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -608,14 +610,21 @@ function UrunKodPopupBody({
   const select = (item: typeof merged[number]) => {
     justSelectedRef.current = true;
     initialKodRef.current = item.kod;
+    // Açıklama: DB'deki kanonik değer varsa ez, boşsa kullanıcının manuel
+    // yazdığı açıklama korunur — boş payload kullanıcı yazısını silmesin.
+    const yeniAciklama = formatAciklama(item.payload.aciklama ?? '');
     if (item.kind === 'set') {
       onSatirGuncelle(satir.id, 'urunKod', item.kod);
-      onSatirGuncelle(satir.id, 'aciklama', formatAciklama(item.payload.aciklama ?? ''));
+      if (yeniAciklama) {
+        onSatirGuncelle(satir.id, 'aciklama', yeniAciklama);
+      }
       onSatiraSetUygula(satir.id, item.payload.id);
     } else {
       onSatirGuncelle(satir.id, 'urunKod', item.kod);
       onSatirGuncelle(satir.id, 'setId', undefined);
-      onSatirGuncelle(satir.id, 'aciklama', formatAciklama(item.payload.aciklama ?? ''));
+      if (yeniAciklama) {
+        onSatirGuncelle(satir.id, 'aciklama', yeniAciklama);
+      }
       // Akıllı doldurma: ürün katalog değerleri yalnızca BOŞ hücreleri doldurur,
       // kullanıcının daha önce girdiği değer ezilmez.
       if (item.payload.varsayilanFiyat && !satir.birimFiyat) {
@@ -825,6 +834,12 @@ function AciklamaPopupBody({
           promptAciklamaGuncelle();
           onClose();
         }
+        if (e.key === 'Tab') {
+          // Outer handleTab next cell'e geçince popup unmount → blur fire etmez,
+          // formatAciklama çağrılmaz. Burada bubble'dan ÖNCE normalize uygula
+          // (preventDefault yok → outer handler next-cell davranışını üstlensin).
+          promptAciklamaGuncelle();
+        }
         if (e.key === 'Escape') onClose();
       }}
       placeholder="Açıklama  (Shift+Enter ile alt satır, Enter ile kapat)"
@@ -891,6 +906,7 @@ export default function PaginatedBelgeInlineEditor({
   getSnapshot,
   markedRowIds,
   toggleRowMark,
+  rootClassName = '',
 }: PaginatedBelgeInlineEditorProps) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
@@ -1653,8 +1669,8 @@ export default function PaginatedBelgeInlineEditor({
 
     return (
       <>
-        <div style={{ ...TABLE_TITLE_STYLE, display: page.showFullHeader ? 'block' : 'none' }}>
-          Teklif Kalemleri <span style={{ fontWeight: 400, opacity: 0.55 }}>/ Line Items</span>
+        <div style={{ ...TABLE_TITLE_STYLE, textTransform: 'none', display: page.showFullHeader ? 'block' : 'none' }}>
+          TEKLİF KALEMLERİ <span style={{ fontWeight: 400, opacity: 0.55 }}>/ LINE ITEMS</span>
         </div>
         <PageTableWithResizer
           satirIds={pageSatirIds}
@@ -1976,9 +1992,12 @@ export default function PaginatedBelgeInlineEditor({
       className={
         // `belge-editor` → on-screen editor; PDF source (TeklifPagedDocument)
         // bu class'a SAHİP DEĞİL → PDF görsel modu sadece editöre uygulanır.
-        readOnly
-          ? 'belge-inline belge-editor belge-readonly'
-          : 'belge-inline belge-editor'
+        [
+          readOnly
+            ? 'belge-inline belge-editor belge-readonly'
+            : 'belge-inline belge-editor',
+          rootClassName,
+        ].filter(Boolean).join(' ')
       }
       onKeyDown={handleTab}
     >
@@ -2032,6 +2051,18 @@ export default function PaginatedBelgeInlineEditor({
            → asla iki buton ayni anda gorunmez. */
         .satir-araya-ekle-hit:hover ~ .satir-araya-ekle-btn,
         .satir-araya-ekle-btn:hover { opacity: 1 !important; pointer-events: auto !important; }
+        .belge-editor.belge-pdf-source {
+          margin-top: 0 !important;
+        }
+        .belge-editor.belge-pdf-source::before {
+          display: none !important;
+          content: none !important;
+        }
+        .belge-editor.belge-pdf-source [data-pdf-page] {
+          background-color: #ffffff !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
       `}</style>
 
       {pages.map((page, pageIdx) => (
@@ -2090,11 +2121,10 @@ export default function PaginatedBelgeInlineEditor({
                           fontWeight: 600,
                           color: C.sigPrimary,
                           letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
                           lineHeight: 1.1,
                           marginBottom: '4px',
                         }}>
-                          Siparişi Veren
+                          SİPARİŞİ VEREN
                         </div>
                         <div style={{
                           fontSize: '8.64px',

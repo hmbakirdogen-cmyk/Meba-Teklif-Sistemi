@@ -8,7 +8,7 @@
  *
  * Layout: Toolbar (üst) + Canlı A4 Belge (merkez) + Sağ Panel (isteğe bağlı)
  */
-import { useCallback, useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import type React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
@@ -38,88 +38,11 @@ import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
 import type { Teklif } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 import { usePDFKayit } from '../hooks/usePDFKayit';
-import { KurWidget } from '../components/KurWidget';
 
 function waitForNextPaint(): Promise<void> {
   return new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
-}
-
-/**
- * KurWidget — A4 üst kenarına BIREBIR dikey hizalı + A4 sol kenarının 16px
- * solunda. KumandaPaneli (sağ tarafta A4'e yapışık) ile simetrik konum.
- * ResizeObserver A4 boyut/pozisyon değişimine reaktif; viewport scroll +
- * resize listener'ları da bağlı.
- *
- * A4 ölçülene kadar widget GÖRÜNMEZ — fallback konumla zıplama oluşmasın.
- */
-function KurWidgetA4Hizali() {
-  const KUR_WIDGET_WIDTH = 192;
-  const GAP = 16;
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  useLayoutEffect(() => {
-    let ro: ResizeObserver | null = null;
-    // A4 wrapper — .belge-screen-view. Sol/sağ kenar bilgisi doğru (A4
-    // boyutu) ve top scroll/resize'a reaktif. [data-pdf-page] ile deneme
-    // konumları bozmuştu (sağ kenar hesap yanlış geliyordu).
-    const findA4 = (): HTMLElement | null =>
-      document.querySelector<HTMLElement>('.belge-screen-view');
-
-    const measure = () => {
-      const a4El = findA4();
-      if (!a4El) return;
-      const rect = a4El.getBoundingClientRect();
-      // A4 kartının üst kenarı: rect.top + scrollY (scroll'da sabit document-mutlak Y)
-      const docTop = Math.round(rect.top + window.scrollY);
-      // A4'ün sol kenarının solunda 16px boşluk
-      const desiredLeft = Math.round(rect.left) - KUR_WIDGET_WIDTH - GAP;
-      const safeLeft = Math.max(8, desiredLeft);
-      setPos((prev) =>
-        prev && prev.top === docTop && prev.left === safeLeft
-          ? prev
-          : { top: docTop, left: safeLeft },
-      );
-    };
-
-    // A4'i bekle — render olduğunda hemen ölç + ResizeObserver bağla
-    const attach = () => {
-      const a4El = findA4();
-      if (!a4El) {
-        // Bir sonraki frame'de tekrar dene
-        rafId = requestAnimationFrame(attach);
-        return;
-      }
-      measure();
-      ro = new ResizeObserver(measure);
-      ro.observe(a4El);
-    };
-    let rafId = requestAnimationFrame(attach);
-
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
-    return () => {
-      cancelAnimationFrame(rafId);
-      ro?.disconnect();
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
-    };
-  }, []);
-
-  // A4 ölçülene kadar render etme — fallback konum ile zıplama olmasın
-  if (!pos) return null;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: pos.top,
-      left: pos.left,
-      zIndex: 50,
-    }}>
-      <KurWidget variant="full" />
-    </div>
-  );
 }
 
 // Sonuçlanmış/gönderilmiş teklif düzenlemesi için revize zorunlu kapanan durumlar.
@@ -900,10 +823,6 @@ export default function TeklifEditor() {
       minHeight: '100vh',
       background: C.bgBody,
     }}>
-      {/* TCMB Kur widget — A4 üst kenarı hizasında, A4'ün solunda 16px boşluk.
-          KumandaPaneli (sağ taraf) ile simetrik konumlanır. measureA4 hook
-          ile A4 boyutu/pozisyonu değişimine reaktif. */}
-      <KurWidgetA4Hizali />
       {/* Toolbar */}
       <BelgeToolbar
         teklifNo={state.teklifNo}

@@ -35,6 +35,7 @@ import {
   getSetStepClass,
   renderSetSubitemNumber,
   SET_SUBITEM_NUMBER_STYLE,
+  LINE_ITEM_METRICS,
   type SetGroupPos,
 } from '../templates/teklifDocumentShared';
 import { SatirAksiyonlariPanel, SatirIskontoRozeti } from './InlineSatirEditor';
@@ -94,6 +95,14 @@ function SatirRowImpl({
   const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
   const handleClick = (cell: SatirCellField) => (e: React.MouseEvent) =>
     onCellClick(satir.id, cell, e);
+  const noCellContentStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: LINE_ITEM_METRICS.lineHeight,
+    fontVariantNumeric: 'tabular-nums',
+  };
 
   // Aksiyon paneli ile etkileşim (mouse hover veya input focus). Kullanıcı
   // iskonto yazarken satır hover'ı kaybolsa bile panel açık kalsın diye
@@ -124,7 +133,13 @@ function SatirRowImpl({
           <span
             onClick={onToggleMark(satir.id)}
             title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
-            style={{ ...SET_SUBITEM_NUMBER_STYLE, cursor: 'pointer' }}
+            style={{
+              ...noCellContentStyle,
+              ...SET_SUBITEM_NUMBER_STYLE,
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
           >
             {renderSetSubitemNumber(setSubitemIndex)}
           </span>
@@ -132,7 +147,7 @@ function SatirRowImpl({
           <span
             onClick={onToggleMark(satir.id)}
             title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
-            style={{ cursor: 'pointer' }}
+            style={{ ...noCellContentStyle, cursor: 'pointer' }}
           >
             {String(mainItemIndex).padStart(2, '0')}
           </span>

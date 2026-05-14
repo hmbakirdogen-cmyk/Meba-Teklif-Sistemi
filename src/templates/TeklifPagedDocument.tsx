@@ -10,7 +10,7 @@ import type { TeklifPagePlan } from '../services/documentPagination';
 import {
   ACIKLAMA_OVERFLOW,
   CELL_PAD,
-  createDocumentBrand,
+  DOCUMENT_BRAND,
   DOCUMENT_COLORS,
   DOCUMENT_PAGE,
   DOCUMENT_ROOT_STYLE,
@@ -124,7 +124,9 @@ function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
 
 function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
-  const BRAND = createDocumentBrand(firmaBilgi.renkBirincil);
+  // PDF, A4 editor (PaginatedBelgeInlineEditor) ile birebir aynı palette
+  // kullanır → editor `DOCUMENT_BRAND` (kurumsal koyu lacivert) kullanıyor.
+  const BRAND = DOCUMENT_BRAND;
   const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
   const fullLogo = getAdaptiveLogoPlacement({
     firmaId: firmaBilgi.id,
@@ -297,8 +299,8 @@ function TableSection({
   return (
     <>
       {showTitle && (
-        <div style={TABLE_TITLE_STYLE}>
-          Teklif Kalemleri / Line Items
+        <div style={{ ...TABLE_TITLE_STYLE, textTransform: 'none' }}>
+          TEKLİF KALEMLERİ / LINE ITEMS
         </div>
       )}
       <table style={TABLE_STYLE}>
@@ -389,7 +391,7 @@ function TableSection({
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
                       <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', color: TABLE_TEXT.helper, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
+                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad' : satir.birim}
                       </span>
                     </div>
                   ) : '-'}
@@ -460,7 +462,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                 kdvTutar={useKart ? tek.kdvTutar : kdvTutar}
                 genelToplam={useKart ? tek.total : genelToplam}
                 paraBirimi={useKart ? tek.pb : teklif.paraBirimi}
-                variant="dark"
+                variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
             </td>
@@ -506,7 +508,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                       kdvTutar={item.kdvTutar}
                       genelToplam={item.total}
                       paraBirimi={item.pb}
-                      variant="dark"
+                      variant="light"
                     />
                   </div>
                 ))}
@@ -579,11 +581,10 @@ function SignatureBlock() {
               fontWeight: 600,
               color: C.sigPrimary,
               letterSpacing: '0.06em',
-              textTransform: 'uppercase',
               lineHeight: 1.1,
               marginBottom: '4px',
             }}>
-              Siparişi Veren
+              SİPARİŞİ VEREN
             </div>
             <div style={{
               fontSize: '8.64px',

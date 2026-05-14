@@ -23,10 +23,11 @@
 import { useEffect, useRef, useState, useMemo, useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
-import TeklifPagedDocument from '../templates/TeklifPagedDocument';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { calculateTeklifPagination, type TeklifPaginationResult } from '../services/documentPagination';
 import { api } from '../services/apiClient';
+import PaginatedBelgeInlineEditor from '../components/PaginatedBelgeInlineEditor';
+import type { Snapshot } from '../hooks/useUndoRedo';
 import type { Teklif } from '../types';
 
 const FALLBACK_PAGINATION: TeklifPaginationResult = {
@@ -43,6 +44,9 @@ const FALLBACK_PAGINATION: TeklifPaginationResult = {
   }],
   totalPages: 1,
 };
+
+const noop = (..._args: unknown[]) => {};
+const noopToggleRowMark = () => () => {};
 
 export default function TeklifPrintSayfasi() {
   const { id } = useParams<{ id: string }>();
@@ -107,6 +111,31 @@ export default function TeklifPrintSayfasi() {
     });
   }, [teklif]);
 
+  const markedRowIds = useMemo(() => new Set<string>(), []);
+  const readonlySnapshot = useMemo<Snapshot | null>(() => {
+    if (!teklif) return null;
+    return {
+      satirlar: teklif.satirlar,
+      cari: teklif.cari,
+      contactName: teklif.contactName ?? '',
+      contactTitle: teklif.contactTitle ?? 'YETKILI',
+      paraBirimi: teklif.paraBirimi,
+      kdvOrani: teklif.kdvOrani,
+      iskontoOrani: teklif.iskontoOrani ?? 0,
+      odemeVadesi: teklif.odemeVadesi ?? '45 Gün',
+      gecerlilikSuresi: teklif.gecerlilikSuresi ?? '1 Hafta',
+      dovizKuru: teklif.dovizKuru ?? 'TCMB Fatura',
+      notlar: teklif.notlar ?? '',
+      notlarGosterilsin: teklif.notlarGosterilsin ?? false,
+      tarih: teklif.tarih,
+      ilgiliKisiId: teklif.ilgiliKisiId,
+      ilgiliKisiAdSoyad: teklif.ilgiliKisiAdSoyad,
+      satirBazliParaBirimi: teklif.satirBazliParaBirimi ?? false,
+      satirBazliIskonto: teklif.satirBazliIskonto ?? false,
+      firmaId: teklif.firmaId ?? '',
+    };
+  }, [teklif]);
+
   // ── Pagination compute ──
   useLayoutEffect(() => {
     if (!teklif) return;
@@ -143,7 +172,7 @@ export default function TeklifPrintSayfasi() {
     );
   }
 
-  if (!teklif || !totals) {
+  if (!teklif || !totals || !readonlySnapshot) {
     return (
       <div style={{ padding: 40, fontFamily: 'sans-serif', color: '#666' }}>
         Yükleniyor...
@@ -193,10 +222,41 @@ export default function TeklifPrintSayfasi() {
         data-expected-page-count={pagination.totalPages}
         style={{ width: '210mm', margin: 0, padding: 0, background: '#fff' }}
       >
-        <TeklifPagedDocument
+        <PaginatedBelgeInlineEditor
           teklif={teklif}
           totals={totals}
           pages={pagination.pages}
+          editingAlan={null}
+          onEditingAlanDegistir={noop}
+          onCariDegistir={noop}
+          onCariEPostaDegistir={noop}
+          onCariTelefonDegistir={noop}
+          onCariSehirDegistir={noop}
+          contactName={teklif.contactName ?? ''}
+          contactTitle={teklif.contactTitle ?? 'YETKILI'}
+          onContactNameDegistir={noop}
+          onContactTitleDegistir={noop}
+          onTarihDegistir={noop}
+          onParaBirimiDegistir={noop}
+          satirBazliParaBirimi={teklif.satirBazliParaBirimi ?? false}
+          satirBazliIskonto={teklif.satirBazliIskonto ?? false}
+          onKdvOraniDegistir={noop}
+          onOdemeVadesiDegistir={noop}
+          onGecerlilikSuresiDegistir={noop}
+          onDovizKuruDegistir={noop}
+          onSatirGuncelle={noop}
+          onSatiraSetUygula={noop}
+          onSatirSil={noop}
+          onSatirEkle={noop}
+          onSatirArayaEkle={noop}
+          onNotlarDegistir={noop}
+          readOnly
+          scale={1}
+          markedRowIds={markedRowIds}
+          toggleRowMark={noopToggleRowMark}
+          rootClassName="belge-pdf-source"
+          pushUndo={noop}
+          getSnapshot={() => readonlySnapshot}
         />
       </div>
     </div>

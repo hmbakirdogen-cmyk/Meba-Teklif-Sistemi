@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Teklif } from '../types';
 import { getOfferHeaderLayoutProfile } from '../styles/logoStyles';
-import { OPTICAL_SEPARATOR_COLOR, OPTICAL_SEPARATOR_FADE } from './offerSeparatorTokens';
 
 // ── Manyetik sembol yardımcıları ─────────────────────────────────────────────
 
@@ -1035,7 +1034,8 @@ export const SETTINGS_TR_LABEL_STYLE: CSSProperties = {
   fontWeight: 600,
   color: HEADER_SURFACE.textSub,
   letterSpacing: '0.01em',
-  textTransform: 'uppercase',
+  // textTransform: uppercase KALDIRILDI — Türkçe `i` harfi `İ`ye dönüşmediği
+  // için (lang="tr" yok) etiketler ham UPPERCASE olarak yazılır.
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
   flexShrink: 0,
@@ -1123,20 +1123,14 @@ export function getOfferTableSeparatorClass(columnKey: OfferTableColumnKey): str
 
 export function getOfferTableSeparatorStyle(
   columnKey: OfferTableColumnKey,
-  surface: 'head' | 'body' = 'body',
+  _surface: 'head' | 'body' = 'body',
 ): CSSProperties {
   if (!OPTICAL_SEPARATOR_COLUMNS.has(columnKey)) return {};
 
-  const { topInset, bottomInset } = OPTICAL_SEPARATOR_FADE[surface];
-  const fallbackColor = OPTICAL_SEPARATOR_COLOR[surface];
-
-  return {
-    position: 'relative',
-    backgroundImage: `linear-gradient(to bottom, transparent ${topInset}, var(--offer-col-separator, ${fallbackColor}) ${topInset}, var(--offer-col-separator, ${fallbackColor}) ${bottomInset}, transparent ${bottomInset})`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'left center',
-    backgroundSize: '1px 100%',
-  };
+  // Dikey ayraçların tüm görseli global CSS'te `.optical-separator-col`
+  // üzerinden yönetilir. Stil nesnesi boş tutulur ki A4, print ve PDF aynı
+  // tek kaynaktan beslensin.
+  return {};
 }
 
 export const SET_ALT_KALEM_EMPTY_CELL_STYLE: CSSProperties = Object.freeze({
@@ -1352,7 +1346,7 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
   const items: SettingsItem[] = [
     {
       id: 'paraBirimi',
-      tr: 'Para Birimi',
+      tr: 'PARA BİRİMİ',
       en: 'Currency',
       value: efektifParaBirimi
         ? (() => {
@@ -1373,10 +1367,10 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
             return seen.map((pb) => (pb === 'TRY' ? 'TL' : pb)).join(' · ');
           })(),
     },
-    { id: 'odemeVadesi', tr: 'Ödeme Vadesi', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
+    { id: 'odemeVadesi', tr: 'ÖDEME VADESİ', en: 'Payment Terms', value: teklif.odemeVadesi || '45 Gün' },
     {
       id: 'kdvOrani',
-      tr: 'KDV Oranı',
+      tr: 'KDV ORANI',
       en: 'VAT Rate',
       // KDV oranı belge geneli — para birimi satır bazlı olsa bile (TL+EUR
       // karışık ürünler) KDV oranı TCK gereği tek bir değerdir. "Satır Bazlı"
@@ -1387,12 +1381,12 @@ export function buildSettingsItems(teklif: Teklif, satirBazliParaBirimi: boolean
 
   // TRY tekliflerinde Döviz Kuru kartı gösterilmez
   if (teklif.paraBirimi !== 'TRY') {
-    items.push({ id: 'kur', tr: 'Döviz Kuru', en: 'Exchange Rate', value: teklif.dovizKuru || 'TCMB Fatura' });
+    items.push({ id: 'kur', tr: 'DÖVİZ KURU', en: 'Exchange Rate', value: teklif.dovizKuru || 'TCMB Fatura' });
   }
 
   items.push({
     id: 'gecerlilik',
-    tr: 'Geçerlilik',
+    tr: 'GEÇERLİLİK',
     en: 'Validity',
     value: teklif.gecerlilikSuresi || '1 Hafta',
   });

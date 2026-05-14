@@ -277,22 +277,18 @@ export function sanitizeMultilineText(text: string): string {
 /**
  * formatAciklama — ürün/satır açıklamasını Title Case'e normalize eder.
  *
- * Kurallar:
- *   - Her kelimenin baş harfi BÜYÜK (Türkçe locale: i → İ)
- *   - Bağlaçlar (ve, ile, için, gibi, kadar, mı/mi/mu/mü) küçük kalır
- *   - Birim kısaltmaları (mm, cm, m, kg, bar, psi, nm, kw, hp vs.) küçük kalır
- *   - Sayı içeren kelimeler (50mm, 3/4, M16) olduğu gibi korunur
- *   - Tamamı BÜYÜK harf yazılmış ≥2 harfli kelimeler (MEBA, ÖZLER, ISO)
- *     kasıtlı kabul edilir, dokunulmaz
- *   - Satır araları (\n) korunur — manuel alt satırlar saygılanır
+ * Kural (sade):
+ *   - Her kelime: ilk harf BÜYÜK, diğerleri küçük (Türkçe locale: i → İ)
+ *   - İstisna 1: Sayı içeren kelimeler (100mm, 3/4, M16, Ø50) olduğu gibi korunur
+ *   - İstisna 2: Bilinen birim/bağlaç (mm, kg, bar, ve, ile...) küçük kalır
+ *   - İstisna 3: Bilinen KISALTMALAR (ISO, CE, NBR, MEBA...) hep büyük yazılır
+ *     — kullanıcı küçük yazsa bile kanonik büyük forma dönüştürülür ("iso" → "ISO")
+ *   - Satır araları (\n) korunur
  *
- * Örnekler:
- *   "hidrolik pistonlu silindir 100mm strok"
- *     → "Hidrolik Pistonlu Silindir 100mm Strok"
- *   "meba marka piston ile valf"
- *     → "Meba Marka Piston ile Valf"
- *   "MEBA marka piston" (zaten büyük)
- *     → "MEBA Marka Piston"
+ * Bilinen kısaltmalar listesinde OLMAYAN tam büyük kelimeler (örn. "PNÖMATİK",
+ * "SİLİNDİR") normal kelime kabul edilip title case'e döndürülür → "Pnömatik",
+ * "Silindir". Liste'ye yeni kısaltma eklemek için KISALTMALAR_MAP'e bir satır
+ * ekle (anahtar lowercase, değer kanonik büyük form).
  */
 const ACIKLAMA_LOWER_KELIMELER = new Set([
   // Bağlaçlar
@@ -304,26 +300,85 @@ const ACIKLAMA_LOWER_KELIMELER = new Set([
   'kg', 'g', 'ml', 'l', 'lt', 'mg',
   // Basınç/tork
   'bar', 'psi', 'pa', 'kpa', 'mpa', 'nm',
-  // Elektrik
+  // Elektrik (tek harfler birim olarak: 'a', 'v', 'w')
   'a', 'v', 'w', 'kw', 'hp', 'va', 'kva',
   // Sıralı / sınır
   'min', 'max',
 ]);
 
+/**
+ * Bilinen kısaltmalar — kanonik BÜYÜK forma map'lenir. Anahtar lowercase (case-
+ * insensitive lookup için), değer kullanıcıya gösterilecek doğru kasa. Liste
+ * pnömatik/hidrolik + endüstriyel otomasyon domain'e göre derlendi; ihtiyaca
+ * göre genişletilebilir.
+ */
+const KISALTMALAR_MAP = new Map<string, string>([
+  // Uluslararası standartlar
+  ['iso', 'ISO'], ['din', 'DIN'], ['en', 'EN'], ['ansi', 'ANSI'], ['astm', 'ASTM'],
+  ['tse', 'TSE'], ['ts', 'TS'], ['atex', 'ATEX'], ['ohsas', 'OHSAS'], ['iatf', 'IATF'],
+  // Sertifika / uyumluluk
+  ['ce', 'CE'], ['ul', 'UL'], ['csa', 'CSA'], ['rohs', 'RoHS'], ['reach', 'REACH'], ['weee', 'WEEE'],
+  // Diş / bağlantı standartları
+  ['npt', 'NPT'], ['bsp', 'BSP'], ['bspp', 'BSPP'], ['bspt', 'BSPT'],
+  // Koruma sınıfı
+  ['ip', 'IP'],
+  // Elektrik
+  ['ac', 'AC'], ['dc', 'DC'], ['npn', 'NPN'], ['pnp', 'PNP'], ['led', 'LED'], ['pwm', 'PWM'], ['rms', 'RMS'],
+  // Otomasyon
+  ['hmi', 'HMI'], ['plc', 'PLC'], ['pid', 'PID'], ['cnc', 'CNC'], ['iot', 'IoT'],
+  // Polimer / conta
+  ['pu', 'PU'], ['pa', 'PA'], ['pvc', 'PVC'], ['pe', 'PE'], ['pp', 'PP'], ['ptfe', 'PTFE'],
+  ['nbr', 'NBR'], ['hnbr', 'HNBR'], ['epdm', 'EPDM'], ['fkm', 'FKM'], ['fpm', 'FPM'],
+  // Pnömatik / akışkan
+  ['frl', 'FRL'],
+  // İş / resmi
+  ['kdv', 'KDV'], ['iban', 'IBAN'], ['sgk', 'SGK'], ['tc', 'TC'],
+  ['aş', 'AŞ'], ['ltd', 'LTD'], ['şti', 'ŞTİ'], ['gmbh', 'GmbH'],
+  // Genel teknik
+  ['id', 'ID'], ['od', 'OD'], ['usb', 'USB'], ['rs232', 'RS232'], ['rs485', 'RS485'],
+  // Firmalar
+  ['meba', 'MEBA'], ['elmos', 'ELMOS'], ['mesa', 'MESA'],
+]);
+
+/**
+ * Türkçe locale lowercase'i ASCII-uyumlu hale getirir:
+ *   'I'.toLocaleLowerCase('tr-TR') = 'ı' (noktasız ı) — map key'leriyle eşleşmiyor.
+ *   'İ'.toLocaleLowerCase('tr-TR') = 'i̇' (i + combining dot above) — bazı ortamlarda.
+ * Bu helper, kısaltma lookup'ı için "ı" → "i" normalize eder ve combining dot'u atar.
+ */
+function aciklamaLookupKey(w: string): string {
+  return w
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i')
+    .replace(/̇/g, ''); // combining dot above
+}
+
 function formatAciklamaWord(w: string): string {
   if (!w) return w;
 
-  // 1) Tamamı BÜYÜK harf + en az 2 karakter + sadece harfler → kasıtlı kısaltma/marka, koru
-  if (w.length >= 2 && /^[A-ZÇĞİÖŞÜÂÎÛ]+$/.test(w)) return w;
-
-  // 2) Sayı içeren kelimeler olduğu gibi (100mm, 3/4, M16, Ø50)
+  // 1) Sayı içeren kelimeler olduğu gibi (100mm, 3/4, M16, Ø50, BMW-X5)
   if (/\d/.test(w)) return w;
 
-  // 3) Bağlaç / birim listesi → küçük
-  const lower = w.toLocaleLowerCase('tr-TR');
-  if (ACIKLAMA_LOWER_KELIMELER.has(lower)) return lower;
+  // 2) Bilinen kısaltma → kanonik büyük forma çevir (case-insensitive,
+  //    Türkçe I↔ı karışıklığı normalize edilir).
+  const key = aciklamaLookupKey(w);
+  const kanonik = KISALTMALAR_MAP.get(key);
+  if (kanonik) return kanonik;
 
-  // 4) Varsayılan: title case (Türkçe locale)
+  // 3) Bağlaç / birim listesi → küçük
+  if (ACIKLAMA_LOWER_KELIMELER.has(key)) {
+    // 'ı' → 'i' normalize'i bağlaç listesini de etkilemesin diye gerçek lowercase'i ver.
+    return w.toLocaleLowerCase('tr-TR');
+  }
+
+  // 4) Anlamsız kod / marka adayı: 2-5 karakter, SADECE ASCII büyük harf (A-Z).
+  //    Türkçe karakter İÇERMEYEN ve kısa tam büyük kelimeler kasıtlı kod kabul edilip
+  //    olduğu gibi korunur — örnekler: BMW, ABC, XYZ, BOSCH, FESTO, VW, ABS.
+  //    PNÖMATİK / SİLİNDİR gibi Türkçe karakterli ALLCAPS kelimeler bu adımda
+  //    YAKALANMAZ (regex A-Z dışı harfleri reddeder) → step 5'te title case'e döner.
+  if (/^[A-Z]{2,5}$/.test(w)) return w;
+
+  // 5) Varsayılan: title case (Türkçe locale)
   return titleCaseWord(w);
 }
 

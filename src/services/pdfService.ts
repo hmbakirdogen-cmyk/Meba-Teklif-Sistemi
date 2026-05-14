@@ -86,6 +86,22 @@ const CLONE_QUALITY_STYLESHEET = `
     background-color: transparent !important;
     border-radius: 0 !important;
   }
+  /* Optical separator pseudo katmanı html2canvas'ta bazı tarayıcılarda
+     sıfır-ölçü gradient canvas'ına düşebiliyor. PDF clone'unda güvenli
+     fallback'e dön: pseudo'yu kapat, gerçek border ile çiz. */
+  .offer-table thead th.optical-separator-col,
+  .offer-table tbody td.optical-separator-col {
+    box-shadow: none !important;
+    border-left: 1px solid rgba(26, 43, 66, 0.10) !important;
+  }
+  .offer-table thead th.optical-separator-col::before,
+  .offer-table tbody td.optical-separator-col::before,
+  .belge-inline .offer-table tbody tr[data-satir-id] > td::after {
+    content: none !important;
+    display: none !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
 `;
 
 type JpegAttempt = {

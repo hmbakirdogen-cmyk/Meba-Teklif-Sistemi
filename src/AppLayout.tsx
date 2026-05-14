@@ -7,7 +7,6 @@ import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
 import BildirimPaneli from './components/BildirimPaneli';
-import KullanimRehberiButonu from './components/KullanimRehberi';
 import { bildirimService } from './services/bildirimService';
 import { isSuperAdmin } from './utils/yetkiUtils';
 import { useEffect } from 'react';
@@ -394,7 +393,7 @@ export default function AppLayout() {
         {!isMobile && <SyncStatusBar />}
 
         {/* ── TCMB Kur Gösterge (sadece desktop) ── */}
-        {!isMobile && <KurWidget variant="compact" />}
+        {!isMobile && <KurWidget />}
 
         {/* ── TEMA TOGGLE ── */}
         <Tooltip title={isDark ? 'Aydınlık Mod' : 'Koyu Mod'} placement="bottomRight">
@@ -410,12 +409,6 @@ export default function AppLayout() {
             }}
           />
         </Tooltip>
-
-        {/* Kullanım Rehberi — kullanıcının sifreDegisikligi'nden 14 gün
-            geçmediyse görünür, dolduktan sonra otomatik kaybolur. İçinde
-            gün gün ayrılmış rehber (1. hafta temel, 2. hafta ileri özellikler).
-            Mobil/desktop farketmez; mobilde drawer responsive açılır. */}
-        {aktifKullanici && <KullanimRehberiButonu />}
 
         {/* Tum kullanicilar: atama + admin cevap bildirimleri.
             Zil sadece okunmamış varsa görünür (sade premium navbar). */}

@@ -10,7 +10,7 @@ import {
   ACIKLAMA_OVERFLOW,
   CELL_PAD,
   URUN_KOD_OVERFLOW,
-  createDocumentBrand,
+  DOCUMENT_BRAND,
   DOCUMENT_COLORS,
   DOCUMENT_PAGE,
   DOCUMENT_ROOT_STYLE,
@@ -131,7 +131,7 @@ export function KompaktAntet({ teklif }: { teklif: Teklif }) {
 
 export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
-  const BRAND = createDocumentBrand(firmaBilgi.renkBirincil);
+  const BRAND = DOCUMENT_BRAND;
   const fullHeaderLayout = getFullHeaderLayoutStyles(firmaBilgi.id);
   const fullLogo = getAdaptiveLogoPlacement({
     firmaId: firmaBilgi.id,
@@ -374,8 +374,8 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
       })()}
 
       {/* ══ TEKLİF KALEMLERİ TABLOSU ════════════════════════════ */}
-      <div style={TABLE_TITLE_STYLE}>
-        Teklif Kalemleri / Line Items
+      <div style={{ ...TABLE_TITLE_STYLE, textTransform: 'none' }}>
+        TEKLİF KALEMLERİ / LINE ITEMS
       </div>
       {/* Dikey çizgiler kaldırıldı: outer border yerine top+bottom,            */}
       {/* başlık ve hücreler arasındaki dikey ayraçlar da devre dışı.           */}
@@ -512,7 +512,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                         {formatDisplayNumber(satir.miktar, 0, 4)}
                       </span>
                       <span style={{ flex: '1 1 0', minWidth: 0, textAlign: 'right', color: TABLE_TEXT.helper, fontSize: `${LINE_ITEM_METRICS.baseFontSizePx * LINE_ITEM_METRICS.quantityUnitScale}px`, paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad.' : satir.birim}
+                        {/^adet$/i.test(satir.birim?.trim() ?? '') || !satir.birim ? 'Ad' : satir.birim}
                       </span>
                     </div>
                   ) : '—'}
@@ -628,7 +628,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   kdvTutar={useKart ? tek.kdvTutar : kdvTutar}
                   genelToplam={useKart ? tek.total : genelToplam}
                   paraBirimi={useKart ? tek.pb : teklif.paraBirimi}
-                  variant="dark"
+                  variant="light"
                   amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
                 />
               </td>
@@ -687,7 +687,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                           kdvTutar={item.kdvTutar}
                           genelToplam={item.total}
                           paraBirimi={item.pb}
-                          variant="dark"
+                          variant="light"
                         />
                       </div>
                     ))}
@@ -764,11 +764,10 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   fontWeight: 600,
                   color: C.sigPrimary,
                   letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
                   lineHeight: 1.1,
                   marginBottom: '4px',
                 }}>
-                  Siparişi Veren
+                  SİPARİŞİ VEREN
                 </div>
                 <div style={{
                   fontSize: '8.64px',

@@ -47,7 +47,29 @@ export function buildSatirCellSelector(satirId: string, field: SatirCellField): 
 
 export function findSatirCellElement(satirId: string, field: SatirCellField): HTMLElement | null {
   const selector = buildSatirCellSelector(satirId, field);
-  return document.querySelector(selector) as HTMLElement | null;
+  const nodes = document.querySelectorAll<HTMLElement>(selector);
+  if (nodes.length === 0) return null;
+  if (nodes.length === 1) return nodes[0];
+
+  // Birden fazla eşleşme (örn. PDF source kopyası offscreen mount edilmiş):
+  // viewport içinde gerçekten görünür olanı seç. Offscreen kopyalar genelde
+  // negatif left (-9999px) veya 0 boyutta olur — onları ele.
+  let best: HTMLElement | null = null;
+  let bestArea = -1;
+  for (const el of Array.from(nodes)) {
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    if (r.right <= 0 || r.bottom <= 0) continue;
+    if (r.left >= window.innerWidth || r.top >= window.innerHeight) continue;
+    const visibleW = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0);
+    const visibleH = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+    const area = Math.max(0, visibleW) * Math.max(0, visibleH);
+    if (area > bestArea) {
+      bestArea = area;
+      best = el;
+    }
+  }
+  return best ?? nodes[0];
 }
 
 export function computeCellPopupPosition(params: {

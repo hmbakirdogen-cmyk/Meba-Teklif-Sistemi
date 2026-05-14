@@ -962,6 +962,11 @@ export const FIELD_CSS = `
   --line-cell-padding-x: 6px;
 }
 
+/* Optical separator color CSS variables — A4 ve PDF tarafında dikey hücre
+   ayrım çizgileri global index.css'te .offer-table .optical-separator-col
+   selektörü ile çiziliyor (rcCell inline borderLeft'i !important ile ezer).
+   Bu CSS variable'ları geriye dönük uyumluluk için tutuluyor; başka
+   bileşenler okuyorsa değer aynı kalsın. */
 .belge-inline .offer-table thead th.optical-separator-col,
 .belge-inline .offer-table tbody td.optical-separator-col {
   --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.body};
@@ -970,7 +975,7 @@ export const FIELD_CSS = `
   --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.head};
 }
 .belge-inline .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.15);
+  --offer-col-separator: rgba(26, 43, 66, 0.11);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1059,7 +1064,7 @@ export const FIELD_CSS = `
   --offer-col-separator: ${OPTICAL_SEPARATOR_COLOR.head};
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
-  --offer-col-separator: rgba(99, 102, 241, 0.40);
+  --offer-col-separator: rgba(99, 102, 241, 0.22);
 }
 
 /* Sub-item / no-click / readOnly — efekt sıfır */
@@ -1108,22 +1113,22 @@ export const FIELD_CSS = `
   --offer-col-separator: rgba(203, 213, 225, 0.16);
 }
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
-  --offer-col-separator: rgba(241, 245, 249, 0.20);
+  --offer-col-separator: rgba(241, 245, 249, 0.17);
 }
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col:hover:not(.is-active-cell) {
-  --offer-col-separator: rgba(226, 232, 240, 0.20);
+  --offer-col-separator: rgba(226, 232, 240, 0.17);
 }
 /* Eski dark-mode td.is-active-cell box-shadow/background kuralı kaldırıldı —
    inline style (rcCell) ezdiği için zaten görünmüyordu. Yeni dark-mode
    td.is-active-cell::after overlay artık tüm tech görsel diliyle çalışıyor. */
 [data-theme="dark"] .belge-inline .offer-table tbody tr[data-satir-id] > td.optical-separator-col.is-active-cell {
-  --offer-col-separator: rgba(241, 245, 249, 0.24);
+  --offer-col-separator: rgba(241, 245, 249, 0.19);
 }
 
 /* ── İşaretli satır — tek düz arka plan (zebra override) + bookmark tab ──
- *  background-color kullan: shorthand 'background' background-image'i ezerdi →
- *  optical-separator-col hücrelerindeki dikey çizgi (linear-gradient) yok olur.
- *  Color-only override ile çizgiler korunur. */
+ *  background-color kullan: shorthand 'background' border ve yüzey tonlarını
+ *  gereksiz yere sıfırlamasın. Color-only override ile separator çizgileri
+ *  korunur. */
 .belge-inline .offer-table tbody tr[data-marked="true"] > td {
   background-color: #E4E9F1 !important;
   print-color-adjust: exact;

@@ -109,28 +109,33 @@ async function fetchTcmb(): Promise<KurResponse> {
   }
 }
 
+function bugunYMD(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 // GET /api/kur — public (auth gerekmez, sadece okuma)
 kurRouter.get(
   '/',
   asyncHandler(async (_req, res) => {
     const now = Date.now();
-    // Cache hit?
-    if (cache && now - cache.fetchedAt < CACHE_TTL_MS) {
+    // Cache hit? — TTL içinde VE cache tarihi bugün ise direkt dön.
+    // Cache tarihi eski (önceki gün) ise TTL biter beklemeden refresh dene.
+    const cacheGuncel = cache && cache.data.tarih === bugunYMD();
+    if (cache && cacheGuncel && now - cache.fetchedAt < CACHE_TTL_MS) {
       res.json(cache.data);
       return;
     }
-    // Cache expire — yenilemeyi dene
+    // Cache expire VEYA tarih güncel değil — yenilemeyi dene
     try {
       const fresh = await fetchTcmb();
       cache = { data: fresh, fetchedAt: now };
       res.json(fresh);
     } catch (err) {
       console.warn('[kur] TCMB fetch hatası:', (err as Error).message);
-      // Son başarılı cache'i kullan
+      // Son başarılı cache'i kullan (tatil/hafta sonu senaryosunda da geçerli)
       if (cache) {
         res.json({
           ...cache.data,
-          // Bilgilendirme: bu veri kaynaktan ulaşılamadığı için cached
           _cached: true,
         });
         return;

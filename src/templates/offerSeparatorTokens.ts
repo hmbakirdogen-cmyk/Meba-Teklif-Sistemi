@@ -1,5 +1,5 @@
 export const OPTICAL_SEPARATOR_ALPHA = {
-  head: 0.13,
+  head: 0.14,
   body: 0.10,
 } as const;
 

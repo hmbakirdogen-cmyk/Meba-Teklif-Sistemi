@@ -1,6 +1,5 @@
 ﻿import React, { useRef, useEffect, useState, useMemo, useLayoutEffect } from 'react';
 import TeklifSablonu, { KompaktAntet } from '../templates/TeklifSablonu';
-import TeklifPagedDocument from '../templates/TeklifPagedDocument';
 import PaginatedBelgeInlineEditor, { type EditingAlan } from './PaginatedBelgeInlineEditor';
 import { useMarkedRows } from './paginatedBelgeInlineHelpers';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
@@ -232,11 +231,41 @@ export default function CanliA4Belge({
           background: '#fff',
         }}
       >
-        <TeklifPagedDocument
+        <PaginatedBelgeInlineEditor
           teklif={teklif}
           totals={totals}
           pages={pagination.pages}
+          scale={1}
           markedRowIds={markedRowIds}
+          toggleRowMark={toggleRowMark}
+          editingAlan={null}
+          onEditingAlanDegistir={onEditingAlanDegistir}
+          onCariDegistir={onCariDegistir}
+          onCariEPostaDegistir={onCariEPostaDegistir}
+          onCariTelefonDegistir={onCariTelefonDegistir}
+          onCariSehirDegistir={onCariSehirDegistir}
+          contactName={contactName}
+          contactTitle={contactTitle}
+          onContactNameDegistir={onContactNameDegistir}
+          onContactTitleDegistir={onContactTitleDegistir}
+          onTarihDegistir={onTarihDegistir}
+          onParaBirimiDegistir={onParaBirimiDegistir}
+          satirBazliParaBirimi={satirBazliParaBirimi}
+          satirBazliIskonto={satirBazliIskonto}
+          onKdvOraniDegistir={onKdvOraniDegistir}
+          onOdemeVadesiDegistir={onOdemeVadesiDegistir}
+          onGecerlilikSuresiDegistir={onGecerlilikSuresiDegistir}
+          onDovizKuruDegistir={onDovizKuruDegistir}
+          onSatirGuncelle={onSatirGuncelle}
+          onSatiraSetUygula={onSatiraSetUygula}
+          onSatirSil={onSatirSil}
+          onSatirEkle={onSatirEkle}
+          onSatirArayaEkle={onSatirArayaEkle}
+          onNotlarDegistir={onNotlarDegistir}
+          readOnly
+          rootClassName="belge-pdf-source"
+          pushUndo={pushUndo}
+          getSnapshot={getSnapshot}
           renderPageOverlay={(pageIndex) => (
             <ImageOverlayLayer
               pageIndex={pageIndex}
