@@ -26,10 +26,11 @@ const TRAILING_BLOCK_SAFETY_PX = 56;
 /**
  * Her sayfanın alt bölgesinde korunan optik boşluk. Satır blokları bu kadar
  * kapasiteyi "görünmez" sayar; böylece son satırlar sayfanın dibine yapışmaz
- * ve sayfa 1-2 satır önceden yeni sayfaya geçer (nefes alma payı).
- * 60px ≈ 2-3 satır yüksekliği; A4 alt kenarında ferah görünüm sağlar.
+ * ve sayfa 2-3 satır önceden yeni sayfaya geçer (nefes alma payı).
+ * 100px ≈ 4-5 satır; A4 alt kenarı belirgin ferah, kullanıcı son satırın
+ * sayfa dibine sıkıştığını hissetmez.
  */
-const OPTICAL_ROW_BOTTOM_BUFFER_PX = 60;
+const OPTICAL_ROW_BOTTOM_BUFFER_PX = 100;
 
 function outerHeight(el: HTMLElement | null): number {
   if (!el) return 0;
