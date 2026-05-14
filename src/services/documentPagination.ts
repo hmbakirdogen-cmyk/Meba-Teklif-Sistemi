@@ -1,4 +1,4 @@
-import { DOCUMENT_PAGE, mmToPx, computeSetGroupPos } from '../templates/teklifDocumentShared';
+import { DOCUMENT_PAGE, LINE_ITEM_METRICS, mmToPx, computeSetGroupPos } from '../templates/teklifDocumentShared';
 
 /**
  * documentPagination — A4 önizleme + PDF için sayfa kırma motoru.
@@ -26,9 +26,10 @@ const TRAILING_BLOCK_SAFETY_PX = 56;
 /**
  * Her sayfanın alt bölgesinde korunan optik boşluk. Satır blokları bu kadar
  * kapasiteyi "görünmez" sayar; böylece son satırlar sayfanın dibine yapışmaz
- * ve bazı durumlarda 1 satır önceden yeni sayfaya geçiş tetiklenir.
+ * ve sayfa 1-2 satır önceden yeni sayfaya geçer (nefes alma payı).
+ * 60px ≈ 2-3 satır yüksekliği; A4 alt kenarında ferah görünüm sağlar.
  */
-const OPTICAL_ROW_BOTTOM_BUFFER_PX = 24;
+const OPTICAL_ROW_BOTTOM_BUFFER_PX = 60;
 
 function outerHeight(el: HTMLElement | null): number {
   if (!el) return 0;
@@ -127,12 +128,19 @@ function measureDocument(
     offsetTopWithin(linearRoot, footerEl),
   ]);
 
+  // Boş satır (örn. yeni eklenip henüz açıklaması yazılmamış) DOM'da ~13-15px
+  // gibi düşük ölçüm verebiliyor. Editor render'ında ise CSS min-height satır
+  // ~20px'e zorluyor → pagination'a bunu yansıtmazsak 1. sayfaya gerçek
+  // kapasiteden fazla satır yerleştiriliyor ve overflow:hidden ile son
+  // satırlar kırpılıyor. Min satır yüksekliğini ölçüme uygula.
+  const MIN_ROW_HEIGHT_PX = LINE_ITEM_METRICS.rowHeightPx;
+
   return {
     firstTableStartTop: firstNonZero([firstRowTop, firstTrailingTop]),
     firstTrailingTop,
     tableHeadHeight: outerHeight(tableHeadEl),
     tableSpacerHeight: outerHeight(spacerEl),
-    rowHeights: dataRows.map((row) => outerHeight(row)),
+    rowHeights: dataRows.map((row) => Math.max(outerHeight(row), MIN_ROW_HEIGHT_PX)),
     totalsHeight: outerHeight(totalsEl),
     notesHeight: outerHeight(notesEl),
     signatureHeight: outerHeight(signatureEl),
@@ -353,6 +361,34 @@ export function calculateTeklifPagination(
   }
 
   placeTrailingBlocksWithWidow(pages, blocks, measurements);
+
+  // ── Emniyet kemeri: sayfa aralıklarının KESİNTİSİZ olduğunu garantiye al.
+  // calculateTeklifPagination içindeki edge case'ler (widow + overflow zinciri,
+  // yüksekliği 0 olan boş satırlar, vs.) sonucunda iki sayfa arasında atlanan
+  // satır kalmamalı. Aksi halde slice(start,end) ile o satırlar render
+  // edilmediği için kullanıcı satırları "kaybolmuş" görür. Eğer page[i+1]
+  // page[i].rowEndIndex'ten sonra başlıyorsa, eksik aralık page[i+1]'in
+  // başına eklenir.
+  for (let i = 0; i < pages.length - 1; i++) {
+    const cur = pages[i];
+    const nxt = pages[i + 1];
+    if (nxt.rowStartIndex > cur.rowEndIndex) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[pagination] page ${cur.pageNumber} ends at row ${cur.rowEndIndex} ama page ${nxt.pageNumber} ${nxt.rowStartIndex}'ten basliyor — eksik araligi sonraki sayfaya ekliyorum.`,
+      );
+      nxt.rowStartIndex = cur.rowEndIndex;
+    }
+  }
+  // Son sayfa data sonuna kadar uzanmazsa (extreme edge case), uzat.
+  const lastPage = pages[pages.length - 1];
+  if (rows.length > 0 && lastPage.rowEndIndex < rows.length) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[pagination] son sayfa ${lastPage.rowEndIndex}'te bitti ama veri ${rows.length} satir — son sayfayi uzatiyorum.`,
+    );
+    lastPage.rowEndIndex = rows.length;
+  }
 
   return {
     pages: pages.map((page) => ({
