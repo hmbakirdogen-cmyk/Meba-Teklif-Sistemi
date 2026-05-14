@@ -184,6 +184,22 @@ export function useBelgeState(
   const teklifSahibiAdSoyadRef = useRef<string | undefined>(mevcut?.hazirlayanAdSoyad);
   const teklifSahibiRolRef = useRef<string | undefined>(mevcut?.hazirlayanRol);
   const teklifSahibiUnvanRef = useRef<string | undefined>(mevcut?.hazirlayanUnvan);
+  // KRİTİK: Mount sırasında dataStore cache'i henüz dolu olmayabilir →
+  // mevcut=undefined → ref'ler undefined ile init olur. Sonra cache dolunca
+  // mevcut yüklenir ama useRef güncellenmez → state'te aktif kullanıcı (yönetici)
+  // görünür → autoSave bunu DB'ye yazar → orijinal hazırlayan ezilir (BUG).
+  // Çözüm: ref'ler bir kez (boştan dolu hale) güncellenir, sonra dokunulmaz.
+  const sahipSetEdildiRef = useRef(false);
+  useEffect(() => {
+    if (sahipSetEdildiRef.current) return;
+    if (mevcut?.hazirlayanKullaniciId) {
+      teklifSahibiIdRef.current = mevcut.hazirlayanKullaniciId;
+      teklifSahibiAdSoyadRef.current = mevcut.hazirlayanAdSoyad;
+      teklifSahibiRolRef.current = mevcut.hazirlayanRol;
+      teklifSahibiUnvanRef.current = mevcut.hazirlayanUnvan;
+      sahipSetEdildiRef.current = true;
+    }
+  }, [mevcut?.hazirlayanKullaniciId, mevcut?.hazirlayanAdSoyad, mevcut?.hazirlayanRol, mevcut?.hazirlayanUnvan]);
 
   const [teklifId] = useState(() => mevcut ? mevcutId! : teklifService.teklifIdUret());
   const [teklifNo, setTeklifNo] = useState(mevcut?.teklifNo ?? '...');
