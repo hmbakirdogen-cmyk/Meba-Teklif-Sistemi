@@ -1194,68 +1194,12 @@ function FirmaKarti({ firma, onSecim, isMobile, index }: {
       )}
 
       {/* ═══════════════ KİŞİLİK: MEBA — yaşayan rehavet ═══════════════
-       *  1) Sağ-üstte 3 büyük "z" — uyku sembolü (farklı yatay konum + periyot)
-       *  2) Altta yavaşça süzülen 2 bulut — "kafanı bulutlarda gezdirme"      */}
+       *  Bulut: altta yavaşça süzülen kumulüs — "kafanı bulutlarda gezdirme".
+       *  "z z z" sembolleri kart DIŞI render edilir (ELMOS '?' ile aynı yapı,
+       *  aşağıda return'ün altında).                                          */}
       {firma.id === 'meba' && (
         <>
-          {/* (1) "z z z" — sağ-üst köşeden yukarı süzülen 3 cool-blue harf
-                (ELMOS ile aynı ton — solgun, atmosferik)                    */}
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: 16, right: 36,
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'rgba(120,180,255,0.30)',
-              letterSpacing: 0.3,
-              animation: 'gc-meba-zzz 5s 0s ease-in-out infinite',
-              textShadow: '0 0 6px rgba(120,180,255,0.30)',
-              pointerEvents: 'none',
-              lineHeight: 1,
-              willChange: 'transform, opacity',
-            }}
-          >
-            z
-          </span>
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: 14, right: 22,
-              fontSize: 17,
-              fontWeight: 600,
-              color: 'rgba(120,180,255,0.27)',
-              letterSpacing: 0.3,
-              animation: 'gc-meba-zzz 6s 1.5s ease-in-out infinite',
-              textShadow: '0 0 7px rgba(120,180,255,0.30)',
-              pointerEvents: 'none',
-              lineHeight: 1,
-              willChange: 'transform, opacity',
-            }}
-          >
-            z
-          </span>
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: 12, right: 8,
-              fontSize: 20,
-              fontWeight: 600,
-              color: 'rgba(120,180,255,0.25)',
-              letterSpacing: 0.3,
-              animation: 'gc-meba-zzz 7s 3s ease-in-out infinite',
-              textShadow: '0 0 8px rgba(120,180,255,0.30)',
-              pointerEvents: 'none',
-              lineHeight: 1,
-              willChange: 'transform, opacity',
-            }}
-          >
-            z
-          </span>
-
-          {/* (2) Gerçekçi kumulüs bulut — küçük + soluk + atmosferik.
+          {/* Gerçekçi kumulüs bulut — küçük + soluk + atmosferik.
                 SVG blur filtresi + çok sayıda overlapping circle: yumuşak organik
                 kenar. Alt zemin + ana gövde + üst tomurcuklar + soft highlight'lar.
                 Karta soldan girer, sağdan çıkar (22s).                          */}
@@ -1645,6 +1589,76 @@ function FirmaKarti({ firma, onSecim, isMobile, index }: {
         )}
       </div>
     </div>
+
+    {/* ═══════ MEBA — "z z z" Uyku Sembolleri (kart DIŞI, wrapper içi) ═══════
+     *  Kart overflow:hidden olduğundan yukarı süzülen z harfleri kırpılırdı.
+     *  ELMOS '?' yapısıyla aynı: wrapper position:relative içinde absolute
+     *  ile kart üstünde (top negatif) konumlanır. Wrapper'ın breathing
+     *  animasyonuyla birlikte hafifçe nefes alır.                          */}
+    {firma.id === 'meba' && (
+      <>
+        {/* (1) Küçük "z" — sağda, en hızlı döngü */}
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: -4, right: 36,
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'rgba(120,180,255,0.30)',
+            letterSpacing: 0.3,
+            animation: 'gc-meba-zzz 5s 0s ease-in-out infinite',
+            textShadow: '0 0 6px rgba(120,180,255,0.30)',
+            pointerEvents: 'none',
+            lineHeight: 1,
+            willChange: 'transform, opacity',
+            zIndex: 2,
+          }}
+        >
+          z
+        </span>
+        {/* (2) Orta "z" — daha yukarıda, 1.5s gecikme */}
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: -8, right: 22,
+            fontSize: 17,
+            fontWeight: 600,
+            color: 'rgba(120,180,255,0.27)',
+            letterSpacing: 0.3,
+            animation: 'gc-meba-zzz 6s 1.5s ease-in-out infinite',
+            textShadow: '0 0 7px rgba(120,180,255,0.30)',
+            pointerEvents: 'none',
+            lineHeight: 1,
+            willChange: 'transform, opacity',
+            zIndex: 2,
+          }}
+        >
+          z
+        </span>
+        {/* (3) Büyük "z" — en üstte, 3s gecikme, yavaş döngü */}
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: -12, right: 8,
+            fontSize: 20,
+            fontWeight: 600,
+            color: 'rgba(120,180,255,0.25)',
+            letterSpacing: 0.3,
+            animation: 'gc-meba-zzz 7s 3s ease-in-out infinite',
+            textShadow: '0 0 8px rgba(120,180,255,0.30)',
+            pointerEvents: 'none',
+            lineHeight: 1,
+            willChange: 'transform, opacity',
+            zIndex: 2,
+          }}
+        >
+          z
+        </span>
+      </>
+    )}
 
     {/* ═══════ ELMOS — Soru İşaretleri (kart DIŞI, wrapper içi) ═══════
      *  Kart overflow:hidden olduğundan top:-8/-16 ile kart üstüne taşan
