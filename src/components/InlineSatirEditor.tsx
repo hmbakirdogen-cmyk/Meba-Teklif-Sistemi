@@ -14,6 +14,7 @@ import { useAkilliReferans } from '../hooks/useAkilliReferans';
 import { urunService } from '../services/urunService';
 import { urunSetService } from '../services/urunSetService';
 import {
+  InlineTableAutocompleteField,
   InlineTableNumberField,
   InlineTableSelectField,
 } from './InlineTableFields';
@@ -617,16 +618,19 @@ function BirimFiyatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdi
 function TeslimatEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   const teslimSecenekleri = useAkilliReferans('teslimSecenekleri');
   return (
-    <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
-      <InlineTableSelectField
+    <div onKeyDown={(e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        onEnterNext?.();
+      }
+    }}>
+      <InlineTableAutocompleteField
         autoFocus={autoFocus}
         defaultOpen={autoFocus}
         style={ROW_TEXT.delivery}
-        value={satir.teslimTarihi || undefined}
-        onChange={(value) => {
-          onGuncelle('teslimTarihi', value);
-          onEnterNext?.();
-        }}
+        value={satir.teslimTarihi || ''}
+        onChange={(value) => onGuncelle('teslimTarihi', String(value ?? ''))}
         options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
         placeholder="—"
         popupMatchSelectWidth={false}

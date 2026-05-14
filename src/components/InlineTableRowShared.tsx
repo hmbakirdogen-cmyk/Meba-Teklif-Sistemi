@@ -176,12 +176,23 @@ export const ROW_TEXT = {
   } satisfies React.CSSProperties,
   delivery: {
     display: 'block',
+    // Hücrenin gerçek width'ine kilitlenir; içerik her halükârda max-width'i
+    // aşamaz (table-layout:fixed col genişliğini de aşmaz).
     width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
     textAlign: 'center',
     fontSize: `${LINE_ITEM_METRICS.deliveryFontSizePx}px`,
     letterSpacing: '-0.01em',
     color: TABLE_TEXT.passive,
-    whiteSpace: 'nowrap',
+    // Uzun termin metinleri (örn. "50 adet stok, 50 adet 2-3 gün") yatayda
+    // hücreyi şişirmesin → alt satıra geçsin. `anywhere` boşluksuz uzun
+    // string'i de (ör. "svskhvb...") harf sınırından zorla kırar →
+    // tek bir uzun "kelime" kolonu genişletemez.
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
     lineHeight: LINE_ITEM_METRICS.deliveryLineHeight,
   } satisfies React.CSSProperties,
 } as const;

@@ -256,6 +256,14 @@ export const OFFER_COLUMN_METRICS = {
     total: 60,
     delivery: 46,
   },
+  // Tek bir uzun termin metni (örn. "50 adet stok, 50 adet 2-3 gün") TÜM
+  // teslimat kolonunu şişirmesin → tavanı aşan içerik wrap ile alt satıra
+  // geçer. Açıklama kolonunun esnek genişliği korunur.
+  // Hedef: ~12 karakter tek satıra sığsın → 12 × 5.4px ≈ 65px content tavanı.
+  // Final kolon = max(65, headerW "Teslimat/Delivery") + PAD + BUFFER.
+  maxWidths: {
+    delivery: 65,
+  },
 } as const;
 
 export const SIGNATURE_METRICS = {
@@ -545,7 +553,13 @@ export function computeOfferColumnWidths(
     LINE_ITEM_METRICS.baseFontSizePx, 400, '0', 6.3,
   );
   const totalContentW    = widestOf(rows.map((r) => fmtPrice(r.satirToplami)), LINE_ITEM_METRICS.baseFontSizePx, 700, '0', 6.5);
-  const deliveryContentW = widestOf(rows.map((r) => r.teslimTarihi ?? ''), LINE_ITEM_METRICS.deliveryFontSizePx, 400, '-0.01em', 5.4);
+  // Tavan: uzun termin metnini kolon genişliğine yansıtmaz → maxWidths.delivery
+  // ile sınırlı. Aşan kısım hücre içinde alt satıra geçer (ROW_TEXT.delivery
+  // whiteSpace:normal + overflowWrap:anywhere ile).
+  const deliveryContentW = Math.min(
+    widestOf(rows.map((r) => r.teslimTarihi ?? ''), LINE_ITEM_METRICS.deliveryFontSizePx, 400, '-0.01em', 5.4),
+    OFFER_COLUMN_METRICS.maxWidths.delivery,
+  );
   const paraBirimiContentW = satirBazliParaBirimi
     ? widestOf(['TL', 'USD', 'EUR'], LINE_ITEM_METRICS.baseFontSizePx, 700, '0.03em', 6.5)
     : 0;

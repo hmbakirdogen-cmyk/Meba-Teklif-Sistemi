@@ -1,6 +1,6 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Select, Input, DatePicker, Dropdown, Popover, InputNumber, App } from 'antd';
+import { AutoComplete, Select, Input, DatePicker, Dropdown, Popover, InputNumber, App } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -229,7 +229,7 @@ const CELL_POPUP_CONSTRAINTS: Record<SatirCellField, { min: number; max: number 
   miktar:     { min: 220, max: 300 },   // İki sütun (değer + birim)
   paraBirimi: { min: 180, max: 260 },   // Select (TL/EUR/USD)
   birimFiyat: { min: 160, max: 220 },   // Tek number input
-  teslimat:   { min: 200, max: 300 },   // Select (teslimat süreleri)
+  teslimat:   { min: 110, max: 140 },   // Dar — ~12 karakterden sonra alt satıra geçer (hücre kolon hizasında)
 };
 
 function CellEditPopup({
@@ -495,23 +495,36 @@ function CellEditPopup({
     title = 'Teslimat';
     const teslimSecenekleri = akilliTeslim;
     body = (
-      <Select
+      <AutoComplete
         autoFocus
         defaultOpen
-        showSearch
         allowClear
         size="middle"
         style={{ width: '100%' }}
-        value={satir.teslimTarihi || undefined}
+        value={satir.teslimTarihi || ''}
         options={teslimSecenekleri.map((t) => ({ value: t, label: t }))}
-        onChange={(value) => {
-          onSatirGuncelle(satir.id, 'teslimTarihi', value ?? '');
+        onChange={(value) => onSatirGuncelle(satir.id, 'teslimTarihi', String(value ?? ''))}
+        onSelect={(value) => {
+          onSatirGuncelle(satir.id, 'teslimTarihi', String(value ?? ''));
           onClose();
         }}
-        onInputKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-        placeholder="Teslimat seçin…"
+        placeholder="Teslimat…"
         getPopupContainer={() => popupRef.current ?? document.body}
-      />
+      >
+        {/* TextArea — yazarken hücre kolon genişliğine paralel olarak ~12
+            karakterden sonra alt satıra otomatik geçer; autoSize ile dikey
+            büyür. Enter = manuel satır kır (12 karakterden ÖNCE de istediği
+            yerde alt satıra geçebilsin). Tab/Escape = kaydet+kapat. Dışarı
+            tıklama da popup'ı kapatır. */}
+        <Input.TextArea
+          autoSize={{ minRows: 1, maxRows: 5 }}
+          style={{ resize: 'none', lineHeight: 1.3 }}
+          onKeyDown={(e) => {
+            if (e.key === 'Tab') { e.preventDefault(); onClose(); }
+            if (e.key === 'Escape') onClose();
+          }}
+        />
+      </AutoComplete>
     );
   }
 
