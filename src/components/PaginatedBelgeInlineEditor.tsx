@@ -1312,7 +1312,11 @@ export default function PaginatedBelgeInlineEditor({
                   <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Tarih</td>
                   <td style={{ fontSize: '10.2px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                     {readOnly ? (
-                      formatDate(teklif.tarih)
+                      // Kilit yeşil ↔ kırmızı geçişinde yatay kayma olmasın
+                      // diye DatePicker ile aynı genişlik (110px) zorlandı.
+                      <span style={{ display: 'inline-block', width: 110 }}>
+                        {formatDate(teklif.tarih)}
+                      </span>
                     ) : (
                       <DatePicker
                         size="small"
@@ -1398,9 +1402,18 @@ export default function PaginatedBelgeInlineEditor({
           )}
 
           <div style={PARTY_BODY_STYLE}>
-            {/* Muhatap satırı — kendi popup'ı */}
+            {/* Muhatap satırı — kendi popup'ı.
+                readOnly + boş muhatap durumunda satır görünmez AMA yer kaplar
+                (visibility:hidden) → diğer içerik (adres, telefon, vb.) yukarı
+                kaymaz, layout kilit yeşil ↔ kırmızı geçişinde sabit kalır. */}
             {readOnly ? (
-              muhatapSatiri && <div style={PARTY_GREETING_STYLE}>Sayın {muhatapSatiri},</div>
+              muhatapSatiri ? (
+                <div style={PARTY_GREETING_STYLE}>Sayın {muhatapSatiri},</div>
+              ) : (
+                <div style={{ ...PARTY_GREETING_STYLE, visibility: 'hidden' }} aria-hidden>
+                  Sayın Muhatap,
+                </div>
+              )
             ) : (
               <Popover
                 open={editingAlan === 'musteri-muhatap'}
@@ -1446,18 +1459,34 @@ export default function PaginatedBelgeInlineEditor({
               </Popover>
             )}
 
-            {/* Adres — read-only render, muhatap altında */}
-            {teklif.cari.adres && (
+            {/* Adres — read-only render, muhatap altında.
+                Boş adres durumunda HEM yeşil HEM kırmızı modda aynı görünmez
+                yer tutucu → kilit geçişinde dikey yükseklik sabit kalır,
+                A4 boyu uzamaz. */}
+            {teklif.cari.adres ? (
               <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {formatAdres(teklif.cari.adres)}
+              </div>
+            ) : (
+              <div
+                style={{ visibility: 'hidden', wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                aria-hidden
+              >
+                Adres satırı yer tutucu
               </div>
             )}
 
             {/* Şehir | Tel | E-posta satırı */}
             <div>
-              {/* Şehir hücresi — kendi popup'ı */}
+              {/* Şehir hücresi — kendi popup'ı.
+                  readOnly + boş şehir → visibility:hidden placeholder ile
+                  yer kaplama, satır yatay layout kilit geçişinde sabit kalsın. */}
               {readOnly ? (
-                teklif.cari.sehir && <span>{formatSehir(teklif.cari.sehir)}</span>
+                teklif.cari.sehir ? (
+                  <span>{formatSehir(teklif.cari.sehir)}</span>
+                ) : (
+                  <span style={{ visibility: 'hidden' }} aria-hidden>İstanbul</span>
+                )
               ) : (
                 <Popover
                   open={editingAlan === 'musteri-sehir'}
@@ -1496,10 +1525,22 @@ export default function PaginatedBelgeInlineEditor({
                   </EditableField>
                 </Popover>
               )}
-              {(teklif.cari.sehir || !readOnly) && <span> &nbsp;|&nbsp; </span>}
-              {/* Tel hücresi — kendi popup'ı */}
+              {/* Şehir | Tel ayraç — readOnly + boş şehir durumunda yer
+                  kaplaması için her zaman render, visibility ile gizleme. */}
+              {(teklif.cari.sehir || !readOnly) ? (
+                <span> &nbsp;|&nbsp; </span>
+              ) : (
+                <span style={{ visibility: 'hidden' }} aria-hidden> &nbsp;|&nbsp; </span>
+              )}
+              {/* Tel hücresi — kendi popup'ı.
+                  readOnly + boş telefon → visibility:hidden placeholder, yer
+                  kaplar (kilit geçişinde layout aynı kalsın). */}
               {readOnly ? (
-                teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>
+                teklif.cari.telefon ? (
+                  <span>Tel: {formatPhone(teklif.cari.telefon)}</span>
+                ) : (
+                  <span style={{ visibility: 'hidden' }} aria-hidden>Tel: 0000 000 00 00</span>
+                )
               ) : (
                 <Popover
                   open={editingAlan === 'musteri-telefon'}
@@ -1534,9 +1575,21 @@ export default function PaginatedBelgeInlineEditor({
               )}
 
               {/* E-posta hücresi — kendi popup'ı, tel sonrası */}
-              {((teklif.cari.sehir || teklif.cari.telefon) && (teklif.cari.ePosta || !readOnly)) && <span> &nbsp;|&nbsp; </span>}
+              {/* Tel | E-posta ayraç — readOnly + boş durumlarda yer kaplama
+                  amaçlı her zaman render, visibility:hidden ile gizleme. */}
+              {((teklif.cari.sehir || teklif.cari.telefon) && (teklif.cari.ePosta || !readOnly)) ? (
+                <span> &nbsp;|&nbsp; </span>
+              ) : (
+                <span style={{ visibility: 'hidden' }} aria-hidden> &nbsp;|&nbsp; </span>
+              )}
+              {/* E-posta hücresi — readOnly + boş ePosta → visibility:hidden
+                  placeholder ile yer kaplama (kilit geçişinde layout sabit). */}
               {readOnly ? (
-                teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>
+                teklif.cari.ePosta ? (
+                  <span>{teklif.cari.ePosta}</span>
+                ) : (
+                  <span style={{ visibility: 'hidden' }} aria-hidden>placeholder@example.com</span>
+                )
               ) : (
                 <Popover
                   open={editingAlan === 'musteri-eposta'}

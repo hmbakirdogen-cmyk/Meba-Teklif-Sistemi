@@ -13,7 +13,7 @@ import { useEffect } from 'react';
 import { api } from './services/apiClient';
 import {
   FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
-  MoonOutlined, SunOutlined, TeamOutlined, BankOutlined, SwapOutlined,
+  MoonOutlined, SunOutlined, TeamOutlined, BankOutlined,
   CheckOutlined, BarChartOutlined, DownloadOutlined, SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -28,7 +28,6 @@ import { usePWAInstall } from './hooks/usePWAInstall';
 import { buttonClassNames } from './styles/buttonStyles';
 import { getAdaptiveLogoPlacement } from './styles/logoStyles';
 import { SyncStatusBar } from './components/SyncStatusBar';
-import { KurWidget } from './components/KurWidget';
 import EditableFieldContextMenu from './components/EditableFieldContextMenu';
 
 const { Header, Content } = Layout;
@@ -269,16 +268,17 @@ export default function AppLayout() {
                   style={activeLogoPlacement.imageStyle}
                 />
               </div>
-              {aktifFirma && !isMobile && (
+              {/* Logo yanı firma kısa adı — sadece tek-firmalı kullanıcılarda
+                  görünür. Yöneticiler (cokFirmaErisir) zaten logoyu tıklayıp
+                  firma değiştiriyor; logoda firma görseli var, yanına ekstra
+                  ad yazmak tekrar oluyordu. */}
+              {aktifFirma && !isMobile && !cokFirmaErisir && (
                 <div style={{
                   marginLeft: activeLogoPlacement.labelGapPx, fontSize: 10, color: 'rgba(170,190,220,0.55)',
                   letterSpacing: 1.2, textTransform: 'uppercase' as const,
                   fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   <span>{aktifFirma.kisaAd}</span>
-                  {cokFirmaErisir && firmalar.length > 1 && (
-                    <SwapOutlined style={{ fontSize: 11, color: 'rgba(170,190,220,0.65)' }} />
-                  )}
                 </div>
               )}
             </>
@@ -391,9 +391,6 @@ export default function AppLayout() {
 
         {/* ── SYNC STATUS BAR (sadece desktop, header sağında) ── */}
         {!isMobile && <SyncStatusBar />}
-
-        {/* ── TCMB Kur Gösterge (sadece desktop) ── */}
-        {!isMobile && <KurWidget />}
 
         {/* ── TEMA TOGGLE ── */}
         <Tooltip title={isDark ? 'Aydınlık Mod' : 'Koyu Mod'} placement="bottomRight">

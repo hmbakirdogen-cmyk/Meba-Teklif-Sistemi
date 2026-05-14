@@ -12,12 +12,19 @@ import {
 import { UndoArrowIcon, RedoArrowIcon } from './ToolbarIcons';
 import { useKullanici } from '../context/useKullanici';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
+import KurKumandaSection from './KurKumandaSection';
+import TarihKumandaSection from './TarihKumandaSection';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
 const K = {
   WIDTH: 154,
   TOP: 97,
+  // Header altı + ufak hava → panel ekranın üstüne yapışınca minimum durduğu Y.
+  // Sayfa aşağı scroll edildiğinde A4 yukarı kayar; panel bu sınıra kadar A4
+  // ile birlikte kayar, sonra "sticky" şekilde burada yapışıp asla ekran
+  // dışına çıkmaz.
+  STICK_MIN_TOP: 64,
   // BOTTOM_GAP: panel'in viewport alt kenarına olan minimum mesafesi.
   // Dev imzası kartı için (~14px bottom + ~22px height + buffer) â†’ 44px
   // ayrılır; böylece panel bottomReach â‰¤ viewportH-44 < signature.top.
@@ -156,23 +163,33 @@ export default function KumandaPaneli({
     { top: K.TOP, left: 0, scale: 1 },
   );
   const measureA4 = () => {
-    // A4 wrapper — .belge-screen-view (eski davranış). [data-pdf-page] ile
-    // deneme yapısı bozdu (sağ kenar hesabı yanlış geliyordu).
+    // A4 wrapper — .belge-screen-view (sağ kenar / scale hesabı için).
     const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
     if (!a4El) return;
     const rect = a4El.getBoundingClientRect();
     const a4Right = Math.round(rect.right);
-    const docTop = Math.round(rect.top + window.scrollY);
     const sagPanelExtra = sagPanelOpen ? K.RIGHT_OPEN_OFFSET - K.EDGE_MIN : 0;
     const desiredLeft = a4Right + 16 + sagPanelExtra;
-    // Panel ile viewport arası mevcut yatay alan
     const availableWidth = window.innerWidth - desiredLeft - K.EDGE_MIN;
     const scale =
       availableWidth >= K.WIDTH
         ? 1
         : Math.max(0.55, availableWidth / K.WIDTH);
     const nextLeft = Math.max(K.EDGE_MIN, desiredLeft);
-    const nextTop = docTop > 0 ? docTop : K.TOP;
+
+    // Panel üst kenarı = A4 kağıdının (ilk [data-pdf-page]) üst kenarı.
+    // STICKY DAVRANIŞ: A4 yukarı scroll edilirse panel A4 ile birlikte kayar
+    // AMA viewport üst kenarına (header altına) ulaşınca yapışır ve asla
+    // ekran dışına çıkmaz. position:fixed kullandığımız için top değeri
+    // viewport-relative — getBoundingClientRect().top doğrudan kullanılır
+    // (window.scrollY eklenmez; document scroll ya da container scroll
+    // farketmez, ikisinde de doğru çalışır).
+    const pageEl = a4El.querySelector<HTMLElement>('[data-pdf-page="true"]');
+    const targetTopViewport = pageEl
+      ? pageEl.getBoundingClientRect().top
+      : rect.top;
+    const nextTop = Math.max(K.STICK_MIN_TOP, Math.round(targetTopViewport));
+
     setPos((prev) =>
       prev.top === nextTop && prev.left === nextLeft && prev.scale === scale
         ? prev
@@ -270,6 +287,14 @@ export default function KumandaPaneli({
           --text-main: #fff5f2;
           --text-soft: rgba(255, 220, 215, 0.7);
 
+          /* Sayısal/rakam tonu (kur rakamları) — warm stone gray. */
+          --text-numeric: #c8c3b8;
+          /* Tarih bölümü ortak rengi — şampanya altın (rich champagne).
+             Pembe-şarap panele premium kontrast; banka kasası rakam hissi.
+             Tarih kartının tüm parçaları (gün adı, gün no, ay, yıl) bu
+             rengin altında toplanır → tek renk, dingin, premium. */
+          --text-tarih: #d4c5a3;
+
           --accent: #ff8f9b;
         }
 
@@ -294,12 +319,14 @@ export default function KumandaPaneli({
           overflow: hidden;
           transition:
             border-color 280ms ease,
-            box-shadow 320ms ease;
+            box-shadow 320ms ease,
+            background 320ms ease;
         }
 
-        /* Düzenleme aktifken (Düzenle butonu basılı): tüm panel çerçevesi
-           ince yeşil neon hat olur ve dışa ışık saçar. Renkler EditPremiumIcon
-           accent ailesiyle aynı (rgba 70 255 160). */
+        /* Düzenleme aktifken (Düzenle butonu basılı): panel çerçevesi yeşil
+           neon, ana arka plan kırmızı/şarap'tan KOYU NÖTR YEŞİL-SİYAH'a kayar.
+           Kullanıcı paneli gördüğünde yeşil vurgu sadece border'da, panel iç
+           dolgusu sakin (kırmızı dominansı yok, yeşil de göz almaz). */
         .control-panel[data-editing="true"] {
           border: 1px solid rgba(90, 255, 175, 0.85);
           box-shadow:
@@ -309,6 +336,16 @@ export default function KumandaPaneli({
             inset 0 0 0 1px rgba(70, 255, 160, 0.20),
             inset 0 1px 0 rgba(255, 255, 255, 0.12),
             inset 0 -18px 30px rgba(0, 0, 0, 0.34);
+          background:
+            radial-gradient(circle at 14% -4%, rgba(90, 200, 150, 0.10), transparent 34%),
+            radial-gradient(circle at 84% 4%, rgba(255, 255, 255, 0.05), transparent 26%),
+            radial-gradient(circle at 50% 120%, rgba(0, 0, 0, 0.30), transparent 45%),
+            linear-gradient(160deg,
+              #0d1c17 0%,
+              #0a1612 24%,
+              #061110 52%,
+              #03070550 100%
+            );
         }
 
         .panel-section {
@@ -316,6 +353,46 @@ export default function KumandaPaneli({
         }
 
         .panel-section + .panel-section {
+          margin-top: calc(14px * var(--panel-scale));
+          padding-top: calc(12px * var(--panel-scale));
+          border-top: 1px solid rgba(255, 111, 132, 0.18);
+        }
+
+        /* Tarih → Kur arasında ayraç çizgisi YOK, mesafe çok küçük — iki
+           rozet birbirine yakın "tek bilgi bloğu" hissi verir. Aradaki boşluk
+           tarih rozetinin alt padding'ine eklendi (aşağıda kp-tarih-rozet). */
+        .panel-section--tarih + .panel-section--kur {
+          margin-top: calc(4px * var(--panel-scale));
+          padding-top: 0;
+          border-top: none;
+        }
+
+        /* ── Alt bölüm collapse wrapper ────────────────────────────────────
+           Düzenleme section'ının altındaki tüm panel-section'ları sarmalar.
+           Kilit kırmızıya (readOnly) geçtiğinde veya kullanıcı paneli
+           daralttığında smooth bir max-height collapse + opacity fade ile
+           kapanır. max-height tekniği grid-template-rows'tan daha güvenilir
+           (eski tarayıcılarda da çalışır, geçiş "pat" yerine yavaş akıcı). */
+        .kp-alt-bolum {
+          max-height: 1200px;
+          opacity: 1;
+          overflow: hidden;
+          transition:
+            max-height 700ms cubic-bezier(0.16, 1, 0.3, 1),
+            opacity 480ms ease;
+        }
+        .kp-alt-bolum--kapali {
+          max-height: 0;
+          opacity: 0;
+          pointer-events: none;
+        }
+        .kp-alt-bolum-icerik {
+          /* Doğal yükseklik; collapse parent max-height ile yönetiyor. */
+        }
+        /* Wrapper Fragment yerine geçtiği için sibling chain (panel-section +
+           panel-section) bozulur — wrapper içindeki ilk panel-section'a manuel
+           ayraç (margin-top + padding-top + border-top) ekle. */
+        .kp-alt-bolum-icerik > .panel-section:first-child {
           margin-top: calc(14px * var(--panel-scale));
           padding-top: calc(12px * var(--panel-scale));
           border-top: 1px solid rgba(255, 111, 132, 0.18);
@@ -329,6 +406,268 @@ export default function KumandaPaneli({
           text-transform: uppercase;
           color: var(--text-soft);
           user-select: none;
+        }
+
+        /* ── TCMB Kur Rozeti (panel'in en üst section'ı) ─────────────────────
+           Panel kartının iç dilini doğrudan kullanır: card-bg gradient, hafif
+           pembe border, krem text + soft pembe accent (USD/EUR kod). Tek satır
+           kompakt → kapalı modda bile yer kaplamaz. Hover'da popover ile detay. */
+        .kp-kur-rozet {
+          display: flex;
+          flex-direction: column;
+          gap: calc(6px * var(--panel-scale));
+          padding: calc(7px * var(--panel-scale)) calc(10px * var(--panel-scale));
+          background:
+            /* Üst kenarda hafif şampanya altın highlight — tarih ortak rengi
+               ile dil birliği, premium kasa kapağı hissi. */
+            linear-gradient(180deg,
+              rgba(212, 197, 163, 0.12) 0%,
+              rgba(212, 197, 163, 0.03) 12%,
+              transparent 22%,
+              transparent 78%,
+              rgba(0, 0, 0, 0.14) 92%,
+              rgba(0, 0, 0, 0.24) 100%),
+            /* Ana koyu bordo-siyah gradient — pembe radial yerine derin
+               kasa rengi, az kırmızı tonlu siyah. */
+            linear-gradient(160deg, #2a0510 0%, #160308 52%, #0b0204 100%);
+          border: 1px solid var(--card-border);
+          border-radius: calc(12px * var(--panel-scale));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.10),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.36),
+            inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+            0 2px 6px rgba(5, 0, 2, 0.42),
+            0 0 14px rgba(212, 197, 163, 0.05);
+          cursor: default;
+          user-select: none;
+          white-space: nowrap;
+          transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+        }
+        .kp-kur-rozet:hover {
+          border-color: rgba(212, 197, 163, 0.45);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.14),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.38),
+            inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+            0 3px 10px rgba(5, 0, 2, 0.50),
+            0 0 24px rgba(212, 197, 163, 0.16);
+          transform: translateY(-0.5px);
+        }
+        .kp-kur-satir {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          align-items: baseline;
+          gap: calc(6px * var(--panel-scale));
+          font-variant-numeric: tabular-nums;
+          line-height: 1;
+        }
+        /* Para simgesi — italic serif glyph (banka belgesi / banknot kalitesi).
+           Inter gibi modern sans-serif yerine Cambria/Georgia serif italic →
+           $ karakterinin tarihsel zarafeti (yatay çizgili, eğik gövdeli), €
+           karakterinin klasik form'u (kıvrımlı C + çift bar) ön plana çıkar.
+           font-feature-settings ile kerning + ligatures + tabular nums
+           OpenType özellikleri aktif → tipografi terminolojisinde "fine
+           typography" kalitesi. */
+        .kp-kur-simge {
+          font-size: calc(22px * var(--panel-scale));
+          font-weight: 500;
+          line-height: 1;
+          font-family: 'Cambria', 'Georgia', 'Hoefler Text', 'Times New Roman', serif;
+          font-feature-settings: 'kern' 1, 'liga' 1, 'tnum' 1, 'ss01' 1;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: geometricPrecision;
+          background: linear-gradient(180deg,
+            #fff0f3 0%,
+            #ffc8d2 30%,
+            var(--accent) 58%,
+            #a14855 95%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter:
+            drop-shadow(0 0.5px 0 rgba(255, 245, 248, 0.60))
+            drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 3px rgba(255, 140, 160, 0.32));
+          min-width: calc(15px * var(--panel-scale));
+          text-align: center;
+          transition: filter 280ms ease, transform 280ms ease;
+        }
+        .kp-kur-rozet:hover .kp-kur-simge {
+          filter:
+            drop-shadow(0 0.5px 0 rgba(255, 245, 248, 0.75))
+            drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 5px rgba(255, 140, 160, 0.50))
+            drop-shadow(0 0 14px rgba(255, 120, 140, 0.22));
+          transform: translateY(-0.5px);
+        }
+        /* $ — dolar yeşili karakteristiği. */
+        .kp-kur-usd .kp-kur-simge {
+          background: linear-gradient(180deg,
+            #f0fbf4 0%,
+            #b9e0c8 30%,
+            #5fa57f 58%,
+            #2f5a47 95%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter:
+            drop-shadow(0 0.5px 0 rgba(240, 252, 244, 0.62))
+            drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 3px rgba(95, 165, 127, 0.38));
+        }
+        .kp-kur-rozet:hover .kp-kur-usd .kp-kur-simge {
+          filter:
+            drop-shadow(0 0.5px 0 rgba(240, 252, 244, 0.78))
+            drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 5px rgba(95, 165, 127, 0.58))
+            drop-shadow(0 0 14px rgba(75, 145, 105, 0.26));
+        }
+        /* € — euro mavisi karakteristiği. */
+        .kp-kur-eur .kp-kur-simge {
+          background: linear-gradient(180deg,
+            #eef3fb 0%,
+            #aac1e2 30%,
+            #4d7bb8 58%,
+            #1e3a6e 95%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter:
+            drop-shadow(0 0.5px 0 rgba(238, 244, 252, 0.62))
+            drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 3px rgba(77, 123, 184, 0.40));
+        }
+        .kp-kur-rozet:hover .kp-kur-eur .kp-kur-simge {
+          filter:
+            drop-shadow(0 0.5px 0 rgba(238, 244, 252, 0.78))
+            drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 5px rgba(77, 123, 184, 0.60))
+            drop-shadow(0 0 14px rgba(58, 100, 160, 0.28));
+        }
+        /* Para çifti (USD/TL) — küçük letter-spacing'li bilgi etiketi. */
+        .kp-kur-cift {
+          font-size: calc(12px * var(--panel-scale));
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--text-soft);
+          text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
+        }
+        /* Sayı — ana focal, panel-pembe tonunda belirgin rakam. */
+        .kp-kur-deger {
+          font-size: calc(17px * var(--panel-scale));
+          font-weight: 600;
+          color: var(--text-numeric);
+          letter-spacing: -0.018em;
+          text-align: right;
+          text-shadow:
+            0 1px 1px rgba(0, 0, 0, 0.50),
+            0 0 1px rgba(0, 0, 0, 0.32),
+            0 0 8px rgba(200, 195, 184, 0.20);
+        }
+        /* ₺ suffix — sayıdan belirgin daha küçük, soft opacity. */
+        .kp-kur-tl {
+          font-size: 0.55em;
+          font-weight: 500;
+          margin-left: calc(3px * var(--panel-scale));
+          opacity: 0.62;
+          letter-spacing: 0;
+        }
+        .kp-kur-ayrac-yatay {
+          height: 1px;
+          width: 100%;
+          background: linear-gradient(90deg,
+            rgba(255, 140, 160, 0) 0%,
+            rgba(255, 140, 160, 0.45) 50%,
+            rgba(255, 140, 160, 0) 100%);
+          box-shadow: 0 0 4px rgba(255, 120, 140, 0.22);
+        }
+
+        /* ── Tarih Rozeti — elit gazete tarzı kompozisyon ─────────────────
+           Üst satır: gün adı küçük, pembe accent gradient, geniş letter-spacing.
+           Alt satır: gün no (büyük krem) + ay adı (medium soft) + yıl (medium
+           soft, hafif opacity). Ay-yıl arasında ince glyph nokta. */
+        .kp-tarih-rozet {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: calc(3px * var(--panel-scale));
+          /* Üst-sağ-sol padding aynı, ALT padding artırıldı — tarih ile kur
+             arasındaki section ayraç boşluğu buraya emildi → tarih hücresi
+             biraz daha cömert, kur hücresine sıkışıktan daha rahat. */
+          padding: calc(7px * var(--panel-scale))
+                   calc(10px * var(--panel-scale))
+                   calc(11px * var(--panel-scale));
+          background:
+            /* Üst kenarda hafif şampanya altın highlight (kur rozetiyle simetrik). */
+            linear-gradient(180deg,
+              rgba(212, 197, 163, 0.12) 0%,
+              rgba(212, 197, 163, 0.03) 12%,
+              transparent 22%,
+              transparent 78%,
+              rgba(0, 0, 0, 0.14) 92%,
+              rgba(0, 0, 0, 0.24) 100%),
+            linear-gradient(160deg, #2a0510 0%, #160308 52%, #0b0204 100%);
+          border: 1px solid var(--card-border);
+          border-radius: calc(12px * var(--panel-scale));
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.10),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.36),
+            inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+            0 2px 6px rgba(5, 0, 2, 0.42),
+            0 0 14px rgba(212, 197, 163, 0.05);
+          user-select: none;
+        }
+        /* Üst etiket — gün adı, mixed case Türkçe (Perşembe / Cumartesi).
+           Italik kaldırıldı, sade serif. Tarih kartı ortak rengi. */
+        .kp-tarih-gun {
+          font-size: calc(13px * var(--panel-scale));
+          font-weight: 500;
+          font-family: 'Cambria', 'Georgia', 'Hoefler Text', 'Times New Roman', serif;
+          letter-spacing: 0.02em;
+          text-transform: none;
+          color: var(--text-tarih);
+          text-shadow: 0 1px 0 rgba(0, 0, 0, 0.42);
+          padding-left: 0;
+          line-height: 1.1;
+        }
+        /* Ana satır — gün, ay, yıl yan yana. */
+        .kp-tarih-ana {
+          display: inline-flex;
+          align-items: baseline;
+          gap: calc(6px * var(--panel-scale));
+          line-height: 1;
+        }
+        /* Gün numarası — büyük focal, tarih ortak rengi (şampanya altın). */
+        .kp-tarih-gunno {
+          font-size: calc(20px * var(--panel-scale));
+          font-weight: 700;
+          color: var(--text-tarih);
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.02em;
+          text-shadow:
+            0 1px 1px rgba(0, 0, 0, 0.52),
+            0 0 1px rgba(0, 0, 0, 0.32),
+            0 0 8px rgba(212, 197, 163, 0.22);
+        }
+        /* Ay adı — medium punto, tarih ortak rengi, letter-spacing'li. */
+        .kp-tarih-ay {
+          font-size: calc(11px * var(--panel-scale));
+          font-weight: 600;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--text-tarih);
+          text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
+        }
+        /* Yıl — ay ile aynı kalibre, tarih ortak rengi (tüm parçalar eşit). */
+        .kp-tarih-yil {
+          font-size: calc(11px * var(--panel-scale));
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          color: var(--text-tarih);
+          font-variant-numeric: tabular-nums;
+          text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
         }
 
         .control-panel button {
@@ -593,11 +932,21 @@ export default function KumandaPaneli({
         /* Buton-bazlı ikon boyutları — hepsi --panel-scale ile orantılı.
            Notional değerler scale=1 referansı; her ikon kendi butonunda
            içeride ~%70-80 doluluk ile durur, ~2-4px nefes payı kalır. */
-        .lock-button .premium-panel-icon { width: calc(70px * var(--panel-scale)); height: calc(70px * var(--panel-scale)); }
+        /* Kilit SVG sembolü — buton ölçüsüne dokunmadan ikon büyütülmüş.
+           Hem yeşil hem kırmızı modda aynı boyut → buton geometrisi sabit,
+           çerçeve dışına taşma yok. */
+        .lock-button .premium-panel-icon {
+          width: calc(84px * var(--panel-scale));
+          height: calc(84px * var(--panel-scale));
+          transition: filter 280ms ease;
+        }
         .image-add  .premium-panel-icon { width: calc(36px * var(--panel-scale)); height: calc(36px * var(--panel-scale)); }
         /* Kare butonlarda etiket yok — ikon ortalı + parent flex gap'i value
-           ile arada boşluk yönetir. */
-        .square-btn .premium-panel-icon { width: calc(70px * var(--panel-scale)); height: calc(70px * var(--panel-scale)); }
+           ile arada boşluk yönetir. İkon kareyi rahat doldursun → Resim Ekle /
+           Çizim ikonları ile (56px) aynı kalibrede. Buton boyutu (width:70%)
+           aynı; ikon dolgu oranı eşitlenince görsel hiyerarşi tek seviyeye
+           düşer. */
+        .square-btn .premium-panel-icon { width: calc(56px * var(--panel-scale)); height: calc(56px * var(--panel-scale)); }
 
         /* Aktif/basılı — sade gölge zinciri.
            Eski 5-katmanlı drop-shadow + color-mix() Chrome'da SVG fill: url(#...)
@@ -798,6 +1147,27 @@ export default function KumandaPaneli({
           );
         }
 
+        /* â”€â”€ Resim Ekle / Serbest Çizim çifti — yan yana grid layout â”€â”€
+           Gap aşağıdaki .grid (Satır Ayarları, Genel Finans) ile birebir
+           aynı → butonlar dikey eksende birbirleriyle aynı genişlikte olur. */
+        .kp-buton-cifti {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: calc(9px * var(--panel-scale));
+          width: 100%;
+          justify-items: center;
+        }
+
+        /* SquareToggle kare butonlar — genişlik %70. Yatay "Görünürlük"
+           butonu (.visibility-compact, aspect-ratio:auto) etkilenmez.
+           .image-add--square width'i kendi (alttaki) kuralında set edilir —
+           çünkü .image-add { width:100% } base'i SONRADAN geldiği için ortak
+           selector burada kullanılırsa 100%'ünden ezdirilir. */
+        .square-btn:not(.visibility-compact) {
+          width: 70%;
+          justify-self: center;
+        }
+
         /* â”€â”€ Resim Ekle (aksiyon, saydam cam mavi) â”€â”€ */
         .image-add {
           --press-glow: rgba(80, 150, 255, 0.45);
@@ -820,6 +1190,28 @@ export default function KumandaPaneli({
           align-items: center;
           justify-content: center;
           gap: calc(10px * var(--panel-scale));
+        }
+
+        /* Kare varyant — Resim Ekle + Serbest Çizim grid'inde kullanılır.
+           Geniş action button yerine aspect-ratio:1 kare; margin-top sıfır
+           (grid kendi gap'iyle yönetiyor). İkon ortalanmış.
+           width:70% BURADA — bu kural .image-add { width:100% } base'inden
+           SONRA geldiği için (aynı specificity'de sonradan gelen kazanır)
+           gerçekten kazanan kural olur. Satır İskontosu vb. ile aynı genişlik. */
+        .image-add--square {
+          width: 70%;
+          height: auto;
+          aspect-ratio: 1;
+          margin-top: 0;
+          gap: 0;
+          justify-self: center;
+        }
+        .image-add--square .premium-panel-icon {
+          /* Resim/Çizim aksiyon butonları aşağıdaki "ayar" butonlarından daha
+             belirgin: ikon kareyi daha çok dolduruyor (~%80 vs ~%55). Boyut
+             aynı, vurgu farklı. */
+          width: calc(56px * var(--panel-scale));
+          height: calc(56px * var(--panel-scale));
         }
 
         /* â”€â”€ Resim Ekle hover/active — mavi aksiyon glow â”€â”€ */
@@ -1204,6 +1596,17 @@ export default function KumandaPaneli({
       `}</style>
 
       <div className="control-panel" data-editing={!readOnly} data-collapsed={!panelGenis}>
+        {/* Tarih — panelin en üst section'ı (her zaman görünür). */}
+        <section className="panel-section panel-section--tarih">
+          <TarihKumandaSection />
+        </section>
+
+        {/* TCMB Kur — tarih'in altında, hep görünür (panelGenis koşulu yok).
+            Tarih ile arasında ayraç çizgisi yok, sıkışık duruyor. */}
+        <section className="panel-section panel-section--kur">
+          <KurKumandaSection />
+        </section>
+
         <section className="panel-section">
           <SecLabel text="Düzenleme" />
 
@@ -1271,56 +1674,87 @@ export default function KumandaPaneli({
             </div>
           )}
 
-          <Tooltip
-            title={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
-            placement="left"
-            mouseEnterDelay={1}
-            color={TOOLTIP_COLOR}
-            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
-          >
-            <button
-              type="button"
-              className="panel-expand-toggle"
-              onClick={() => setPanelGenis((g) => !g)}
-              aria-label={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
-              aria-expanded={panelGenis}
+          {/* Aç/Kapat toggle SADECE kilit açıkken anlamlı — kilit kırmızıyken
+              alt section'lar zaten zorla collapse oluyor, toggle dummy state
+              değiştirir. Bu yüzden readOnly iken gizli. */}
+          {!readOnly && (
+            <Tooltip
+              title={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
+              placement="left"
+              mouseEnterDelay={1}
+              color={TOOLTIP_COLOR}
+              styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
             >
-              <span>{panelGenis ? 'Kapat' : 'Aç'}</span>
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <polyline
-                  points={panelGenis ? '6 15 12 9 18 15' : '6 9 12 15 18 9'}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </Tooltip>
+              <button
+                type="button"
+                className="panel-expand-toggle"
+                onClick={() => setPanelGenis((g) => !g)}
+                aria-label={panelGenis ? 'Paneli kapat' : 'Paneli aç'}
+                aria-expanded={panelGenis}
+              >
+                <span>{panelGenis ? 'Kapat' : 'Aç'}</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <polyline
+                    points={panelGenis ? '6 15 12 9 18 15' : '6 9 12 15 18 9'}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </Tooltip>
+          )}
         </section>
 
-        {panelGenis && (
-        <>
+        <div className={`kp-alt-bolum ${(!readOnly && panelGenis) ? '' : 'kp-alt-bolum--kapali'}`} aria-hidden={readOnly || !panelGenis}>
+          <div className="kp-alt-bolum-icerik">
         <section className="panel-section">
-          <Tooltip
-            title="Resim Ekle"
-            placement="left"
-            mouseEnterDelay={1}
-            color={TOOLTIP_COLOR}
-            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
-          >
-            <button
-              type="button"
-              className="image-add button-image"
-              onClick={onResimSec}
-              disabled={readOnly}
-              aria-label="Resim Ekle"
+          <div className="kp-buton-cifti">
+            <Tooltip
+              title="Resim Ekle"
+              placement="left"
+              mouseEnterDelay={1}
+              color={TOOLTIP_COLOR}
+              styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
             >
-              <span className="button-sweep" aria-hidden="true" />
-              <PremiumImageIcon />
-            </button>
-          </Tooltip>
+              <button
+                type="button"
+                className="image-add image-add--square button-image"
+                onClick={onResimSec}
+                disabled={readOnly}
+                aria-label="Resim Ekle"
+              >
+                <span className="button-sweep" aria-hidden="true" />
+                <PremiumImageIcon />
+              </button>
+            </Tooltip>
+
+            <Tooltip
+              title={readOnly ? 'Düzenleme modunda kullanılabilir' : (serberstCizimAktif ? 'Çizimi Kilitle (çizim kalır)' : 'Serbest Çizim — düzenle/sil için aç')}
+              placement="left"
+              mouseEnterDelay={1}
+              color={TOOLTIP_COLOR}
+              styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
+            >
+              <button
+                type="button"
+                className={`image-add image-add--square button-draw ${serberstCizimAktif ? 'is-active' : ''}`}
+                onClick={() => { if (!readOnly) onSerberstCizimToggle(); }}
+                aria-label={serberstCizimAktif ? 'Çizimi Kilitle' : 'Serbest Çizim'}
+                aria-pressed={serberstCizimAktif}
+                style={{
+                  opacity: readOnly ? 0.3 : undefined,
+                  cursor: readOnly ? 'not-allowed' : undefined,
+                  pointerEvents: readOnly ? 'none' as const : undefined,
+                }}
+              >
+                <span className="button-sweep" aria-hidden="true" />
+                <DrawIcon />
+              </button>
+            </Tooltip>
+          </div>
 
           <input
             ref={fileInputRef}
@@ -1329,32 +1763,6 @@ export default function KumandaPaneli({
             onChange={onFileChange}
             style={{ display: 'none' }}
           />
-        </section>
-
-        <section className="panel-section">
-          <Tooltip
-            title={readOnly ? 'Düzenleme modunda kullanılabilir' : (serberstCizimAktif ? 'Çizimi Kilitle (çizim kalır)' : 'Serbest Çizim — düzenle/sil için aç')}
-            placement="left"
-            mouseEnterDelay={1}
-            color={TOOLTIP_COLOR}
-            styles={{ container: TOOLTIP_STYLE, root: { pointerEvents: 'none' } }}
-          >
-            <button
-              type="button"
-              className={`image-add button-draw ${serberstCizimAktif ? 'is-active' : ''}`}
-              onClick={() => { if (!readOnly) onSerberstCizimToggle(); }}
-              aria-label={serberstCizimAktif ? 'Çizimi Kilitle' : 'Serbest Çizim'}
-              aria-pressed={serberstCizimAktif}
-              style={{
-                opacity: readOnly ? 0.3 : undefined,
-                cursor: readOnly ? 'not-allowed' : undefined,
-                pointerEvents: readOnly ? 'none' as const : undefined,
-              }}
-            >
-              <span className="button-sweep" aria-hidden="true" />
-              <DrawIcon />
-            </button>
-          </Tooltip>
         </section>
 
         <section className="panel-section">
@@ -1464,8 +1872,8 @@ export default function KumandaPaneli({
             </div>
           </section>
         )}
-        </>
-        )}
+          </div>
+        </div>
       </div>
 
     </div>

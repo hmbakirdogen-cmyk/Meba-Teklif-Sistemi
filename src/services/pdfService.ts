@@ -5,10 +5,12 @@ import jsPDF from 'jspdf';
  * pdfService — A4 önizlemesini lossless PDF'e çevirir.
  *
  * Standart "PDF İndir" akışı:
- *   - Her sayfa html2canvas ile dinamik scale (devicePixelRatio × 3, 3–9 arası)
- *     yüksekliğinde raster edilir.
- *   - Çıktı doğrudan PNG (lossless) olarak jsPDF'e gömülür → addImage('PNG', …,
- *     'NONE'). PDF stream'i jsPDF'in lossless flate sıkıştırmasıyla küçülür.
+ *   - Her sayfa html2canvas ile sabit scale=6 (~576 DPI A4) raster edilir.
+ *     Sayfalar concurrency=2 batch ile render edilir — büyük belgelerde
+ *     RAM tepe noktası kontrol altında tutulur.
+ *   - Çıktı PNG (lossless) olarak jsPDF'e gömülür → addImage('PNG', …,
+ *     'FAST'). PNG zaten lossless flate; 'FAST' jsPDF'in PDF stream'ini
+ *     ek flate ile sıkıştırır (kalite kaybı yok, dosya küçülür).
  *   - Hiçbir kalite kaybı yok; dosya boyutu serbest.
  *
  * E-posta akışı (buildEmailPdf):
@@ -24,11 +26,12 @@ import jsPDF from 'jspdf';
 const EMAIL_MAX_BYTES = 1024 * 1024;
 
 /**
- * Sabit scale = 4 (~384 DPI A4). Her ekranda en yüksek netlik; dosya boyutu
- * lossless flate ile yönetilebilir kalıyor.
+ * Sabit scale = 6 (~576 DPI A4). Print-grade üstü — ekranda zoom-in'de bile
+ * keskin, ofset baskı yakını. Dosya boyutu scale² ile büyür (PNG lossless +
+ * flate sıkıştırma); 5+ sayfa belgelerde bellek tüketimine dikkat.
  */
 function getOptimalScale(): number {
-  return 4;
+  return 6;
 }
 
 /**
@@ -203,12 +206,17 @@ async function waitForPagedDomReady(pagedRootEl: HTMLElement): Promise<PagedDomS
   });
 }
 
+/** Per-image timeout — slow R2 cold start / CDN için pay. 5s eski değer slow
+ *  ortamda erken atlama yapıyordu; 12s pratikte en yavaş CDN'i de yakalar,
+ *  yine de toplam PDF akışını makul üst sınırda tutar. */
+const IMAGE_LOAD_TIMEOUT_MS = 12000;
+
 /**
  * Paged DOM'daki tüm <img>'lerin (firma logoları + müşteri logosu + overlay
  * görselleri) yüklenmesini bekler. html2canvas yüklenmeyen img'leri boş
  * çerçeveyle yakalardı; bu yardımcı, render öncesi async resim trafiğinin
- * bittiğini garanti eder. Per-image timeout 5s — slow R2 / cold CDN için
- * yeterli pay. Yüklenemeyen img sessizce atlanır (PDF render bloklanmaz).
+ * bittiğini garanti eder. Yüklenemeyen img sessizce atlanır (PDF render
+ * bloklanmaz).
  */
 async function ensureImagesLoaded(pagedRootEl: HTMLElement): Promise<void> {
   const imgs = Array.from(pagedRootEl.querySelectorAll<HTMLImageElement>('img'));
@@ -220,39 +228,74 @@ async function ensureImagesLoaded(pagedRootEl: HTMLElement): Promise<void> {
       if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
       return new Promise<void>((resolve) => {
         let settled = false;
+        let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
         const done = () => {
           if (settled) return;
           settled = true;
+          if (timeoutHandle != null) clearTimeout(timeoutHandle);
           img.removeEventListener('load', done);
           img.removeEventListener('error', done);
           resolve();
         };
         img.addEventListener('load', done, { once: true });
         img.addEventListener('error', done, { once: true });
-        // Per-image safety net — CDN/R2 yavaşlığında bütün PDF akışını bloklamasın.
-        setTimeout(done, 5000);
+        timeoutHandle = setTimeout(done, IMAGE_LOAD_TIMEOUT_MS);
       });
     }),
   );
 }
 
 /**
+ * Belge cascade'inden gerçek font ailelerini topla (quoted/unquoted hepsi).
+ * "Inter, system-ui, -apple-system, ..." gibi cascade'leri tek tek parse eder,
+ * generic family'leri (system-ui, sans-serif, monospace, …) atlar.
+ */
+function aktifFontAileleri(rootEl: HTMLElement | null): string[] {
+  const result = new Set<string>();
+  const GENERIC = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
+    'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded',
+    'emoji', 'math', 'fangsong', 'inherit', 'initial', 'unset']);
+  const addCascade = (cascade: string | null | undefined) => {
+    if (!cascade) return;
+    cascade.split(',').forEach((part) => {
+      const fam = part.trim().replace(/^['"]|['"]$/g, '').trim();
+      if (!fam) return;
+      const key = fam.toLowerCase();
+      if (GENERIC.has(key) || key.startsWith('-')) return;
+      result.add(fam);
+    });
+  };
+  try {
+    if (rootEl) addCascade(getComputedStyle(rootEl).fontFamily);
+    addCascade(getComputedStyle(document.body).fontFamily);
+    addCascade(getComputedStyle(document.documentElement).fontFamily);
+  } catch { /* getComputedStyle bazı edge case'lerde fırlatabilir */ }
+  // Inter her zaman fallback — proje cascade'inde olmasa bile bazı belge
+  // bileşenleri inline `font-family: "Inter"` kullanıyor.
+  result.add('Inter');
+  return Array.from(result);
+}
+
+/**
  * Browser bazı font subset'lerini (latin-ext: ı, ğ, ş, ç, ö, ü) yalnızca o
  * karakterler ekranda kullanıldığında lazily indirir. `document.fonts.ready`
  * o anda DOM'da olmayan ama clone'da olabilecek karakterleri kapsamaz.
- * Burada Türkçe karakterleri içeren bir test stringi ile fontu explicit
- * load ederek subset'in PDF render anında hazır olmasını sağlıyoruz.
+ * Burada belge cascade'indeki TÜM font ailelerini Türkçe karakter içeren bir
+ * test stringi ile explicit load ederek subset'in PDF render anında hazır
+ * olmasını sağlıyoruz.
  */
-async function ensureTurkishFontSubsetReady(): Promise<void> {
+async function ensureTurkishFontSubsetReady(rootEl?: HTMLElement): Promise<void> {
   try {
-    // Inter 11px-13px ana boyutlar, 400/600/700 ağırlıklar A4'te kullanılan
-    // varyantları kapsar. Türkçe karakterler subset'i tetikler.
-    const probes = [
-      '11px "Inter"',
-      '12px "Inter"',
-      '13px 600 "Inter"',
-      '13px 700 "Inter"',
-    ];
+    const families = aktifFontAileleri(rootEl ?? null);
+    const sizes = [11, 12, 13];
+    const weights = [400, 600, 700];
+    const probes: string[] = [];
+    for (const fam of families) {
+      const quoted = /\s/.test(fam) ? `"${fam}"` : fam;
+      for (const w of weights) {
+        for (const s of sizes) probes.push(`${w} ${s}px ${quoted}`);
+      }
+    }
     const tr = 'ığüşöçİĞÜŞÖÇ — abcABC';
     await Promise.all(probes.map((p) => document.fonts.load(p, tr).catch(() => null)));
     await document.fonts.ready;
@@ -320,17 +363,20 @@ async function renderPageCanvases(
   pagedRootEl: HTMLElement,
 ): Promise<{ canvases: HTMLCanvasElement[]; renderedPageCount: number; expectedPageCount: number | null }> {
   // 1) Font subset garantisi — Türkçe karakterler dahil tüm glyph'ler için
-  //    Inter weight/size matrisi yüklenir. document.fonts.ready tek başına
-  //    bazı lazy subset'leri atlayabiliyor.
-  await ensureTurkishFontSubsetReady();
+  //    font matrisi yüklenir. document.fonts.ready tek başına bazı lazy
+  //    subset'leri atlayabiliyor.
+  await ensureTurkishFontSubsetReady(pagedRootEl);
 
-  // 2) Layout / pagination kararlı olana kadar bekle.
-  const { pageEls, renderedPageCount, expectedPageCount } = await waitForPagedDomReady(pagedRootEl);
-
-  // 3) Tüm <img>'lerin (firma logosu, müşteri logosu, overlay görseller)
-  //    decode edilmiş olduğundan emin ol — aksi halde html2canvas boş
-  //    çerçeve çizebilir.
+  // 2) Tüm <img>'lerin (firma logosu, müşteri logosu, overlay görseller)
+  //    decode edilmiş olduğundan emin ol. ÖNEMLI: bu çağrı pagination
+  //    kararlılık beklemesinden ÖNCE olmalı — resim yüklenmesi yükseklik
+  //    değişikliği yapabilir, layout shift sayfa kırılma noktasını
+  //    değiştirebilir, render edilen sayfalar "kayık" çıkardı.
   await ensureImagesLoaded(pagedRootEl);
+
+  // 3) Layout / pagination kararlı olana kadar bekle (resimler artık yerinde,
+  //    pagination doğru ölçer).
+  const { pageEls, renderedPageCount, expectedPageCount } = await waitForPagedDomReady(pagedRootEl);
 
   // 4) Son layout commit + paint için iki frame nefes payı.
   await nextFrame();
@@ -342,38 +388,75 @@ async function renderPageCanvases(
 
   const scale = getOptimalScale();
 
-  // Sayfalar paralel render edilir — html2canvas DOM kopyası üzerinde çalıştığı
-  // için birbirine karışmaz, ve I/O (font/decoder) örtüşür. 3-5 sayfa için
-  // memory artmaşı ihmal edilebilir; tek sayfada da ek maliyet yok.
-  const canvases = await Promise.all(
-    pageEls.map(async (el) => {
-      const rect = el.getBoundingClientRect();
-      // CSS pixel → integer (subpixel boyut blur yapar)
-      const renderWidth  = Math.max(1, Math.round(rect.width  || el.scrollWidth  || el.offsetWidth  || Math.round(210 * (96 / 25.4))));
-      const renderHeight = Math.max(1, Math.round(rect.height || el.scrollHeight || el.offsetHeight || Math.round(297 * (96 / 25.4))));
+  /**
+   * Concurrency=2 batch render — paralel hız avantajı korunur (I/O örtüşür),
+   * ama büyük belgelerde (10+ sayfa) tüm sayfaları aynı anda RAM'de tutmak
+   * yok. scale=6'da 1 sayfa canvas ~128 MB; 30 sayfa Promise.all = ~3.8 GB
+   * (Chrome tab limit). Concurrency=2 ile peak ~256 MB.
+   */
+  const renderOne = async (el: HTMLElement): Promise<HTMLCanvasElement> => {
+    const rect = el.getBoundingClientRect();
+    const renderWidth  = Math.max(1, Math.round(rect.width  || el.scrollWidth  || el.offsetWidth  || Math.round(210 * (96 / 25.4))));
+    const renderHeight = Math.max(1, Math.round(rect.height || el.scrollHeight || el.offsetHeight || Math.round(297 * (96 / 25.4))));
+    return html2canvas(el, {
+      ...HTML2CANVAS_BASE_OPTIONS,
+      scale,
+      width: renderWidth,
+      height: renderHeight,
+      windowWidth: renderWidth,
+      windowHeight: renderHeight,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (clonedDoc, clonedEl) => {
+        applyCloneQualityFixes(clonedDoc, clonedEl);
+      },
+    });
+  };
 
-      return html2canvas(el, {
-        ...HTML2CANVAS_BASE_OPTIONS,
-        scale,
-        width: renderWidth,
-        height: renderHeight,
-        windowWidth: renderWidth,
-        windowHeight: renderHeight,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (clonedDoc, clonedEl) => {
-          applyCloneQualityFixes(clonedDoc, clonedEl);
-        },
-      });
-    }),
-  );
+  const CONCURRENCY = 2;
+  const canvases: HTMLCanvasElement[] = new Array(pageEls.length);
+  for (let i = 0; i < pageEls.length; i += CONCURRENCY) {
+    const slice = pageEls.slice(i, i + CONCURRENCY);
+    const out = await Promise.all(slice.map(renderOne));
+    for (let j = 0; j < out.length; j += 1) canvases[i + j] = out[j];
+  }
 
   return { canvases, renderedPageCount, expectedPageCount };
 }
 
-/** Canvas → lossless PNG data URL. */
+/** 1×1 beyaz PNG — son çare fallback (canvas API'si tamamen çökerse). */
+const BLANK_PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+/** Aynı boyutta beyaz dolgulu canvas — tainted hata sonrası fallback için. */
+function makeBlankCanvas(width: number, height: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, width);
+  c.height = Math.max(1, height);
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+  }
+  return c;
+}
+
+/**
+ * Canvas → lossless PNG data URL. Tainted canvas (3rd party logo CORS fail)
+ * durumunda `toDataURL` SecurityError fırlatır — bu durumda PDF render'ı
+ * tamamen düşürmek yerine beyaz fallback sayfayla devam et.
+ */
 function encodeCanvasToPng(canvas: HTMLCanvasElement): string {
-  return canvas.toDataURL('image/png');
+  try {
+    return canvas.toDataURL('image/png');
+  } catch (e) {
+    console.warn('[pdfService] PNG encode başarısız (muhtemelen tainted canvas — CORS) → beyaz fallback', e);
+    try {
+      return makeBlankCanvas(canvas.width, canvas.height).toDataURL('image/png');
+    } catch {
+      return BLANK_PNG_DATA_URL;
+    }
+  }
 }
 
 /** Canvas → JPEG (e-posta fallback). Hafif downscale destekli. */
@@ -382,8 +465,19 @@ function encodeCanvasToJpeg(
   quality: number,
   downscale: number,
 ): string {
+  const trySerialize = (c: HTMLCanvasElement): string | null => {
+    try { return c.toDataURL('image/jpeg', quality); }
+    catch (e) {
+      console.warn('[pdfService] JPEG encode başarısız (muhtemelen tainted canvas — CORS) → beyaz fallback', e);
+      return null;
+    }
+  };
+
   if (downscale >= 0.999) {
-    return sourceCanvas.toDataURL('image/jpeg', quality);
+    const out = trySerialize(sourceCanvas);
+    if (out) return out;
+    const blank = makeBlankCanvas(sourceCanvas.width, sourceCanvas.height);
+    return trySerialize(blank) ?? BLANK_PNG_DATA_URL;
   }
 
   const targetWidth  = Math.max(1, Math.round(sourceCanvas.width  * downscale));
@@ -393,13 +487,21 @@ function encodeCanvasToJpeg(
   tempCanvas.height = targetHeight;
   const context = tempCanvas.getContext('2d');
   if (!context) {
-    return sourceCanvas.toDataURL('image/jpeg', quality);
+    const out = trySerialize(sourceCanvas);
+    return out ?? trySerialize(makeBlankCanvas(sourceCanvas.width, sourceCanvas.height)) ?? BLANK_PNG_DATA_URL;
   }
 
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
-  context.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
-  return tempCanvas.toDataURL('image/jpeg', quality);
+  try {
+    context.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
+  } catch (e) {
+    console.warn('[pdfService] drawImage başarısız (tainted source) → beyaz fallback', e);
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, targetWidth, targetHeight);
+  }
+  const out = trySerialize(tempCanvas);
+  return out ?? BLANK_PNG_DATA_URL;
 }
 
 /**
@@ -416,7 +518,9 @@ function buildPdfFromImages(
     unit: 'mm',
     format: 'a4',
     compress: true,
-    precision: 16,
+    // precision parametresi kaldırıldı — default (2) A4 mm koordinatları
+    // için fazlasıyla yeterli; 16 ondalık encoder'ı yavaşlatır ve PDF stream
+    // boyutunu büyütürdü (her sayı için ekstra karakter).
   });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = pdf.internal.pageSize.getHeight();
@@ -466,7 +570,21 @@ export async function buildPdf(
   const pageImages = canvases.map(encodeCanvasToPng);
   const pdf = buildPdfFromImages(pageImages, 'PNG', 'FAST');
   assertPdfPageCount(pdf, renderedPageCount, expectedPageCount);
+  releaseCanvases(canvases);
   return { pdf, pageImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(pdf) };
+}
+
+/**
+ * Canvas dizisindeki tüm pixel buffer'ları boyutu 0×0'a indirip referansları
+ * temizler — büyük belgelerde RAM hızlı geri verilsin diye. Çağırdıktan sonra
+ * canvases içeriği kullanılamaz.
+ */
+function releaseCanvases(canvases: HTMLCanvasElement[]): void {
+  for (let i = 0; i < canvases.length; i += 1) {
+    const c = canvases[i];
+    try { c.width = 0; c.height = 0; } catch { /* ignore */ }
+  }
+  canvases.length = 0;
 }
 
 /**
@@ -491,18 +609,21 @@ export async function buildEmailPdf(
   let bestImages: string[] = [];
   let bestBytes = Number.POSITIVE_INFINITY;
 
-  for (const attempt of attempts) {
+  for (let i = 0; i < attempts.length; i += 1) {
+    const attempt = attempts[i];
     const pageImages = canvases.map((c) => encodeCanvasToJpeg(c, attempt.quality, attempt.downscale));
     const pdf = buildPdfFromImages(pageImages, 'JPEG', attempt.compression);
     const bytes = (pdf.output('arraybuffer') as ArrayBuffer).byteLength;
     if (bytes < bestBytes) { bestBytes = bytes; bestPdf = pdf; bestImages = pageImages; }
     if (bytes <= EMAIL_MAX_BYTES) {
       assertPdfPageCount(pdf, renderedPageCount, expectedPageCount);
+      releaseCanvases(canvases); // erken çıkışta da RAM'i hemen ver
       return { pdf, pageImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(pdf) };
     }
   }
 
   assertPdfPageCount(bestPdf!, renderedPageCount, expectedPageCount);
+  releaseCanvases(canvases);
   return { pdf: bestPdf!, pageImages: bestImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(bestPdf!) };
 }
 
@@ -511,5 +632,7 @@ export async function buildPrintImages(
   pagedRootEl: HTMLElement,
 ): Promise<string[]> {
   const { canvases } = await renderPageCanvases(pagedRootEl);
-  return canvases.map(encodeCanvasToPng);
+  const images = canvases.map(encodeCanvasToPng);
+  releaseCanvases(canvases);
+  return images;
 }

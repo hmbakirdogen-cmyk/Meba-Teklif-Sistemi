@@ -29,6 +29,35 @@ export const FIELD = {
  * ───────────────────────────────────────────────────────────────── */
 export const FIELD_CSS = `
 /* ══════════════════════════════════════════════════════════════════════
+   TİPOGRAFİ KEKİNLİĞİ — Belge editörünün kökü (Tier A render iyileştirmesi)
+   transform:scale altında rasterleşen text'in mümkün olduğunca crisp
+   görünmesi için tarayıcıya net hint'ler verilir:
+   - text-rendering: geometricPrecision  → metric-true subpixel layout
+   - font-smoothing antialiased           → grayscale AA (sharper küçük punto)
+   - font-kerning normal                  → gerçek kerning tablosu kullanılsın
+   - font-feature-settings 'kern' 'liga' 'calt' → OpenType kerning + ligature
+   - transform: translateZ(0) + will-change → GPU compositing layer
+     (subpixel positioning fix; rasterleşmiş text yarım-pixel'de durmaz)
+   ══════════════════════════════════════════════════════════════════════ */
+.belge-inline,
+.belge-screen-view {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'ss01' 1;
+}
+/* GPU compositing layer — transform:scale ile küçültülen A4 sayfasında
+   text rasterizer hint'i. translateZ(0) compositing layer zorlar, integer
+   pixel grid'e snap'lenmiş raster üretir → "soft blur" hissi azalır. */
+.belge-screen-view {
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    TİPOGRAFİ MIRASI — Kural 0
    Tüm AntD bileşenlerinin her iç elementi tablodan font/renk miras alır.
    Hiçbir şeyi browser default'una ya da AntD design token'ına bırakma.

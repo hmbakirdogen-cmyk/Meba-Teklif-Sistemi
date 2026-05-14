@@ -6,6 +6,7 @@ import { KullaniciContext } from './kullaniciContextStore';
 import {
   api,
   setActiveFirmaId,
+  getActiveFirmaId,
   SESSION_EXPIRED_EVENT,
 } from '../services/apiClient';
 import { authStorage, AUTH_STORAGE_KEYS, type SessionRestoreResult } from '../services/authStorage';
@@ -44,7 +45,30 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
         setAktifKullanici(r.kullanici);
         authStorage.updateUser(r.kullanici);
         if (r.firma) {
-          setActiveFirmaId(r.firma.id);
+          // Yönetici (super_admin / firma_admin gosterilenFirmalar ile) Elmos →
+          // Meba'ya manuel geçtiyse, sayfa yenilenince boot validation default
+          // firmasına dönüyordu (Ahmet ESMERAY bug bildirimi). Çözüm: erişim
+          // hakkı varsa mevcut active firma korunsun, sadece geçersiz/yoksa
+          // default'a düş. Personel her zaman default'a zorlanır (güvenlik).
+          const k = r.kullanici;
+          const cokFirmaErisir =
+            k.rol === 'super_admin' ||
+            (k.rol === 'firma_admin'
+              && Array.isArray(k.gosterilenFirmalar)
+              && k.gosterilenFirmalar.length > 0);
+          const current = getActiveFirmaId();
+          const currentValid =
+            !!current && (
+              k.rol === 'super_admin' ||
+              (k.rol === 'firma_admin'
+                && Array.isArray(k.gosterilenFirmalar)
+                && k.gosterilenFirmalar.includes(current))
+            );
+          if (cokFirmaErisir && currentValid) {
+            // Yönetici geçişi koru — default'a dönme.
+          } else {
+            setActiveFirmaId(r.firma.id);
+          }
         }
       })
       .catch(() => {

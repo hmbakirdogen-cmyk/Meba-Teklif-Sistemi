@@ -312,7 +312,10 @@ export default function CanliA4Belge({
             left: 0,
             width: `${A4_W_PX}px`,
             transformOrigin: 'top left',
-            transform: `scale(${scale})`,
+            // scale + translateZ(0) → GPU compositing layer'ı kesin tetikler;
+            // tarayıcı text'i integer pixel grid'e snap'leyerek raster eder,
+            // subpixel "soft blur" hissi azalır (Tier A render iyileştirmesi).
+            transform: `scale(${scale}) translateZ(0)`,
             colorScheme: 'light',
           }}
         >

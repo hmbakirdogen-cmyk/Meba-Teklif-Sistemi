@@ -124,7 +124,12 @@ export default function BelgeToolbar({
     onDurumDegistir(yeniDurum);
   }
 
-  const durumMenuItems: MenuProps['items'] = (Object.keys(DURUM_ETIKET) as TeklifDurum[]).map((d) => ({
+  // 'siparis_alindi' durumu dropdown'dan kaldırıldı (UI seçeneği değil).
+  // TeklifDurum tipi korunuyor → eski veriler hâlâ valid; sadece kullanıcı
+  // bu durumu artık manuel seçemez. Analiz/raporlar geriye uyumlu.
+  const durumMenuItems: MenuProps['items'] = (Object.keys(DURUM_ETIKET) as TeklifDurum[])
+    .filter((d) => d !== 'siparis_alindi')
+    .map((d) => ({
     key: d,
     label: (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 0', minWidth: 200 }}>
