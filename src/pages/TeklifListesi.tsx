@@ -196,7 +196,7 @@ function buildFolders(teklifler: Teklif[], cariMap: Map<string, Cari>): Customer
         teklifler: [],
         sonTarih: t.tarih,
         topHazirlayanIds: [],
-        durumDist: { taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, siparis_alindi: 0, reddedildi: 0, iptal: 0 },
+        durumDist: { taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, kismi_onaylandi: 0, siparis_alindi: 0, reddedildi: 0, iptal: 0 },
         ikiGunDurumsuzSayi: 0,
       });
     }
@@ -2066,6 +2066,7 @@ function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
   const hicbiri = onayliSayi === 0;
 
   function kaydet() {
+    if (!teklif) return; // TS closure narrowing — JSX üstündeki check burada algılanmaz
     if (mod === 'sebep') {
       const patch: Partial<Teklif> = {
         durum: teklif.durum,
@@ -2343,6 +2344,51 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
       
       <div style={{ width: 3, flexShrink: 0, background: benim ? '#0f1f45' : renk.accent, alignSelf: 'stretch' }} />
 
+      {/* PDF rozeti — teklif kartının başında belirgin PDF göstergesi.
+          Tıklanınca teklifi açar. Şeffaf zemin: kart rengiyle uyumlu kalır,
+          sadece hover'da çok hafif kırmızı tint ile feedback verir. */}
+      <Tooltip title="PDF görünüm — teklifi aç" mouseEnterDelay={0.3}>
+        <button
+          type="button"
+          onClick={pdfAc}
+          aria-label="PDF görünüm"
+          style={{
+            width: 56,
+            flexShrink: 0,
+            alignSelf: 'stretch',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            cursor: 'pointer',
+            background: 'transparent',
+            border: 'none',
+            color: isDark ? '#fca5a5' : '#dc2626',
+            padding: 0,
+            transition: 'background 140ms ease',
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.background = isDark ? 'rgba(220,38,38,0.10)' : 'rgba(220,38,38,0.06)';
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.background = 'transparent';
+          }}
+        >
+          <FilePdfOutlined style={{ fontSize: 30, lineHeight: 1 }} />
+          <span style={{
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: '0.10em',
+            lineHeight: 1,
+          }}>
+            PDF
+          </span>
+        </button>
+      </Tooltip>
+
       <div style={{
         flex: 1,
         display: 'grid',
@@ -2354,19 +2400,30 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
       }}>
         {/* Müşteri / Teklif No — cari büyük primary, no küçük faint */}
         <div style={{ minWidth: 0, paddingRight: 12 }}>
-          <div style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: C.textPrimary,
-            letterSpacing: '-0.005em',
-            lineHeight: 1.25,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            marginBottom: 2,
-          }}>
+          {/* Cari adı — tıklanınca teklifi aç (PDF rozeti ve teklif no'su ile aynı destination). */}
+          <button
+            type="button"
+            onClick={pdfAc}
+            className={buttonClassNames.link}
+            title="Teklifi aç"
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: 0,
+              fontSize: 14,
+              fontWeight: 700,
+              color: C.textPrimary,
+              letterSpacing: '-0.005em',
+              lineHeight: 1.25,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              marginBottom: 2,
+            }}
+          >
             {formatCariAdi(teklif.cari.firmaAdi)}
-          </div>
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button
               onClick={() => navigate(`/teklif/${teklif.id}`)}
