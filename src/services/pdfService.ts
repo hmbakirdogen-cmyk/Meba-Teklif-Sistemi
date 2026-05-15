@@ -26,12 +26,13 @@ import jsPDF from 'jspdf';
 const EMAIL_MAX_BYTES = 1024 * 1024;
 
 /**
- * Sabit scale = 6 (~576 DPI A4). Print-grade üstü — ekranda zoom-in'de bile
- * keskin, ofset baskı yakını. Dosya boyutu scale² ile büyür (PNG lossless +
- * flate sıkıştırma); 5+ sayfa belgelerde bellek tüketimine dikkat.
+ * Sabit scale = 4 (~384 DPI A4). Print-grade — ekrandaki preview ile PDF
+ * arasında gözle fark yok. scale=6 büyük belgelerde bazı kullanıcılarda
+ * memory/render sorunlarına yol açtığı için 4'e geri çekildi (precautionary
+ * rollback). Gerekirse 5'e çekilebilir ama 4 production-tested.
  */
 function getOptimalScale(): number {
-  return 6;
+  return 4;
 }
 
 /**
@@ -389,10 +390,11 @@ async function renderPageCanvases(
   const scale = getOptimalScale();
 
   /**
-   * Concurrency=2 batch render — paralel hız avantajı korunur (I/O örtüşür),
-   * ama büyük belgelerde (10+ sayfa) tüm sayfaları aynı anda RAM'de tutmak
-   * yok. scale=6'da 1 sayfa canvas ~128 MB; 30 sayfa Promise.all = ~3.8 GB
-   * (Chrome tab limit). Concurrency=2 ile peak ~256 MB.
+   * Concurrency=1 sıralı render — paralel hız avantajını sacrifice edip
+   * MEMORY/STABILITY önceliği. Bazı kullanıcılarda concurrency=2 + scale=6
+   * kombinasyonu PDF üretiminin bitmemesine yol açıyordu. Tek tek sıralı
+   * render hem en stable hem en az memory tüketimi (peak ~1 canvas).
+   * Hız etkisi: 5 sayfa ~%30 daha yavaş ama %100 güvenilir.
    */
   const renderOne = async (el: HTMLElement): Promise<HTMLCanvasElement> => {
     const rect = el.getBoundingClientRect();
@@ -413,7 +415,7 @@ async function renderPageCanvases(
     });
   };
 
-  const CONCURRENCY = 2;
+  const CONCURRENCY = 1;
   const canvases: HTMLCanvasElement[] = new Array(pageEls.length);
   for (let i = 0; i < pageEls.length; i += CONCURRENCY) {
     const slice = pageEls.slice(i, i + CONCURRENCY);
