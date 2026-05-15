@@ -18,6 +18,7 @@ const AnalizSayfasi = lazy(() => import('./pages/AnalizSayfasi'));
 const TeklifPrintSayfasi = lazy(() => import('./pages/TeklifPrintSayfasi'));
 const ReferansVerilerSayfasi = lazy(() => import('./pages/ReferansVerilerSayfasi'));
 const EpostaAyarlariSayfasi = lazy(() => import('./pages/EpostaAyarlariSayfasi'));
+const MalzemeHareketleriSayfasi = lazy(() => import('./pages/MalzemeHareketleriSayfasi'));
 
 function PageFallback() {
   return (
@@ -78,6 +79,7 @@ function RouterIcerigi() {
         <Route path="/" element={<Navigate to="/teklifler" replace />} />
         <Route element={<AppLayout />}>
           <Route path="/teklifler" element={<Suspense fallback={<PageFallback />}><TeklifListesi /></Suspense>} />
+          <Route path="/malzeme-hareketleri" element={<Suspense fallback={<PageFallback />}><MalzemeHareketleriSayfasi /></Suspense>} />
           <Route path="/referans-veriler" element={<Suspense fallback={<PageFallback />}><ReferansVerilerSayfasi /></Suspense>} />
           <Route path="/profil/eposta" element={<Suspense fallback={<PageFallback />}><EpostaAyarlariSayfasi /></Suspense>} />
           <Route path="/teklif/yeni" element={<Suspense fallback={<PageFallback />}><TeklifEditor /></Suspense>} />
