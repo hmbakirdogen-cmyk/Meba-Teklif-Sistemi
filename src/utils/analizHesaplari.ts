@@ -281,7 +281,8 @@ export function kullaniciPerformansiHesapla(teklifler: Teklif[]): KullaniciPerfo
       map.set(kid, kp);
     }
     kp.toplamTeklifSayisi++;
-    if (t.durum === 'onaylandi' || t.durum === 'siparis_alindi') kp.onaylanan++;
+    // Kısmi onay → onaylanan grubunda (iş kazanılmış sayılır, bazı kalemler satıldı).
+    if (t.durum === 'onaylandi' || t.durum === 'kismi_onaylandi' || t.durum === 'siparis_alindi') kp.onaylanan++;
     else if (BEKLEYEN_DURUMLAR.includes(t.durum)) kp.bekleyen++;
     else if (t.durum === 'reddedildi' || t.durum === 'iptal') kp.reddedilen++;
     const para = pb(t);
@@ -328,7 +329,7 @@ export function firmaAnaliziHesapla(teklifler: Teklif[]): FirmaAnaliz[] {
       map.set(cariId, fa);
     }
     fa.toplamTeklifSayisi++;
-    if (t.durum === 'onaylandi' || t.durum === 'siparis_alindi') fa.onaylanan++;
+    if (t.durum === 'onaylandi' || t.durum === 'kismi_onaylandi' || t.durum === 'siparis_alindi') fa.onaylanan++;
     else if (BEKLEYEN_DURUMLAR.includes(t.durum)) fa.bekleyen++;
     else if (t.durum === 'reddedildi' || t.durum === 'iptal') fa.reddedilen++;
     fa.toplamTutar[pb(t)] += (t.genelToplam || 0);

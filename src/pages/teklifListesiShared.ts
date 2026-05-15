@@ -3,9 +3,10 @@ import type { Teklif, TeklifDurum, KayipSebebi } from '../types';
 // Sonuç görünüm config'i — direkt durum'a bağlı.
 // Sadece sonuçlanmış durumlar için tanımlı (taslak/hazir/gonderildi'de "sonuç badge" yok).
 export const SONUC_CFG: Partial<Record<TeklifDurum, { label: string; color: string; bg: string; border: string; emoji: string }>> = {
-  onaylandi:  { label: 'Onaylandı',  color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', emoji: '✓' },
-  reddedildi: { label: 'Kaybedildi', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', emoji: '✕' },
-  iptal:      { label: 'İptal',      color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', emoji: '○' },
+  onaylandi:        { label: 'Onaylandı',   color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', emoji: '✓' },
+  kismi_onaylandi:  { label: 'Kısmi Onay',  color: '#d97706', bg: '#fffbeb', border: '#fed7aa', emoji: '◐' },
+  reddedildi:       { label: 'Kaybedildi',  color: '#dc2626', bg: '#fef2f2', border: '#fecaca', emoji: '✕' },
+  iptal:            { label: 'İptal',       color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', emoji: '○' },
 };
 
 // Sebep listesi — hem Kaybedildi hem İptal için aynı havuz; kullanıcı seçer.
@@ -31,7 +32,7 @@ export interface YoneticiOzetiData {
  *  Yeni mantık: durum tek model — onaylandı=kazandı, kapanmadı=kaybetti, iptal=iptal. */
 export function computeYoneticiOzeti(teklifler: Teklif[]): YoneticiOzetiData {
   const funnel: Record<TeklifDurum, number> = {
-    taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, siparis_alindi: 0, reddedildi: 0, iptal: 0,
+    taslak: 0, hazir: 0, gonderildi: 0, onaylandi: 0, kismi_onaylandi: 0, siparis_alindi: 0, reddedildi: 0, iptal: 0,
   };
   const sonucSayim = { kazanildi: 0, kaybedildi: 0, iptal: 0, beklemede: 0, girilmemis: 0 };
   const acikPipeline: Record<string, number> = { TRY: 0, EUR: 0, USD: 0 };
@@ -41,12 +42,17 @@ export function computeYoneticiOzeti(teklifler: Teklif[]): YoneticiOzetiData {
   for (const t of teklifler) {
     if (t.durum && funnel[t.durum] !== undefined) funnel[t.durum] += 1;
 
-    if (t.durum === 'onaylandi') sonucSayim.kazanildi += 1;
+    // Kısmi onay → iş kazanılmış sayılır (bazı kalemler satıldı).
+    if (t.durum === 'onaylandi' || t.durum === 'kismi_onaylandi') sonucSayim.kazanildi += 1;
     else if (t.durum === 'reddedildi') sonucSayim.kaybedildi += 1;
     else if (t.durum === 'iptal') sonucSayim.iptal += 1;
     else sonucSayim.girilmemis += 1;
 
-    const sonuclu = t.durum === 'onaylandi' || t.durum === 'reddedildi' || t.durum === 'iptal';
+    const sonuclu =
+      t.durum === 'onaylandi' ||
+      t.durum === 'kismi_onaylandi' ||
+      t.durum === 'reddedildi' ||
+      t.durum === 'iptal';
     if (!sonuclu) {
       const pb = t.paraBirimi || 'TRY';
       acikPipeline[pb] = (acikPipeline[pb] || 0) + (t.genelToplam || 0);
@@ -62,7 +68,7 @@ export function computeYoneticiOzeti(teklifler: Teklif[]): YoneticiOzetiData {
       if (!personelMap.has(pid)) personelMap.set(pid, { ad, kazanildi: 0, kayipli: 0, toplam: 0 });
       const p = personelMap.get(pid)!;
       p.toplam += 1;
-      if (t.durum === 'onaylandi') p.kazanildi += 1;
+      if (t.durum === 'onaylandi' || t.durum === 'kismi_onaylandi') p.kazanildi += 1;
       if (t.durum === 'reddedildi') p.kayipli += 1;
     }
   }

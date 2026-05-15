@@ -591,7 +591,11 @@ export default function TeklifEditor() {
       //    da 'gonderildi'ye dönmesin. Aksi takdirde:
       //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap
       //      hedef='email' → e-posta hazırlandıysa 'gönderildi' yap
-      const sonuclanmis = state.durum === 'onaylandi' || state.durum === 'reddedildi' || state.durum === 'iptal';
+      const sonuclanmis =
+        state.durum === 'onaylandi' ||
+        state.durum === 'kismi_onaylandi' ||
+        state.durum === 'reddedildi' ||
+        state.durum === 'iptal';
       if (!sonuclanmis) {
         if (hedef === 'pdf' && state.durum === 'taslak') {
           state.setDurum('hazir');

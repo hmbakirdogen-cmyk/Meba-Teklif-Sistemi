@@ -47,23 +47,25 @@ import { useTheme } from '../context/useTheme';
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 
 const DURUM_CFG: Record<TeklifDurum, { label: string; color: string; bg: string; border: string }> = {
-  taslak:         { label: 'Hazırlanıyor',    color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
-  hazir:          { label: 'Hazır',           color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  gonderildi:     { label: 'Gönderildi',      color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-  onaylandi:      { label: 'Onaylandı',       color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
-  siparis_alindi: { label: 'Siparişe Döndü',  color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
-  reddedildi:     { label: 'Reddedildi',      color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
-  iptal:          { label: 'İptal',           color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
+  taslak:           { label: 'Hazırlanıyor',    color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
+  hazir:            { label: 'Hazır',           color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  gonderildi:       { label: 'Gönderildi',      color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  onaylandi:        { label: 'Onaylandı',       color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  kismi_onaylandi:  { label: 'Kısmi Onay',      color: '#d97706', bg: '#fffbeb', border: '#fed7aa' },
+  siparis_alindi:   { label: 'Siparişe Döndü',  color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
+  reddedildi:       { label: 'Reddedildi',      color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+  iptal:            { label: 'İptal',           color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 
 const DURUM_CFG_DARK: Record<TeklifDurum, { label: string; color: string; bg: string; border: string }> = {
-  taslak:         { label: 'Hazırlanıyor',    color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
-  hazir:          { label: 'Hazır',           color: '#60a5fa', bg: 'rgba(96,165,250,0.10)',  border: 'rgba(96,165,250,0.22)'  },
-  gonderildi:     { label: 'Gönderildi',      color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.22)'  },
-  onaylandi:      { label: 'Onaylandı',       color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.22)'  },
-  siparis_alindi: { label: 'Siparişe Döndü',  color: '#10b981', bg: 'rgba(16,185,129,0.14)',  border: 'rgba(16,185,129,0.30)'  },
-  reddedildi:     { label: 'Reddedildi',      color: '#f87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.22)' },
-  iptal:          { label: 'İptal',           color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
+  taslak:           { label: 'Hazırlanıyor',    color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
+  hazir:            { label: 'Hazır',           color: '#60a5fa', bg: 'rgba(96,165,250,0.10)',  border: 'rgba(96,165,250,0.22)'  },
+  gonderildi:       { label: 'Gönderildi',      color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.22)'  },
+  onaylandi:        { label: 'Onaylandı',       color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.22)'  },
+  kismi_onaylandi:  { label: 'Kısmi Onay',      color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(253,186,116,0.30)' },
+  siparis_alindi:   { label: 'Siparişe Döndü',  color: '#10b981', bg: 'rgba(16,185,129,0.14)',  border: 'rgba(16,185,129,0.30)'  },
+  reddedildi:       { label: 'Reddedildi',      color: '#f87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.22)' },
+  iptal:            { label: 'İptal',           color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.22)' },
 };
 
 interface PersonelRenk {
@@ -679,7 +681,10 @@ function KlasorGorunumu({
   }
 
   function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
-    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal') {
+    // Sonuçlanma sürecinin TAMAMI artık modal üzerinden:
+    //  - reddedildi / iptal → sebep girişi modu
+    //  - onaylandi          → satır seçimi modu (kullanıcı kısmi onay verebilir)
+    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal' || yeniDurum === 'onaylandi') {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
     }
@@ -690,7 +695,7 @@ function KlasorGorunumu({
   }
 
   function hizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
-    const KAPALI: TeklifDurum[] = ['onaylandi', 'reddedildi', 'iptal'];
+    const KAPALI: TeklifDurum[] = ['onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'];
     if (KAPALI.includes(teklif.durum) && yeniDurum !== teklif.durum) {
       modal.confirm({
         title: 'Sonuçlanmış teklifin durumunu değiştir?',
@@ -1665,7 +1670,7 @@ function DetayGorunumu({
     // Sonuclanmis (onaylandi/reddedildi/iptal) durumdan baska bir duruma
     // gecis kullanicidan onay ister — kazanmis teklifi yanlislikla taslaga
     // dusurmemesi vs. icin koruyucu.
-    const KAPALI: TeklifDurum[] = ['onaylandi', 'reddedildi', 'iptal'];
+    const KAPALI: TeklifDurum[] = ['onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'];
     const sonuclanmisti = KAPALI.includes(teklif.durum);
     const farkli = yeniDurum !== teklif.durum;
     if (sonuclanmisti && farkli) {
@@ -2016,32 +2021,98 @@ interface SonucModalProps {
 }
 
 function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
-  // Sade modal: sebep + (reddedildi'de) rakip firma + opsiyonel not.
-  // Durum dışarıdan zaten reddedildi veya iptal olarak gelir.
-  // NOT: Initial state'ler doğrudan teklif prop'undan türetilir; her yeni teklif
-  // açılışında parent <SonucModal key={teklif?.id} /> ile remount eder, böylece
-  // setState-in-effect anti-pattern'ine gerek kalmaz.
+  // İki mod:
+  //  - 'sebep'    → durum=reddedildi|iptal: sebep + (red ise) rakip + not
+  //  - 'satir'    → durum=onaylandi|kismi_onaylandi: müşterinin onayladığı satırları seç;
+  //                  hepsi ✓ → 'onaylandi', hepsi ✗ → 'reddedildi', karma → 'kismi_onaylandi'.
+  // NOT: Initial state'ler doğrudan teklif prop'undan türetilir; parent
+  // <SonucModal key={teklif?.id} /> ile remount eder, setState-in-effect yok.
+  const mod: 'sebep' | 'satir' =
+    teklif?.durum === 'reddedildi' || teklif?.durum === 'iptal' ? 'sebep' : 'satir';
+
   const [sebep, setSebep] = useState<KayipSebebi | undefined>(teklif?.kayipSebebi);
   const [rakip, setRakip] = useState(teklif?.rakipFirma ?? '');
   const [not, setNot] = useState(teklif?.sonucNotu ?? '');
 
-  function kaydet() {
-    if (!teklif) return;
-    const durum = teklif.durum;
-    const patch: Partial<Teklif> = {
-      durum,
-      sonucTarihi: new Date().toISOString(),
-      kayipSebebi: sebep,
-      rakipFirma: durum === 'reddedildi' ? (rakip.trim() || undefined) : undefined,
-      sonucNotu: not.trim() || undefined,
-    };
-    onSave(patch);
+  // Satır seçimi: id → onaylı mı. Default tüm satırlar onaylı; kullanıcı
+  // reddedileni ✗ yapar. Mevcut onayDurumu varsa onu seed olarak kullan.
+  const [satirOnay, setSatirOnay] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const s of teklif?.satirlar ?? []) {
+      // Default = onaylı; daha önce 'reddedildi' işaretliyse onu koru.
+      init[s.id] = s.onayDurumu === 'reddedildi' ? false : true;
+    }
+    return init;
+  });
+
+  function toggleSatir(id: string) {
+    setSatirOnay((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+  function tumunuSec(deger: boolean) {
+    setSatirOnay((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const k of Object.keys(prev)) next[k] = deger;
+      return next;
+    });
   }
 
   if (!teklif) return null;
 
-  const okDisabled = !sebep;
-  const baslik = teklif.durum === 'iptal' ? 'İptal — Sebep' : 'Reddedildi — Sebep';
+  // Karma seçim sayımları — başlık + buton metni için.
+  const satirlar = teklif.satirlar ?? [];
+  const onayliSayi = satirlar.filter((s) => satirOnay[s.id]).length;
+  const toplamSayi = satirlar.length;
+  const hepsi = onayliSayi === toplamSayi && toplamSayi > 0;
+  const hicbiri = onayliSayi === 0;
+
+  function kaydet() {
+    if (mod === 'sebep') {
+      const patch: Partial<Teklif> = {
+        durum: teklif.durum,
+        sonucTarihi: new Date().toISOString(),
+        kayipSebebi: sebep,
+        rakipFirma: teklif.durum === 'reddedildi' ? (rakip.trim() || undefined) : undefined,
+        sonucNotu: not.trim() || undefined,
+      };
+      onSave(patch);
+      return;
+    }
+    // satir modu — her satıra onayDurumu yaz, üst durumu seçime göre türet.
+    const yeniSatirlar = satirlar.map((s) => ({
+      ...s,
+      onayDurumu: satirOnay[s.id] ? ('onaylandi' as const) : ('reddedildi' as const),
+    }));
+    const yeniDurum: TeklifDurum = hepsi ? 'onaylandi' : hicbiri ? 'reddedildi' : 'kismi_onaylandi';
+    const patch: Partial<Teklif> = {
+      durum: yeniDurum,
+      satirlar: yeniSatirlar,
+      sonucTarihi: new Date().toISOString(),
+      sonucNotu: not.trim() || undefined,
+      // Hepsi reddedildi durumunda sebep girilmesi gerekir ama bu akıştan
+      // gelinmiyor; kullanıcı UI'da uyarılır ve Reddedildi akışına yönlendirilir.
+      // Eğer yine de hepsi ✗ ile devam edilirse sebep undefined kalır (sonra düzenlenebilir).
+      kayipSebebi: yeniDurum === 'reddedildi' ? sebep : undefined,
+    };
+    onSave(patch);
+  }
+
+  // OK button disabled koşulları
+  const okDisabled =
+    mod === 'sebep' ? !sebep : toplamSayi === 0;
+
+  const baslik =
+    mod === 'sebep'
+      ? teklif.durum === 'iptal' ? 'İptal — Sebep' : 'Reddedildi — Sebep'
+      : 'Müşteri Onayı — Kalemleri İşaretleyin';
+
+  const okText =
+    mod === 'sebep'
+      ? 'Kaydet'
+      : hepsi
+        ? 'Tamamı Onaylandı'
+        : hicbiri
+          ? 'Reddedildi'
+          : `Kısmi Onay (${onayliSayi}/${toplamSayi})`;
 
   return (
     <Modal
@@ -2050,38 +2121,117 @@ function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
       onOk={kaydet}
       okButtonProps={{ disabled: okDisabled }}
       title={baslik}
-      okText="Kaydet"
+      okText={okText}
       cancelText="Vazgeç"
-      width={420}
+      width={mod === 'satir' ? 560 : 420}
+      centered
       destroyOnHidden
     >
-      <Select
-        value={sebep}
-        onChange={(v) => setSebep(v)}
-        placeholder="Sebep seçin"
-        style={{ width: '100%' }}
-        status={!sebep ? 'warning' : undefined}
-        options={(Object.keys(KAYIP_SEBEBI_LABEL) as KayipSebebi[]).map((k) => ({
-          value: k, label: KAYIP_SEBEBI_LABEL[k],
-        }))}
-      />
-      {teklif.durum === 'reddedildi' && (
-        <Input
-          placeholder="Rakip firma (opsiyonel)"
-          value={rakip}
-          onChange={(e) => setRakip(e.target.value)}
-          maxLength={100}
-          style={{ marginTop: 10 }}
-        />
+      {mod === 'sebep' && (
+        <>
+          <Select
+            value={sebep}
+            onChange={(v) => setSebep(v)}
+            placeholder="Sebep seçin"
+            style={{ width: '100%' }}
+            status={!sebep ? 'warning' : undefined}
+            options={(Object.keys(KAYIP_SEBEBI_LABEL) as KayipSebebi[]).map((k) => ({
+              value: k, label: KAYIP_SEBEBI_LABEL[k],
+            }))}
+            getPopupContainer={(t) => (t.parentNode as HTMLElement) ?? document.body}
+          />
+          {teklif.durum === 'reddedildi' && (
+            <Input
+              placeholder="Rakip firma (opsiyonel)"
+              value={rakip}
+              onChange={(e) => setRakip(e.target.value)}
+              maxLength={100}
+              style={{ marginTop: 10 }}
+            />
+          )}
+          <Input.TextArea
+            value={not}
+            onChange={(e) => setNot(e.target.value)}
+            rows={3}
+            placeholder="Not (opsiyonel)"
+            maxLength={500}
+            style={{ marginTop: 10 }}
+          />
+        </>
       )}
-      <Input.TextArea
-        value={not}
-        onChange={(e) => setNot(e.target.value)}
-        rows={3}
-        placeholder="Not (opsiyonel)"
-        maxLength={500}
-        style={{ marginTop: 10 }}
-      />
+
+      {mod === 'satir' && (
+        <>
+          <div style={{
+            fontSize: 12, color: '#64748b', marginBottom: 12,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span>Müşterinin onayladığı kalemler ✓ kalsın, reddedilenleri ✗ yapın.</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Button size="small" onClick={() => tumunuSec(true)}>Tümünü Onayla</Button>
+              <Button size="small" onClick={() => tumunuSec(false)}>Tümünü Reddet</Button>
+            </div>
+          </div>
+
+          <div style={{
+            maxHeight: 360, overflowY: 'auto',
+            border: '1px solid #e2e8f0', borderRadius: 8,
+          }}>
+            {satirlar.map((s, i) => {
+              const onayli = !!satirOnay[s.id];
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => toggleSatir(s.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 12px',
+                    borderBottom: i < satirlar.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    background: onayli ? '#ecfdf5' : '#fef2f2',
+                    cursor: 'pointer',
+                    transition: 'background 120ms ease',
+                  }}
+                >
+                  <div style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: onayli ? '#059669' : '#dc2626',
+                    color: '#fff', fontSize: 13, fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {onayli ? '✓' : '✕'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {s.urunKod || '—'}
+                      {s.aciklama && (
+                        <span style={{ fontWeight: 400, color: '#475569' }}> · {s.aciklama}</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                      {s.miktar} {s.birim} × {formatCurrency(s.birimFiyat, s.paraBirimi || teklif.paraBirimi)} = {formatCurrency(s.satirToplami, s.paraBirimi || teklif.paraBirimi)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {satirlar.length === 0 && (
+              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
+                Bu teklifte kalem yok.
+              </div>
+            )}
+          </div>
+
+          <Input.TextArea
+            value={not}
+            onChange={(e) => setNot(e.target.value)}
+            rows={2}
+            placeholder="Not (opsiyonel) — örn: 'Müşteri ileride 4-5 numaralı kalemler için tekrar değerlendirecek.'"
+            maxLength={500}
+            style={{ marginTop: 12 }}
+          />
+        </>
+      )}
     </Modal>
   );
 }
@@ -2123,7 +2273,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
   const durumGosterim =
     (isDark ? DURUM_CFG_DARK[teklif.durum] : DURUM_CFG[teklif.durum]) ??
     (isDark ? DURUM_CFG_DARK.taslak : DURUM_CFG.taslak);
-  const silinebilir = !(['onaylandi', 'reddedildi', 'iptal'] as TeklifDurum[]).includes(teklif.durum);
+  const silinebilir = !(['onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'] as TeklifDurum[]).includes(teklif.durum);
   // Dakikada bir tick eden "şimdi" — gun farkı hesapları render purity'yi koruyarak taze kalır.
   const now = useNow();
   function pdfAc() {

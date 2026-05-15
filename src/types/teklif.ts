@@ -5,13 +5,14 @@ import type { ImageItem } from './imageItem';
 export type ParaBirimi = 'TRY' | 'EUR' | 'USD';
 /**
  * Teklif durumu — tek-model yaklaşımı: durum hem aşamayı hem iş sonucunu gösterir.
- *  - taslak         : üzerinde çalışılıyor (Hazırlanıyor)
- *  - hazir          : PDF üretildi, gönderim için hazır
- *  - gonderildi     : müşteriye gönderildi, yanıt bekleniyor
- *  - onaylandi      : müşteri onayladı
- *  - siparis_alindi : onaylandı sonrası sipariş açıldı (PO geldi)
- *  - reddedildi     : müşteri teklifi reddetti
- *  - iptal          : süreç iptal edildi (proje iptal, müşteri vazgeçti vb.)
+ *  - taslak           : üzerinde çalışılıyor (Hazırlanıyor)
+ *  - hazir            : PDF üretildi, gönderim için hazır
+ *  - gonderildi       : müşteriye gönderildi, yanıt bekleniyor
+ *  - onaylandi        : müşteri tüm kalemleri onayladı
+ *  - kismi_onaylandi  : müşteri bazı kalemleri onayladı, bazılarını reddetti
+ *  - siparis_alindi   : onaylandı sonrası sipariş açıldı (PO geldi)
+ *  - reddedildi       : müşteri teklifi reddetti
+ *  - iptal            : süreç iptal edildi (proje iptal, müşteri vazgeçti vb.)
  * Revize edildi durumu ayrı bir değer değil — `revizyonNo > 0` ile UI'da etiketlenir.
  */
 export type TeklifDurum =
@@ -19,6 +20,7 @@ export type TeklifDurum =
   | 'hazir'
   | 'gonderildi'
   | 'onaylandi'
+  | 'kismi_onaylandi'
   | 'siparis_alindi'
   | 'reddedildi'
   | 'iptal';

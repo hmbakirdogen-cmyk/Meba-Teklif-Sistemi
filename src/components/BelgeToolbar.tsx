@@ -249,11 +249,12 @@ export default function BelgeToolbar({
         {status === 'taslak' && durum !== 'taslak' && (
           <Tooltip
             title={
-              durum === 'gonderildi' ? 'Revize teklif — gönderildikten sonra üzerinde değişiklik yapıldı.' :
-              durum === 'hazir'      ? 'Revize — PDF üretildikten sonra değişiklik yapıldı. PDF güncel değil.' :
-              durum === 'onaylandi'  ? 'Revize — onaylanmış teklif sonradan değişti.' :
-              durum === 'reddedildi' ? 'Revize — reddedilmiş teklif sonradan değişti.' :
-              durum === 'iptal'      ? 'Revize — iptal edilmiş teklif sonradan değişti.' :
+              durum === 'gonderildi'      ? 'Revize teklif — gönderildikten sonra üzerinde değişiklik yapıldı.' :
+              durum === 'hazir'           ? 'Revize — PDF üretildikten sonra değişiklik yapıldı. PDF güncel değil.' :
+              durum === 'onaylandi'       ? 'Revize — onaylanmış teklif sonradan değişti.' :
+              durum === 'kismi_onaylandi' ? 'Revize — kısmi onay alınmış teklif sonradan değişti.' :
+              durum === 'reddedildi'      ? 'Revize — reddedilmiş teklif sonradan değişti.' :
+              durum === 'iptal'           ? 'Revize — iptal edilmiş teklif sonradan değişti.' :
               'Revize teklif — üzerinde değişiklik yapıldı.'
             }
             mouseEnterDelay={0.25}

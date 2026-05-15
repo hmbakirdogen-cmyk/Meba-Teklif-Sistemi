@@ -23,4 +23,7 @@ export interface TeklifSatiri {
   /** Personel tarafından elle ayarlanmış satır yüksekliği (document-px).
    *  Tanımsızsa otomatik / standart yükseklik geçerli. */
   rowHeight?: number;
+  /** Müşteri kısmi onay verdiğinde her satırın akıbeti — sadece iç takip,
+   *  PDF'e yansımaz. undefined = henüz karar verilmedi. */
+  onayDurumu?: 'onaylandi' | 'reddedildi';
 }
