@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Dropdown, Input, Modal, Popconfirm, Segmented, Select, Tooltip } from 'antd';
@@ -13,7 +13,6 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons';
 import { PremiumPdfBadge } from '../components/premium-icons';
-import { FolderStackIcon } from '../components/ToolbarIcons';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
 import {
   KAYIP_SEBEBI_LABEL,
@@ -619,6 +618,51 @@ interface KlasorGorunumuProps {
   onRefresh: () => void;
 }
 
+// Segmented control label tipografi — Tekliflerim üst sekmeleri için
+// Apple SF Pro tarzı premium görünüm. macOS/iOS'ta gerçek SF Pro, diğer
+// platformlarda en yakın fallback (Helvetica Neue → system-ui).
+const kapsamLabelStyle: CSSProperties = {
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Inter", system-ui, "Segoe UI", sans-serif',
+  fontWeight: 600,
+  fontSize: 13,
+  letterSpacing: '-0.005em',
+  lineHeight: 1,
+};
+// Görünüm segmented (Klasör/Liste) — ikon + etiket konteyneri.
+// Sabit minWidth → iki cell aynı genişlikte; justifyContent center → içerik
+// her cell içinde merkez. İkon kutusu sabit boyutta, içeride ortalı.
+const gorunumLabelStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  minWidth: 112,
+  height: 32,
+};
+const gorunumIkonKutusu: CSSProperties = {
+  width: 30,
+  height: 30,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+};
+// Sayım rozeti — etiketin yanında ince oval. Tabular nums, biraz daha
+// faint renk; etiketle aynı satırda nefes alır.
+const kapsamSayiStyle: CSSProperties = {
+  display: 'inline-block',
+  marginLeft: 8,
+  padding: '1px 7px',
+  fontSize: 11,
+  fontWeight: 700,
+  fontVariantNumeric: 'tabular-nums',
+  color: 'inherit',
+  background: 'rgba(15, 31, 69, 0.10)',
+  borderRadius: 999,
+  letterSpacing: 0,
+};
+
 function KlasorGorunumu({
   isMobile, C, teklifler, klasorler, kullaniciMap, aramaMetni, setAramaMetni,
   aktifFiltre, setAktifFiltre, siralama, setSiralama, gorunumModu, setGorunumModu,
@@ -745,35 +789,29 @@ function KlasorGorunumu({
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Segmented
             size="large"
+            className="gorunum-segmented"
             value={siralama === 'aktiflik' ? 'liste' : 'klasor'}
             onChange={(v) => setSiralama(v === 'liste' ? 'aktiflik' : 'alfabe')}
             options={[
               {
                 value: 'klasor',
                 label: (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <FolderStackIcon size={22} tone={siralama !== 'aktiflik' ? 'dark' : 'light'} />
-                    Klasör
+                  <span style={gorunumLabelStyle}>
+                    <span style={gorunumIkonKutusu}>
+                      <PremiumKlasorIcon size={28} />
+                    </span>
+                    <span style={kapsamLabelStyle}>Klasör</span>
                   </span>
                 ),
               },
               {
                 value: 'liste',
                 label: (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    {/* Teklif kartlarındaki premium PDF rozetiyle aynı simge.
-                        22px container + overflow:hidden — drop-shadow filtresi
-                        segmented button çerçevesinin dışına taşmaz. */}
-                    <span style={{
-                      width: 22, height: 22,
-                      display: 'inline-flex',
-                      alignItems: 'center', justifyContent: 'center',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                    }}>
-                      <PremiumPdfBadge isDark={false} />
+                  <span style={gorunumLabelStyle}>
+                    <span style={gorunumIkonKutusu}>
+                      <PremiumPdfBadge size={28} />
                     </span>
-                    Liste
+                    <span style={kapsamLabelStyle}>Liste</span>
                   </span>
                 ),
               },
@@ -784,9 +822,30 @@ function KlasorGorunumu({
             value={aktifFiltre}
             onChange={(v) => setAktifFiltre(v as Filtre)}
             options={[
-              { value: 'benim',  label: `Benim (${benimSayisi})` },
-              { value: 'tumu',   label: `Tümü (${tumSayisi})` },
-              { value: 'atanan', label: `Atanan (${atananSayisi})` },
+              {
+                value: 'benim',
+                label: (
+                  <span style={kapsamLabelStyle}>
+                    Benim <span style={kapsamSayiStyle}>{benimSayisi}</span>
+                  </span>
+                ),
+              },
+              {
+                value: 'tumu',
+                label: (
+                  <span style={kapsamLabelStyle}>
+                    Tümü <span style={kapsamSayiStyle}>{tumSayisi}</span>
+                  </span>
+                ),
+              },
+              {
+                value: 'atanan',
+                label: (
+                  <span style={kapsamLabelStyle}>
+                    Atanan <span style={kapsamSayiStyle}>{atananSayisi}</span>
+                  </span>
+                ),
+              },
             ]}
           />
         </div>
@@ -1247,120 +1306,32 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
   );
 }
 
-// ─── Premium Klasör İkonu (Kurumsal: navy/lacivert Mac-tarzı) ────────────────
-// Marka rengi #1E3A5F'e uyumlu deep-navy paleti; klasör gövdesi 3-stop
-// diagonal gradient ile derinlik kazanır. Üzerinde 2 belirgin BEYAZIMSI
-// belge çizgisi (kabartma) olur — "klasörün içindeki dosya tabları" hissi.
-// Klasörden 3 KAĞIT dışarı sarkar (orta katlı köşe + metin çizgileri).
+// ─── Premium Klasör İkonu — 3D rendered PNG (transparent bg) ────────────────
+// Vite asset import ile import edilir; build sırasında hash'lenip optimize
+// edilir, production'da statik serve. SVG yerine PNG kullanma sebebi: 3D
+// rendered (claymorphism) görsel SVG ile birebir yeniden çizilemiyordu.
+import folderIconPng from '../components/premium-icons/png-transparent-folder-3d-icon.png';
 
 function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDark?: boolean }) {
   void isDark;
-  // Stable, deterministic id — React 19 useId() ile gradient defs collision'sız.
-  // ":" sanitize ediyoruz çünkü url(#…) referansında bazı tarayıcılar
-  // çift-kolon'u escape gerektiriyor.
-  const reactId = useId().replace(/:/g, '');
-  const uid = `pki-${size}-${reactId}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        {/* Body — derin lacivert diagonal gradient (üst-sol açık → alt-sağ koyu) */}
-        <linearGradient id={`body-${uid}`} x1="0" y1="20" x2="72" y2="62" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#3B5C82"/>
-          <stop offset="40%" stopColor="#1E3A5F"/>
-          <stop offset="100%" stopColor="#0F1E33"/>
-        </linearGradient>
-        {/* Tab — gövdeden hafif aydınlık ton */}
-        <linearGradient id={`tab-${uid}`} x1="0" y1="10" x2="0" y2="20" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#3B5C82"/>
-          <stop offset="100%" stopColor="#1B2C42"/>
-        </linearGradient>
-        {/* Top specular — koyu zemin üstünde belirgin shine */}
-        <linearGradient id={`shine-${uid}`} x1="0" y1="20" x2="0" y2="26" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#7B9CC2" stopOpacity="0.7"/>
-          <stop offset="100%" stopColor="#7B9CC2" stopOpacity="0"/>
-        </linearGradient>
-        {/* Bottom inner shadow — derinlik */}
-        <linearGradient id={`bottom-${uid}`} x1="0" y1="46" x2="0" y2="62" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#000" stopOpacity="0"/>
-          <stop offset="100%" stopColor="#000" stopOpacity="0.45"/>
-        </linearGradient>
-        {/* Right edge shading */}
-        <linearGradient id={`right-${uid}`} x1="50" y1="30" x2="68" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#000" stopOpacity="0"/>
-          <stop offset="100%" stopColor="#000" stopOpacity="0.28"/>
-        </linearGradient>
-      </defs>
-
-      {/* 1. Drop shadow ellipse */}
-      <ellipse cx="36" cy="65" rx="26" ry="2" fill="#000" opacity="0.30"/>
-
-      {/* 2. Tab back shadow */}
-      <path d="M8 17C8 14.8 9.8 13 12 13H29L34.5 18H8V17Z" fill="#0A1525" opacity="0.7"/>
-
-      {/* 3. Tab body */}
-      <path d="M8 14C8 11.8 9.8 10 12 10H28L34 15H8V14Z" fill={`url(#tab-${uid})`}/>
-
-      {/* 4. Tab top thin highlight */}
-      <path d="M11 11H27L29 13H10V12C10 11.5 10.5 11 11 11Z" fill="#7B9CC2" opacity="0.55"/>
-
-      {/* 5. Body back shadow (offset, deep dark) */}
-      <path d="M6 26C6 23.8 7.8 22 10 22H62C64.2 22 66 23.8 66 26V60C66 62.2 64.2 64 62 64H10C7.8 64 6 62.2 6 60V26Z" fill="#0A1525"/>
-
-      {/* ───── KLASÖRDEN DIŞARI SARKAN KAĞITLAR (lacivert üstünde belirgin) ───── */}
-      {/* Paper 3 — rightmost, slight right tilt, kemik beyaz */}
-      <g transform="rotate(2.5 54 20)">
-        <rect x="48" y="14" width="12" height="14" rx="0.5" fill="#E8E5DC"/>
-        <rect x="48" y="14" width="12" height="0.5" fill="#0A1525" opacity="0.45"/>
-      </g>
-      {/* Paper 2 — middle, tallest, slight left tilt, FOLDED CORNER + text lines */}
-      <g transform="rotate(-1.2 41 18)">
-        <path d="M34 12.5 L47 12.5 L49 14.5 L49 26.5 L34 26.5 Z" fill="#F5F2EA"/>
-        <path d="M47 12.5 L49 14.5 L47 14.5 Z" fill="#C8C2B2"/>
-        <rect x="34" y="12.5" width="13" height="0.5" fill="#0A1525" opacity="0.5"/>
-        <line x1="36" y1="16.5" x2="46" y2="16.5" stroke="#7C7568" strokeWidth="0.5" opacity="0.55"/>
-        <line x1="36" y1="18.5" x2="44" y2="18.5" stroke="#7C7568" strokeWidth="0.5" opacity="0.45"/>
-      </g>
-      {/* Paper 1 — leftmost, slight right tilt, en parlak beyaz */}
-      <g transform="rotate(1.5 29 20)">
-        <rect x="22" y="14.5" width="14" height="12" rx="0.5" fill="#F0EDE3"/>
-        <rect x="22" y="14.5" width="14" height="0.5" fill="#0A1525" opacity="0.4"/>
-        <line x1="24" y1="18" x2="33" y2="18" stroke="#7C7568" strokeWidth="0.5" opacity="0.50"/>
-      </g>
-
-      {/* 6. Body main — derin lacivert gradient */}
-      <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#body-${uid})`}/>
-
-      {/* 7. Top specular — sharp light line at upper edge */}
-      <path d="M10 20H62C64.2 20 66 21.8 66 24V25H6V24C6 21.8 7.8 20 10 20Z" fill={`url(#shine-${uid})`}/>
-
-      {/* 8. Top accent strip — açık mavi tone */}
-      <path d="M6 25H66V31H6V25Z" fill="#5A7BA5" opacity="0.40"/>
-
-      {/* 9. Bottom inner shadow */}
-      <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#bottom-${uid})`}/>
-
-      {/* 10. Right edge shadow gradient */}
-      <path d="M6 24C6 21.8 7.8 20 10 20H62C64.2 20 66 21.8 66 24V58C66 60.2 64.2 62 62 62H10C7.8 62 6 60.2 6 58V24Z" fill={`url(#right-${uid})`}/>
-
-      {/* 11. Top-left specular gloss (mavi cila parlaklığı) */}
-      <ellipse cx="14" cy="26" rx="5" ry="1.5" fill="#7B9CC2" opacity="0.55"/>
-
-      {/* ───── KABARTMA ÇİZGİLER — ön cep üzerinde belirgin desen ───── */}
-      {/* Klasör içindeki dosya tab'ları/dosya ayraçları hissi: koyu zemin */}
-      {/* üzerinde beyazımsı şeritler + altında ince koyu shadow (kabartma) */}
-      {/* 1. çizgi — daha geniş */}
-      <rect x="14" y="38" width="44" height="1.4" rx="0.7" fill="#D4D8DD" opacity="0.70"/>
-      <rect x="14" y="39.2" width="44" height="0.6" rx="0.3" fill="#000" opacity="0.35"/>
-      {/* 2. çizgi — kısa */}
-      <rect x="14" y="44" width="36" height="1.4" rx="0.7" fill="#D4D8DD" opacity="0.65"/>
-      <rect x="14" y="45.2" width="36" height="0.6" rx="0.3" fill="#000" opacity="0.30"/>
-
-      {/* 12. Premium metalik kilit (lacivert tema) */}
-      <rect x="32" y="20" width="8" height="2" rx="0.6" fill="#0A1525"/>
-      <rect x="32" y="20" width="8" height="0.8" fill="#7B9CC2" opacity="0.7"/>
-    </svg>
+    <img
+      src={folderIconPng}
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+      style={{
+        display: 'block',
+        objectFit: 'contain',
+        // Dark mode'da transparan PNG zaten temadan bağımsız okunur; ekstra
+        // filter gerekmez. PNG zaten kendi içinde gerekli kontrastı içerir.
+      }}
+      draggable={false}
+    />
   );
 }
+
 
 // ─── Klasör İkonu (detay görünümü başlığı için minimal) ──────────────────────
 

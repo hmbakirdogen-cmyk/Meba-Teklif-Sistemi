@@ -2616,3 +2616,21 @@ button.referanslar-satir-teklifno:hover .anticon {
   color: #f1f5f9 !important;
 }
 
+/* Görünüm segmented (Klasör/Liste) — cell'leri eşit genişliğe zorla,
+   içerik her cell'in tam merkezinde durur. Antd default auto-size çoğu
+   zaman ikonlu cell'lerde dengesizliğe yol açar. */
+.gorunum-segmented .ant-segmented-group {
+  display: flex !important;
+}
+.gorunum-segmented .ant-segmented-item {
+  flex: 1 1 0 !important;
+  min-width: 132px !important;
+}
+.gorunum-segmented .ant-segmented-item-label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 14px !important;
+  height: 100% !important;
+}
+
