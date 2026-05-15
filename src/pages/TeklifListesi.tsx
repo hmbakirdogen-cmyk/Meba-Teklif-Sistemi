@@ -1,25 +1,19 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { App, Button, Dropdown, Input, Modal, Popconfirm, Select, Tooltip } from 'antd';
+import { App, Button, Dropdown, Input, Modal, Popconfirm, Segmented, Select, Tooltip } from 'antd';
 import {
   PlusOutlined,
-  EyeOutlined,
   DeleteOutlined,
   CopyOutlined,
   SearchOutlined,
   ArrowLeftOutlined,
   CaretDownOutlined,
   FlagOutlined,
-  AimOutlined,
-  FilePdfOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
-import {
-  FolderSingleIcon,
-  FolderStackIcon,
-  DocumentSingleIcon,
-  DocumentStackIcon,
-} from '../components/ToolbarIcons';
+import { PremiumPdfBadge } from '../components/premium-icons';
+import { FolderStackIcon } from '../components/ToolbarIcons';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
 import {
   KAYIP_SEBEBI_LABEL,
@@ -636,29 +630,9 @@ function KlasorGorunumu({
   const { aktifKullanici } = useKullanici();
   const { message, modal } = App.useApp();
 
-  // Yeni navigasyon mantığı:
-  //   • PDF Geçmişi   → siralama='aktiflik' + aktifFiltre 'benim' | 'tumu'
-  //   • Teklif Klasör → siralama='alfabe'   + aktifFiltre 'benim' | 'tumu'
-  //   • Bana Atanan   → siralama='alfabe'   + aktifFiltre='atanan'
-  const pdfMode = siralama === 'aktiflik';
-  const klasorBenimAktif = !pdfMode && aktifFiltre === 'benim';
-  const klasorTumAktif   = !pdfMode && aktifFiltre === 'tumu';
-  const pdfBenimAktif    = pdfMode  && aktifFiltre === 'benim';
-  const pdfTumAktif      = pdfMode  && aktifFiltre === 'tumu';
-  const atananAktif      = aktifFiltre === 'atanan';
-
-  function klasorScope(scope: 'benim' | 'tumu') {
-    setAktifFiltre(scope);
-    setSiralama('alfabe');
-  }
-  function pdfScope(scope: 'benim' | 'tumu') {
-    setAktifFiltre(scope);
-    setSiralama('aktiflik');
-  }
-  function atananaGec() {
-    setAktifFiltre('atanan');
-    setSiralama('alfabe');
-  }
+  // Navigasyon: kapsam (Filtre) ve görünüm (siralama) artık 2 ayrı segmented
+  // control ile yönetiliyor — bağımsız boyutlar. Eski derived flag'ler ve
+  // dual-state setter fonksiyonları kaldırıldı.
   const [sonucModalTeklif, setSonucModalTeklif] = useState<Teklif | null>(null);
 
   // Aktivite modu için kullanılacak callbacks — DetayGorunumu'ndakinin aynısı.
@@ -760,87 +734,96 @@ function KlasorGorunumu({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          LEVEL 1 — Ana operasyon satırı
-          Sadece: Benim Tekliflerim · Tüm Teklifler · Yeni Teklif (CTA).
+          LEVEL 1 — İki segmented control + CTA butonlar
+          Sol: Görünüm (Klasör/Liste) + Kapsam (Benim/Tümü/Atanan)
+          Sağ: Malzeme Hareketleri + Yeni Teklif
+          Eski 4 ayrı widget (klasör kartları + PDF segments + Atanan pill) tek
+          tek matriks haline geldi — aynı veri iki yerde sayılmıyor, label
+          tekrarı yok.
           ─────────────────────────────────────────────────────────────────── */}
       <div className="app-ops-l1">
-        <div className="app-ops-l1-cards">
-          <button
-            type="button"
-            onClick={() => klasorScope('benim')}
-            className={`app-folder-card${klasorBenimAktif ? ' is-active' : ''}`}
-          >
-            <span className="app-folder-card-icon">
-              <FolderSingleIcon size={26} tone={klasorBenimAktif ? 'dark' : 'light'} />
-            </span>
-            <span className="app-folder-card-label">Benim Tekliflerim</span>
-            <span className="app-folder-card-count">{benimSayisi}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => klasorScope('tumu')}
-            className={`app-folder-card${klasorTumAktif ? ' is-active' : ''}`}
-          >
-            <span className="app-folder-card-icon">
-              <FolderStackIcon size={26} tone={klasorTumAktif ? 'dark' : 'light'} />
-            </span>
-            <span className="app-folder-card-label">Tüm Teklifler</span>
-            <span className="app-folder-card-count">{tumSayisi}</span>
-          </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Segmented
+            size="large"
+            value={siralama === 'aktiflik' ? 'liste' : 'klasor'}
+            onChange={(v) => setSiralama(v === 'liste' ? 'aktiflik' : 'alfabe')}
+            options={[
+              {
+                value: 'klasor',
+                label: (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <FolderStackIcon size={22} tone={siralama !== 'aktiflik' ? 'dark' : 'light'} />
+                    Klasör
+                  </span>
+                ),
+              },
+              {
+                value: 'liste',
+                label: (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {/* Teklif kartlarındaki premium PDF rozetiyle aynı simge.
+                        22px container + overflow:hidden — drop-shadow filtresi
+                        segmented button çerçevesinin dışına taşmaz. */}
+                    <span style={{
+                      width: 22, height: 22,
+                      display: 'inline-flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}>
+                      <PremiumPdfBadge isDark={false} />
+                    </span>
+                    Liste
+                  </span>
+                ),
+              },
+            ]}
+          />
+          <Segmented
+            size="large"
+            value={aktifFiltre}
+            onChange={(v) => setAktifFiltre(v as Filtre)}
+            options={[
+              { value: 'benim',  label: `Benim (${benimSayisi})` },
+              { value: 'tumu',   label: `Tümü (${tumSayisi})` },
+              { value: 'atanan', label: `Atanan (${atananSayisi})` },
+            ]}
+          />
         </div>
-        <Button
-          type="primary"
-          size="large"
-          icon={<PlusOutlined />}
-          className={buttonClassNames.primary}
-          onClick={() => navigate('/teklif/yeni')}
-          style={{ height: 44, fontWeight: 600, paddingLeft: 18, paddingRight: 18, letterSpacing: '0.005em' }}
-        >
-          Yeni Teklif
-        </Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Malzeme Hareketleri — secondary action. Kullanıcı yeni teklif
+              yapmadan önce ürünün fiyat geçmişine bakar. Yeni Teklif CTA'sının
+              solunda ikincil ağırlıkta. */}
+          <Tooltip title="Bir ürünün geçmiş fiyatlarına ve müşterilerine bak" mouseEnterDelay={0.3}>
+            <Button
+              size="large"
+              icon={<LineChartOutlined />}
+              onClick={() => navigate('/malzeme-hareketleri')}
+              style={{ height: 44, fontWeight: 600, paddingLeft: 16, paddingRight: 16, letterSpacing: '0.005em' }}
+            >
+              Malzeme Hareketleri
+            </Button>
+          </Tooltip>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            className={buttonClassNames.primary}
+            onClick={() => navigate('/teklif/yeni')}
+            style={{ height: 44, fontWeight: 600, paddingLeft: 18, paddingRight: 18, letterSpacing: '0.005em' }}
+          >
+            Yeni Teklif
+          </Button>
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          LEVEL 2 — Yardımcı araç satırı
-          PDF Geçmişi (slim segment) · Bana Atanan (pill) · Arama · Görünüm.
+          LEVEL 2 — Arama + (klasör modunda) ızgara/liste düzeni
+          PDF Geçmişi ve Bana Atanan kontrolleri LEVEL 1 segmented'lara
+          taşındı; burası sadece yardımcı.
           ─────────────────────────────────────────────────────────────────── */}
       <div className="app-ops-l2">
-        <div className="app-ops-l2-pdf">
-          <span className="app-ops-pdf-label">PDF Geçmişi</span>
-          <div className="app-pdf-segment">
-            <button
-              type="button"
-              onClick={() => pdfScope('benim')}
-              className={`app-pdf-segment-button${pdfBenimAktif ? ' is-active' : ''}`}
-            >
-              <DocumentSingleIcon size={14} tone={pdfBenimAktif ? 'dark' : 'light'} />
-              <span>Benim PDF&apos;lerim</span>
-              <span className="app-tab-count">{benimSayisi}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => pdfScope('tumu')}
-              className={`app-pdf-segment-button${pdfTumAktif ? ' is-active' : ''}`}
-            >
-              <DocumentStackIcon size={14} tone={pdfTumAktif ? 'dark' : 'light'} />
-              <span>Tüm PDF&apos;ler</span>
-              <span className="app-tab-count">{tumSayisi}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="app-ops-l2-tools">
-          <Tooltip title="Sadece bana atanmış teklifler" mouseEnterDelay={0.3}>
-            <button
-              type="button"
-              onClick={atananaGec}
-              className={`app-secondary-pill${atananAktif ? ' is-active' : ''}`}
-            >
-              <AimOutlined />
-              <span>Bana Atanan</span>
-              <span className="app-secondary-pill-count">{atananSayisi}</span>
-            </button>
-          </Tooltip>
+        <div className="app-ops-l2-tools" style={{ marginLeft: 'auto' }}>
           <Input
             placeholder="Müşteri veya klasör ara..."
             prefix={<SearchOutlined style={{ color: C.textFaint }} />}
@@ -1216,20 +1199,21 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
         </div>
       )}
 
-      {/* Avatarlar */}
+      {/* Avatarlar — liste satırında da grid karttakiyle aynı büyük boy. */}
       <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'flex-start' }}>
         {hazirlayanlar.length > 0 && hazirlayanlar.slice().reverse().map((k, i) => (
           <Tooltip key={k.id} title={k.adSoyad} mouseEnterDelay={0.3}>
             <div style={{
-              width: 18, height: 18, borderRadius: '50%',
+              width: 28, height: 28, borderRadius: '50%',
               border: `2px solid ${C.bgSurface}`,
-              marginLeft: i === 0 ? 0 : -6,
+              marginLeft: i === 0 ? 0 : -9,
               background: k.profilFotoUrl ? '#0b1220' : (isDark ? '#1f2937' : '#e2e8f0'),
               overflow: 'hidden',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 8, fontWeight: 600,
+              fontSize: 11, fontWeight: 700,
               color: isDark ? '#cbd5e1' : '#475569',
               flexShrink: 0,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.10)',
             }}>
               {k.profilFotoUrl ? (
                 <img
@@ -1563,25 +1547,27 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
           </span>
         </div>
 
-        {/* Personel avatar yığını */}
+        {/* Personel avatar yığını — büyütüldü: 17 → 28, fotoğrafı tanınabilir
+            boy. Overlap -6 → -9 (büyük çaplı dairelere uyumlu). */}
         {hazirlayanlar.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'row-reverse', flexShrink: 0 }}>
             {hazirlayanlar.slice().reverse().map((k, i) => (
               <Tooltip key={k.id} title={k.adSoyad} mouseEnterDelay={0.3}>
                 <div style={{
-                  width: 17,
-                  height: 17,
+                  width: 28,
+                  height: 28,
                   borderRadius: '50%',
                   border: `2px solid ${C.bgSurface}`,
-                  marginLeft: i === 0 ? 0 : -6,
+                  marginLeft: i === 0 ? 0 : -9,
                   background: k.profilFotoUrl ? '#0b1220' : (isDark ? '#1f2937' : '#e2e8f0'),
                   overflow: 'hidden',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 8,
-                  fontWeight: 600,
+                  fontSize: 11,
+                  fontWeight: 700,
                   color: isDark ? '#cbd5e1' : '#475569',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.10)',
                 }}>
                   {k.profilFotoUrl ? (
                     <img
@@ -1759,35 +1745,15 @@ function DetayGorunumu({
         marginBottom: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div className="app-pdf-segment">
-            <button
-              type="button"
-              onClick={() => setAktifFiltre('benim')}
-              className={`app-pdf-segment-button${aktifFiltre === 'benim' ? ' is-active' : ''}`}
-            >
-              <FolderSingleIcon size={14} tone={aktifFiltre === 'benim' ? 'dark' : 'light'} />
-              <span>Benim Tekliflerim</span>
-              <span className="app-tab-count">{benimSayisi}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAktifFiltre('tumu')}
-              className={`app-pdf-segment-button${(aktifFiltre === 'tumu' || aktifFiltre === 'aktiflik') ? ' is-active' : ''}`}
-            >
-              <FolderStackIcon size={14} tone={(aktifFiltre === 'tumu' || aktifFiltre === 'aktiflik') ? 'dark' : 'light'} />
-              <span>Tüm Teklifler</span>
-              <span className="app-tab-count">{tumSayisi}</span>
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAktifFiltre('atanan')}
-            className={`app-secondary-pill${aktifFiltre === 'atanan' ? ' is-active' : ''}`}
-          >
-            <AimOutlined />
-            <span>Bana Atanan</span>
-            <span className="app-secondary-pill-count">{atananSayisi}</span>
-          </button>
+          <Segmented
+            value={aktifFiltre === 'aktiflik' ? 'tumu' : aktifFiltre}
+            onChange={(v) => setAktifFiltre(v as Filtre)}
+            options={[
+              { value: 'benim',  label: `Benim (${benimSayisi})` },
+              { value: 'tumu',   label: `Tümü (${tumSayisi})` },
+              { value: 'atanan', label: `Atanan (${atananSayisi})` },
+            ]}
+          />
         </div>
         <div style={{ width: isMobile ? '100%' : 272, justifySelf: isMobile ? 'stretch' : 'end' }}>
           <Input
@@ -2307,6 +2273,17 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      className="teklif-karti-button"
+      onClick={pdfAc}
+      onKeyDown={(e) => {
+        // Klavye erişilebilirliği: Enter / Space karta basmak = aç.
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          pdfAc();
+        }
+      }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
       style={{
@@ -2322,6 +2299,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
         overflow: 'visible',
         transition: 'box-shadow 0.14s',
         position: 'relative',
+        cursor: 'pointer',
       }}
     >
       {/* Gösterge lambası — gönderilmiş 2+ gün eski mi? */}
@@ -2344,50 +2322,24 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
       
       <div style={{ width: 3, flexShrink: 0, background: benim ? '#0f1f45' : renk.accent, alignSelf: 'stretch' }} />
 
-      {/* PDF rozeti — teklif kartının başında belirgin PDF göstergesi.
-          Tıklanınca teklifi açar. Şeffaf zemin: kart rengiyle uyumlu kalır,
-          sadece hover'da çok hafif kırmızı tint ile feedback verir. */}
-      <Tooltip title="PDF görünüm — teklifi aç" mouseEnterDelay={0.3}>
-        <button
-          type="button"
-          onClick={pdfAc}
-          aria-label="PDF görünüm"
-          style={{
-            width: 56,
-            flexShrink: 0,
-            alignSelf: 'stretch',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 2,
-            cursor: 'pointer',
-            background: 'transparent',
-            border: 'none',
-            color: isDark ? '#fca5a5' : '#dc2626',
-            padding: 0,
-            transition: 'background 140ms ease',
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLElement;
-            el.style.background = isDark ? 'rgba(220,38,38,0.10)' : 'rgba(220,38,38,0.06)';
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLElement;
-            el.style.background = 'transparent';
-          }}
-        >
-          <FilePdfOutlined style={{ fontSize: 30, lineHeight: 1 }} />
-          <span style={{
-            fontSize: 9,
-            fontWeight: 800,
-            letterSpacing: '0.10em',
-            lineHeight: 1,
-          }}>
-            PDF
-          </span>
-        </button>
-      </Tooltip>
+      {/* Premium PDF rozeti — 3D embossed, gradient, kıvrılmış köşe.
+          Kart bütünüyle clickable olduğu için bu sadece görsel; .teklif-karti-
+          button:hover ile rozet yukarı kalkar, :active'de hafif basılır
+          (basılabilir buton hissi). */}
+      <div
+        aria-hidden="true"
+        className="teklif-karti-pdf-rozet"
+        style={{
+          width: 64,
+          flexShrink: 0,
+          alignSelf: 'stretch',
+          paddingLeft: 6,
+          paddingRight: 6,
+          pointerEvents: 'none',
+        }}
+      >
+        <PremiumPdfBadge isDark={isDark} />
+      </div>
 
       <div style={{
         flex: 1,
@@ -2400,45 +2352,30 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
       }}>
         {/* Müşteri / Teklif No — cari büyük primary, no küçük faint */}
         <div style={{ minWidth: 0, paddingRight: 12 }}>
-          {/* Cari adı — tıklanınca teklifi aç (PDF rozeti ve teklif no'su ile aynı destination). */}
-          <button
-            type="button"
-            onClick={pdfAc}
-            className={buttonClassNames.link}
-            title="Teklifi aç"
-            style={{
-              display: 'block',
-              width: '100%',
-              textAlign: 'left',
-              padding: 0,
-              fontSize: 14,
-              fontWeight: 700,
-              color: C.textPrimary,
-              letterSpacing: '-0.005em',
-              lineHeight: 1.25,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              marginBottom: 2,
-            }}
-          >
+          {/* Cari adı — kart bütünüyle clickable; sadece görsel metin. */}
+          <div style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: C.textPrimary,
+            letterSpacing: '-0.005em',
+            lineHeight: 1.25,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            marginBottom: 2,
+          }}>
             {formatCariAdi(teklif.cari.firmaAdi)}
-          </button>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button
-              onClick={() => navigate(`/teklif/${teklif.id}`)}
-              className={buttonClassNames.link}
-              style={{
-                textAlign: 'left',
-                fontSize: 11,
-                fontWeight: 500,
-                color: C.textFaint,
-                letterSpacing: '0.02em',
-                lineHeight: 1.2,
-              }}
-            >
+            <span style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: C.textFaint,
+              letterSpacing: '0.02em',
+              lineHeight: 1.2,
+            }}>
               <TeklifNoEtiket teklifNo={teklif.teklifNo} />
-            </button>
+            </span>
             {teklif.visibility === 'private' && (
               <Tooltip title="Gizli — sadece hazırlayan ve yönetici görür" mouseEnterDelay={0.3}>
                 <span aria-label="Gizli teklif" style={{
@@ -2525,17 +2462,19 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
           now={now}
         />
 
-        {/* Aksiyonlar — Aç · PDF · Çoğalt · Sil (sade premium ikonlar) */}
+        {/* Aksiyonlar — Çoğalt · Sil (Aç/PDF kaldırıldı: kart bütünüyle clickable).
+            stopPropagation: bu butonlara tıklamak kart navigate'ini tetiklemesin. */}
         <div style={{ paddingLeft: 6, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-            <Tooltip title="Aç">
-              <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/teklif/${teklif.id}`)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
-            </Tooltip>
-            <Tooltip title="PDF görünüm">
-              <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={pdfAc} style={actionButtonStyle} className={buttonClassNames.smallAction} />
-            </Tooltip>
             <Tooltip title="Çoğalt">
-              <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => onCogalt(teklif)} style={actionButtonStyle} className={buttonClassNames.smallAction} />
+              <Button
+                type="text"
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={(e) => { e.stopPropagation(); onCogalt(teklif); }}
+                style={actionButtonStyle}
+                className={buttonClassNames.smallAction}
+              />
             </Tooltip>
             {silinebilir ? (
               <Popconfirm
@@ -2552,6 +2491,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
                   danger
                   icon={<DeleteOutlined />}
                   aria-label="Teklifi Sil"
+                  onClick={(e) => e.stopPropagation()}
                   style={{ ...actionButtonStyle, color: isDark ? '#f87171' : '#dc2626' }}
                   className={buttonClassNames.smallActionDanger}
                 />
@@ -2565,6 +2505,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
                   disabled
                   icon={<DeleteOutlined />}
                   aria-label="Teklifi Sil"
+                  onClick={(e) => e.stopPropagation()}
                   style={{ ...actionButtonStyle, color: C.textFaint }}
                   className={buttonClassNames.smallActionDanger}
                 />

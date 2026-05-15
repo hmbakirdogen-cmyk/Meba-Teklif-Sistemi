@@ -2484,3 +2484,135 @@ button.referanslar-satir-teklifno:hover .anticon {
     0 0 0 1px rgba(255, 255, 255, 0.04) !important;
 }
 
+/* ─── Teklif kartı PDF rozeti — "basılabilir" hover etkileşimi ──────────
+   Karta hover gelince rozet yukarı kalkar + parlar (gerçek bir buton gibi).
+   Kart click'lendiğinde rozet hafifçe basılır (press feedback).
+   Wrapper'da pointer-events:none olduğu için tüm aksiyon parent .teklif-karti
+   hover/active üzerinden tetiklenir. */
+.teklif-karti-pdf-rozet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 220ms ease;
+  will-change: transform, filter;
+}
+.teklif-karti-button:hover .teklif-karti-pdf-rozet {
+  transform: scale(1.07) translateY(-1.5px);
+  filter:
+    drop-shadow(0 4px 10px rgba(127, 29, 29, 0.40))
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25))
+    brightness(1.06);
+}
+.teklif-karti-button:active .teklif-karti-pdf-rozet {
+  transform: scale(0.94) translateY(0.5px);
+  filter:
+    drop-shadow(0 1px 2px rgba(127, 29, 29, 0.30))
+    brightness(0.96);
+  transition-duration: 90ms;
+}
+[data-theme="dark"] .teklif-karti-button:hover .teklif-karti-pdf-rozet {
+  filter:
+    drop-shadow(0 4px 10px rgba(248, 113, 113, 0.30))
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.40))
+    brightness(1.10);
+}
+
+/* ─── Premium 3D Segmented Control ──────────────────────────────────────
+   Tekliflerim sayfasındaki "Görünüm" (Klasör/Liste) ve "Kapsam" (Benim/
+   Tümü/Atanan) segmented control'leri için 3D premium görünüm:
+   - Container: oyulmuş çerçeve (inset shadow) — butonlar kabuğun içinde
+   - Inactive item: yumuşak gri, subtle hover
+   - Active item: yükselmiş kapsül — gradient bg + drop shadow + bevel
+                  (parmakla bastırılmış mekanik buton hissi)
+   - Geçişler 220ms cubic-bezier ile pürüzsüz
+   - Dark mode için ayrı palette */
+.ant-segmented {
+  background: linear-gradient(180deg, #ebe7e0 0%, #f3efe9 100%) !important;
+  padding: 4px !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.10),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.85) !important;
+}
+.ant-segmented .ant-segmented-item {
+  border-radius: 7px !important;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    box-shadow 220ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1) !important;
+}
+.ant-segmented .ant-segmented-item-label {
+  font-weight: 600 !important;
+  letter-spacing: 0.005em !important;
+  color: #4a4a4e !important;
+  padding: 0 14px !important;
+}
+.ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  background: rgba(255, 255, 255, 0.55) !important;
+  color: #2c2c2e !important;
+}
+.ant-segmented .ant-segmented-item-selected {
+  background: linear-gradient(180deg, #ffffff 0%, #f8f6f1 100%) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.04) inset,
+    0 2px 4px rgba(40, 30, 15, 0.12),
+    0 4px 12px rgba(40, 30, 15, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+}
+.ant-segmented .ant-segmented-item-selected .ant-segmented-item-label {
+  color: #0f1f45 !important;
+  font-weight: 700 !important;
+}
+.ant-segmented .ant-segmented-item:active {
+  transform: translateY(0.5px) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Antd "thumb" (geçiş kapsülü) için aynı premium görünüm */
+.ant-segmented .ant-segmented-thumb {
+  background: linear-gradient(180deg, #ffffff 0%, #f8f6f1 100%) !important;
+  border-radius: 7px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.04) inset,
+    0 2px 4px rgba(40, 30, 15, 0.12),
+    0 4px 12px rgba(40, 30, 15, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Dark mode palette */
+[data-theme="dark"] .ant-segmented {
+  background: linear-gradient(180deg, #181d28 0%, #1f2533 100%) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .ant-segmented .ant-segmented-item-label {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .ant-segmented .ant-segmented-item-selected,
+[data-theme="dark"] .ant-segmented .ant-segmented-thumb {
+  background: linear-gradient(180deg, #2a3242 0%, #1f2533 100%) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.10) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.30) inset,
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    0 4px 14px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label {
+  color: #f1f5f9 !important;
+}
+
