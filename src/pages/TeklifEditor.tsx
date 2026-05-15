@@ -46,7 +46,7 @@ function waitForNextPaint(): Promise<void> {
 }
 
 // Sonuçlanmış/gönderilmiş teklif düzenlemesi için revize zorunlu kapanan durumlar.
-const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'reddedildi', 'iptal'] as const;
+const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'] as const;
 
 // Modal/uyarı metinlerinde kullanılan Türkçe etiketler — kararlı referans için
 // module-level (her render'da yeni Record üretmemek için).
@@ -200,21 +200,8 @@ export default function TeklifEditor() {
     await kaydetWithStatus(kilitli ? 'kaydedildi' : 'taslak');
   }, [kaydetWithStatus, stateCari, stateSatirSayisi]);
 
-  const handleModeKilitliDegistir = useCallback((v: boolean) => {
-    // Sahip olmayan personel kilidi açamaz
-    if (!v && sahipDegil) {
-      message.warning('Bu teklif başka bir personele ait, düzenleyemezsiniz.');
-      return;
-    }
-    setModeKilitli(v);
-    if (v) {
-      setEditingAlan(null);
-      // Kilit kapatılınca serbest çizim de kilitlenir (çizimler kalır,
-      // sadece düzenleme/silme modu kapanır).
-      setCizimModu(false);
-      void persistStatusByMode(true);
-    }
-  }, [persistStatusByMode, sahipDegil, message]);
+  // handleModeKilitliDegistir aşağıda revizeOnayAc'tan sonra tanımlandı —
+  // sonuçlanmış teklif düzenlenmek istendiğinde revize akışına yönlendirir.
 
   // Yeni teklif: cari seçildikten sonra ilk satır yoksa ekle ve müşteri alanını aç (muhatap odak)
   const yeniTeklif = !id;
@@ -798,27 +785,38 @@ export default function TeklifEditor() {
     });
   }, [modal, state.durum, revizeOlusturVeGec]);
 
-  // Düzenleme alanına tıklama yakalandığında: kilitli ise onay modalı aç ve
-  // tıklamanın iç bileşenlere ulaşmasını engelle.
+  // Eski davranış: kilitli teklifte interactive element'e tıklayınca revize
+  // modal'ı otomatik açılırdı. Selector çok genişti (td/button/input/select
+  // hepsi yakalıyordu) → kullanıcı belgeyi okurken bile modal patlıyordu.
   //
-  // ÖNEMLİ: Sadece DÜZENLENEBILIR elementlere tıklamada modal aç. Boş alan,
-  // başlık, kart kenarı vb. üzerine tıklamada sessiz kal — kullanıcı sadece
-  // teklifi okumak veya bir alanı incelemek isteyebilir. Bu davranış olmadan
-  // kilitli teklifte her tıklama "Yeni Revize?" modal'ı açıyordu (UX bug).
-  const handleKilitliClickCapture = useCallback((e: React.MouseEvent) => {
-    if (!kilitli) return;
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    // EditableField, form input'ları, contenteditable, butonlar →
-    // "düzenleme niyeti" sayılır. Bunlar dışına tıklama modal'ı tetiklemez.
-    const interactive = target.closest?.(
-      '[data-editable="true"], input, textarea, select, button, [contenteditable="true"], .editable-field, .ant-select, .ant-input-number, [data-cell-field], td[data-cell-field]',
-    );
-    if (!interactive) return; // boş alan → sessiz
-    e.stopPropagation();
-    e.preventDefault();
-    revizeOnayAc();
-  }, [kilitli, revizeOnayAc]);
+  // Yeni davranış: Kilitli teklifte tıklama tamamen sessiz. Kullanıcı revize
+  // başlatmak isterse iki açık yol var:
+  //   1) Mor banner'daki "Yeni Revize Oluştur" butonu
+  //   2) KumandaPaneli'ndeki kilit ikonunu açmaya çalışmak — handleMode
+  //      KilitliDegistir bunu yakalayıp revizeOnayAc'a yönlendirir.
+
+  const handleModeKilitliDegistir = useCallback((v: boolean) => {
+    // Sahip olmayan personel kilidi açamaz
+    if (!v && sahipDegil) {
+      message.warning('Bu teklif başka bir personele ait, düzenleyemezsiniz.');
+      return;
+    }
+    // Sonuçlanmış/gönderilmiş teklifte kilidi açma denemesi → revize akışı.
+    // Eski davranış: setModeKilitli(false) ile kullanıcı düzenleme moduna geçiyor
+    // ama her aksiyon backend tarafında reddediliyordu (UX kafa karıştırıcı).
+    if (!v && kilitli) {
+      revizeOnayAc();
+      return;
+    }
+    setModeKilitli(v);
+    if (v) {
+      setEditingAlan(null);
+      // Kilit kapatılınca serbest çizim de kilitlenir (çizimler kalır,
+      // sadece düzenleme/silme modu kapanır).
+      setCizimModu(false);
+      void persistStatusByMode(true);
+    }
+  }, [persistStatusByMode, sahipDegil, message, kilitli, revizeOnayAc]);
 
   return (
     <div style={{
@@ -887,7 +885,6 @@ export default function TeklifEditor() {
 
       {/* Ana alan: Belge + Panel */}
       <div
-        onClickCapture={handleKilitliClickCapture}
         style={{
           flex: 1,
           display: 'flex',
