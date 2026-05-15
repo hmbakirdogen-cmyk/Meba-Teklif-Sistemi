@@ -220,6 +220,7 @@ export function ozetMetrikleriHesapla(teklifler: Teklif[]): OzetMetrikleri {
     hazir: 0,
     gonderildi: 0,
     onaylandi: 0,
+    kismi_onaylandi: 0,
     siparis_alindi: 0,
     reddedildi: 0,
     iptal: 0,
