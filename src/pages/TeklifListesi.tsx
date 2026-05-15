@@ -2301,7 +2301,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
         aria-hidden="true"
         className="teklif-karti-pdf-rozet"
         style={{
-          width: 64,
+          width: 52,
           flexShrink: 0,
           alignSelf: 'stretch',
           paddingLeft: 6,
@@ -2309,7 +2309,7 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
           pointerEvents: 'none',
         }}
       >
-        <PremiumPdfBadge isDark={isDark} />
+        <PremiumPdfBadge isDark={isDark} size={38} />
       </div>
 
       <div style={{
