@@ -38,20 +38,37 @@ authRouter.post(
       return;
     }
 
-    // Hem tam ad ("mehmet bakırdöğen") hem ilk kelime ("mehmet") ile login.
+    // Önce TAM ad eşleşmesi; bulunamazsa ilk-kelime kısayolu ("fatih" → "fatih emre şanverdi").
+    // İlk kelime BİRDEN FAZLA kullaniciya uyuyorsa belirsizlik var; tam ad iste.
     const kayitlar = await prisma.kullanici.findMany({ where: { aktifMi: true } });
-    const k = kayitlar.find((u) => {
-      const full = String(u.kullaniciAdi || '').toLocaleLowerCase('tr-TR');
-      if (full === kullaniciAdi) return true;
-      if (!kullaniciAdi.includes(' ')) {
-        const firstWord = full.split(/\s+/)[0];
-        if (firstWord === kullaniciAdi) return true;
+    const exact = kayitlar.find(
+      (u) => String(u.kullaniciAdi || '').toLocaleLowerCase('tr-TR') === kullaniciAdi,
+    );
+    let k = exact;
+    let ambiguous = false;
+    if (!k && !kullaniciAdi.includes(' ')) {
+      const firstWordMatches = kayitlar.filter(
+        (u) =>
+          String(u.kullaniciAdi || '')
+            .toLocaleLowerCase('tr-TR')
+            .split(/\s+/)[0] === kullaniciAdi,
+      );
+      if (firstWordMatches.length === 1) {
+        k = firstWordMatches[0];
+      } else if (firstWordMatches.length > 1) {
+        ambiguous = true;
       }
-      return false;
-    });
+    }
 
     if (!k) {
       recordLoginAttempt(ip);
+      if (ambiguous) {
+        res.status(401).json({
+          error:
+            'Bu ada sahip birden fazla kullanici var. Lutfen tam adinizi girin (ornek: "fatih emre sanverdi").',
+        });
+        return;
+      }
       res.status(401).json({ error: 'Kullanici adi veya sifre hatali.' });
       return;
     }
