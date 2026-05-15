@@ -108,7 +108,12 @@ export default function IlgiliKisiSecimModal({
       cancelText="Vazgeç"
       onOk={handleKaydet}
       width={460}
-      destroyOnClose
+      // Viewport ortasına yerleş — uzun teklif belgesinde sayfa aşağı
+      // scroll edilmiş olsa bile modal her zaman ekranın merkezinde açılır
+      // (default top:100px ile alt kısımda kalıp Kaydet butonu görünmüyordu).
+      centered
+      // Antd 6: destroyOnClose deprecated → destroyOnHidden.
+      destroyOnHidden
       footer={(_, { OkBtn, CancelBtn }) => (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -146,6 +151,11 @@ export default function IlgiliKisiSecimModal({
             const txt = (opt as unknown as { searchText?: string })?.searchText || '';
             return txt.toLocaleLowerCase('tr-TR').includes(input.toLocaleLowerCase('tr-TR'));
           }}
+          // Dropdown'u modal içeriğine bağla — Antd Modal'ın transform-centered
+          // yapısı document.body'ye portal'lanan dropdown'ın pozisyonunu bozup
+          // listeyi ekranın altına itiyordu. Trigger'ın parent'ı modal-body
+          // olduğu için dropdown da modal içinde, input'un hemen altında açılır.
+          getPopupContainer={(trigger) => (trigger.parentNode as HTMLElement) ?? document.body}
         />
       </div>
     </Modal>
