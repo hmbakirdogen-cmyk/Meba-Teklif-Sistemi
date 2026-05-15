@@ -1138,6 +1138,9 @@ export default function TeklifEditor() {
           notlarGosterilsin={state.notlarGosterilsin}
           onNotlarGosterilsinDegistir={state.setNotlarGosterilsin}
           sagPanelOpen={state.panelModu !== null}
+          cellPopupOpen={
+            typeof editingAlan === 'string' && editingAlan.startsWith('satir-')
+          }
           onResimEkle={handleResimEkle}
           visibility={state.visibility}
           onVisibilityDegistir={state.setVisibility}

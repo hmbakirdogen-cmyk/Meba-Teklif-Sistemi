@@ -53,6 +53,10 @@ interface KumandaPaneliProps {
   notlarGosterilsin: boolean;
   onNotlarGosterilsinDegistir: (v: boolean) => void;
   sagPanelOpen: boolean;
+  /** Hücre düzenleme popup'ı (Açıklama/Marka/Ürün Kodu vb.) açık mı —
+   *  açıkken panel pozisyon ölçümünü dondurur (popup'ın window/scrollbar
+   *  etkisi paneli oynatmasın). */
+  cellPopupOpen?: boolean;
   onResimEkle: (dataUrl: string) => void;
   /** Görünürlük yetkisi: 'team' = ekibe açık (toggle ON), 'private' = gizli (OFF). */
   visibility: 'private' | 'team';
@@ -74,7 +78,7 @@ export default function KumandaPaneli({
   satirBazliParaBirimi, onSatirBazliParaBirimiDegistir,
   satirBazliIskonto, onSatirBazliIskontoDegistir,
   notlarGosterilsin, onNotlarGosterilsinDegistir,
-  sagPanelOpen, onResimEkle,
+  sagPanelOpen, cellPopupOpen = false, onResimEkle,
   visibility, onVisibilityDegistir,
   serberstCizimAktif, onSerberstCizimToggle,
   canUndo, canRedo, onUndo, onRedo,
@@ -198,12 +202,20 @@ export default function KumandaPaneli({
   };
 
   useLayoutEffect(() => {
+    // Cell popup açıkken pozisyon ölçümünü dondur — popup body'sinin
+    // window scroll / scrollbar / focus etkisi paneli oynatmasın.
+    if (cellPopupOpen) return;
     const id = requestAnimationFrame(() => requestAnimationFrame(measureA4));
     return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sagPanelOpen]);
+  }, [sagPanelOpen, cellPopupOpen]);
 
   useEffect(() => {
+    // Cell popup açıkken scroll/resize listener'ları disable — popup'ın
+    // dolaylı window etkileri (autoFocus scrollIntoView, autoSize TextArea
+    // resize) panelin pos.left'ini değiştirebiliyor; popup kapanınca yine
+    // bağlanır ve doğru ölçüm yapılır.
+    if (cellPopupOpen) return;
     const onResize = () => measureA4();
     window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onResize, true);
@@ -212,7 +224,7 @@ export default function KumandaPaneli({
       window.removeEventListener('scroll', onResize, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sagPanelOpen]);
+  }, [sagPanelOpen, cellPopupOpen]);
 
   return (
     <div
@@ -224,10 +236,11 @@ export default function KumandaPaneli({
         width: K.WIDTH,
         maxHeight: `calc((100vh - ${pos.top + K.BOTTOM_GAP}px) / ${pos.scale})`,
         zIndex: 80,
-        // SagPanel (Notlar/Müşteri/Satır paneli) açıkken paneli gizle —
-        // sağ kenarda çakışmasın. Smooth opacity transition ile.
-        opacity: sagPanelOpen ? 0 : 1,
-        pointerEvents: sagPanelOpen ? 'none' : 'auto',
+        // SagPanel veya hücre düzenleme popup'ı (Açıklama/Marka/…) açıkken
+        // paneli gizle — sağ kenarda çakışma + popup'ın panele kaçınmak için
+        // sola taşıp belgeyi örtmesi yaşanmasın. Smooth opacity transition ile.
+        opacity: (sagPanelOpen || cellPopupOpen) ? 0 : 1,
+        pointerEvents: (sagPanelOpen || cellPopupOpen) ? 'none' : 'auto',
         transform: `scale(${pos.scale})`,
         transformOrigin: 'top left',
         transition: 'opacity 200ms ease, transform 200ms ease, left 200ms ease',
