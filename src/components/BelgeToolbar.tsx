@@ -108,12 +108,12 @@ export default function BelgeToolbar({
   const { modal } = App.useApp();
   const durumRenk = DURUM_RENK[durum];
 
-  // Sonuclanmis durum (onaylandi/reddedildi/iptal) -> baska duruma gecisi
-  // onaya bagla. Kazanmis bir teklifin yanlislikla taslaga dusurulmesi ya
-  // da iptal edilmis bir kaydin tekrar 'gonderildi' yapilmasi gibi
-  // mantiksiz gecisleri engeller.
+  // Sonuclanmis durum (onaylandi/kismi_onaylandi/reddedildi/iptal) -> baska
+  // duruma gecisi onaya bagla. Kazanmis bir teklifin yanlislikla taslaga
+  // dusurulmesi ya da iptal edilmis bir kaydin tekrar 'gonderildi' yapilmasi
+  // gibi mantiksiz gecisleri engeller.
   function durumDegistirGuvenli(yeniDurum: TeklifDurum) {
-    const KAPALI: TeklifDurum[] = ['onaylandi', 'reddedildi', 'iptal'];
+    const KAPALI: TeklifDurum[] = ['onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'];
     if (KAPALI.includes(durum) && yeniDurum !== durum) {
       modal.confirm({
         title: 'Sonuçlanmış teklifin durumunu değiştir?',

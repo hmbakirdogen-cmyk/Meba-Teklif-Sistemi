@@ -35,7 +35,8 @@ import BelgeToolbar from '../components/BelgeToolbar';
 import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
 import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
-import type { Teklif } from '../types';
+import SonucModal from '../components/SonucModal';
+import type { Teklif, TeklifDurum } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 import { usePDFKayit } from '../hooks/usePDFKayit';
 
@@ -99,6 +100,10 @@ export default function TeklifEditor() {
   // Serbest çizim modu
   const [cizimModu, setCizimModu] = useState(false);
   const [ilgiliKisiModalAcik, setIlgiliKisiModalAcik] = useState(false);
+  // Sonuç (onaylandi/kismi_onaylandi/reddedildi/iptal) seçimi için modal —
+  // dropdown'dan sonuçlanmış bir duruma geçilirse modal açılır; satır seçimi
+  // (onay) veya sebep (red/iptal) toplanır, ardından meta'sı yazılır.
+  const [sonucModalDurum, setSonucModalDurum] = useState<TeklifDurum | null>(null);
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
   const cizimKalinlik = useRef(3);
@@ -814,6 +819,49 @@ export default function TeklifEditor() {
   //   2) KumandaPaneli'ndeki kilit ikonunu açmaya çalışmak — handleMode
   //      KilitliDegistir bunu yakalayıp revizeOnayAc'a yönlendirir.
 
+  // Dropdown'dan durum değişimi: sonuçlanmış durumlara (onaylandi/reddedildi/iptal)
+  // geçişte SonucModal devreye girer; modal satır seçimi (onay) veya sebep
+  // (red/iptal) toplar ve meta veriyi (sonucTarihi, sonucGirenKullaniciId,
+  // kayipSebebi, vb.) eksiksiz yazar. Diğer durumlar (taslak/hazir/gonderildi)
+  // doğrudan state.setDurum'a düşer.
+  const handleDurumDegistir = useCallback((yeniDurum: TeklifDurum) => {
+    if (yeniDurum === 'onaylandi' || yeniDurum === 'reddedildi' || yeniDurum === 'iptal') {
+      setSonucModalDurum(yeniDurum);
+      return;
+    }
+    state.setDurum(yeniDurum);
+  }, [state]);
+
+  // SonucModal kaydedince — patch tüm gerekli alanları içerir (durum, satırlar,
+  // meta). Önce store'a tam kayıt (auto-save'in meta'yı ezmemesi için bu son
+  // adım: setSatirlar tetiklediği sync auto-save eski meta'yı yazar; sonra
+  // bizim merge'imiz üzerine yazıp last-write-wins ile garantiler).
+  const handleSonucKaydet = useCallback((patch: Partial<Teklif>) => {
+    if (!teklifObj) return;
+    if (patch.durum) state.setDurum(patch.durum);
+    if (patch.satirlar) state.setSatirlar(patch.satirlar);
+    // Store'daki mevcut kayıt — sonuç meta'sı için referans (önceden girilmişse korur)
+    const mevcut = teklifService.teklifGetir(state.teklifId) ?? teklifObj;
+    const guncel: Teklif = {
+      ...mevcut,
+      ...teklifObj,
+      ...patch,
+      sonucGirenKullaniciId: aktifKullanici?.id,
+      guncellemeTarihi: new Date().toISOString(),
+    };
+    teklifService.teklifKaydet(guncel);
+    setSonucModalDurum(null);
+    message.success('Durum güncellendi.');
+  }, [teklifObj, state, aktifKullanici?.id, message]);
+
+  // SonucModal'a verilen Teklif snapshot'ı — hedef durum üzerine bindirilir ki
+  // modal "onaylandi"yı görünce satır seçimi modunda, "reddedildi/iptal"i
+  // görünce sebep modunda açılsın.
+  const sonucModalTeklif: Teklif | null = useMemo(() => {
+    if (!teklifObj || !sonucModalDurum) return null;
+    return { ...teklifObj, durum: sonucModalDurum };
+  }, [teklifObj, sonucModalDurum]);
+
   const handleModeKilitliDegistir = useCallback((v: boolean) => {
     // Sahip olmayan personel kilidi açamaz
     if (!v && sahipDegil) {
@@ -857,7 +905,7 @@ export default function TeklifEditor() {
         onEMailGonder={handleEMailGonder}
         onYazdir={handleYazdir}
         onPanelAc={handlePanelAc}
-        onDurumDegistir={state.setDurum}
+        onDurumDegistir={handleDurumDegistir}
         ilgiliKisiAdSoyad={state.ilgiliKisiAdSoyad}
         onIlgiliKisiAc={() => setIlgiliKisiModalAcik(true)}
         pdfKayitDestekli={pdfKayit.supported}
@@ -1181,6 +1229,14 @@ export default function TeklifEditor() {
         mevcutId={state.ilgiliKisiId}
         mevcutAdSoyad={state.ilgiliKisiAdSoyad}
         onSec={(id, ad) => state.setIlgiliKisi(id, ad)}
+      />
+
+      <SonucModal
+        key={sonucModalDurum ?? 'closed'}
+        open={sonucModalDurum !== null}
+        teklif={sonucModalTeklif}
+        onClose={() => setSonucModalDurum(null)}
+        onSave={handleSonucKaydet}
       />
     </div>
   );

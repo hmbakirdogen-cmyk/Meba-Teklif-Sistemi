@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { App, Button, Dropdown, Input, Modal, Popconfirm, Segmented, Select, Tooltip } from 'antd';
+import { App, Button, Dropdown, Input, Modal, Popconfirm, Segmented, Tooltip } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -14,15 +14,15 @@ import {
 } from '@ant-design/icons';
 import { PremiumPdfBadge } from '../components/premium-icons';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
+import SonucModal from '../components/SonucModal';
 import {
-  KAYIP_SEBEBI_LABEL,
   computeYoneticiOzeti,
   type YoneticiOzetiData,
 } from './teklifListesiShared';
 import { teklifService } from '../services/teklifService';
 import { cariService } from '../services/musteriService';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
-import type { Teklif, TeklifDurum, KayipSebebi, Cari, Kullanici } from '../types';
+import type { Teklif, TeklifDurum, Cari, Kullanici } from '../types';
 import { formatCurrency, formatDate, formatCariAdi } from '../utils/formatters';
 import { klasorAdiUret } from '../utils/folderUtils';
 import { api } from '../services/apiClient';
@@ -1644,12 +1644,13 @@ function DetayGorunumu({
   }
 
   function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
-    // Reddedildi VE İptal sebep ister — modalı aç, ön-seçim olarak gelsin
-    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal') {
+    // Sonuçlanma sürecinin TAMAMI modal üzerinden:
+    //  - reddedildi / iptal → sebep girişi modu
+    //  - onaylandi          → satır seçimi modu (kullanıcı kısmi onay verebilir)
+    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal' || yeniDurum === 'onaylandi') {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
     }
-    // Onaylandı (veya diger acik durumlar) — direkt yaz, detay yok
     sonucYaz(teklif, {
       durum: yeniDurum,
       sonucTarihi: new Date().toISOString(),
@@ -1945,232 +1946,6 @@ function DurumMenuLabel({ durum, hint }: { durum: TeklifDurum; hint: string }) {
         <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.2 }}>{hint}</span>
       </div>
     </div>
-  );
-}
-
-// ─── Sonuç düzenleme modalı ──────────────────────────────────────────────────
-
-interface SonucModalProps {
-  open: boolean;
-  teklif: Teklif | null;
-  onClose: () => void;
-  onSave: (patch: Partial<Teklif>) => void;
-}
-
-function SonucModal({ open, teklif, onClose, onSave }: SonucModalProps) {
-  // İki mod:
-  //  - 'sebep'    → durum=reddedildi|iptal: sebep + (red ise) rakip + not
-  //  - 'satir'    → durum=onaylandi|kismi_onaylandi: müşterinin onayladığı satırları seç;
-  //                  hepsi ✓ → 'onaylandi', hepsi ✗ → 'reddedildi', karma → 'kismi_onaylandi'.
-  // NOT: Initial state'ler doğrudan teklif prop'undan türetilir; parent
-  // <SonucModal key={teklif?.id} /> ile remount eder, setState-in-effect yok.
-  const mod: 'sebep' | 'satir' =
-    teklif?.durum === 'reddedildi' || teklif?.durum === 'iptal' ? 'sebep' : 'satir';
-
-  const [sebep, setSebep] = useState<KayipSebebi | undefined>(teklif?.kayipSebebi);
-  const [rakip, setRakip] = useState(teklif?.rakipFirma ?? '');
-  const [not, setNot] = useState(teklif?.sonucNotu ?? '');
-
-  // Satır seçimi: id → onaylı mı. Default tüm satırlar onaylı; kullanıcı
-  // reddedileni ✗ yapar. Mevcut onayDurumu varsa onu seed olarak kullan.
-  const [satirOnay, setSatirOnay] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    for (const s of teklif?.satirlar ?? []) {
-      // Default = onaylı; daha önce 'reddedildi' işaretliyse onu koru.
-      init[s.id] = s.onayDurumu === 'reddedildi' ? false : true;
-    }
-    return init;
-  });
-
-  function toggleSatir(id: string) {
-    setSatirOnay((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
-  function tumunuSec(deger: boolean) {
-    setSatirOnay((prev) => {
-      const next: Record<string, boolean> = {};
-      for (const k of Object.keys(prev)) next[k] = deger;
-      return next;
-    });
-  }
-
-  if (!teklif) return null;
-
-  // Karma seçim sayımları — başlık + buton metni için.
-  const satirlar = teklif.satirlar ?? [];
-  const onayliSayi = satirlar.filter((s) => satirOnay[s.id]).length;
-  const toplamSayi = satirlar.length;
-  const hepsi = onayliSayi === toplamSayi && toplamSayi > 0;
-  const hicbiri = onayliSayi === 0;
-
-  function kaydet() {
-    if (!teklif) return; // TS closure narrowing — JSX üstündeki check burada algılanmaz
-    if (mod === 'sebep') {
-      const patch: Partial<Teklif> = {
-        durum: teklif.durum,
-        sonucTarihi: new Date().toISOString(),
-        kayipSebebi: sebep,
-        rakipFirma: teklif.durum === 'reddedildi' ? (rakip.trim() || undefined) : undefined,
-        sonucNotu: not.trim() || undefined,
-      };
-      onSave(patch);
-      return;
-    }
-    // satir modu — her satıra onayDurumu yaz, üst durumu seçime göre türet.
-    const yeniSatirlar = satirlar.map((s) => ({
-      ...s,
-      onayDurumu: satirOnay[s.id] ? ('onaylandi' as const) : ('reddedildi' as const),
-    }));
-    const yeniDurum: TeklifDurum = hepsi ? 'onaylandi' : hicbiri ? 'reddedildi' : 'kismi_onaylandi';
-    const patch: Partial<Teklif> = {
-      durum: yeniDurum,
-      satirlar: yeniSatirlar,
-      sonucTarihi: new Date().toISOString(),
-      sonucNotu: not.trim() || undefined,
-      // Hepsi reddedildi durumunda sebep girilmesi gerekir ama bu akıştan
-      // gelinmiyor; kullanıcı UI'da uyarılır ve Reddedildi akışına yönlendirilir.
-      // Eğer yine de hepsi ✗ ile devam edilirse sebep undefined kalır (sonra düzenlenebilir).
-      kayipSebebi: yeniDurum === 'reddedildi' ? sebep : undefined,
-    };
-    onSave(patch);
-  }
-
-  // OK button disabled koşulları
-  const okDisabled =
-    mod === 'sebep' ? !sebep : toplamSayi === 0;
-
-  const baslik =
-    mod === 'sebep'
-      ? teklif.durum === 'iptal' ? 'İptal — Sebep' : 'Reddedildi — Sebep'
-      : 'Müşteri Onayı — Kalemleri İşaretleyin';
-
-  const okText =
-    mod === 'sebep'
-      ? 'Kaydet'
-      : hepsi
-        ? 'Tamamı Onaylandı'
-        : hicbiri
-          ? 'Reddedildi'
-          : `Kısmi Onay (${onayliSayi}/${toplamSayi})`;
-
-  return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      onOk={kaydet}
-      okButtonProps={{ disabled: okDisabled }}
-      title={baslik}
-      okText={okText}
-      cancelText="Vazgeç"
-      width={mod === 'satir' ? 560 : 420}
-      centered
-      destroyOnHidden
-    >
-      {mod === 'sebep' && (
-        <>
-          <Select
-            value={sebep}
-            onChange={(v) => setSebep(v)}
-            placeholder="Sebep seçin"
-            style={{ width: '100%' }}
-            status={!sebep ? 'warning' : undefined}
-            options={(Object.keys(KAYIP_SEBEBI_LABEL) as KayipSebebi[]).map((k) => ({
-              value: k, label: KAYIP_SEBEBI_LABEL[k],
-            }))}
-            getPopupContainer={(t) => (t.parentNode as HTMLElement) ?? document.body}
-          />
-          {teklif.durum === 'reddedildi' && (
-            <Input
-              placeholder="Rakip firma (opsiyonel)"
-              value={rakip}
-              onChange={(e) => setRakip(e.target.value)}
-              maxLength={100}
-              style={{ marginTop: 10 }}
-            />
-          )}
-          <Input.TextArea
-            value={not}
-            onChange={(e) => setNot(e.target.value)}
-            rows={3}
-            placeholder="Not (opsiyonel)"
-            maxLength={500}
-            style={{ marginTop: 10 }}
-          />
-        </>
-      )}
-
-      {mod === 'satir' && (
-        <>
-          <div style={{
-            fontSize: 12, color: '#64748b', marginBottom: 12,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span>Müşterinin onayladığı kalemler ✓ kalsın, reddedilenleri ✗ yapın.</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <Button size="small" onClick={() => tumunuSec(true)}>Tümünü Onayla</Button>
-              <Button size="small" onClick={() => tumunuSec(false)}>Tümünü Reddet</Button>
-            </div>
-          </div>
-
-          <div style={{
-            maxHeight: 360, overflowY: 'auto',
-            border: '1px solid #e2e8f0', borderRadius: 8,
-          }}>
-            {satirlar.map((s, i) => {
-              const onayli = !!satirOnay[s.id];
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => toggleSatir(s.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 12px',
-                    borderBottom: i < satirlar.length - 1 ? '1px solid #f1f5f9' : 'none',
-                    background: onayli ? '#ecfdf5' : '#fef2f2',
-                    cursor: 'pointer',
-                    transition: 'background 120ms ease',
-                  }}
-                >
-                  <div style={{
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: onayli ? '#059669' : '#dc2626',
-                    color: '#fff', fontSize: 13, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    {onayli ? '✓' : '✕'}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-                      {s.urunKod || '—'}
-                      {s.aciklama && (
-                        <span style={{ fontWeight: 400, color: '#475569' }}> · {s.aciklama}</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                      {s.miktar} {s.birim} × {formatCurrency(s.birimFiyat, s.paraBirimi || teklif.paraBirimi)} = {formatCurrency(s.satirToplami, s.paraBirimi || teklif.paraBirimi)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {satirlar.length === 0 && (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                Bu teklifte kalem yok.
-              </div>
-            )}
-          </div>
-
-          <Input.TextArea
-            value={not}
-            onChange={(e) => setNot(e.target.value)}
-            rows={2}
-            placeholder="Not (opsiyonel) — örn: 'Müşteri ileride 4-5 numaralı kalemler için tekrar değerlendirecek.'"
-            maxLength={500}
-            style={{ marginTop: 12 }}
-          />
-        </>
-      )}
-    </Modal>
   );
 }
 
