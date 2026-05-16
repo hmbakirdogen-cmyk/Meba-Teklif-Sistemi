@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
-import { BellOutlined, MailOutlined } from '@ant-design/icons';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
@@ -11,12 +10,7 @@ import { bildirimService } from './services/bildirimService';
 import { isSuperAdmin } from './utils/yetkiUtils';
 import { useEffect } from 'react';
 import { api } from './services/apiClient';
-import {
-  FileTextOutlined, DatabaseOutlined, LogoutOutlined, MenuOutlined,
-  MoonOutlined, SunOutlined, TeamOutlined, BankOutlined,
-  CheckOutlined, BarChartOutlined, DownloadOutlined, SettingOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { Icon } from '@iconify/react';
 import { useKullanici } from './context/useKullanici';
 import { useFirma } from './context/useFirma';
 import { useTheme } from './context/useTheme';
@@ -95,6 +89,7 @@ export default function AppLayout() {
     : location.pathname.startsWith('/veri') ? 'veri'
     : location.pathname.startsWith('/personel') ? 'personel'
     : location.pathname.startsWith('/firma-profili') ? 'firma-profili'
+    : location.pathname.startsWith('/referans-veriler') ? 'referans-veriler'
     : 'teklifler';
   const rol = aktifKullanici?.rol;
   const isAdminLike = isYonetici(rol);
@@ -186,38 +181,38 @@ export default function AppLayout() {
   const menuItems = [
     {
       key: 'teklifler',
-      icon: <FileTextOutlined />,
+      icon: <Icon icon="solar:bill-list-bold-duotone" width={17} height={17} />,
       label: 'Teklif Yönetimi',
       onClick: () => navigate_('/teklifler'),
     },
     {
       key: 'referans-veriler',
-      icon: <SettingOutlined />,
+      icon: <Icon icon="solar:layers-minimalistic-bold-duotone" width={17} height={17} />,
       label: 'Referans Veriler',
       onClick: () => navigate_('/referans-veriler'),
     },
     ...(isAdminLike ? [
       {
         key: 'analiz',
-        icon: <BarChartOutlined />,
+        icon: <Icon icon="solar:diagram-up-bold-duotone" width={17} height={17} />,
         label: 'Analiz',
         onClick: () => navigate_('/analiz'),
       },
       {
         key: 'veri',
-        icon: <DatabaseOutlined />,
+        icon: <Icon icon="solar:cloud-storage-bold-duotone" width={17} height={17} />,
         label: 'Veri Yönetimi',
         onClick: () => navigate_('/veri'),
       },
       {
         key: 'personel',
-        icon: <TeamOutlined />,
+        icon: <Icon icon="solar:users-group-two-rounded-bold-duotone" width={17} height={17} />,
         label: 'Personel',
         onClick: () => navigate_('/personel'),
       },
       {
         key: 'firma-profili',
-        icon: <BankOutlined />,
+        icon: <Icon icon="solar:home-2-bold-duotone" width={17} height={17} />,
         label: 'Firma Profili',
         onClick: () => navigate_('/firma-profili'),
       },
@@ -227,6 +222,7 @@ export default function AppLayout() {
   return (
     <Layout style={{ minHeight: '100vh', background: C.bgBody, backgroundAttachment: 'fixed' }}>
       <Header
+        className="premium-navbar"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -238,8 +234,6 @@ export default function AppLayout() {
           height: HEADER_H,
           overflow: 'hidden',
           lineHeight: 'normal',
-          background: C.bgHeader,
-          borderBottom: `1px solid ${C.bgHeaderBorder}`,
           fontSize: isMobile ? 18 : 16,
           minWidth: 0,
           width: '100%',
@@ -344,7 +338,7 @@ export default function AppLayout() {
                               </div>
                             </div>
                             {f.id === aktifFirma?.id && (
-                              <CheckOutlined style={{ color: f.renkVurgu, fontSize: 12 }} />
+                              <Icon icon="solar:check-circle-bold-duotone" width={13} height={13} color={f.renkVurgu} />
                             )}
                           </div>
                         );
@@ -396,7 +390,9 @@ export default function AppLayout() {
         <Tooltip title={isDark ? 'Aydınlık Mod' : 'Koyu Mod'} placement="bottomRight">
           <Button
             type="text"
-            icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+            icon={isDark
+              ? <Icon icon="solar:sun-bold-duotone" width={19} height={19} />
+              : <Icon icon="solar:moon-bold-duotone" width={19} height={19} />}
             onClick={temaToggle}
             size="small"
             className={buttonClassNames.iconGhostSmall}
@@ -431,7 +427,7 @@ export default function AppLayout() {
                 <Button
                   type="text"
                   aria-label="Bildirimler"
-                  icon={<BellOutlined style={{ fontSize: 18, color: '#ffffff' }} />}
+                  icon={<Icon icon="solar:bell-bold-duotone" width={20} height={20} color="#ffffff" />}
                   style={{ background: 'transparent', border: 'none' }}
                   className="bildirim-zil"
                 />
@@ -450,7 +446,7 @@ export default function AppLayout() {
                 type="text"
                 aria-label="Geri Bildirimler"
                 onClick={() => setAdminGbDrawerAcik(true)}
-                icon={<BellOutlined style={{ fontSize: 18, color: '#fbbf24' }} />}
+                icon={<Icon icon="solar:bell-bold-duotone" width={20} height={20} color="#fbbf24" />}
                 style={{ background: 'transparent', border: 'none' }}
               />
             </Badge>
@@ -460,12 +456,14 @@ export default function AppLayout() {
         {/* ── USER AREA ── */}
         {aktifKullanici && !isMobile && (
           <div
+            className="premium-navbar-user"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: USER_INNER_GAP,
               paddingLeft: 16,
-              borderLeft: '1px solid rgba(255,255,255,0.08)',
+              // borderLeft kaldırıldı — premium-navbar-user::before ile dikey
+              // gradient ayırıcı CSS'ten gelir (üst ve alt fade'li).
               flexShrink: 0,
               height: '60%',
             }}
@@ -542,7 +540,7 @@ export default function AppLayout() {
               <Tooltip title="Masaüstüne Ekle — bu uygulamayı bilgisayara yükle">
                 <Button
                   type="text"
-                  icon={<DownloadOutlined />}
+                  icon={<Icon icon="solar:download-minimalistic-bold-duotone" width={17} height={17} />}
                   onClick={masaustuneEkleHandler}
                   className={buttonClassNames.iconGhost}
                   style={{ color: 'rgba(207,225,255,0.9)', fontSize: 16, marginRight: 2 }}
@@ -554,7 +552,7 @@ export default function AppLayout() {
             <Tooltip title="Profilim">
               <Button
                 type="text"
-                icon={<UserOutlined />}
+                icon={<Icon icon="solar:user-circle-bold-duotone" width={17} height={17} />}
                 onClick={() => setProfilDuzenleOpen(true)}
                 size="small"
                 className={buttonClassNames.iconGhostSmall}
@@ -566,7 +564,7 @@ export default function AppLayout() {
             <Tooltip title="E-posta Ayarları">
               <Button
                 type="text"
-                icon={<MailOutlined />}
+                icon={<Icon icon="solar:letter-bold-duotone" width={17} height={17} />}
                 onClick={() => navigate('/profil/eposta')}
                 size="small"
                 className={buttonClassNames.iconGhostSmall}
@@ -578,7 +576,7 @@ export default function AppLayout() {
             <Tooltip title="Çıkış Yap">
               <Button
                 type="text"
-                icon={<LogoutOutlined />}
+                icon={<Icon icon="solar:logout-3-bold-duotone" width={17} height={17} />}
                 onClick={cikisOnayla}
                 size="small"
                 className={buttonClassNames.iconGhostSmall}
@@ -595,7 +593,7 @@ export default function AppLayout() {
               <Tooltip title="Masaüstüne yükle">
                 <Button
                   type="text"
-                  icon={<DownloadOutlined />}
+                  icon={<Icon icon="solar:download-minimalistic-bold-duotone" width={17} height={17} />}
                   onClick={masaustuneEkleHandler}
                   className={buttonClassNames.iconGhost}
                   style={{ color: 'rgba(207,225,255,0.9)', fontSize: 16, marginRight: 2 }}
@@ -604,7 +602,7 @@ export default function AppLayout() {
             )}
             <Button
               type="text"
-              icon={<MenuOutlined />}
+              icon={<Icon icon="solar:hamburger-menu-bold-duotone" width={20} height={20} />}
               onClick={() => setDrawerOpen(true)}
               className={buttonClassNames.iconGhost}
               style={{ color: 'rgba(255,255,255,0.85)', fontSize: 18, marginLeft: 2 }}
@@ -691,7 +689,7 @@ export default function AppLayout() {
                             } />
                           </div>
                           <span style={{ flex: 1 }}>{f.kisaAd}</span>
-                          {aktif && <CheckOutlined style={{ fontSize: 11 }} />}
+                          {aktif && <Icon icon="solar:check-circle-bold-duotone" width={13} height={13} />}
                         </button>
                       );
                     })}
@@ -703,7 +701,9 @@ export default function AppLayout() {
             <Button
               block
               size="small"
-              icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+              icon={isDark
+              ? <Icon icon="solar:sun-bold-duotone" width={19} height={19} />
+              : <Icon icon="solar:moon-bold-duotone" width={19} height={19} />}
               onClick={temaToggle}
               className={buttonClassNames.secondarySmall}
               style={{ marginBottom: 8 }}
@@ -713,7 +713,7 @@ export default function AppLayout() {
             <Button
               block
               size="small"
-              icon={<UserOutlined />}
+              icon={<Icon icon="solar:user-circle-bold-duotone" width={16} height={16} />}
               onClick={() => { setDrawerOpen(false); setProfilDuzenleOpen(true); }}
               className={buttonClassNames.secondarySmall}
               style={{ marginBottom: 8 }}
@@ -723,7 +723,7 @@ export default function AppLayout() {
             <Button
               danger
               size="small"
-              icon={<LogoutOutlined />}
+              icon={<Icon icon="solar:logout-3-bold-duotone" width={16} height={16} />}
               onClick={() => { setDrawerOpen(false); cikisOnayla(); }}
               className={buttonClassNames.dangerSmall}
               block

@@ -2396,6 +2396,555 @@ button.referanslar-satir-teklifno:hover .anticon {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   PREMIUM SURFACE — Navbar (antrasit) + BelgeToolbar (gri ton) ortak
+   cam yapısı, ayrı renk paletleri:
+     • Navbar  → derin antrasit (kömür gri), monokrom beyaz aksanlar
+     • Toolbar → bir ton daha açık gri (görsel hiyerarşi), aynı aksent dili
+   Mavi/cyan glow'lar artık nötr beyaz-gümüş ile değiştirildi (rafine).
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Ortak: blur, color, border-bottom — daha agresif blur cam etkisi */
+.premium-navbar,
+.premium-toolbar {
+  border-bottom: none !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  color: #ecf0f4;
+}
+
+/* ── ÜST NAVBAR — koyu antrasit, şeffaf cam ────────────────────────── */
+.premium-navbar {
+  background:
+    radial-gradient(ellipse 900px 360px at  8% -25%, rgba(255,255,255,0.09), transparent 60%),
+    radial-gradient(ellipse 750px 300px at 95% 125%, rgba(255,255,255,0.06), transparent 60%),
+    linear-gradient(180deg,
+      rgba(34,37,43,0.84) 0%,
+      rgba(22,25,31,0.87) 55%,
+      rgba(11,13,17,0.90) 100%) !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.14),
+    inset 0 -1px 0 rgba(0,0,0,0.60),
+    0 16px 44px -22px rgba(0,0,0,0.85) !important;
+}
+
+/* ── ALT TOOLBAR — koyu gri ton, şeffaf cam ────────────────────────── */
+.premium-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background:
+    radial-gradient(ellipse 900px 360px at  8% -25%, rgba(255,255,255,0.10), transparent 60%),
+    radial-gradient(ellipse 750px 300px at 95% 125%, rgba(255,255,255,0.07), transparent 60%),
+    linear-gradient(180deg,
+      rgba(54,58,65,0.82) 0%,
+      rgba(41,44,51,0.85) 55%,
+      rgba(27,30,36,0.88) 100%) !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(0,0,0,0.55),
+    0 12px 36px -20px rgba(0,0,0,0.75) !important;
+}
+
+/* Alt kenar — yumuşak gümüş gradient bar (cyan glow YOK, premium monokrom) */
+.premium-navbar::after,
+.premium-toolbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(200,210,225,0.0)  6%,
+    rgba(200,210,225,0.45) 25%,
+    rgba(240,245,255,0.75) 50%,
+    rgba(200,210,225,0.45) 75%,
+    rgba(200,210,225,0.0)  94%,
+    transparent 100%);
+  box-shadow: 0 0 12px rgba(200,210,225,0.30);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Üst kenar — yumuşak highlight (toolbar'da biraz daha açık) */
+.premium-navbar::before,
+.premium-toolbar::before {
+  content: '';
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.45) 28%,
+    rgba(255,255,255,0.60) 50%,
+    rgba(255,255,255,0.45) 72%,
+    transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+.premium-toolbar::before {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.50) 28%,
+    rgba(255,255,255,0.65) 50%,
+    rgba(255,255,255,0.50) 72%,
+    transparent 100%);
+}
+
+/* ═════ TİPOGRAFİ — premium "soft-depth" (okunabilirlik öncelikli) ──── */
+/* Engraved/embossed yerine yumuşak depth shadow. Inter font + variable
+   feature-settings + optimizeLegibility ile berrak Türkçe karakterler.
+   Aktif menüde ek mavi glow ile vurgulanır ama metin hep okunabilir. */
+.premium-navbar,
+.premium-toolbar {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1, "calt" 1, "ss01" 1, "cv01" 1, "cv11" 1, "tnum" 1;
+  letter-spacing: 0.005em;
+}
+.premium-navbar .ant-menu-title-content,
+.premium-toolbar .ant-btn span,
+.premium-toolbar > div > span {
+  /* Klasik embossed/raised — üstte beyaz highlight + altta koyu shadow.
+     İki shadow'un üst üste binmesi metni "yükselmiş metal" gibi gösterir
+     ama okunabilirlik bozulmaz çünkü her ikisi de 1px ve subtle. */
+  text-shadow:
+    0 -0.5px 0  rgba(255,255,255,0.22),
+    0  1px   0  rgba(0,0,0,0.70),
+    0  1.5px 2px rgba(0,0,0,0.35);
+}
+
+/* ═════ İKONLAR — embossed/raised metal (üst highlight + alt shadow) ── */
+/* Klasik kabartma tekniği: drop-shadow'lar üst üste binerek "yükselmiş"
+   metal hissi verir. -0.5px üst beyaz highlight + 1px alt koyu shadow +
+   2px yumuşak depth → temiz, okunaklı, gerçek embossed. */
+.premium-navbar svg,
+.premium-toolbar svg {
+  shape-rendering: geometricPrecision;
+  filter:
+    drop-shadow(0 -0.5px 0   rgba(255,255,255,0.55))
+    drop-shadow(0  1px   0   rgba(0,0,0,0.70))
+    drop-shadow(0  2px   2px rgba(0,0,0,0.40));
+  transition: filter 220ms ease, transform 220ms ease;
+}
+.premium-navbar .ant-btn:hover svg,
+.premium-toolbar .ant-btn:hover svg,
+.premium-navbar .ant-menu-item:hover svg {
+  filter:
+    drop-shadow(0 -0.5px 0   rgba(255,255,255,0.75))
+    drop-shadow(0  1px   0   rgba(0,0,0,0.80))
+    drop-shadow(0  2px   3px rgba(0,0,0,0.50));
+  transform: translateY(-0.5px);
+}
+
+/* Phosphor duotone — 2 katmanlı SVG'de ikincil katman opacity'sini
+   premium tema'da %35 yerine %50'ye çekelim, daha 3D his (Phosphor
+   default 0.2 — koyu zeminde görünmüyor). */
+.premium-navbar svg [opacity="0.2"],
+.premium-toolbar svg [opacity="0.2"] {
+  opacity: 0.45 !important;
+}
+
+/* ═════ MENU ITEM — kibar, kompakt, embossed/pressed 3D ────────────── */
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-item,
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-submenu {
+  position: relative;
+  transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease, transform 200ms ease !important;
+  border-radius: 9px;
+  padding-inline: 12px !important;          /* Antd default ~20px → 12px (kibar) */
+  margin-inline: 1px;
+  font-size: 12.5px !important;             /* default 14 → 12.5 (rafine) */
+  height: 36px !important;
+  line-height: 36px !important;
+}
+.premium-navbar .header-nav-menu .ant-menu-item .ant-menu-item-icon + span,
+.premium-navbar .header-nav-menu .ant-menu-item-icon {
+  margin-inline-end: 6px !important;        /* ikon-text gap'i sıkıştır */
+}
+
+/* Hover — yumuşak elevate + cam highlight + iç ring */
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-item:hover,
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-submenu:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.03) 100%) !important;
+  backdrop-filter: blur(10px) brightness(1.08);
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.28),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    0  4px 12px rgba(0,0,0,0.30);
+}
+
+/* Aktif — embossed gümüş pill (monokrom, mavi YOK) */
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-item-selected {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.06) 100%) !important;
+  backdrop-filter: blur(12px) brightness(1.10);
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.40),
+    inset 0 -1px 0 rgba(0,0,0,0.45),
+    inset 0  0 0 1px rgba(255,255,255,0.22),
+    0  4px 14px rgba(0,0,0,0.30),
+    0  8px 28px -10px rgba(255,255,255,0.18);
+}
+
+/* Aktif menü altçizgisi — gümüş gradient, monokrom glow */
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-item-selected::after,
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-submenu-selected::after {
+  border-bottom: none !important;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(220,225,235,0.85) 18%,
+    rgba(255,255,255,1.0) 50%,
+    rgba(220,225,235,0.85) 82%,
+    transparent) !important;
+  height: 2px !important;
+  bottom: 5px !important;
+  inset-inline: 14px !important;
+  border-radius: 2px;
+  box-shadow:
+    0 0 14px rgba(240,245,255,0.65),
+    0 0 5px rgba(255,255,255,0.45);
+}
+
+/* Menu tipografisi — narin, kompakt, premium */
+.premium-navbar .header-nav-menu .ant-menu-title-content {
+  letter-spacing: 0.012em;
+  font-weight: 500;
+  font-size: 12.5px;
+  font-feature-settings: "ss01", "cv01";
+  color: #d2d8e0 !important;
+}
+.premium-navbar .header-nav-menu .ant-menu-item:hover .ant-menu-title-content {
+  color: #f7f9fc !important;
+}
+.premium-navbar .header-nav-menu .ant-menu-item-selected .ant-menu-title-content {
+  color: #ffffff !important;
+  text-shadow:
+    0 -0.5px 0  rgba(255,255,255,0.35),
+    0  1px   0  rgba(0,0,0,0.75),
+    0  0     14px rgba(255,255,255,0.40);
+}
+
+/* Menu icon — selected'ta parlak embossed (üst highlight güçlü + glow) */
+.premium-navbar .header-nav-menu .ant-menu-item .anticon,
+.premium-navbar .header-nav-menu .ant-menu-item svg {
+  color: #c4cad4 !important;
+}
+.premium-navbar .header-nav-menu .ant-menu-item-selected .anticon,
+.premium-navbar .header-nav-menu .ant-menu-item-selected svg {
+  color: #ffffff !important;
+  filter:
+    drop-shadow(0 -0.5px 0   rgba(255,255,255,0.80))
+    drop-shadow(0  1px   0   rgba(0,0,0,0.80))
+    drop-shadow(0  2px   3px rgba(0,0,0,0.50))
+    drop-shadow(0  0     10px rgba(255,255,255,0.40)) !important;
+}
+
+/* ═════ KULLANICI ALANI — gümüş dikey ayırıcı (monokrom) ──────────── */
+.premium-navbar-user {
+  position: relative;
+}
+.premium-navbar-user::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14%;
+  bottom: 14%;
+  width: 1px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(220,225,235,0.40) 25%,
+    rgba(245,248,255,0.65) 50%,
+    rgba(220,225,235,0.40) 75%,
+    transparent 100%);
+  box-shadow:
+    0 0 6px rgba(240,245,255,0.35),
+    0 0 2px rgba(255,255,255,0.30);
+  pointer-events: none;
+}
+
+/* ═════ TEXT BUTON 3D — premium ghost (navbar + toolbar) ────────────── */
+.premium-navbar .ant-btn-text,
+.premium-toolbar .ant-btn-text {
+  position: relative;
+  color: #e8f0ff !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 8px !important;
+  /* 3D base — üst highlight + alt engrave + dış elevation */
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.12),
+    inset 0 -1px 0 rgba(0,0,0,0.30),
+    0  1px 2px rgba(0,0,0,0.25),
+    0  2px 6px rgba(0,0,0,0.18) !important;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms ease,
+    color 180ms ease !important;
+  overflow: hidden;
+}
+
+/* Specular diagonal parlama — üst-sol köşe ışık vuruşu (monokrom) */
+.premium-navbar .ant-btn-text::before,
+.premium-toolbar .ant-btn-text::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.20) 0%,
+    rgba(255,255,255,0.04) 22%,
+    transparent 45%,
+    transparent 60%,
+    rgba(255,255,255,0.05) 100%);
+  pointer-events: none;
+  opacity: 0.85;
+  transition: opacity 200ms ease;
+}
+
+.premium-navbar .ant-btn-text:hover,
+.premium-toolbar .ant-btn-text:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 100%) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.32),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    0  6px 18px rgba(0,0,0,0.40),
+    0  10px 32px -8px rgba(255,255,255,0.10) !important;
+}
+
+.premium-navbar .ant-btn-text:hover::before,
+.premium-toolbar .ant-btn-text:hover::before {
+  opacity: 1;
+}
+
+.premium-navbar .ant-btn-text:active,
+.premium-toolbar .ant-btn-text:active {
+  transform: translateY(0);
+  background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(255,255,255,0.04) 100%) !important;
+  box-shadow:
+    inset 0  2px 5px rgba(0,0,0,0.50),
+    inset 0 -1px 0 rgba(255,255,255,0.04),
+    0  1px 2px rgba(0,0,0,0.20) !important;
+}
+
+/* ═════ GERİ BUTONU — premium 3D cam pill (monokrom gümüş) ──────────── */
+.premium-toolbar-back.ant-btn {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.16) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  color: #f5f7fa !important;
+  backdrop-filter: blur(8px) saturate(140%);
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.35),
+    inset 0 -1px 0 rgba(0,0,0,0.32),
+    inset 0  0 0 1px rgba(255,255,255,0.10),
+    0  2px 6px rgba(0,0,0,0.28),
+    0  4px 14px rgba(0,0,0,0.20) !important;
+  transition:
+    background 180ms ease,
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms ease,
+    border-color 180ms ease !important;
+}
+
+.premium-toolbar-back.ant-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.26) 0%,
+    rgba(255,255,255,0.06) 28%,
+    transparent 50%,
+    transparent 70%,
+    rgba(255,255,255,0.06) 100%);
+  pointer-events: none;
+}
+
+.premium-toolbar-back.ant-btn:hover {
+  transform: translateY(-1px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.24) 0%, transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 100%) !important;
+  border-color: rgba(255,255,255,0.40) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.55),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    inset 0  0 0 1px rgba(255,255,255,0.18),
+    0  6px 16px rgba(0,0,0,0.40),
+    0  10px 28px rgba(255,255,255,0.10) !important;
+}
+
+.premium-toolbar-back.ant-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0  2px 6px rgba(0,0,0,0.40),
+    inset 0 -1px 0 rgba(255,255,255,0.10),
+    0  1px 3px rgba(0,0,0,0.25) !important;
+}
+
+/* ═════ TOOLBAR ACTION BUTONLARI — PDF + Gönder ortak premium stil ──── */
+/* Yazdır (type=text) zaten .ant-btn-text premium ghost'tan davranır.
+   PDF + Gönder ana aksiyonlar olduğundan label'lı; ikisi de aynı görsel
+   dilde — Gönder'e ek "cta" varyantı (bir tık daha parlak border + iç
+   highlight) ile vurgu verilir. */
+.premium-toolbar-action.ant-btn {
+  position: relative;
+  height: 34px;
+  padding: 0 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+  border-radius: 8px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  color: #f1f4f8 !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.28),
+    inset 0 -1px 0 rgba(0,0,0,0.35),
+    0  2px 6px rgba(0,0,0,0.30),
+    0  4px 14px rgba(0,0,0,0.20) !important;
+  transition:
+    background 180ms ease,
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms ease,
+    border-color 180ms ease !important;
+}
+.premium-toolbar-action.ant-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.22) 0%,
+    rgba(255,255,255,0.05) 26%,
+    transparent 50%,
+    transparent 72%,
+    rgba(255,255,255,0.06) 100%);
+  pointer-events: none;
+}
+.premium-toolbar-action.ant-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 100%) !important;
+  border-color: rgba(255,255,255,0.32) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.45),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    0  6px 16px rgba(0,0,0,0.40),
+    0  10px 28px rgba(255,255,255,0.10) !important;
+}
+.premium-toolbar-action.ant-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0  2px 6px rgba(0,0,0,0.40),
+    inset 0 -1px 0 rgba(255,255,255,0.10),
+    0  1px 3px rgba(0,0,0,0.25) !important;
+}
+
+/* CTA varyantı — Gönder: bir tık daha parlak border + iç highlight */
+.premium-toolbar-cta.ant-btn {
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.50),
+    inset 0 -1px 0 rgba(0,0,0,0.35),
+    inset 0  0 0 1px rgba(255,255,255,0.10),
+    0  2px 6px rgba(0,0,0,0.32),
+    0  6px 18px rgba(255,255,255,0.10) !important;
+}
+.premium-toolbar-cta.ant-btn:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 100%) !important;
+  border-color: rgba(255,255,255,0.50) !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.65),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    inset 0  0 0 1px rgba(255,255,255,0.20),
+    0  6px 18px rgba(0,0,0,0.40),
+    0  12px 32px rgba(255,255,255,0.16) !important;
+}
+
+/* ═════ LOGO BLOK — gümüş halo + hover lift ─────────────────────────── */
+.premium-navbar > div:first-child,
+.premium-navbar > .ant-dropdown-trigger {
+  position: relative;
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1), filter 220ms ease;
+}
+.premium-navbar > div:first-child img,
+.premium-navbar > .ant-dropdown-trigger img {
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.50)) drop-shadow(0 0 12px rgba(255,255,255,0.18));
+  transition: filter 220ms ease, transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.premium-navbar > div:first-child:hover img,
+.premium-navbar > .ant-dropdown-trigger:hover img {
+  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.60)) drop-shadow(0 0 20px rgba(240,245,255,0.50));
+  transform: scale(1.04);
+}
+
+/* ═════ BREATHING SHIMMER — alt ışık çubuğunda yavaş nefes ──────────── */
+@keyframes premium-bar-shimmer {
+  0%, 100% { opacity: 0.65; transform: translateX(0); }
+  50%      { opacity: 1.00; transform: translateX(12px); }
+}
+.premium-navbar::after,
+.premium-toolbar::after {
+  animation: premium-bar-shimmer 9s ease-in-out infinite;
+}
+
+/* ═════ HOLOGRAPHIC EDGE SWEEP — üst kenardaki highlight'ta yavaş akış ─ */
+@keyframes premium-edge-sweep {
+  0%   { background-position:  -200% 0; }
+  100% { background-position:   300% 0; }
+}
+.premium-navbar::before,
+.premium-toolbar::before {
+  background:
+    linear-gradient(90deg,
+      transparent 0%,
+      rgba(255,255,255,0.50) 28%,
+      rgba(255,255,255,0.75) 50%,
+      rgba(255,255,255,0.50) 72%,
+      transparent 100%),
+    linear-gradient(90deg,
+      transparent 0%, transparent 35%,
+      rgba(255,255,255,0.95) 50%,
+      transparent 65%, transparent 100%);
+  background-size: 100% 100%, 30% 100%;
+  background-repeat: no-repeat;
+  background-position: 0 0, -200% 0;
+  animation: premium-edge-sweep 6s linear infinite;
+}
+
+/* ═════ REDUCED-MOTION — kullanıcı tercihi: animasyonu kapat ────────── */
+@media (prefers-reduced-motion: reduce) {
+  .premium-navbar,
+  .premium-toolbar,
+  .premium-navbar *,
+  .premium-toolbar * {
+    transition: none !important;
+    animation: none !important;
+  }
+  .premium-navbar::after,
+  .premium-toolbar::after {
+    opacity: 0.85 !important;
+    transform: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    POPUP TOKENS — Antd componentleri için global override.
    Tüm açılır UI öğeleri merkezi POPUP token sistemi ile aynı dilde
    konuşsun. src/styles/popupTokens.ts dosyasındaki değerlerin CSS

@@ -11,17 +11,7 @@
 
 import { App, Button, Dropdown, Space, Tooltip, Spin } from 'antd';
 import type { MenuProps } from 'antd';
-import {
-  ArrowLeftOutlined,
-  PrinterOutlined,
-  FilePdfOutlined,
-  MailOutlined,
-  UserOutlined,
-  CaretDownOutlined,
-  FolderOutlined,
-} from '@ant-design/icons';
-import { useColors } from '../hooks/useColors';
-import { buttonClassNames } from '../styles/buttonStyles';
+import { Icon } from '@iconify/react';
 import type { TeklifDurum, TeklifStatus } from '../types';
 import type { PanelModu } from '../hooks/useBelgeState';
 
@@ -104,7 +94,6 @@ export default function BelgeToolbar({
   pdfKayitDestekli,
   pdfKayitDurum,
 }: BelgeToolbarProps) {
-  const C = useColors();
   const { modal } = App.useApp();
   const durumRenk = DURUM_RENK[durum];
 
@@ -154,32 +143,34 @@ export default function BelgeToolbar({
   }));
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '10px 18px',
-      borderBottom: `1px solid ${C.border}`,
-      background: C.bgSurface,
-      flexShrink: 0,
-      height: 56,
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-    }}>
+    <div
+      className="premium-toolbar"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '7px 18px',
+        flexShrink: 0,
+        height: 48,
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}
+    >
       {/* Sol: Geri + Teklif bilgisi.
-          Buton metinli + ikonlu — pratik, hedef alanı geniş. */}
+          type="text" + premium ghost — koyu cam üstünde aydınlık. */}
       <Button
-        type="default"
-        icon={<ArrowLeftOutlined />}
+        type="text"
+        icon={<Icon icon="solar:arrow-left-bold-duotone" width={17} height={17} />}
         onClick={onGeriDon}
+        className="premium-toolbar-back"
         style={{
           marginRight: 8,
           height: 34,
           padding: '0 14px',
           fontSize: 13,
           fontWeight: 500,
-          borderRadius: 6,
+          borderRadius: 8,
         }}
       >
         Geri
@@ -189,16 +180,17 @@ export default function BelgeToolbar({
         <span style={{
           fontSize: 14,
           fontWeight: 700,
-          color: C.textPrimary,
+          color: '#f5f7fa',
           fontVariantNumeric: 'tabular-nums',
           whiteSpace: 'nowrap',
+          textShadow: '0 1px 1.5px rgba(0,0,0,0.55), 0 0 14px rgba(255,255,255,0.20)',
         }}>
           {teklifNoDurumu === 'yukleniyor' ? <Spin size="small" /> : teklifNo}
         </span>
         {cariAdi && (
           <span style={{
             fontSize: 12,
-            color: C.textSecondary,
+            color: 'rgba(229,236,247,0.70)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -242,7 +234,7 @@ export default function BelgeToolbar({
           >
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: durumRenk.color, flexShrink: 0 }} />
             {DURUM_ETIKET[durum]}
-            <CaretDownOutlined style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }} />
+            <Icon icon="solar:alt-arrow-down-bold" width={11} height={11} style={{ opacity: 0.7, marginLeft: 1 }} />
           </button>
         </Dropdown>
 
@@ -292,7 +284,7 @@ export default function BelgeToolbar({
         <Tooltip title={ilgiliKisiAdSoyad ? `İlgili: ${ilgiliKisiAdSoyad}` : 'İlgili kişi ata (şirket içi)'}>
           <Button
             type="text"
-            icon={<UserOutlined />}
+            icon={<Icon icon="solar:user-plus-rounded-bold-duotone" width={17} height={17} />}
             onClick={onIlgiliKisiAc}
             style={{
               position: 'relative',
@@ -324,12 +316,16 @@ export default function BelgeToolbar({
           />
         </Tooltip>
 
-        <div style={{ width: 1, height: 20, background: C.border, margin: '0 4px' }} />
+        <div style={{
+          width: 1, height: 20, margin: '0 4px',
+          background: 'linear-gradient(180deg, transparent, rgba(220,225,235,0.45) 25%, rgba(245,248,255,0.65) 75%, transparent)',
+          boxShadow: '0 0 4px rgba(240,245,255,0.30)',
+        }} />
 
         <Tooltip title="Sayfayı yazıcıya gönder (durumu değiştirmez)" placement="bottom">
           <Button
             type="text"
-            icon={<PrinterOutlined />}
+            icon={<Icon icon="solar:printer-bold-duotone" width={18} height={18} />}
             onClick={onYazdir}
             loading={uretiliyor}
           >
@@ -381,7 +377,7 @@ export default function BelgeToolbar({
                   textOverflow: 'ellipsis',
                 }}
               >
-                <FolderOutlined style={{ fontSize: 11 }} />
+                <Icon icon="solar:folder-bold-duotone" width={13} height={13} />
                 {style.label}
               </span>
             </Tooltip>
@@ -392,16 +388,17 @@ export default function BelgeToolbar({
             pdfKayitDurum === 'ok'
               ? `PDF üret + "${pdfKayitKlasorAdi}" klasörüne kaydet → durumu 'Hazır'a çeker.`
               : pdfKayitDurum === 'izinKayip'
-                ? `PDF üret + klasör izni iste (yenilemezsen İndirilenler\'e iner) → durumu 'Hazır'a çeker.`
+                ? `PDF üret + klasör izni iste (yenilemezsen İndirilenler'e iner) → durumu 'Hazır'a çeker.`
                 : `PDF üret + İndirilenler klasörüne kaydet → durumu 'Hazır'a çeker. (Profilden kalıcı klasör seçebilirsin)`
           }
           placement="bottom"
         >
           <Button
-            icon={<FilePdfOutlined />}
+            type="text"
+            icon={<Icon icon="solar:file-text-bold-duotone" width={18} height={18} />}
             onClick={onPdfIndir}
             loading={uretiliyor}
-            className={buttonClassNames.secondary}
+            className="premium-toolbar-action"
           >
             PDF
           </Button>
@@ -415,10 +412,11 @@ export default function BelgeToolbar({
           placement="bottom"
         >
           <Button
-            type="primary"
-            icon={<MailOutlined />}
+            type="text"
+            icon={<Icon icon="solar:letter-bold-duotone" width={18} height={18} />}
             onClick={onEMailGonder}
             loading={uretiliyor}
+            className="premium-toolbar-action premium-toolbar-cta"
           >
             Gönder
           </Button>

@@ -1,10 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { addCollection, type IconifyJSON } from '@iconify/react'
+import solarIcons from '@iconify-json/solar/icons.json'
 import 'antd/dist/reset.css'
 import './index.css'
 import App from './App.tsx'
 import { KullaniciProvider } from './context/KullaniciContext.tsx'
 import { FirmaProvider } from './context/FirmaContext.tsx'
+
+// Solar Bold-Duotone ikon set'ini lokal olarak yükle. Premium navbar +
+// toolbar'da kullanılır; Iconify online API'ye fallback yapmadan offline
+// çalışır (PWA / LAN ortamlarında garanti).
+addCollection(solarIcons as IconifyJSON)
 
 /**
  * Online-only mimariye geçişten kalan eski sync engine localStorage
