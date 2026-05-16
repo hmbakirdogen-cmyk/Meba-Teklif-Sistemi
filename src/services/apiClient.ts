@@ -336,6 +336,13 @@ export const api = {
       post<{ ok: boolean; mustChangePassword: boolean }>('/auth/change-password', { mevcutSifre, yeniSifre }),
     uploadPhoto: (fotoBase64: string) =>
       post<{ profilFotoUrl: string; kullanici: Kullanici }>('/auth/upload-photo', { fotoBase64 }),
+    /** Admin: başka bir kullanıcının profil fotosunu günceller (yüz odaklı
+     *  toplu işlem için). super_admin → herkes, firma_admin → kendi firması. */
+    uploadPhotoForUser: (userId: string, fotoBase64: string) =>
+      post<{ profilFotoUrl: string; kullanici: Kullanici }>(
+        `/auth/admin/upload-photo-for/${userId}`,
+        { fotoBase64 },
+      ),
 
     // ── SMTP (kullanıcının kendi e-posta hesabından gönderim) ─────────
     smtpAyarlar: () =>

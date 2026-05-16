@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Button, message } from 'antd';
-import { CameraOutlined } from '@ant-design/icons';
+import { CameraOutlined, AimOutlined } from '@ant-design/icons';
 import { useKullanici } from '../context/useKullanici';
-import { dosyaToVesikalikBase64 } from '../utils/profilFoto';
+import { dosyaToYuzOdakliVesikalik, gorselToYuzOdakliVesikalik, yuzModeliniArkaPlandaIsit } from '../utils/yuzTespit';
 import { formatAdSoyad } from '../utils/formatters';
 
 const silver = (a: number) => `rgba(172,186,205,${a})`;
@@ -23,11 +23,19 @@ export default function ProfilFotoModal({ open, onClose }: ProfilFotoModalProps)
   const { aktifKullanici, profilFotoYukle, refreshKullanici } = useKullanici();
   const [yeniFoto, setYeniFoto] = useState<string | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
+  const [tespitEdiliyor, setTespitEdiliyor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Modal açılınca yüz tespit modelini arka planda ısıt — kullanıcı foto
+  // seçtiğinde model çoktan hazır olur, lag yaşanmaz.
+  useEffect(() => {
+    if (open) yuzModeliniArkaPlandaIsit();
+  }, [open]);
 
   function reset() {
     setYeniFoto(null);
     setYukleniyor(false);
+    setTespitEdiliyor(false);
   }
 
   async function fotoSec(e: React.ChangeEvent<HTMLInputElement>) {
@@ -38,11 +46,14 @@ export default function ProfilFotoModal({ open, onClose }: ProfilFotoModalProps)
       message.error('Dosya çok büyük (>8MB). Daha küçük bir foto seçin.');
       return;
     }
+    setTespitEdiliyor(true);
     try {
-      const base64 = await dosyaToVesikalikBase64(file);
+      const base64 = await dosyaToYuzOdakliVesikalik(file);
       setYeniFoto(base64);
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Foto okunamadı.');
+    } finally {
+      setTespitEdiliyor(false);
     }
   }
 
@@ -59,6 +70,32 @@ export default function ProfilFotoModal({ open, onClose }: ProfilFotoModalProps)
     message.success('Profil fotoğrafı güncellendi.');
     reset();
     onClose();
+  }
+
+  // Mevcut profil fotoğrafını yüz odaklı olarak yeniden işle. Mevcut URL'yi
+  // fetch et → yüz tespit + crop → upload. Eski fotolar için tek tık migration.
+  async function mevcudunuYenidenIsle() {
+    if (!aktifKullanici?.profilFotoUrl) return;
+    setTespitEdiliyor(true);
+    try {
+      const yeni = await gorselToYuzOdakliVesikalik(aktifKullanici.profilFotoUrl);
+      setTespitEdiliyor(false);
+      setYukleniyor(true);
+      const r = await profilFotoYukle(yeni);
+      setYukleniyor(false);
+      if (!r.ok) {
+        message.error(r.error || 'Foto yüklenemedi.');
+        return;
+      }
+      await refreshKullanici();
+      message.success('Profil fotoğrafı yüz odaklı olarak yeniden işlendi.');
+      reset();
+      onClose();
+    } catch (err) {
+      setTespitEdiliyor(false);
+      setYukleniyor(false);
+      message.error(err instanceof Error ? err.message : 'İşlem başarısız.');
+    }
   }
 
   function kapat() {
@@ -122,17 +159,34 @@ export default function ProfilFotoModal({ open, onClose }: ProfilFotoModalProps)
         )}
 
         <div style={{ fontSize: 12, color: silver(0.6), letterSpacing: 0.4, textAlign: 'center' }}>
-          Vesikalık formatında (3:4) merkezden kırpılır.
+          {tespitEdiliyor
+            ? 'Yüz tespit ediliyor, kompozisyona göre kırpılıyor…'
+            : 'Vesikalık (3:4) — yüz tespit edilirse otomatik olarak yüze odaklanır.'}
         </div>
 
         <Button
           icon={<CameraOutlined />}
           onClick={() => fileInputRef.current?.click()}
-          disabled={yukleniyor}
+          disabled={yukleniyor || tespitEdiliyor}
+          loading={tespitEdiliyor}
           aria-label={onizleme ? 'Yeni foto seç' : 'Foto seç'}
         >
           {onizleme ? 'Yeni foto seç' : 'Foto seç'}
         </Button>
+
+        {/* Mevcut foto varsa yüz odaklı yeniden işleme butonu — eski fotolar
+            için tek tıkla migration. Yeni foto seçilmediyse görünür. */}
+        {aktifKullanici?.profilFotoUrl && !yeniFoto && (
+          <Button
+            icon={<AimOutlined />}
+            onClick={mevcudunuYenidenIsle}
+            disabled={yukleniyor || tespitEdiliyor}
+            type="dashed"
+          >
+            Yüz Odaklı Yeniden İşle
+          </Button>
+        )}
+
         <input
           ref={fileInputRef}
           type="file"

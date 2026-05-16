@@ -28,6 +28,7 @@
     "@iconify-json/solar": "^1.2.5",
     "@iconify/react": "^6.0.2",
     "@prisma/client": "^6.0.0",
+    "@vladmandic/face-api": "^1.7.15",
     "antd": "^6.3.5",
     "compression": "^1.7.5",
     "cors": "^2.8.5",

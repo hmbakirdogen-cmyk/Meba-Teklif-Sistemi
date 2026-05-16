@@ -250,6 +250,78 @@ authRouter.post(
   }),
 );
 
+// ── POST /api/auth/admin/upload-photo-for/:userId ─────────────────────
+// Admin başka bir kullanıcının profil fotosunu güncelleyebilir.
+// Yetki: super_admin → herkes; firma_admin → kendi firmasındaki kullanıcılar.
+// Yüz odaklı re-processing migration için kullanılır.
+authRouter.post(
+  '/admin/upload-photo-for/:userId',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const requestor = req.authCtx!.kullanici;
+    const isSuperAdmin = requestor.rol === 'super_admin';
+    const isFirmaAdmin = requestor.rol === 'firma_admin';
+    if (!isSuperAdmin && !isFirmaAdmin) {
+      throw new HttpError(403, 'Bu işlem için super_admin veya firma_admin yetkisi gerekir.');
+    }
+
+    const userId = String(req.params.userId || '');
+    if (!userId) throw new HttpError(400, 'userId zorunlu.');
+
+    const target = await prisma.kullanici.findUnique({ where: { id: userId } });
+    if (!target) throw new HttpError(404, 'Kullanıcı bulunamadı.');
+
+    // firma_admin sadece kendi firmasına dokunabilir
+    if (!isSuperAdmin && target.firmaId !== requestor.firmaId) {
+      throw new HttpError(403, 'Bu kullanıcının firmasında yetkin yok.');
+    }
+
+    const fotoBase64: string = String(req.body?.fotoBase64 || '');
+    if (!fotoBase64) throw new HttpError(400, 'fotoBase64 boş.');
+
+    const { mime, buffer } = decodeDataUrl(fotoBase64);
+    if (buffer.length === 0) throw new HttpError(400, 'Foto verisi geçersiz.');
+    if (buffer.length > MAX_PHOTO_BYTES) {
+      throw new HttpError(
+        400,
+        `Foto çok büyük (${Math.round(buffer.length / 1024)} KB). Maks ${Math.round(MAX_PHOTO_BYTES / 1024)} KB.`,
+      );
+    }
+
+    const ext = mimeToExt(mime);
+    const key = `kullanicilar/${target.id}.${ext}`;
+    let url: string;
+    try {
+      const result = await uploadFile(key, buffer, mime);
+      url = result.url;
+    } catch (err) {
+      const e = err as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number }; message?: string };
+      const code = e?.Code || e?.name || '';
+      const http = e?.$metadata?.httpStatusCode;
+      console.error('[admin/upload-photo-for] R2 yazma hatası:', { code, http, message: e?.message, key });
+      throw new HttpError(502, `Profil fotoğrafı kaydedilemedi: ${code || 'bilinmeyen R2 hatası'} (${http ?? '-'}).`);
+    }
+    const cacheBust = `${url}?v=${Date.now()}`;
+
+    const updated = await prisma.kullanici.update({
+      where: { id: target.id },
+      data: {
+        profilFotoUrl: cacheBust,
+        profilFotoYuklemeTarihi: new Date(),
+      },
+    });
+
+    await audit('admin_profil_foto_yuklendi', {
+      kullaniciId: target.id,
+      kullaniciAdi: target.kullaniciAdi,
+      firmaId: target.firmaId,
+      yapanKullaniciId: requestor.id,
+      yapanKullaniciAdi: requestor.kullaniciAdi,
+    });
+    res.json({ profilFotoUrl: cacheBust, kullanici: sanitizeUser(updated) });
+  }),
+);
+
 // ── GET /api/auth/smtp-ayarlar ──────────────────────────────────
 // Kullanıcının mevcut SMTP konfigürasyonunu döner (şifre dahil DEĞİL).
 authRouter.get(

@@ -3,12 +3,13 @@ import {
   Table, Button, Modal, Form, Input, Select, Tag, Space, Popconfirm,
   message, Card, Avatar,
 } from 'antd';
-import { PlusOutlined, KeyOutlined, DeleteOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, KeyOutlined, DeleteOutlined, UserOutlined, EditOutlined, AimOutlined } from '@ant-design/icons';
 import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
 import type { Kullanici, KullaniciRol } from '../types/kullanici';
 import { formatAdSoyad, formatUnvan } from '../utils/formatters';
+import { gorselToYuzOdakliVesikalik, yuzModeliniArkaPlandaIsit } from '../utils/yuzTespit';
 import {
   isYonetici,
   tumFirmalaraErisir as tumFirmalaraErisirFn,
@@ -39,6 +40,55 @@ export default function PersonelSayfasi() {
   // aktifKullanici?.rol === 'super_admin' kontrolü ile korunur.
   const isAdmin = isYonetici(aktifKullanici?.rol);
   const tumFirmalaraErisir = tumFirmalaraErisirFn(aktifKullanici?.rol);
+
+  // Toplu yüz odaklı profil foto işleme
+  const [topluIsleniyor, setTopluIsleniyor] = useState(false);
+  const [topluIlerleme, setTopluIlerleme] = useState<{ tamam: number; toplam: number } | null>(null);
+
+  // Sayfa açılınca yüz modelini arka planda ısıt (admin toplu işleme için hazır)
+  useEffect(() => { if (isAdmin) yuzModeliniArkaPlandaIsit(); }, [isAdmin]);
+
+  async function tumFotograflariYenidenIsle() {
+    if (!aktifKullanici) return;
+    const hedefler = liste.filter((k) => {
+      if (!k.profilFotoUrl) return false;
+      // firma_admin sadece kendi firması, super_admin herkes
+      if (aktifKullanici.rol === 'super_admin') return true;
+      return k.firmaId === aktifKullanici.firmaId;
+    });
+    if (hedefler.length === 0) {
+      message.info('Profil fotoğrafı olan kullanıcı bulunamadı.');
+      return;
+    }
+
+    setTopluIsleniyor(true);
+    setTopluIlerleme({ tamam: 0, toplam: hedefler.length });
+
+    let basarili = 0;
+    let basarisiz = 0;
+    for (let i = 0; i < hedefler.length; i += 1) {
+      const k = hedefler[i];
+      try {
+        if (!k.profilFotoUrl) continue;
+        const yeni = await gorselToYuzOdakliVesikalik(k.profilFotoUrl);
+        await api.auth.uploadPhotoForUser(k.id, yeni);
+        basarili += 1;
+      } catch (err) {
+        console.warn(`[tumFotograflariYenidenIsle] ${k.kullaniciAdi} hata:`, err);
+        basarisiz += 1;
+      }
+      setTopluIlerleme({ tamam: i + 1, toplam: hedefler.length });
+    }
+
+    setTopluIsleniyor(false);
+    setTopluIlerleme(null);
+    if (basarisiz === 0) {
+      message.success(`Tüm ${basarili} profil fotoğrafı yüz odaklı olarak yeniden işlendi.`);
+    } else {
+      message.warning(`${basarili} başarılı, ${basarisiz} başarısız. Detaylar için console'a bakın.`, 8);
+    }
+    await fetchListe();
+  }
 
   const fetchListe = useCallback(async () => {
     setYukleniyor(true);
@@ -272,9 +322,36 @@ export default function PersonelSayfasi() {
                   : 'Firmanıza ait personeli ekleyip düzenleyin'}
               </div>
             </div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={yeniPersonel}>
-              Yeni Personel
-            </Button>
+            <Space size={8}>
+              {isAdmin && (
+                <Popconfirm
+                  title="Tüm profil fotolarını yüz odaklı yeniden işle"
+                  description={
+                    <div style={{ maxWidth: 280, fontSize: 12, lineHeight: 1.5 }}>
+                      Yetki alanındaki tüm kullanıcıların mevcut profil fotoları
+                      yeniden indirilip yüz tespiti ile yakınlaştırılır ve kaydedilir.
+                      İşlem birkaç dakika sürebilir.
+                    </div>
+                  }
+                  okText="Başlat"
+                  cancelText="Vazgeç"
+                  onConfirm={tumFotograflariYenidenIsle}
+                  disabled={topluIsleniyor}
+                >
+                  <Button
+                    icon={<AimOutlined />}
+                    loading={topluIsleniyor}
+                  >
+                    {topluIsleniyor && topluIlerleme
+                      ? `İşleniyor… ${topluIlerleme.tamam}/${topluIlerleme.toplam}`
+                      : 'Profil Fotolarını Yüz Odaklı İşle'}
+                  </Button>
+                </Popconfirm>
+              )}
+              <Button type="primary" icon={<PlusOutlined />} onClick={yeniPersonel}>
+                Yeni Personel
+              </Button>
+            </Space>
           </div>
         }
       >
