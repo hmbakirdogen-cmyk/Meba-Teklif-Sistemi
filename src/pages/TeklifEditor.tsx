@@ -514,11 +514,24 @@ export default function TeklifEditor() {
         if (!devam) return;
       }
 
-      // PDF üretildi. Yeni sekme açma davranışı KALDIRILDI — Chrome PDF
-      // viewer ayarına bağlı olarak boş sekme açılıyor + pop-up rahatsız
-      // ediyordu. Klasöre yazım başarılıysa kullanıcı bildirim üzerinden
-      // dosyaya ulaşır; klasör yoksa autoSaveToDownloads sessiz indirme
-      // yapar (browserDownload anchor click — picker AÇMAZ).
+      // PDF foreground açma — hedef='pdf' için. Klasöre yazım başarılı olsa
+      // bile kullanıcı dosyayı anında görmek istiyor. window.open user gesture
+      // chain içinde tetikleniyor; pop-up engellenirse console.warn ile geçer.
+      if (hedef === 'pdf') {
+        try {
+          const url = URL.createObjectURL(blob);
+          const win = window.open(url, '_blank');
+          if (win) {
+            try { win.focus(); } catch { /* ignore */ }
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          } else {
+            URL.revokeObjectURL(url);
+            console.warn('[TeklifEditor] window.open null döndü — pop-up engellenmiş olabilir.');
+          }
+        } catch (e) {
+          console.warn('[TeklifEditor] PDF foreground açma hatası:', e);
+        }
+      }
 
       // Offline/yedek yol için firmanın PDF klasör adı (server-side ile birebir aynı).
       // Teklifin firmaId'si üzerinden firmalar listesinden alınır → her kullanıcının
