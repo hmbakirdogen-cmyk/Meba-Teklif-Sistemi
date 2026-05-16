@@ -27,7 +27,6 @@
     "@aws-sdk/s3-request-presigner": "^3.700.0",
     "@iconify-json/solar": "^1.2.5",
     "@iconify/react": "^6.0.2",
-    "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.0.0",
     "antd": "^6.3.5",
     "compression": "^1.7.5",
