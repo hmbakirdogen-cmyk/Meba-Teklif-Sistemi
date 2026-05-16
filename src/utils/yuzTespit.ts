@@ -16,7 +16,10 @@
  * yeterli. İnsan yüzü olmayan görseller (peyzaj, logo) fallback'e düşer.
  */
 
-import * as faceapi from '@vladmandic/face-api';
+// face-api dynamic import — top-level import bazı Vite/TFJS resolve
+// senaryolarında uygulama açılışını kilitliyordu. Bu yüzden sadece kullanıcı
+// foto seçtiğinde veya admin toplu işlem başlattığında lazy load ediyoruz.
+type FaceApiModule = typeof import('@vladmandic/face-api');
 
 export const VESIKALIK_WIDTH = 240;
 export const VESIKALIK_HEIGHT = 320;
@@ -24,8 +27,21 @@ const TARGET_AR = VESIKALIK_WIDTH / VESIKALIK_HEIGHT; // 0.75
 const MAX_PHOTO_BYTES = 600 * 1024; // 600 KB
 const MODEL_URL = '/face-api-models';
 
+let faceApiModule: FaceApiModule | null = null;
 let modelLoaded = false;
 let modelLoadPromise: Promise<void> | null = null;
+
+/** face-api modülünü dynamic import ile yükle (sadece bir kez). */
+async function faceApiGetir(): Promise<FaceApiModule | null> {
+  if (faceApiModule) return faceApiModule;
+  try {
+    faceApiModule = await import('@vladmandic/face-api');
+    return faceApiModule;
+  } catch (e) {
+    console.warn('[yuzTespit] face-api yüklenemedi:', e);
+    return null;
+  }
+}
 
 /** TinyFaceDetector modelini bir kez yükler (singleton). */
 async function modelYukle(): Promise<void> {
@@ -33,11 +49,12 @@ async function modelYukle(): Promise<void> {
   if (modelLoadPromise) return modelLoadPromise;
   modelLoadPromise = (async () => {
     try {
+      const faceapi = await faceApiGetir();
+      if (!faceapi) return;
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
       modelLoaded = true;
     } catch (e) {
       console.warn('[yuzTespit] Model yüklenemedi, merkez crop fallback kullanılacak:', e);
-      // modelLoaded false kalır, çağrılar fallback'e düşer
     } finally {
       modelLoadPromise = null;
     }
@@ -158,8 +175,9 @@ export async function gorselToYuzOdakliVesikalik(src: string): Promise<string> {
   await modelYukle();
 
   let crop: CropKutu;
-  if (modelLoaded) {
+  if (modelLoaded && faceApiModule) {
     try {
+      const faceapi = faceApiModule;
       const detection = await faceapi.detectSingleFace(
         img,
         new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }),
