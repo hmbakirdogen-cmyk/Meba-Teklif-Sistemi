@@ -1640,23 +1640,49 @@ button.app-btn:active,
 /* ════════════════════════════════════════════════════════════════════════════
    OFFER TABLE — Dikey hücre ayrım çizgisi (A4 + PDF birebir)
    ──────────────────────────────────────────────────────────────────────
-   Best practice: tek gerçek border-left çizgisi kullanılır.
-   Böylece çizgiler kaybolmaz, çift çizgi oluşmaz ve PDF/html2canvas hattı da
-   sürpriz üretmez. Premium görünüm renk tonu ile verilir, çizim tekniği ile
-   değil.
+   Garantili çizgi: gerçek `border-left` (kaybolmaz, html2canvas pürüzsüz
+   render eder). Üstüne ekranda ince beyaz gradient `::before` highlight
+   ile "engraved metal" premium hissi — sol koyu çizgi + 1 px sağında
+   beyaz parıltı = klasik oyulmuş kenar. PDF clone'unda pseudo nuke edilir
+   (pdfService gradient güvenliği), sadece border kalır — clean tek çizgi.
    ════════════════════════════════════════════════════════════════════════════ */
 .offer-table thead th.optical-separator-col,
 .offer-table tbody td.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.10);
+  --offer-col-separator: rgba(26, 43, 66, 0.13);
+  position: relative;
   border-left: 1px solid var(--offer-col-separator) !important;
   background-clip: padding-box;
   transition: border-left-color 160ms ease;
 }
 .offer-table thead th.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.14);
+  --offer-col-separator: rgba(26, 43, 66, 0.18);
 }
 .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
-  --offer-col-separator: rgba(26, 43, 66, 0.13);
+  --offer-col-separator: rgba(26, 43, 66, 0.17);
+}
+
+/* Premium "engraved" beyaz vurgu — sol koyu border'ın 1 px sağında ince fade
+   gradient. opacity 0.45 → metal oyulmuş kenar hissi, içerik okunabilirliğini
+   bozmaz. Üst/alt %10 fade ile satır kart kenarlarına dokunmaz. */
+.offer-table thead th.optical-separator-col::before,
+.offer-table tbody td.optical-separator-col::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10%;
+  bottom: 10%;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(255,255,255,0.50) 22%,
+    rgba(255,255,255,0.90) 50%,
+    rgba(255,255,255,0.50) 78%,
+    transparent 100%);
+  opacity: 0.45;
+}
+.offer-table thead th.optical-separator-col::before {
+  opacity: 0.60;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -2867,6 +2893,88 @@ button.referanslar-satir-teklifno:hover .anticon {
     0  6px 18px rgba(255,255,255,0.10) !important;
 }
 .premium-toolbar-cta.ant-btn:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 100%) !important;
+  border-color: rgba(255,255,255,0.50) !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.65),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    inset 0  0 0 1px rgba(255,255,255,0.20),
+    0  6px 18px rgba(0,0,0,0.40),
+    0  12px 32px rgba(255,255,255,0.16) !important;
+}
+
+/* ═════ DARK MODE HOVER PARITY ════════════════════════════════════════
+   Antd dark theme override (`[data-theme="dark"] .ant-btn-text:not(...)
+   ...:hover`) benim 0,2,1 specificity'li premium hover'ımı koyu modda
+   eziyordu → koyu modda mat AntD hover'ı görüyordun, aydınlık modda
+   premium görünüm vardı. Burada `[data-theme="dark"]` prefix ekleyerek
+   specificity'yi 0,3,2'ye çıkarıyorum → AntD ile eşit, cascade order
+   ile premium kazanır. Aydınlık mod kuralları bu blocktan etkilenmez.
+   ════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] .premium-navbar .ant-btn-text:hover,
+[data-theme="dark"] .premium-toolbar .ant-btn-text:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 100%) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.32),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    0  6px 18px rgba(0,0,0,0.40),
+    0  10px 32px -8px rgba(255,255,255,0.10) !important;
+}
+
+[data-theme="dark"] .premium-navbar .ant-btn-text:hover::before,
+[data-theme="dark"] .premium-toolbar .ant-btn-text:hover::before {
+  opacity: 1;
+}
+
+[data-theme="dark"] .premium-navbar .ant-btn-text:active,
+[data-theme="dark"] .premium-toolbar .ant-btn-text:active {
+  transform: translateY(0);
+  background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(255,255,255,0.04) 100%) !important;
+  box-shadow:
+    inset 0  2px 5px rgba(0,0,0,0.50),
+    inset 0 -1px 0 rgba(255,255,255,0.04),
+    0  1px 2px rgba(0,0,0,0.20) !important;
+}
+
+[data-theme="dark"] .premium-toolbar-back.ant-btn:hover {
+  transform: translateY(-1px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.24) 0%, transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 100%) !important;
+  border-color: rgba(255,255,255,0.40) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.55),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    inset 0  0 0 1px rgba(255,255,255,0.18),
+    0  6px 16px rgba(0,0,0,0.40),
+    0  10px 28px rgba(255,255,255,0.10) !important;
+}
+
+[data-theme="dark"] .premium-toolbar-action.ant-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 100%) !important;
+  border-color: rgba(255,255,255,0.32) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0  1px 0 rgba(255,255,255,0.45),
+    inset 0 -1px 0 rgba(0,0,0,0.40),
+    0  6px 16px rgba(0,0,0,0.40),
+    0  10px 28px rgba(255,255,255,0.10) !important;
+}
+[data-theme="dark"] .premium-toolbar-action.ant-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0  2px 6px rgba(0,0,0,0.40),
+    inset 0 -1px 0 rgba(255,255,255,0.10),
+    0  1px 3px rgba(0,0,0,0.25) !important;
+}
+
+[data-theme="dark"] .premium-toolbar-cta.ant-btn:hover {
   background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 100%) !important;
   border-color: rgba(255,255,255,0.50) !important;
   box-shadow:

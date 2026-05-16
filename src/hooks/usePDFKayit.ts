@@ -336,15 +336,11 @@ export function usePDFKayit() {
       if (typeof w.showDirectoryPicker !== 'function') {
         return { ok: false, desteklenmiyor: true, error: 'Bu özellik Chrome veya Edge tarayıcıda çalışır.' };
       }
-      // Picker'ı doğrudan kullanıcı gesture içinde çağır — öncesinde await yok.
-      // `id` Chrome tarafından `^[a-zA-Z0-9_-]{0,32}$` ile doğrulanır; userKey
-      // içerdiği ':' nedeniyle TypeError "contains invalid character" fırlatır.
-      // Bu yüzden yalnızca güvenli karakterleri bırakıp 32 karakterle sınırlıyoruz.
-      const safePickerId = `meba-pdf-${userKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`.slice(0, 32);
-      // startIn: 'desktop' → picker masaüstünden açılır (Chrome güvenlik gereği
-      // masaüstünü kök olarak SEÇTİRMEZ, ama orada bir alt klasör seçmek
-      // kolaylaşır). Kullanıcı isterse Documents/farklı yere de gidebilir.
-      const h = await w.showDirectoryPicker({ id: safePickerId, mode: 'readwrite', startIn: 'desktop' });
+      // En minimal çağrı: hem `id` hem `startIn` parametresi bazı Chrome
+      // sürümlerinde AbortError tetikliyor (kullanıcı klasör seçse bile).
+      // Sadece `mode: 'readwrite'` ile çağırınca en stabil davranış.
+      void userKey; // safePickerId artık kullanılmıyor, ileride yeniden açılabilir
+      const h = await w.showDirectoryPicker({ mode: 'readwrite' });
       // Yazma izni ön-ısıt → ilk PDF kaydında ek prompt çıkmasın. Hata olsa
       // bile devam et; izin sonradan da istenebilir.
       try { await ensurePermission(h); } catch { /* ignore */ }
@@ -362,9 +358,21 @@ export function usePDFKayit() {
       return { ok: true, path: h.name };
     } catch (e) {
       const err = e as Error;
-      // AbortError → kullanıcı iptal etti, sakin mesaj.
+      // Tüm hata detaylarını konsola yaz — debug için kritik (kullanıcı
+      // F12 → Console'da gerçek nedeni görebilir).
+      console.error('[pdfKayit] klasorSec showDirectoryPicker hatası:', {
+        name: err?.name,
+        message: err?.message,
+        stack: err?.stack,
+      });
+      // AbortError → ya kullanıcı dialog'u X ile kapattı, ya da Chrome
+      // seçilen klasörü güvenlik nedeniyle reddetti.
       if (err && err.name === 'AbortError') {
-        return { ok: false, iptal: true };
+        return {
+          ok: false,
+          iptal: true,
+          error: 'Klasör seçimi iptal edildi veya tarayıcı seçilen klasöre erişimi reddetti. Farklı bir klasör (örn. C:\\TEKLIFLER) deneyebilirsiniz.',
+        };
       }
       // SecurityError / NotAllowedError → genelde insecure context veya iframe.
       if (err && (err.name === 'SecurityError' || err.name === 'NotAllowedError')) {

@@ -514,26 +514,11 @@ export default function TeklifEditor() {
         if (!devam) return;
       }
 
-      // ── PDF foreground açma — klasöre kaydet veya indir farketmez ───────
-      // Kullanıcı az önce ürettiği PDF'i ANINDA yeni sekmede görür. .focus()
-      // sekmeyi ön plana getirir (pop-up blocker'da gizli kalmasın).
-      // Sadece hedef='pdf' için; email akışında zaten confirm modal'ı zaten
-      // PDF önizleme rolünde.
-      if (hedef === 'pdf') {
-        try {
-          const url = URL.createObjectURL(blob);
-          const win = window.open(url, '_blank');
-          if (win) {
-            try { win.focus(); } catch { /* ignore */ }
-            setTimeout(() => URL.revokeObjectURL(url), 60_000);
-          } else {
-            URL.revokeObjectURL(url);
-            console.warn('[TeklifEditor] window.open null döndü — pop-up engellenmiş olabilir.');
-          }
-        } catch (e) {
-          console.warn('[TeklifEditor] PDF foreground açma hatası:', e);
-        }
-      }
+      // PDF üretildi. Yeni sekme açma davranışı KALDIRILDI — Chrome PDF
+      // viewer ayarına bağlı olarak boş sekme açılıyor + pop-up rahatsız
+      // ediyordu. Klasöre yazım başarılıysa kullanıcı bildirim üzerinden
+      // dosyaya ulaşır; klasör yoksa autoSaveToDownloads sessiz indirme
+      // yapar (browserDownload anchor click — picker AÇMAZ).
 
       // Offline/yedek yol için firmanın PDF klasör adı (server-side ile birebir aynı).
       // Teklifin firmaId'si üzerinden firmalar listesinden alınır → her kullanıcının
@@ -1222,7 +1207,7 @@ export default function TeklifEditor() {
       )}
 
       <IlgiliKisiSecimModal
-        key={ilgiliKisiModalAcik ? `open-${state.ilgiliKisiId ?? 'yeni'}` : 'closed'}
+        key={ilgiliKisiModalAcik ? `open-${state.ilgiliKisiId ?? 'yeni'}` : 'closed-ilgili'}
         open={ilgiliKisiModalAcik}
         onClose={() => setIlgiliKisiModalAcik(false)}
         teklifFirmaId={teklifObj?.firmaId ?? aktifFirma?.id}
@@ -1232,7 +1217,7 @@ export default function TeklifEditor() {
       />
 
       <SonucModal
-        key={sonucModalDurum ?? 'closed'}
+        key={sonucModalDurum ?? 'closed-sonuc'}
         open={sonucModalDurum !== null}
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalDurum(null)}

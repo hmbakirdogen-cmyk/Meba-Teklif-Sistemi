@@ -95,11 +95,14 @@ const CLONE_QUALITY_STYLESHEET = `
   }
   /* Optical separator pseudo katmanı html2canvas'ta bazı tarayıcılarda
      sıfır-ölçü gradient canvas'ına düşebiliyor. PDF clone'unda güvenli
-     fallback'e dön: pseudo'yu kapat, gerçek border ile çiz. */
+     fallback'e dön: pseudo'yu kapat, gerçek border ile çiz (premium ton). */
   .offer-table thead th.optical-separator-col,
   .offer-table tbody td.optical-separator-col {
     box-shadow: none !important;
-    border-left: 1px solid rgba(26, 43, 66, 0.10) !important;
+    border-left: 1px solid rgba(26, 43, 66, 0.15) !important;
+  }
+  .offer-table thead th.optical-separator-col {
+    border-left-color: rgba(26, 43, 66, 0.20) !important;
   }
   .offer-table thead th.optical-separator-col::before,
   .offer-table tbody td.optical-separator-col::before,

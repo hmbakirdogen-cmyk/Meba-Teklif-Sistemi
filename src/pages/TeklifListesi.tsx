@@ -988,7 +988,7 @@ function KlasorGorunumu({
       )}
 
       <SonucModal
-        key={sonucModalTeklif?.id ?? 'closed'}
+        key={sonucModalTeklif?.id ?? 'closed-aktivite'}
         open={sonucModalTeklif !== null}
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalTeklif(null)}
@@ -1789,7 +1789,7 @@ function DetayGorunumu({
       </div>
 
       <SonucModal
-        key={sonucModalTeklif?.id ?? 'closed'}
+        key={sonucModalTeklif?.id ?? 'closed-klasor'}
         open={sonucModalTeklif !== null}
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalTeklif(null)}

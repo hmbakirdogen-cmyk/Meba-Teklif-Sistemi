@@ -58,7 +58,9 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
       if (r.ok) {
         message.success(`PDF kayıt konumu seçildi: ${r.path}`);
       } else if (r.iptal) {
-        message.info('Klasör seçimi iptal edildi.');
+        // Hook artık AbortError için bilgilendirici error mesajı sağlıyor
+        // ("iptal edildi VEYA tarayıcı erişimi reddetti — farklı klasör dene").
+        message.warning(r.error || 'Klasör seçimi iptal edildi.', 6);
       } else if (r.desteklenmiyor) {
         message.warning(r.error || 'Bu özellik Chrome veya Edge tarayıcıda çalışır. Şimdilik PDF normal indirme klasörüne kaydedilecek.');
       } else if (r.error) {
@@ -181,6 +183,26 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
           />
         ) : (
           <>
+            {/* Chrome güvenlik politikası kullanıcının Masaüstü/Belgeler/
+                Downloads/OneDrive senkron klasörlerine yazma erişimi
+                vermez — klasör seçilse bile AbortError fırlatır. Kullanıcı
+                "iptal ettim" sanır. Bu banner ile en başta uyarıyoruz. */}
+            {!pdfKayit.hasKlasor && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 10 }}
+                message="Klasör seçerken dikkat"
+                description={
+                  <div style={{ fontSize: 12, lineHeight: 1.55 }}>
+                    Tarayıcı güvenlik nedeniyle <strong>Masaüstü, Belgeler, Downloads</strong> ve <strong>OneDrive senkron</strong> klasörlerine yazma izni vermez. Klasör seçtikten sonra "iptal edildi" mesajı görürseniz neden budur.
+                    <br /><br />
+                    <strong>Önerilen:</strong> Önce Windows Explorer ile <code style={{ background: '#fff3cd', padding: '1px 5px', borderRadius: 3 }}>C:\TEKLIFLER</code> veya <code style={{ background: '#fff3cd', padding: '1px 5px', borderRadius: 3 }}>D:\Teklifler</code> gibi yeni bir klasör oluşturun, sonra burada onu seçin.
+                  </div>
+                }
+              />
+            )}
+
             <div
               style={{
                 display: 'flex',
