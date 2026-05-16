@@ -1640,16 +1640,14 @@ button.app-btn:active,
 /* ════════════════════════════════════════════════════════════════════════════
    OFFER TABLE — Dikey hücre ayrım çizgisi (A4 + PDF birebir)
    ──────────────────────────────────────────────────────────────────────
-   Garantili çizgi: gerçek `border-left` (kaybolmaz, html2canvas pürüzsüz
-   render eder). Üstüne ekranda ince beyaz gradient `::before` highlight
-   ile "engraved metal" premium hissi — sol koyu çizgi + 1 px sağında
-   beyaz parıltı = klasik oyulmuş kenar. PDF clone'unda pseudo nuke edilir
-   (pdfService gradient güvenliği), sadece border kalır — clean tek çizgi.
+   Tek katlı `border-left` — html2canvas pürüzsüz render eder, hiçbir
+   gradient/pattern yok (createPattern 0-boyut hatası riski sıfır). Premium
+   görünüm sadece renk tonu ve farklı durumlar için ince ayar (body / head /
+   marked) ile sağlanır. Ekran ve PDF birebir tutarlı.
    ════════════════════════════════════════════════════════════════════════════ */
 .offer-table thead th.optical-separator-col,
 .offer-table tbody td.optical-separator-col {
   --offer-col-separator: rgba(26, 43, 66, 0.13);
-  position: relative;
   border-left: 1px solid var(--offer-col-separator) !important;
   background-clip: padding-box;
   transition: border-left-color 160ms ease;
@@ -1659,30 +1657,6 @@ button.app-btn:active,
 }
 .offer-table tbody tr[data-marked="true"] > td.optical-separator-col {
   --offer-col-separator: rgba(26, 43, 66, 0.17);
-}
-
-/* Premium "engraved" beyaz vurgu — sol koyu border'ın 1 px sağında ince fade
-   gradient. opacity 0.45 → metal oyulmuş kenar hissi, içerik okunabilirliğini
-   bozmaz. Üst/alt %10 fade ile satır kart kenarlarına dokunmaz. */
-.offer-table thead th.optical-separator-col::before,
-.offer-table tbody td.optical-separator-col::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10%;
-  bottom: 10%;
-  width: 1px;
-  pointer-events: none;
-  background: linear-gradient(180deg,
-    transparent 0%,
-    rgba(255,255,255,0.50) 22%,
-    rgba(255,255,255,0.90) 50%,
-    rgba(255,255,255,0.50) 78%,
-    transparent 100%);
-  opacity: 0.45;
-}
-.offer-table thead th.optical-separator-col::before {
-  opacity: 0.60;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
