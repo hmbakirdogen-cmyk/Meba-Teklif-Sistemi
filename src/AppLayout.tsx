@@ -536,24 +536,17 @@ export default function AppLayout() {
               </div>
             </div>
 
-            {/* PWA — Masaüstüne Ekle (native prompt yoksa manuel talimatlı modal açılır) */}
+            {/* PWA — Masaüstüne Ekle (native prompt yoksa manuel talimatlı modal açılır).
+                Sadece ikon → header bar'da yer kazancı; tooltip fonksiyonu açıklar. */}
             {installButtonGorunsun && (
-              <Tooltip title="Bu uygulamayı masaüstüne yükle">
+              <Tooltip title="Masaüstüne Ekle — bu uygulamayı bilgisayara yükle">
                 <Button
-                  type="default"
-                  ghost
-                  size="small"
+                  type="text"
                   icon={<DownloadOutlined />}
                   onClick={masaustuneEkleHandler}
-                  style={{
-                    height: 28,
-                    borderColor: 'rgba(30,58,95,0.55)',
-                    color: '#cfe1ff',
-                    fontSize: 11,
-                  }}
-                >
-                  Masaüstüne Ekle
-                </Button>
+                  className={buttonClassNames.iconGhost}
+                  style={{ color: 'rgba(207,225,255,0.9)', fontSize: 16, marginRight: 2 }}
+                />
               </Tooltip>
             )}
 

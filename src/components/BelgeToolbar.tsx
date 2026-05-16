@@ -337,35 +337,28 @@ export default function BelgeToolbar({
           </Button>
         </Tooltip>
         {pdfKayitDestekli && (() => {
-          // 3 durumlu rozet:
-          //   ok          → yeşil "Klasöre: {ad}"
-          //   izinKayip   → turuncu "Klasör erişimi yenilenmeli"
-          //   klasorYok/  → gri "İndirme klasörüne"
-          //   desteklenmiyor
+          // 2 durumlu rozet — sadece bilgi vermesi gereken durumlarda görünür:
+          //   ok          → yeşil "Klasöre: {ad}" (klasör seçili, hazır)
+          //   izinKayip   → turuncu "Klasör izni yenilenmeli" (uyarı)
+          // klasorYok/desteklenmiyor durumda rozet RENDER EDİLMEZ — varsayılan
+          // davranış (indirilenler klasörüne kayıt) zaten kullanıcının
+          // bildiği yaygın akış; her zaman bilgilendirme yapmak gürültü.
           const durum: 'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor' =
             pdfKayitDurum ?? (pdfKayitKlasorAdi ? 'ok' : 'klasorYok');
-          const style: { color: string; bg: string; border: string; label: string; tooltip: string } =
-            durum === 'ok' ? {
-              color: '#15803d',
-              bg: '#ecfdf5',
-              border: '#a7f3d0',
-              label: `Klasöre: ${pdfKayitKlasorAdi ?? ''}`,
-              tooltip: `PDF'ler "${pdfKayitKlasorAdi}" klasörüne kaydedilecek. Profilinizden değiştirebilirsiniz.`,
-            }
-            : durum === 'izinKayip' ? {
-              color: '#b45309',
-              bg: '#fffbeb',
-              border: '#fde68a',
-              label: 'Klasör izni yenilenmeli',
-              tooltip: `"${pdfKayitKlasorAdi ?? ''}" klasörüne erişim için tarayıcı izni yenilenmeli. PDF üretirken size sorulacak.`,
-            }
-            : {
-              color: C.textFaint,
-              bg: C.bgSurface,
-              border: C.border,
-              label: 'İndirme klasörüne',
-              tooltip: 'PDF kayıt konumu seçilmedi. PDF\'ler tarayıcının İndirilenler klasörüne kaydedilir. Profilinizden klasör seçebilirsiniz.',
-            };
+          if (durum !== 'ok' && durum !== 'izinKayip') return null;
+          const style = durum === 'ok' ? {
+            color: '#15803d',
+            bg: '#ecfdf5',
+            border: '#a7f3d0',
+            label: `Klasöre: ${pdfKayitKlasorAdi ?? ''}`,
+            tooltip: `PDF'ler "${pdfKayitKlasorAdi}" klasörüne kaydedilecek. Profilinizden değiştirebilirsiniz.`,
+          } : {
+            color: '#b45309',
+            bg: '#fffbeb',
+            border: '#fde68a',
+            label: 'Klasör izni yenilenmeli',
+            tooltip: `"${pdfKayitKlasorAdi ?? ''}" klasörüne erişim için tarayıcı izni yenilenmeli. PDF üretirken size sorulacak.`,
+          };
           return (
             <Tooltip title={style.tooltip} placement="bottom">
               <span

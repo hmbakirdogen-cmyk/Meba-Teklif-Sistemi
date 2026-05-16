@@ -15,6 +15,7 @@ import {
   DOCUMENT_PAGE,
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
+  KargoNotuSatiri,
   LINE_ITEM_METRICS,
   getFullHeaderLayoutStyles,
   NOTES_BOX_STYLE,
@@ -26,6 +27,7 @@ import {
   PARTY_GRID_STYLE,
   PARTY_LABEL_STYLE,
   PARTY_NAME_STYLE,
+  PARTY_VKN_LINE_STYLE,
   SETTINGS_CARD_STYLE,
   SETTINGS_EN_LABEL_STYLE,
   getSettingsGridStyle,
@@ -224,6 +226,16 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
           <div style={PARTY_LABEL_STYLE}>Gönderen <span style={{ fontWeight: 400, opacity: 0.6 }}>/ From</span></div>
           <div style={PARTY_NAME_STYLE}>{firmaBilgi.ad}</div>
           <div style={PARTY_BODY_STYLE}>
+            {/* Tel hizalama placeholder'ı — Alıcı'daki Sayın satırına denk
+                tek satır görünmez yer kaplar; Gönderen Tel'i ile Alıcı Tel'i
+                aynı yatay eksende. Adres placeholder'ı bilerek YOK çünkü
+                Alıcı'daki adres satırı zaten Tel|Şehir|Email satırıyla
+                karışık konumda — tek bir placeholder yeterli denge. */}
+            {muhatapSatiri && (
+              <div style={{ ...PARTY_GREETING_STYLE, visibility: 'hidden' }} aria-hidden>
+                Sayın hizalama,
+              </div>
+            )}
             {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
             {/* IBAN footer'a taşındı (her sayfada görünür) — burada dublike olmasın */}
           </div>
@@ -238,17 +250,17 @@ function FullHeaderBlock({ teklif }: { teklif: Teklif }) {
                 {formatAdres(teklif.cari.adres)}
               </div>
             )}
-            {(teklif.cari.sehir || teklif.cari.telefon || teklif.cari.ePosta) && (
+            {(teklif.cari.telefon || teklif.cari.sehir || teklif.cari.ePosta) && (
               <div>
-                {teklif.cari.sehir && <span>{formatSehir(teklif.cari.sehir)}</span>}
-                {teklif.cari.sehir && teklif.cari.telefon && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.telefon && <span>Tel: {formatPhone(teklif.cari.telefon)}</span>}
-                {(teklif.cari.sehir || teklif.cari.telefon) && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
+                {teklif.cari.telefon && teklif.cari.sehir && <span> &nbsp;|&nbsp; </span>}
+                {teklif.cari.sehir && <span>{formatSehir(teklif.cari.sehir)}</span>}
+                {(teklif.cari.telefon || teklif.cari.sehir) && teklif.cari.ePosta && <span> &nbsp;|&nbsp; </span>}
                 {teklif.cari.ePosta && <span>{teklif.cari.ePosta}</span>}
               </div>
             )}
             {teklif.cari.vergiNo && (
-              <div>
+              <div style={PARTY_VKN_LINE_STYLE}>
                 VKN: {formatVKN(teklif.cari.vergiNo)}
                 {teklif.cari.vergiDairesi && <span> &nbsp;—&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}
               </div>
@@ -310,13 +322,13 @@ function TableSection({
             {[
               { key: 'no' as const, label: '#', sub: '', align: 'center' as const },
               { key: 'marka' as const, label: 'Marka', sub: 'Brand', align: 'center' as const },
-              { key: 'urunKod' as const, label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
+              { key: 'urunKod' as const, label: 'Ürün Kodu', sub: 'Item no', align: 'left' as const },
               { key: 'aciklama' as const, label: 'Açıklama', sub: 'Description', align: 'left' as const },
               { key: 'miktar' as const, label: 'Miktar', sub: 'Qty', align: 'left' as const },
               satirBazliParaBirimi
-                ? { key: 'paraBirimi' as const, label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                ? { key: 'paraBirimi' as const, label: 'Kur', sub: 'Currency', align: 'center' as const }
                 : { key: 'paraBirimi' as const, label: '',            sub: '',         align: 'center' as const },
-              { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
+              { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit price', align: 'right' as const },
               { key: 'toplam' as const, label: 'Toplam', sub: 'Total', align: 'right' as const },
               { key: 'teslimat' as const, label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
             ].map((col, i) => (
@@ -465,6 +477,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                 variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
+              <KargoNotuSatiri />
             </td>
           </tr>
         </tbody>
@@ -513,6 +526,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                   </div>
                 ))}
               </div>
+              <KargoNotuSatiri />
             </td>
           </tr>
         </tbody>

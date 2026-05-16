@@ -640,7 +640,7 @@ export default function TeklifEditor() {
       if (images.length === 0) { message.error('Yazdırma verisi oluşturulamadı.'); return; }
 
       const htmlContent = images.map(
-        (src) => `<div style="page-break-after:always;margin:0;padding:0;line-height:0;font-size:0;"><img src="${src}" style="width:210mm;height:297mm;display:block;image-rendering:auto;" /></div>`,
+        (src) => `<div style="page-break-after:always;margin:0;padding:0;line-height:0;font-size:0;"><img src="${src}" style="width:210mm;height:297mm;display:block;image-rendering:high-quality;" /></div>`,
       ).join('');
 
       const iframe = document.createElement('iframe');
@@ -653,11 +653,30 @@ export default function TeklifEditor() {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!doc) return;
 
+      // Print iframe CSS — en yüksek kalite için:
+      //   • @page A4 portrait, margin 0 → yazıcı default margin'i devre dışı
+      //   • print-color-adjust: exact → renkler birebir korunur (gradient,
+      //     pill bg, başlık fonu vb. ekonomi modunda solmaz)
+      //   • image-rendering: high-quality → modern Chrome/Edge tarayıcılarda
+      //     bicubic downsampling (yazıcının native DPI'ına en kaliteli inme)
+      //   • -webkit-optimize-contrast fallback eski tarayıcılarda
+      //   • PNG kaynak scale=6 (576 DPI) ile birleştiğinde 600 DPI yazıcıda
+      //     ~1:1 mapping, antialiasing artefaktı yok
       doc.open();
       doc.write(`<!DOCTYPE html><html><head><title>Print</title><style>
         @page { size: A4 portrait; margin: 0; }
-        html, body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
-        img { display: block; width: 210mm; height: 297mm; max-width: none; max-height: none; image-rendering: auto; }
+        html, body {
+          margin: 0; padding: 0; background: #fff;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          color-adjust: exact;
+        }
+        img {
+          display: block; width: 210mm; height: 297mm;
+          max-width: none; max-height: none;
+          image-rendering: high-quality;
+          image-rendering: -webkit-optimize-contrast;
+        }
         div { page-break-inside: avoid; }
       </style></head><body>${htmlContent}</body></html>`);
       doc.close();

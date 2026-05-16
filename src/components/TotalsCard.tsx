@@ -155,31 +155,35 @@ export function TotalsCard({
 
   return (
     <div style={baseStyle}>
-      {/* Para birimi rozeti — ABSOLUTE top-CENTER, layout'tan tamamen bağımsız.
-          Ortalanmış konum sayesinde sağdaki Ara Toplam rakamlarıyla çakışmaz,
-          ek dikey boşluğa gerek kalmaz; kart kompakt kalır. */}
+      {/* Para birimi rozeti — kart'ın GERÇEK sağ-üst köşesi (rakam hizasından
+          bağımsız sabit 6px inset). Soft pill zemini ile metadata badge
+          karakteri net görünür. Tek/çoklu para birimi modlarının ikisinde de
+          aynı konumda — single mode'da kart geniş olsa bile köşede kalır. */}
       <span style={{
         position: 'absolute',
-        top: '5px',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        top: '4px',
+        right: `${LINE_ITEM_METRICS.cellPaddingXpx}px`,
+        padding: '1.5px 6px',
+        borderRadius: '4px',
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(26, 43, 66, 0.08)',
         fontSize: PB_LABEL_FS,
         fontWeight: 700,
-        letterSpacing: '0.12em',
+        letterSpacing: '0.10em',
         textTransform: 'uppercase',
-        color: cl.textLabel,
+        color: cl.text,
         lineHeight: 1,
         pointerEvents: 'none',
-        zIndex: 0,
+        zIndex: 1,
       }}>
         {pbLabel}
       </span>
 
       {/* Detay alanı — KDV/iskonto/ara toplam, hepsi aynı sağ X'te biter.
-          PB rozeti ortalandığı için sağda yer var; küçük üst padding yeterli. */}
+          paddingTop=16px: rozet pill (top:4 + ~11px yükseklik) için ayrılmış
+          alan; rakam asla rozetin altına gelmez. */}
       {hasDetail && (
         <div style={{
-          paddingTop:    '6px',
+          paddingTop:    '16px',
           paddingBottom: '5px',
           borderBottom:  `0.75px solid ${cl.separator}`,
         }}>
@@ -195,7 +199,11 @@ export function TotalsCard({
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        padding: '8px 0 8px 8px',
+        // hasDetail=false ise detay container yok → rozet için bu alanın
+        // üstünde nefes payı bırak (pill rozet ~15px alan kaplar).
+        // hasDetail=true ise detay container 16px paddingTop ile rozeti
+        // karşıladı, burada normal 8px yeterli.
+        padding: hasDetail ? '8px 0 8px 8px' : '17px 0 8px 8px',
       }}>
         <div>
           <div style={{

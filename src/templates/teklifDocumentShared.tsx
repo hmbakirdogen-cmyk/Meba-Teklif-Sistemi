@@ -231,11 +231,15 @@ export function createDocumentBrand(primaryColor?: string) {
 
 export const HEADER_MARGIN_BOTTOM_PX = DOCUMENT_LAYOUT_TOKENS.compactHeaderMarginBottomPx;
 
+// Tablo başlığı tipografi: weight 600 (semibold) — bold'dan daha rafine,
+// premium markaların tipik kullanımı. Main (Türkçe) UPPERCASE + dar tracking
+// (0.02em) → kompakt elit görünüm. Sub (İngilizce) Sentence case — yalnızca
+// ilk harf büyük (Item no, Unit price, ...). LetterSpacing 0.02 her ikisinde.
 export const TABLE_HEAD_METRICS = {
   mainFontSizePx: 9.7,
-  mainFontWeight: 700,
-  mainLetterSpacing: '0.06em',
-  mainLineHeight: 1.28,
+  mainFontWeight: 600,
+  mainLetterSpacing: '0.02em',
+  mainLineHeight: 1.3,
   subFontSizePx: 7.5,
   subFontWeight: 400,
   subLetterSpacing: '0.02em',
@@ -522,19 +526,26 @@ export function computeOfferColumnWidths(
     Math.max(min, Math.ceil(Math.max(contentW, headerW) + PAD + BUFFER));
 
   const headerW = (main: string, sub: string): number => {
-    if (!canMeasure) return Math.max(main.length * 5.8, sub.length * 4.5);
+    // Main (Türkçe) render'da textTransform: uppercase uygulanır → ölçüm
+    // de büyük harf üzerinden ("Birim" → "BİRİM"). Sub (İngilizce) orijinal
+    // Title Case'inde render edilir → ölçüm de orijinal stringle.
+    const mainU = main.toLocaleUpperCase('tr-TR');
+    if (!canMeasure) return Math.max(mainU.length * 6.5, sub.length * 4.5);
     return Math.max(
-      measureTextWidth(main, TABLE_HEAD_METRICS.mainFontSizePx, TABLE_HEAD_METRICS.mainFontWeight, TABLE_HEAD_METRICS.mainLetterSpacing),
-      measureTextWidth(sub, TABLE_HEAD_METRICS.subFontSizePx, TABLE_HEAD_METRICS.subFontWeight, TABLE_HEAD_METRICS.mainLetterSpacing),
+      measureTextWidth(mainU, TABLE_HEAD_METRICS.mainFontSizePx, TABLE_HEAD_METRICS.mainFontWeight, TABLE_HEAD_METRICS.mainLetterSpacing),
+      measureTextWidth(sub, TABLE_HEAD_METRICS.subFontSizePx, TABLE_HEAD_METRICS.subFontWeight, TABLE_HEAD_METRICS.subLetterSpacing),
     );
   };
 
   const noHeaderW    = headerW('#', '');
   const markaHeaderW = headerW('Marka', 'Brand');
-  const codeHeaderW  = headerW('Ürün Kodu', 'Item No');
+  const codeHeaderW  = headerW('Ürün Kodu', 'Item no');
   const qtyHeaderW   = headerW('Miktar', 'Qty');
-  const pbHeaderW    = headerW('Para Birimi', 'Currency');
-  const upHeaderW    = headerW('Birim Fiyat', 'Unit Price');
+  // paraBirimi: 'Kur' / 'Currency' — kısa Türkçe ana etiket + tam İngilizce
+  // sub. Kolon genişliği sub uzunluğu ('Currency' ~36px) tarafından
+  // belirlenir; ana etiket ('Kur') zaten ona sığar.
+  const pbHeaderW    = headerW('Kur', 'Currency');
+  const upHeaderW    = headerW('Birim Fiyat', 'Unit price');
   const totHeaderW   = headerW('Toplam', 'Total');
   const delHeaderW   = headerW('Teslimat', 'Delivery');
 
@@ -957,26 +968,38 @@ export const PARTY_NAME_STYLE: CSSProperties = {
   fontWeight: 600,
   fontSize: `${LINE_ITEM_METRICS.baseFontSizePx}px`,
   color: DOCUMENT_COLORS.navy,
-  marginBottom: '3px',
-  lineHeight: 1.35,
+  marginBottom: '1px',
+  lineHeight: 1.3,
   letterSpacing: '-0.01em',
 };
 
 export const PARTY_BODY_STYLE: CSSProperties = {
   fontSize: '10.5px',
-  lineHeight: 1.4,
+  // lineHeight 1.3 — kompakt satır arası (1.4 fazla boşluk yaratıyordu).
+  // Tüm body satırları (Sayın, Adres, Tel|Şehir|Email, VKN) bu line-height
+  // ile düzenli aralıkta dizilir.
+  lineHeight: 1.3,
   color: DOCUMENT_COLORS.textMid,
   wordBreak: 'break-word',
   overflowWrap: 'break-word',
 };
 
 /* "Sayın {muhatap}" hitap satırı — adresten tipografik ayrışsın diye
-   semi-bold + navy ton + hafif tracking. Body 400/textMid'in üzerinde durur. */
+   semi-bold + navy ton + hafif tracking. Body 400/textMid'in üzerinde durur.
+   marginBottom -5px — lineHeight 1.3'ün ürettiği half-leading boşluğunu
+   geri çekerek muhatap & adres satırını çok daha kompakt göster. */
 export const PARTY_GREETING_STYLE: CSSProperties = {
   fontWeight: 600,
   color: DOCUMENT_COLORS.navy,
   letterSpacing: '0.01em',
-  marginBottom: '4px',
+  marginBottom: '-5px',
+};
+
+/* VKN satırı — alıcı bloğunun son satırı. Tel|Şehir|Email satırı ile
+   arasındaki boşluk lineHeight'tan biraz fazla geliyordu; -2px negatif
+   marjinle satırı bir tık yukarı çek → blok altı daha sıkı görünür. */
+export const PARTY_VKN_LINE_STYLE: CSSProperties = {
+  marginTop: '-2px',
 };
 
 export const SETTINGS_GRID_STYLE: CSSProperties = {
@@ -1194,6 +1217,8 @@ export function getTableHeadCellStyle(
     borderRadius: 0,
     lineHeight: TABLE_HEAD_METRICS.mainLineHeight,
     whiteSpace: 'nowrap',
+    textTransform: 'uppercase',
+    fontFeatureSettings: '"tnum" 1, "calt" 1, "ss01" 1',
     ...(columnKey ? getOfferTableSeparatorStyle(columnKey, 'head') : null),
   };
 }
@@ -1206,7 +1231,36 @@ export const TABLE_HEAD_SUBLABEL_STYLE: CSSProperties = {
   marginTop: '1px',
   letterSpacing: TABLE_HEAD_METRICS.subLetterSpacing,
   lineHeight: TABLE_HEAD_METRICS.subLineHeight,
+  // İngilizce alt etiket (Brand / Item no / Currency / ...) Sentence case —
+  // ilk harf büyük. Parent <th> üzerindeki textTransform: uppercase
+  // INHERITED → sub burada explicit 'none' ile override etmek ZORUNDA;
+  // aksi takdirde "ITEM NO" gibi tamamı büyük görünür.
+  textTransform: 'none',
+  fontFeatureSettings: '"tnum" 1',
 };
+
+// TotalsCard'ın hemen altında, sağa yaslı, soluk gri tek satır.
+// "Kargo bedeli alıcıya aittir." gibi her teklifte sabit kalan hukuki
+// mikro-not için ortak stil. Yalnızca son sayfada (includeTotals=true)
+// görünür çünkü kullanım yeri TotalsBlock/renderTotals içinde.
+export const KARGO_NOTU_STYLE: CSSProperties = {
+  fontSize: '8.5px',
+  color: DOCUMENT_COLORS.textMuted,
+  textAlign: 'right',
+  marginTop: '6px',
+  paddingRight: '2px',
+  letterSpacing: '0.02em',
+  lineHeight: 1.3,
+  ...noBreak,
+};
+
+export function KargoNotuSatiri() {
+  return (
+    <div style={KARGO_NOTU_STYLE}>
+      * Kargo bedeli alıcıya aittir.
+    </div>
+  );
+}
 
 export const NOTES_BOX_STYLE: CSSProperties = {
   fontSize: `${LINE_ITEM_METRICS.baseFontSizePx - 0.5}px`,

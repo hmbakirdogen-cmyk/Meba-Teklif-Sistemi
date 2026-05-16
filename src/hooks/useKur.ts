@@ -30,8 +30,102 @@ export interface KurVerisi {
 const LS_KEY = 'meba_kur_cache';
 const REFRESH_MS = 30 * 60 * 1000; // 30 dk
 
+// TR saatine göre bugün (Europe/Istanbul). new Date().toISOString() UTC döner
+// → gece 03:00 öncesi yanlış gün → bu helper Intl ile TR zone'da bugünü verir.
 function bugunYMD(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Istanbul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kur güncellik durumu — gün farkına göre seviye + renk + relatif etiket.
+// TCMB her iş günü sabah ~15:30 yayınlar; hafta sonu/tatil dünkü kuru kalır.
+// Bu helper'ın amacı kullanıcının "kur güncel mi?" sorusunu anlık görmesi.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type KurDurumSeviye = 'guncel' | 'oncekiIsGunu' | 'eski' | 'kritik';
+
+export interface KurDurumDetay {
+  seviye: KurDurumSeviye;
+  /** CSS renk — kart üstü mini nokta + popover tarih etiketi için. */
+  renk: string;
+  /** Kısa kullanıcı etiketi: "Bugün" / "Dün" / "3 gün önce". */
+  etiket: string;
+  /** title= tooltip için uzun açıklama. */
+  aciklama: string;
+  /** Bugünle kur tarihi arasındaki gün farkı (≥0). */
+  gunFarki: number;
+}
+
+function gunFarkiHesapla(kurTarihi: string, bugun: string): number {
+  const parse = (s: string): number => {
+    const [y, m, d] = s.split('-').map(Number);
+    return Date.UTC(y, (m ?? 1) - 1, d ?? 1);
+  };
+  const a = parse(kurTarihi);
+  const b = parse(bugun);
+  return Math.max(0, Math.round((b - a) / 86_400_000));
+}
+
+export function kurDurumuHesapla(
+  kurTarihi: string,
+  cached?: boolean,
+): KurDurumDetay {
+  const gun = gunFarkiHesapla(kurTarihi, bugunYMD());
+
+  // Server tarafı `_cached` flag'i TCMB fetch hatasında set ediliyor →
+  // gün farkı düşük olsa bile kritik gibi davran (gerçek yanıt eski cache'ten).
+  if (cached) {
+    return {
+      seviye: 'kritik',
+      renk: '#DC2626',
+      etiket: gun === 0 ? 'Bugün (önbellek)' : `${gun} gün önce (önbellek)`,
+      aciklama: 'TCMB servisine erişilemiyor — önbellekteki kur gösteriliyor. Kuru manuel doğrula.',
+      gunFarki: gun,
+    };
+  }
+
+  if (gun === 0) {
+    return {
+      seviye: 'guncel',
+      renk: '#10B981',
+      etiket: 'Bugün',
+      aciklama: 'Kur bugün TCMB tarafından yayınlandı.',
+      gunFarki: 0,
+    };
+  }
+
+  if (gun <= 2) {
+    return {
+      seviye: 'oncekiIsGunu',
+      renk: '#F59E0B',
+      etiket: gun === 1 ? 'Dün' : `${gun} gün önce`,
+      aciklama: 'TCMB bugünkü kuru henüz açıklamadı. Yayın saati: iş günleri 15:30 sonrası.',
+      gunFarki: gun,
+    };
+  }
+
+  if (gun <= 3) {
+    return {
+      seviye: 'eski',
+      renk: '#EA580C',
+      etiket: `${gun} gün önce`,
+      aciklama: 'Kur birkaç gün eski — uzun hafta sonu/tatil olabilir. Önemli tekliflerde manuel kontrol önerilir.',
+      gunFarki: gun,
+    };
+  }
+
+  return {
+    seviye: 'kritik',
+    renk: '#DC2626',
+    etiket: `${gun} gün önce`,
+    aciklama: 'Kur uzun süredir güncellenmedi — TCMB bağlantı sorunu olabilir. Önemli teklifte kuru manuel doğrula.',
+    gunFarki: gun,
+  };
 }
 
 function readLocal(): KurVerisi | null {

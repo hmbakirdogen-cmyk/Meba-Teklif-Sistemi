@@ -27,6 +27,7 @@ import {
   DOCUMENT_ROOT_STYLE,
   FOOTER_BAR_STYLE,
   getFullHeaderLayoutStyles,
+  KargoNotuSatiri,
   LINE_ITEM_CSS_VARS,
   OFFER_TABLE_COLUMN_COUNT,
   OFFER_TABLE_ROW_GAP_PX,
@@ -34,6 +35,7 @@ import {
   NOTES_BOX_STYLE,
   PARTY_BODY_STYLE,
   PARTY_GREETING_STYLE,
+  PARTY_VKN_LINE_STYLE,
   efektifSatirBazliParaBirimi,
   PARTY_CARD_STYLE,
   PARTY_GRID_STYLE,
@@ -1352,6 +1354,12 @@ export default function PaginatedBelgeInlineEditor({
           </div>
           <div style={PARTY_NAME_STYLE}>{firmaBilgi.ad}</div>
           <div style={PARTY_BODY_STYLE}>
+            {/* Tel hizalama placeholder'ı — Alıcı Sayın satırına denk tek
+                satır görünmez yer kaplar. İki placeholder fazla iniyordu;
+                tek placeholder ile Tel'ler aynı yatay eksende kalır. */}
+            <div style={{ ...PARTY_GREETING_STYLE, visibility: 'hidden' }} aria-hidden>
+              {muhatapSatiri ? <>Sayın {muhatapSatiri},</> : 'Sayın Muhatap,'}
+            </div>
             {firmaBilgi.telefon && <div>Tel: {formatPhone(firmaBilgi.telefon.replace(/\s+/g, ''))}</div>}
             {/* IBAN footer'a taşındı (her sayfada görünür) — burada dublike olmasın */}
           </div>
@@ -1476,8 +1484,56 @@ export default function PaginatedBelgeInlineEditor({
               </div>
             )}
 
-            {/* Şehir | Tel | E-posta satırı */}
+            {/* Tel | Şehir | E-posta satırı (Tel başta) */}
             <div>
+              {/* Tel hücresi — kendi popup'ı (en başta).
+                  readOnly + boş telefon → visibility:hidden placeholder, yer
+                  kaplar (kilit geçişinde layout aynı kalsın). */}
+              {readOnly ? (
+                teklif.cari.telefon ? (
+                  <span>Tel: {formatPhone(teklif.cari.telefon)}</span>
+                ) : (
+                  <span style={{ visibility: 'hidden' }} aria-hidden>Tel: 0000 000 00 00</span>
+                )
+              ) : (
+                <Popover
+                  open={editingAlan === 'musteri-telefon'}
+                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-telefon' : null)}
+                  trigger={['click']}
+                  placement="bottomLeft"
+                  destroyTooltipOnHide
+                  content={
+                    <div style={{ width: 280, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Telefon</div>
+                      <Input
+                        autoFocus
+                        size="middle"
+                        style={{ width: '100%' }}
+                        value={teklif.cari.telefon || ''}
+                        onChange={(e) => onCariTelefonDegistir(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={(e) => {
+                          const f = formatPhone(e.target.value);
+                          if (f !== e.target.value) onCariTelefonDegistir(f);
+                        }}
+                        onKeyDown={handleTelefonKeyDown}
+                        placeholder="0xxx xxx xx xx"
+                      />
+                    </div>
+                  }
+                >
+                  <EditableField as="span" type="text" fieldKey="musteri-telefon">
+                    Tel: {teklif.cari.telefon ? formatPhone(teklif.cari.telefon) : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>ekle…</span>}
+                  </EditableField>
+                </Popover>
+              )}
+              {/* Tel | Şehir ayraç — readOnly + boş telefon durumunda yer
+                  kaplaması için her zaman render, visibility ile gizleme. */}
+              {(teklif.cari.telefon || !readOnly) ? (
+                <span> &nbsp;|&nbsp; </span>
+              ) : (
+                <span style={{ visibility: 'hidden' }} aria-hidden> &nbsp;|&nbsp; </span>
+              )}
               {/* Şehir hücresi — kendi popup'ı.
                   readOnly + boş şehir → visibility:hidden placeholder ile
                   yer kaplama, satır yatay layout kilit geçişinde sabit kalsın. */}
@@ -1525,59 +1581,11 @@ export default function PaginatedBelgeInlineEditor({
                   </EditableField>
                 </Popover>
               )}
-              {/* Şehir | Tel ayraç — readOnly + boş şehir durumunda yer
-                  kaplaması için her zaman render, visibility ile gizleme. */}
-              {(teklif.cari.sehir || !readOnly) ? (
-                <span> &nbsp;|&nbsp; </span>
-              ) : (
-                <span style={{ visibility: 'hidden' }} aria-hidden> &nbsp;|&nbsp; </span>
-              )}
-              {/* Tel hücresi — kendi popup'ı.
-                  readOnly + boş telefon → visibility:hidden placeholder, yer
-                  kaplar (kilit geçişinde layout aynı kalsın). */}
-              {readOnly ? (
-                teklif.cari.telefon ? (
-                  <span>Tel: {formatPhone(teklif.cari.telefon)}</span>
-                ) : (
-                  <span style={{ visibility: 'hidden' }} aria-hidden>Tel: 0000 000 00 00</span>
-                )
-              ) : (
-                <Popover
-                  open={editingAlan === 'musteri-telefon'}
-                  onOpenChange={(open) => onEditingAlanDegistir(open ? 'musteri-telefon' : null)}
-                  trigger={['click']}
-                  placement="bottomLeft"
-                  destroyTooltipOnHide
-                  content={
-                    <div style={{ width: 280, padding: '2px 0' }} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Telefon</div>
-                      <Input
-                        autoFocus
-                        size="middle"
-                        style={{ width: '100%' }}
-                        value={teklif.cari.telefon || ''}
-                        onChange={(e) => onCariTelefonDegistir(e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        onBlur={(e) => {
-                          const f = formatPhone(e.target.value);
-                          if (f !== e.target.value) onCariTelefonDegistir(f);
-                        }}
-                        onKeyDown={handleTelefonKeyDown}
-                        placeholder="0xxx xxx xx xx"
-                      />
-                    </div>
-                  }
-                >
-                  <EditableField as="span" type="text" fieldKey="musteri-telefon">
-                    Tel: {teklif.cari.telefon ? formatPhone(teklif.cari.telefon) : <span style={{ color: '#9aa0a6', fontStyle: 'italic' }}>ekle…</span>}
-                  </EditableField>
-                </Popover>
-              )}
 
-              {/* E-posta hücresi — kendi popup'ı, tel sonrası */}
-              {/* Tel | E-posta ayraç — readOnly + boş durumlarda yer kaplama
+              {/* E-posta hücresi — kendi popup'ı, şehir sonrası */}
+              {/* Şehir | E-posta ayraç — readOnly + boş durumlarda yer kaplama
                   amaçlı her zaman render, visibility:hidden ile gizleme. */}
-              {((teklif.cari.sehir || teklif.cari.telefon) && (teklif.cari.ePosta || !readOnly)) ? (
+              {((teklif.cari.telefon || teklif.cari.sehir) && (teklif.cari.ePosta || !readOnly)) ? (
                 <span> &nbsp;|&nbsp; </span>
               ) : (
                 <span style={{ visibility: 'hidden' }} aria-hidden> &nbsp;|&nbsp; </span>
@@ -1626,7 +1634,7 @@ export default function PaginatedBelgeInlineEditor({
             </div>
 
             {teklif.cari.vergiNo && (
-              <div>VKN: {formatVKN(teklif.cari.vergiNo)}{teklif.cari.vergiDairesi && <span> &nbsp;—&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
+              <div style={PARTY_VKN_LINE_STYLE}>VKN: {formatVKN(teklif.cari.vergiNo)}{teklif.cari.vergiDairesi && <span> &nbsp;—&nbsp; {teklif.cari.vergiDairesi} V.D.</span>}</div>
             )}
           </div>
         </div>
@@ -1738,13 +1746,13 @@ export default function PaginatedBelgeInlineEditor({
               {[
                 { key: 'no' as const, label: '#', sub: '', align: 'center' as const },
                 { key: 'marka' as const, label: 'Marka', sub: 'Brand', align: 'center' as const },
-                { key: 'urunKod' as const, label: 'Ürün Kodu', sub: 'Item No', align: 'left' as const },
+                { key: 'urunKod' as const, label: 'Ürün Kodu', sub: 'Item no', align: 'left' as const },
                 { key: 'aciklama' as const, label: 'Açıklama', sub: 'Description', align: 'left' as const },
                 { key: 'miktar' as const, label: 'Miktar', sub: 'Qty', align: 'center' as const },
                 satirBazliParaBirimi
-                  ? { key: 'paraBirimi' as const, label: 'Para Birimi', sub: 'Currency', align: 'center' as const }
+                  ? { key: 'paraBirimi' as const, label: 'Kur', sub: 'Currency', align: 'center' as const }
                   : { key: 'paraBirimi' as const, label: '', sub: '', align: 'center' as const },
-                { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit Price', align: 'right' as const },
+                { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit price', align: 'right' as const },
                 { key: 'toplam' as const, label: 'Toplam', sub: 'Total', align: 'right' as const },
                 { key: 'teslimat' as const, label: 'Teslimat', sub: 'Delivery', align: 'center' as const },
               ].map((col, i) => (
@@ -1942,6 +1950,7 @@ export default function PaginatedBelgeInlineEditor({
                 variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
+              <KargoNotuSatiri />
             </td>
           </tr>
         </tbody>
@@ -1968,6 +1977,7 @@ export default function PaginatedBelgeInlineEditor({
                   </div>
                 ))}
               </div>
+              <KargoNotuSatiri />
             </td>
           </tr>
         </tbody>
@@ -2076,13 +2086,19 @@ export default function PaginatedBelgeInlineEditor({
         /* Alıcı kartı: EditableField'ları yakalaması kolay olsun.
            Hit-area padding/margin ile genişletildi (görsel pozisyon korunur),
            imleç pointer + hover'da hafif tonlu zemin → tıklanabilir olduğu net.
-           PDF capture etkilenmez (belge-editor sadece on-screen). */
-        .belge-editor [data-alan="musteri"] .editable-field[data-editable="true"] {
-          cursor: pointer;
+           PDF capture etkilenmez (belge-editor sadece on-screen).
+           LAYOUT SHIFT FIX: padding/margin/border-radius/transition KILIT
+           DURUMUNDAN BAĞIMSIZ → kilit yeşil↔kırmızı geçişinde her alan
+           2px daralırdı (5 alan × 2 = 10px dikey kayma). Şimdi her iki
+           durumda da aynı kutu boyutu; sadece cursor + hover BG koşullu. */
+        .belge-editor [data-alan="musteri"] .editable-field {
           padding: 1px 5px;
           margin: -1px -5px;
           border-radius: 4px;
           transition: background-color 120ms ease, box-shadow 120ms ease;
+        }
+        .belge-editor [data-alan="musteri"] .editable-field[data-editable="true"] {
+          cursor: pointer;
         }
         .belge-editor [data-alan="musteri"] .editable-field[data-editable="true"]:hover {
           background-color: rgba(37, 99, 235, 0.08);

@@ -26,13 +26,16 @@ import jsPDF from 'jspdf';
 const EMAIL_MAX_BYTES = 1024 * 1024;
 
 /**
- * Sabit scale = 4 (~384 DPI A4). Print-grade — ekrandaki preview ile PDF
+ * Default scale = 4 (~384 DPI A4). Print-grade — ekrandaki preview ile PDF
  * arasında gözle fark yok. scale=6 büyük belgelerde bazı kullanıcılarda
- * memory/render sorunlarına yol açtığı için 4'e geri çekildi (precautionary
- * rollback). Gerekirse 5'e çekilebilir ama 4 production-tested.
+ * memory/render sorunlarına yol açtığı için PDF/email akışlarında 4'te tutulur.
+ *
+ * `override` parametresi yalnızca PRINT akışında (buildPrintImages) 6 olarak
+ * geçilir → 576 DPI raster, en iyi yazıcı çıktısı için. Print tek seferlik
+ * raster (kayıt yok), memory baskısı kabul edilebilir.
  */
-function getOptimalScale(): number {
-  return 4;
+function getOptimalScale(override?: number): number {
+  return override ?? 4;
 }
 
 /**
@@ -362,6 +365,7 @@ function applyCloneQualityFixes(clonedDoc: Document, clonedEl: HTMLElement): voi
  */
 async function renderPageCanvases(
   pagedRootEl: HTMLElement,
+  scaleOverride?: number,
 ): Promise<{ canvases: HTMLCanvasElement[]; renderedPageCount: number; expectedPageCount: number | null }> {
   // 1) Font subset garantisi — Türkçe karakterler dahil tüm glyph'ler için
   //    font matrisi yüklenir. document.fonts.ready tek başına bazı lazy
@@ -387,7 +391,7 @@ async function renderPageCanvases(
     throw new Error('PDF sayfaları bulunamadı.');
   }
 
-  const scale = getOptimalScale();
+  const scale = getOptimalScale(scaleOverride);
 
   /**
    * Concurrency=1 sıralı render — paralel hız avantajını sacrifice edip
@@ -629,11 +633,17 @@ export async function buildEmailPdf(
   return { pdf: bestPdf!, pageImages: bestImages, renderedPageCount, pdfPageCount: getJsPdfPageCount(bestPdf!) };
 }
 
-/** Yazdırma için her sayfanın PNG data URL'ini döndürür. */
+/**
+ * Yazdırma için her sayfanın PNG data URL'ini döndürür.
+ * scale=6 (~576 DPI A4) — yazıcı markasından/tipinden bağımsız en yüksek
+ * kalite. PDF/email akışlarındaki scale=4'ten %50 fazla piksel; modern
+ * yazıcılarda (300-600 DPI) downsample artefaktı yok, antialiasing temiz.
+ * Memory baskısı print için tek seferlik (release sonrası GC) — kabul.
+ */
 export async function buildPrintImages(
   pagedRootEl: HTMLElement,
 ): Promise<string[]> {
-  const { canvases } = await renderPageCanvases(pagedRootEl);
+  const { canvases } = await renderPageCanvases(pagedRootEl, 6);
   const images = canvases.map(encodeCanvasToPng);
   releaseCanvases(canvases);
   return images;

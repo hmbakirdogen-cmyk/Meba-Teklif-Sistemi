@@ -159,13 +159,15 @@ export default function KumandaPaneli({
   // A4'ün konumu ölçülür â†’ panel A4'ün üst-sağ köşesine yerleşir;
   // viewport daralırsa SCALE DOWN olur (min 0.55 — okunabilirlik sınırı).
   //
-  // top = rect.top + scrollY â†’ A4'ün DOCUMENT-MUTLAK Y'si. Sayfa scroll
-  // edildiğinde rect.top azalır, scrollY aynı oranda artar; toplam sabit
-  // kalır. position:fixed bu değere bağlı olduğu için panel scroll'dan
-  // bağımsız olarak A4'ün ilk hizasında durmaya devam eder.
+  // TOP PIN DAVRANIŞ: Top yalnızca İLK ölçümde hesaplanır (A4'ün initial
+  // viewport-Y'sine yapışır), sonra `topPinned` ref ile dondurulur.
+  // Sayfa scroll edildiğinde panel HİÇ OYNAMAZ — fixed konumda, ilk
+  // açılıştaki Y'sinde sabit durur. Resize'da yalnızca left/scale yeniden
+  // hesaplanır; top değişmez.
   const [pos, setPos] = useState<{ top: number; left: number; scale: number }>(
     { top: K.TOP, left: 0, scale: 1 },
   );
+  const topPinned = useRef(false);
   const measureA4 = () => {
     // A4 wrapper — .belge-screen-view (sağ kenar / scale hesabı için).
     const a4El = document.querySelector<HTMLElement>('.belge-screen-view');
@@ -181,18 +183,19 @@ export default function KumandaPaneli({
         : Math.max(0.55, availableWidth / K.WIDTH);
     const nextLeft = Math.max(K.EDGE_MIN, desiredLeft);
 
-    // Panel üst kenarı = A4 kağıdının (ilk [data-pdf-page]) üst kenarı.
-    // STICKY DAVRANIŞ: A4 yukarı scroll edilirse panel A4 ile birlikte kayar
-    // AMA viewport üst kenarına (header altına) ulaşınca yapışır ve asla
-    // ekran dışına çıkmaz. position:fixed kullandığımız için top değeri
-    // viewport-relative — getBoundingClientRect().top doğrudan kullanılır
-    // (window.scrollY eklenmez; document scroll ya da container scroll
-    // farketmez, ikisinde de doğru çalışır).
-    const pageEl = a4El.querySelector<HTMLElement>('[data-pdf-page="true"]');
-    const targetTopViewport = pageEl
-      ? pageEl.getBoundingClientRect().top
-      : rect.top;
-    const nextTop = Math.max(K.STICK_MIN_TOP, Math.round(targetTopViewport));
+    // Top: ilk ölçümde A4'ün viewport-Y'sine yapışır, sonra dondurulur.
+    // pageEl = A4'ün ilk [data-pdf-page]; targetTopViewport = sayfanın
+    // viewport-relative üst kenarı. K.STICK_MIN_TOP ile alt-sınırlanır
+    // (header altına girmesin).
+    let nextTop = pos.top;
+    if (!topPinned.current) {
+      const pageEl = a4El.querySelector<HTMLElement>('[data-pdf-page="true"]');
+      const targetTopViewport = pageEl
+        ? pageEl.getBoundingClientRect().top
+        : rect.top;
+      nextTop = Math.max(K.STICK_MIN_TOP, Math.round(targetTopViewport));
+      topPinned.current = true;
+    }
 
     setPos((prev) =>
       prev.top === nextTop && prev.left === nextLeft && prev.scale === scale
@@ -211,17 +214,14 @@ export default function KumandaPaneli({
   }, [sagPanelOpen, cellPopupOpen]);
 
   useEffect(() => {
-    // Cell popup açıkken scroll/resize listener'ları disable — popup'ın
-    // dolaylı window etkileri (autoFocus scrollIntoView, autoSize TextArea
-    // resize) panelin pos.left'ini değiştirebiliyor; popup kapanınca yine
-    // bağlanır ve doğru ölçüm yapılır.
+    // Yalnızca resize'da yeniden ölç (left/scale güncellemesi için).
+    // Scroll listener KASITLI OLARAK YOK — top pinli olduğu için scroll
+    // panelin pozisyonunu etkilemez; ek listener gereksiz iş olur.
     if (cellPopupOpen) return;
     const onResize = () => measureA4();
     window.addEventListener('resize', onResize);
-    window.addEventListener('scroll', onResize, true);
     return () => {
       window.removeEventListener('resize', onResize);
-      window.removeEventListener('scroll', onResize, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sagPanelOpen, cellPopupOpen]);
