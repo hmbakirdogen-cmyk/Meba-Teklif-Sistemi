@@ -399,7 +399,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               { key: 'aciklama' as const, label: 'Açıklama',    sub: 'Description', align: 'left'   as const },
               { key: 'miktar' as const, label: 'Miktar',      sub: 'Qty',         align: 'left'   as const },
               satirBazliParaBirimi
-                ? { key: 'paraBirimi' as const, label: 'Kur', sub: 'Currency', align: 'center' as const }
+                ? { key: 'paraBirimi' as const, label: 'Döviz', sub: 'Currency', align: 'center' as const }
                 : { key: 'paraBirimi' as const, label: '',            sub: '',         align: 'center' as const },
               { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit price',  align: 'right'  as const },
               { key: 'toplam' as const, label: 'Toplam',      sub: 'Total',       align: 'right'  as const },

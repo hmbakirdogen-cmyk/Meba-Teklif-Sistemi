@@ -63,12 +63,9 @@ export const POPUP_RADIUS = {
  * yerleşim shift'i olmadan ince çerçeve).
  * ────────────────────────────────────────────────────────────────── */
 export const POPUP_SHADOW = {
-  level1:
-    '0 4px 12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06)',
-  level2:
-    '0 10px 28px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.08)',
-  level3:
-    '0 18px 48px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.10)',
+  level1: 'var(--popup-shadow-level1, 0 4px 12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06))',
+  level2: 'var(--popup-shadow-level2, 0 10px 28px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.08))',
+  level3: 'var(--popup-shadow-level3, 0 18px 48px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.10))',
 } as const;
 
 /* ──────────────────────────────────────────────────────────────────
@@ -77,10 +74,10 @@ export const POPUP_SHADOW = {
  * inline style'da light kullan, CSS override dark'ı handle eder.
  * ────────────────────────────────────────────────────────────────── */
 export const POPUP_SURFACE = {
-  background: '#ffffff',
-  text: '#1f2937',
-  textMuted: '#6b7280',
-  divider: 'rgba(15, 23, 42, 0.08)',
+  background: 'var(--popup-bg, #ffffff)',
+  text: 'var(--popup-text, #1f2937)',
+  textMuted: 'var(--popup-text-muted, #6b7280)',
+  divider: 'var(--popup-border, rgba(15, 23, 42, 0.08))',
 } as const;
 
 /* ──────────────────────────────────────────────────────────────────

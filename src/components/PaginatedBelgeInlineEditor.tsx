@@ -1,6 +1,6 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { AutoComplete, Select, Input, DatePicker, Dropdown, Popover, InputNumber, App } from 'antd';
+import { AutoComplete, Select, Input, DatePicker, Dropdown, Popover, InputNumber, App, Button, Tooltip } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -72,6 +72,7 @@ import {
   computeCellPopupPosition,
   findSatirCellElement,
 } from './paginatedBelgeInlineHelpers';
+import { getUrunSonFiyat, setUrunSonFiyat, type UrunSonFiyatPayload } from '../utils/urunSonFiyatStore';
 
 const C = DOCUMENT_COLORS;
 const BRAND = DOCUMENT_BRAND;
@@ -227,32 +228,36 @@ function PageTableWithResizer({
    Mantık: suggestion paneli olanlar genişlikte daha çok yer ister; tek
    input/select olanlar kompakt durmalı. */
 const CELL_POPUP_CONSTRAINTS: Record<SatirCellField, { min: number; max: number }> = {
-  marka:      { min: 180, max: 280 },   // Select (kısa marka adları)
-  urunKod:    { min: 340, max: 520 },   // Suggestion paneli — uzun açıklama sığsın
-  aciklama:   { min: 360, max: 560 },   // TextArea — multi-line açıklama
-  miktar:     { min: 220, max: 300 },   // İki sütun (değer + birim)
-  paraBirimi: { min: 180, max: 260 },   // Select (TL/EUR/USD)
-  birimFiyat: { min: 160, max: 220 },   // Tek number input
-  teslimat:   { min: 110, max: 140 },   // Dar — ~12 karakterden sonra alt satıra geçer (hücre kolon hizasında)
+  marka:      { min: 100, max: 240 },   // Select (kısa marka adları)
+  urunKod:    { min: 200, max: 460 },   // Suggestion paneli — gerektiğinde genişler
+  aciklama:   { min: 220, max: 500 },   // TextArea — multi-line açıklama
+  miktar:     { min: 140, max: 240 },   // İki sütun (değer + birim)
+  paraBirimi: { min: 100, max: 200 },   // Select (TL/EUR/USD)
+  birimFiyat: { min: 140, max: 240 },   // Tek number input / kompakt fiyat+iskonto
+  teslimat:   { min: 90,  max: 140 },   // Dar — kolon hizasında
 };
 
 function CellEditPopup({
   teklif,
   editingAlan,
   satirFocusCell,
+  satirBazliIskonto,
   onSatirGuncelle,
   onSatiraSetUygula,
   onClose,
   onEscapeRevert,
+  onRequestSaveLastPrice,
 }: {
   teklif: Teklif;
   editingAlan: EditingAlan;
   satirFocusCell: SatirCellField;
+  satirBazliIskonto: boolean;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onClose: () => void;
   /** Escape'te aktif hücrenin alanlarını baseline'a geri yükler (parent handle eder). */
   onEscapeRevert?: () => void;
+  onRequestSaveLastPrice?: (satir: TeklifSatiri) => void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
@@ -350,18 +355,26 @@ function CellEditPopup({
       const closestDropdown =
         (target as Element)?.closest?.('.ant-select-dropdown, .ant-picker-dropdown, .ant-popover, .ant-dropdown');
       if (closestDropdown) return;
+      if (scell === 'birimFiyat' && satirBazliIskonto && satir) {
+        onRequestSaveLastPrice?.(satir);
+      }
       oc();
     };
     document.addEventListener('click', onDocClick, true);
     return () => document.removeEventListener('click', onDocClick, true);
-  }, [isOpen]);
+  }, [isOpen, onRequestSaveLastPrice, satir, satirBazliIskonto]);
 
   if (!isOpen || !satir || !pos) return null;
+
+  const urunRef = (satir as TeklifSatiri & { urunId?: string }).urunId || satir.urunKod || null;
+  const sonUrunFiyati = satirFocusCell === 'birimFiyat' && satirBazliIskonto && urunRef
+    ? getUrunSonFiyat(urunRef)
+    : null;
 
   const headerStyle: React.CSSProperties = {
     fontSize: 10.5,
     fontWeight: 700,
-    color: '#6b7280',
+    color: POPUP.surface.textMuted,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -369,6 +382,28 @@ function CellEditPopup({
 
   let title = '';
   let body: React.ReactNode = null;
+  const focusPopupInputByIndex = (index: number) => {
+    const inputs = popupRef.current?.querySelectorAll('input');
+    const target = inputs?.[index] as HTMLInputElement | undefined;
+    target?.focus();
+    target?.select?.();
+  };
+  const closeAndPersistLastPrice = () => {
+    if (satirFocusCell === 'birimFiyat' && satirBazliIskonto) {
+      onRequestSaveLastPrice?.(satir);
+    }
+    onClose();
+  };
+  const formatListeFiyatiOzet = (payload: UrunSonFiyatPayload) => {
+    const formatted = payload.birimFiyat.toLocaleString('tr-TR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const pb = payload.paraBirimi ?? teklif.paraBirimi;
+    const symbol = pb === 'TRY' ? '₺' : pb === 'EUR' ? '€' : pb === 'USD' ? '$' : pb;
+    const fiyat = pb === 'TRY' ? `${formatted} ${symbol}` : `${symbol} ${formatted}`;
+    return `📋 Liste Fiyatı: ${fiyat}`;
+  };
 
   if (satirFocusCell === 'marka') {
     title = 'Marka';
@@ -429,6 +464,7 @@ function CellEditPopup({
             value={satir.miktar}
             min={0}
             decimalSeparator=","
+            controls={false}
             onChange={(value) => onSatirGuncelle(satir.id, 'miktar', value ?? 0)}
             onFocus={(e) => (e.target as HTMLInputElement).select?.()}
             onKeyDown={(e) => {
@@ -478,23 +514,110 @@ function CellEditPopup({
     );
   } else if (satirFocusCell === 'birimFiyat') {
     title = 'Birim Fiyat';
-    body = (
-      <InputNumber
-        autoFocus
-        size="middle"
-        style={{ width: '100%' }}
-        value={satir.birimFiyat}
-        min={0}
-        step={0.01}
-        decimalSeparator=","
-        onChange={(value) => onSatirGuncelle(satir.id, 'birimFiyat', value ?? 0)}
-        onFocus={(e) => (e.target as HTMLInputElement).select?.()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); onClose(); }
-          if (e.key === 'Escape') onClose();
-        }}
-      />
-    );
+    if (!satirBazliIskonto) {
+      body = (
+        <InputNumber
+          autoFocus
+          size="middle"
+          style={{ width: '100%' }}
+          value={satir.birimFiyat}
+          min={0}
+          step={0.01}
+          decimalSeparator=","
+          controls={false}
+          onChange={(value) => onSatirGuncelle(satir.id, 'birimFiyat', value ?? 0)}
+          onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); closeAndPersistLastPrice(); }
+            if (e.key === 'Escape') onClose();
+          }}
+        />
+      );
+    } else {
+      const handleApplyLastPrice = () => {
+        if (!sonUrunFiyati) return;
+        onSatirGuncelle(satir.id, 'birimFiyat', sonUrunFiyati.birimFiyat);
+        requestAnimationFrame(() => focusPopupInputByIndex(0));
+      };
+      body = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 240 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 240 }}>
+            <InputNumber
+              autoFocus
+              size="middle"
+              style={{ flex: 1, minWidth: 0 }}
+              value={satir.birimFiyat}
+              min={0}
+              step={0.01}
+              decimalSeparator=","
+              controls={false}
+              onChange={(value) => onSatirGuncelle(satir.id, 'birimFiyat', value ?? 0)}
+              onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  focusPopupInputByIndex(1);
+                }
+                if (e.key === 'Escape') onClose();
+              }}
+            />
+            <InputNumber
+              size="middle"
+              style={{ width: 56, flex: '0 0 56px' }}
+              value={satir.indirimOrani}
+              min={0}
+              max={100}
+              step={1}
+              decimalSeparator=","
+              controls={false}
+              addonAfter="%"
+              onChange={(value) => onSatirGuncelle(satir.id, 'indirimOrani', value ?? 0)}
+              onFocus={(e) => (e.target as HTMLInputElement).select?.()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  closeAndPersistLastPrice();
+                }
+                if (e.key === 'Escape') onClose();
+              }}
+            />
+          </div>
+          {sonUrunFiyati && (
+            <Tooltip
+              title={formatListeFiyatiOzet(sonUrunFiyati)}
+              mouseEnterDelay={0.25}
+              getPopupContainer={() => popupRef.current ?? document.body}
+              destroyTooltipOnHide
+            >
+              <Button
+                type="link"
+                size="small"
+                aria-label="Son girilen liste fiyatını uygula"
+                onClick={handleApplyLastPrice}
+                style={{
+                  alignSelf: 'flex-start',
+                  height: 'auto',
+                  padding: 0,
+                  fontSize: 11.5,
+                  lineHeight: 1.3,
+                  color: POPUP.surface.textMuted,
+                  borderRadius: POPUP.radius.small,
+                  transition: 'color 150ms ease, box-shadow 150ms ease',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${POPUP.surface.divider}`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {formatListeFiyatiOzet(sonUrunFiyati)}
+              </Button>
+            </Tooltip>
+          )}
+        </div>
+      );
+    }
   } else if (satirFocusCell === 'teslimat') {
     title = 'Teslimat';
     const teslimSecenekleri = akilliTeslim;
@@ -738,10 +861,10 @@ function UrunKodPopupBody({
             marginTop: 8,
             maxHeight: 240,
             overflowY: 'auto',
-            border: '1px solid rgba(15,23,42,0.08)',
+            border: `1px solid ${POPUP.surface.divider}`,
             borderRadius: 6,
             fontSize: 12,
-            background: '#fafbfc',
+            background: 'var(--popup-bg-elevated, #fafbfc)',
           }}
         >
           {merged.map((it, i) => (
@@ -752,17 +875,17 @@ function UrunKodPopupBody({
               style={{
                 padding: '6px 10px',
                 cursor: 'pointer',
-                background: i === highlight ? 'rgba(37,99,235,0.10)' : 'transparent',
+                background: i === highlight ? 'var(--popup-bg-hover, rgba(37,99,235,0.10))' : 'transparent',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}
             >
               {it.kind === 'set' && (
-                <span style={{ fontWeight: 700, color: '#7c3aed', marginRight: 6 }}>[SET]</span>
+                <span style={{ fontWeight: 700, color: 'var(--popup-accent, #7c3aed)', marginRight: 6 }}>[SET]</span>
               )}
               <span style={{ fontWeight: 600 }}>{it.kod}</span>
-              {it.aciklama && <span style={{ color: '#6b7280', marginLeft: 6 }}>— {it.aciklama}</span>}
+              {it.aciklama && <span style={{ color: POPUP.surface.textMuted, marginLeft: 6 }}>— {it.aciklama}</span>}
             </div>
           ))}
         </div>
@@ -923,6 +1046,17 @@ export default function PaginatedBelgeInlineEditor({
       : (teklif.cari.yetkiliKisi || null);
 
   const editingSatirId   = !readOnly && editingAlan?.startsWith('satir-') ? editingAlan.slice(6) : null;
+  const handleSaveLastPrice = useCallback((satir: TeklifSatiri) => {
+    if (!satirBazliIskonto || satir.birimFiyat <= 0) return;
+    const urunRef = (satir as TeklifSatiri & { urunId?: string }).urunId || satir.urunKod || '';
+    if (!urunRef) return;
+    setUrunSonFiyat(urunRef, {
+      birimFiyat: satir.birimFiyat,
+      indirimOrani: satir.indirimOrani ?? 0,
+      paraBirimi: satir.paraBirimi || teklif.paraBirimi,
+      ts: new Date().toISOString(),
+    });
+  }, [satirBazliIskonto, teklif.paraBirimi]);
 
   const muhatapRef = useRef<InputRef>(null);
   const notesTextareaRef = useRef<{ focus: (opts?: { cursor?: 'start' | 'end' | 'all' }) => void } | null>(null);
@@ -1123,7 +1257,7 @@ export default function PaginatedBelgeInlineEditor({
       aciklama: ['aciklama'],
       miktar: ['miktar', 'birim'],
       paraBirimi: ['paraBirimi'],
-      birimFiyat: ['birimFiyat', 'indirimOrani'],
+      birimFiyat: ['birimFiyat'],
       teslimat: ['teslimTarihi'],
     };
     const fields = fieldMap[satirFocusCell];
@@ -1750,7 +1884,7 @@ export default function PaginatedBelgeInlineEditor({
                 { key: 'aciklama' as const, label: 'Açıklama', sub: 'Description', align: 'left' as const },
                 { key: 'miktar' as const, label: 'Miktar', sub: 'Qty', align: 'center' as const },
                 satirBazliParaBirimi
-                  ? { key: 'paraBirimi' as const, label: 'Kur', sub: 'Currency', align: 'center' as const }
+                  ? { key: 'paraBirimi' as const, label: 'Döviz', sub: 'Currency', align: 'center' as const }
                   : { key: 'paraBirimi' as const, label: '', sub: '', align: 'center' as const },
                 { key: 'birimFiyat' as const, label: 'Birim Fiyat', sub: 'Unit price', align: 'right' as const },
                 { key: 'toplam' as const, label: 'Toplam', sub: 'Total', align: 'right' as const },
@@ -2253,10 +2387,12 @@ export default function PaginatedBelgeInlineEditor({
           teklif={teklif}
           editingAlan={editingAlan}
           satirFocusCell={satirFocusCell}
+          satirBazliIskonto={satirBazliIskonto}
           onSatirGuncelle={onSatirGuncelle}
           onSatiraSetUygula={onSatiraSetUygula}
           onClose={() => onEditingAlanDegistir(null)}
           onEscapeRevert={handleCellEscapeRevert}
+          onRequestSaveLastPrice={handleSaveLastPrice}
         />
       )}
       <ReferanslarDrawer

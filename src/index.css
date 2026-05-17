@@ -26,6 +26,19 @@
   --chip-warn-bg: #f0f0f0;
   --chip-warn-border: #b8b8b8;
   --chip-warn-text: #1A1A1A;
+  --popup-bg: var(--bg-surface);
+  --popup-bg-elevated: var(--bg-elevated);
+  --popup-bg-hover: rgba(37, 99, 235, 0.10);
+  --popup-border: rgba(15, 23, 42, 0.08);
+  --popup-text: var(--text-primary);
+  --popup-text-muted: #6b7280;
+  --popup-text-soft: #444444;
+  --popup-accent: #7c3aed;
+  --popup-tooltip-bg: #243050;
+  --popup-tooltip-border: #2e3f60;
+  --popup-shadow-level1: 0 4px 12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --popup-shadow-level2: 0 10px 28px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  --popup-shadow-level3: 0 18px 48px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.10);
   color-scheme: light;
 
   /* ── Tipografi sistemi CSS değişkenleri ────────────────────────── */
@@ -58,6 +71,8 @@
 }
 
 [data-theme="dark"] {
+  --history-icon: #93c5fd;
+  --history-icon-bg: rgba(147,197,253,0.14);
   --bg-body:        linear-gradient(180deg, #0f1117 0%, #090d16 100%);
   --bg-surface:     #181b25;
   --bg-elevated:    #1c2132;
@@ -84,6 +99,19 @@
   --chip-warn-bg: #1a1a1a;
   --chip-warn-border: #4a4a4a;
   --chip-warn-text: #d8d8d8;
+  --popup-bg: var(--bg-elevated);
+  --popup-bg-elevated: #141822;
+  --popup-bg-hover: rgba(96, 165, 250, 0.16);
+  --popup-border: #242d42;
+  --popup-text: var(--text-primary);
+  --popup-text-muted: var(--text-secondary);
+  --popup-text-soft: #c8d4e8;
+  --popup-accent: #c4b5fd;
+  --popup-tooltip-bg: #243050;
+  --popup-tooltip-border: #2e3f60;
+  --popup-shadow-level1: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --popup-shadow-level2: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --popup-shadow-level3: 0 18px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
   color-scheme: dark;
 }
 
@@ -1289,8 +1317,9 @@ button.app-btn:active,
 }
 /* Dropdown panel border */
 [data-theme="dark"] .ant-select-dropdown {
-  border: 1px solid #242d42 !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.55) !important;
+  background: var(--popup-bg) !important;
+  border: 1px solid var(--popup-border) !important;
+  box-shadow: var(--popup-shadow-level2) !important;
 }
 
 /* ── Input: placeholder + disabled ──────────────────────────────────────────── */
@@ -1383,22 +1412,22 @@ button.app-btn:active,
 }
 
 [data-theme="dark"] .ant-tooltip .ant-tooltip-inner {
-  background: #243050 !important;
-  color: #dde4f0 !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.45) !important;
-  border: 1px solid #2e3f60 !important;
+  background: var(--popup-tooltip-bg) !important;
+  color: var(--popup-text) !important;
+  box-shadow: var(--popup-shadow-level1) !important;
+  border: 1px solid var(--popup-tooltip-border) !important;
 }
 [data-theme="dark"] .ant-tooltip .ant-tooltip-arrow::before,
 [data-theme="dark"] .ant-tooltip .ant-tooltip-arrow::after {
-  background: #243050 !important;
+  background: var(--popup-tooltip-bg) !important;
 }
 
 /* ── Message / Toast ────────────────────────────────────────────────────────── */
 [data-theme="dark"] .ant-message .ant-message-notice-content {
-  background: #1c2132 !important;
-  color: #dde4f0 !important;
-  border: 1px solid #242d42 !important;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.5) !important;
+  background: var(--popup-bg) !important;
+  color: var(--popup-text) !important;
+  border: 1px solid var(--popup-border) !important;
+  box-shadow: var(--popup-shadow-level2) !important;
 }
 [data-theme="dark"] .ant-message-success .anticon {
   color: #34d399 !important;
@@ -1415,24 +1444,24 @@ button.app-btn:active,
 
 /* ── Popover / Popconfirm ───────────────────────────────────────────────────── */
 [data-theme="dark"] .ant-popover .ant-popover-inner {
-  background: #1c2132 !important;
-  border: 1px solid #242d42 !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.55) !important;
+  background: var(--popup-bg) !important;
+  border: 1px solid var(--popup-border) !important;
+  box-shadow: var(--popup-shadow-level2) !important;
 }
 [data-theme="dark"] .ant-popover .ant-popover-title {
-  color: #dde4f0 !important;
-  border-bottom: 1px solid #242d42 !important;
+  color: var(--popup-text) !important;
+  border-bottom: 1px solid var(--popup-border) !important;
 }
 [data-theme="dark"] .ant-popconfirm-title {
-  color: #dde4f0 !important;
+  color: var(--popup-text) !important;
 }
 [data-theme="dark"] .ant-popconfirm-description {
-  color: #8899b5 !important;
+  color: var(--popup-text-muted) !important;
 }
 [data-theme="dark"] .ant-popover-arrow .ant-popover-arrow-content,
 [data-theme="dark"] .ant-popover-arrow::before,
 [data-theme="dark"] .ant-popover-arrow::after {
-  background: #1c2132 !important;
+  background: var(--popup-bg) !important;
 }
 
 /* ── Table row hover ────────────────────────────────────────────────────────── */
@@ -1551,28 +1580,28 @@ button.app-btn:active,
 
 /* ── Modal — full dark mode (content/header/title/body/footer/mask) ─────────── */
 [data-theme="dark"] .ant-modal .ant-modal-content {
-  background: #1c2132 !important;
-  border: 1px solid #242d42 !important;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.65) !important;
+  background: var(--popup-bg) !important;
+  border: 1px solid var(--popup-border) !important;
+  box-shadow: var(--popup-shadow-level3) !important;
 }
 [data-theme="dark"] .ant-modal .ant-modal-header {
-  background: #1c2132 !important;
-  border-bottom: 1px solid #242d42 !important;
+  background: var(--popup-bg) !important;
+  border-bottom: 1px solid var(--popup-border) !important;
 }
 [data-theme="dark"] .ant-modal .ant-modal-title {
-  color: #dde4f0 !important;
+  color: var(--popup-text) !important;
 }
 [data-theme="dark"] .ant-modal .ant-modal-body {
-  color: #c8d4e8 !important;
+  color: var(--popup-text-soft) !important;
 }
 [data-theme="dark"] .ant-modal .ant-modal-footer {
-  border-top: 1px solid #242d42 !important;
+  border-top: 1px solid var(--popup-border) !important;
 }
 [data-theme="dark"] .ant-modal-confirm .ant-modal-confirm-title {
-  color: #dde4f0 !important;
+  color: var(--popup-text) !important;
 }
 [data-theme="dark"] .ant-modal-confirm .ant-modal-confirm-content {
-  color: #8899b5 !important;
+  color: var(--popup-text-muted) !important;
 }
 [data-theme="dark"] .ant-modal-mask {
   background: rgba(0, 0, 0, 0.65) !important;
@@ -3100,19 +3129,13 @@ button.referanslar-satir-teklifno:hover .anticon {
 [data-theme="dark"] .ant-cascader-dropdown,
 [data-theme="dark"] .ant-dropdown,
 [data-theme="dark"] .ant-popover {
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  box-shadow: var(--popup-shadow-level2) !important;
 }
 [data-theme="dark"] .ant-modal .ant-modal-content {
-  box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  box-shadow: var(--popup-shadow-level3) !important;
 }
 [data-theme="dark"] .ant-tooltip .ant-tooltip-inner {
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+  box-shadow: var(--popup-shadow-level1) !important;
 }
 
 /* ─── Teklif kartı PDF rozeti — "basılabilir" hover etkileşimi ──────────

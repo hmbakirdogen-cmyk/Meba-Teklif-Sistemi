@@ -346,7 +346,6 @@ function SatirRowImpl({
             rowId={satir.id}
             oran={satir.indirimOrani || 0}
             onHover={setIsPanelInteracting}
-            onActivate={() => setIsPanelInteracting(true)}
           />
         )}
         {!readOnly && (isRowActive || isHoverRow || isPanelInteracting) && (

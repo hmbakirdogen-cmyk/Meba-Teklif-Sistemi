@@ -133,7 +133,7 @@ export default function AppLayout() {
           <p style={{ marginTop: 0 }}>
             Paylaş simgesi → <b>Ana Ekrana Ekle</b>.
           </p>
-          <p style={{ marginBottom: 0, color: '#94a3b8', fontSize: 12 }}>
+          <p style={{ marginBottom: 0, color: C.textSecondary, fontSize: 12 }}>
             Not: Tarayıcınızda "Uygulama olarak yükle" seçeneği görünmüyorsa
             sayfayı sık kullanılanlara ekleyebilir veya işletim sistemi
             kısayolu oluşturabilirsiniz.

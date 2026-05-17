@@ -7,7 +7,7 @@ import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from 're
 import { createPortal } from 'react-dom';
 import { App, Input, Tooltip } from 'antd';
 import type { InputRef } from 'antd';
-import { DeleteOutlined, HistoryOutlined, PercentageOutlined } from '@ant-design/icons';
+import { DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import type { TeklifSatiri, ParaBirimi, Urun, UrunSeti } from '../types';
 import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { useAkilliReferans } from '../hooks/useAkilliReferans';
@@ -765,34 +765,7 @@ export function SatirAksiyonlariPanel({
             left: pos.left,
           }}
         >
-          {satirBazliIskonto && (
-        <>
-          <Tooltip title="Bu satıra özel iskonto oranı (%)" mouseEnterDelay={0.5}>
-            <span style={{ ...actionBtnStyle, color: C.textMid }}>
-              <PercentageOutlined style={{ fontSize: 9 }} />
-              <InlineTableNumberField
-                style={{ width: 26, fontSize: '9px', fontWeight: 700, textAlign: 'center', padding: 0 }}
-                value={satir.indirimOrani}
-                min={0}
-                max={100}
-                step={1}
-                onChange={(value) => onGuncelle('indirimOrani', value ?? 0)}
-                formatter={(value) => (value != null ? String(value).replace('.', ',') : '')}
-                parser={(value) => parseLocaleNumber(value ?? '')}
-                onFocus={(e) => {
-                  (e.target as HTMLInputElement).select?.();
-                  // Input odakta → panel kapanmasın (parent isPanelInteracting=true)
-                  onInteract?.(true);
-                }}
-                onBlur={() => onInteract?.(false)}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </span>
-          </Tooltip>
-          <span style={{ width: '0.75px', height: 14, background: C.borderSoft, flexShrink: 0 }} />
-        </>
-      )}
+          {/* Eski satır-içi iskonto giriş alanı kaldırıldı — iskonto artık Birim Fiyat popup'undan giriliyor */}
       {onReferanslar && (satir.urunKod || '').trim() !== '' && (
         <>
           <Tooltip title="Bu ürünün geçmiş tekliflerini gör" mouseEnterDelay={0.5}>
@@ -804,14 +777,14 @@ export function SatirAksiyonlariPanel({
               role="button"
               tabIndex={0}
               aria-label="Geçmiş referansları aç"
-              style={{ ...actionBtnStyle, color: '#1E3A5F', opacity: 0.78, padding: '2px 5px' }}
+              style={{ ...actionBtnStyle, color: 'var(--history-icon, #1E3A5F)', opacity: 0.85, padding: '2px 5px' }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(30,58,95,0.10)';
+                e.currentTarget.style.background = 'var(--history-icon-bg, rgba(30,58,95,0.10))';
                 e.currentTarget.style.opacity = '1';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.opacity = '0.78';
+                e.currentTarget.style.opacity = '0.85';
               }}
             >
               <HistoryOutlined style={{ fontSize: 10 }} />
@@ -916,9 +889,10 @@ export function SatirIskontoRozeti({ rowId, oran, onHover, onActivate }: Iskonto
           onMouseLeave={() => onHover?.(false)}
           onClick={(e) => {
             e.stopPropagation();
-            onActivate?.();
+            if (!onActivate) return;
+            onActivate();
           }}
-          title="İskonto oranını düzenle"
+          title={onActivate ? 'İskonto oranını düzenle' : undefined}
           style={{
             position: 'fixed',
             top: pos.top,
@@ -935,15 +909,15 @@ export function SatirIskontoRozeti({ rowId, oran, onHover, onActivate }: Iskonto
             // Mouse rozeti yakalayabilsin → hover/click çalışır. Önceden 'none'
             // idi, satırdan rozete geçişte hover kayboluyordu.
             pointerEvents: 'auto',
-            cursor: 'pointer',
+            cursor: onActivate ? 'pointer' : 'default',
             zIndex: 1055,
             whiteSpace: 'nowrap',
             display: 'flex',
             alignItems: 'center',
           }}
-          role="button"
-          tabIndex={0}
-          aria-label={`İskonto %${oranText} — düzenlemek için tıklayın`}
+          role={onActivate ? 'button' : undefined}
+          tabIndex={onActivate ? 0 : -1}
+          aria-label={onActivate ? `İskonto %${oranText} — düzenlemek için tıklayın` : `İskonto %${oranText}`}
         >
           -{oranText}%
         </div>,

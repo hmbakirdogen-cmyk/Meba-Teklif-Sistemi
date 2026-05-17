@@ -541,10 +541,10 @@ export function computeOfferColumnWidths(
   const markaHeaderW = headerW('Marka', 'Brand');
   const codeHeaderW  = headerW('Ürün Kodu', 'Item no');
   const qtyHeaderW   = headerW('Miktar', 'Qty');
-  // paraBirimi: 'Kur' / 'Currency' — kısa Türkçe ana etiket + tam İngilizce
+  // paraBirimi: 'Döviz' / 'Currency' — kısa Türkçe ana etiket + tam İngilizce
   // sub. Kolon genişliği sub uzunluğu ('Currency' ~36px) tarafından
-  // belirlenir; ana etiket ('Kur') zaten ona sığar.
-  const pbHeaderW    = headerW('Kur', 'Currency');
+  // belirlenir; ana etiket ('Döviz') zaten ona sığar.
+  const pbHeaderW    = headerW('Döviz', 'Currency');
   const upHeaderW    = headerW('Birim Fiyat', 'Unit price');
   const totHeaderW   = headerW('Toplam', 'Total');
   const delHeaderW   = headerW('Teslimat', 'Delivery');
