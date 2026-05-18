@@ -700,8 +700,9 @@ function UrunKodPopupBody({
   onClose: () => void;
 }) {
   const { modal, message } = App.useApp();
-  // Urun listesi — popup açıkken bir kez çek
-  const [urunler, setUrunler] = useState(() => urunService.tumUrunleriGetir());
+  const [aramaTermi, setAramaTermi] = useState(satir.urunKod ?? '');
+  const [sonuclar, setSonuclar] = useState<Urun[]>([]);
+  const [yukleniyor, setYukleniyor] = useState(false);
   const [setler] = useState(() => urunSetService.tumSetleriGetir());
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<InputRef>(null);
@@ -714,13 +715,37 @@ function UrunKodPopupBody({
     el?.select();
   }, []);
 
+  useEffect(() => {
+    setAramaTermi(satir.urunKod ?? '');
+  }, [satir.urunKod]);
+
+  useEffect(() => {
+    const term = aramaTermi.trim();
+    if (term.length < 2) {
+      setSonuclar([]);
+      setYukleniyor(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setYukleniyor(true);
+    const t = window.setTimeout(async () => {
+      try {
+        const res = await urunService.aramaIle(term, 30, ctrl.signal);
+        setSonuclar(res);
+      } catch (e) {
+        if ((e as { name?: string } | null)?.name !== 'AbortError') console.error(e);
+      } finally {
+        setYukleniyor(false);
+      }
+    }, 300);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [aramaTermi]);
+
   const q = (satir.urunKod ?? '').trim().toLowerCase();
-  const filteredUrun = (q
-    ? urunler.filter((u) =>
-        u.urunKod.toLowerCase().includes(q) ||
-        (u.aciklama ?? '').toLowerCase().includes(q),
-      )
-    : urunler).slice(0, 40);
+  const filteredUrun = sonuclar.slice(0, 40);
   const filteredSet = (q
     ? setler.filter((s) =>
         s.setKod.toLowerCase().includes(q) ||
@@ -728,8 +753,8 @@ function UrunKodPopupBody({
       )
     : setler).slice(0, 20);
   const merged = [
-    ...filteredSet.map((s) => ({ kind: 'set' as const, id: s.id, kod: s.setKod, aciklama: s.aciklama, payload: s })),
     ...filteredUrun.map((u) => ({ kind: 'urun' as const, id: u.id, kod: u.urunKod, aciklama: u.aciklama, payload: u })),
+    ...filteredSet.map((s) => ({ kind: 'set' as const, id: s.id, kod: s.setKod, aciklama: s.aciklama, payload: s })),
   ].slice(0, 50);
 
   const select = (item: typeof merged[number]) => {
@@ -778,29 +803,34 @@ function UrunKodPopupBody({
     const yeni = satir.urunKod?.trim();
     if (!yeni) return;
     if (yeni === (initialKodRef.current ?? '').trim()) return;
-    const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
-    if (exists) return;
-    modal.confirm({
-      title: 'Yeni Ürün Olarak Kaydet',
-      content: `"${yeni}" kodlu ürün veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi? Bir dahaki sefer otomatik gelecek.`,
-      okText: 'Kaydet',
-      cancelText: 'İptal',
-      onOk: () => {
-        const yeniUrun: Urun = {
-          id: urunService.urunIdUret(),
-          urunKod: yeni,
-          urunAdi: yeni,
-          aciklama: satir.aciklama ?? '',
-          kategori: '',
-          marka: satir.marka || '',
-          birim: satir.birim || 'Adet',
-          varsayilanFiyat: satir.birimFiyat || 0,
-        };
-        urunService.urunKaydet(yeniUrun);
-        setUrunler(urunService.tumUrunleriGetir());
-        initialKodRef.current = yeni;
-        message.success(`"${yeni}" yeni ürün olarak kaydedildi. Bundan sonra otomatik öneri olarak çıkacak.`);
-      },
+    void (async () => {
+      const bulunanlar = await urunService.aramaIle(yeni, 10);
+      const exists = bulunanlar.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
+      if (exists) return;
+      modal.confirm({
+        title: 'Yeni Ürün Olarak Kaydet',
+        content: `"${yeni}" kodlu ürün veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi? Bir dahaki sefer otomatik gelecek.`,
+        okText: 'Kaydet',
+        cancelText: 'İptal',
+        onOk: () => {
+          const yeniUrun: Urun = {
+            id: urunService.urunIdUret(),
+            urunKod: yeni,
+            urunAdi: yeni,
+            aciklama: satir.aciklama ?? '',
+            kategori: '',
+            marka: satir.marka || '',
+            birim: satir.birim || 'Adet',
+            varsayilanFiyat: satir.birimFiyat || 0,
+          };
+          urunService.urunKaydet(yeniUrun);
+          setSonuclar((onceki) => [yeniUrun, ...onceki.filter((u) => u.id !== yeniUrun.id)]);
+          initialKodRef.current = yeni;
+          message.success(`"${yeni}" yeni ürün olarak kaydedildi. Bundan sonra otomatik öneri olarak çıkacak.`);
+        },
+      });
+    })().catch((e) => {
+      console.error(e);
     });
   };
 
@@ -817,6 +847,7 @@ function UrunKodPopupBody({
         onChange={(e) => {
           const upper = e.target.value.toLocaleUpperCase('tr-TR');
           onSatirGuncelle(satir.id, 'urunKod', upper);
+          setAramaTermi(upper);
           setHighlight(0);
         }}
         onBlur={handleBlur}
@@ -829,7 +860,7 @@ function UrunKodPopupBody({
             // Önce: input'taki kod DB'de tam eşleşiyor mu? (suggestion'daki
             // substring match'lerle karıştırma)
             const exactMatch = yeniKod
-              ? urunler.find((u) => u.urunKod.toLowerCase() === yeniKod.toLowerCase())
+              ? sonuclar.find((u) => u.urunKod.toLowerCase() === yeniKod.toLowerCase())
               : null;
             if (exactMatch) {
               select({
@@ -855,6 +886,16 @@ function UrunKodPopupBody({
         autoCapitalize="characters"
         style={{ textTransform: 'uppercase' }}
       />
+      {yukleniyor && (
+        <div style={{ marginTop: 8, fontSize: 12, color: POPUP.surface.textMuted }}>
+          Yükleniyor...
+        </div>
+      )}
+      {!yukleniyor && aramaTermi.trim().length < 2 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: POPUP.surface.textMuted }}>
+          Arama yapmak için en az 2 karakter girin
+        </div>
+      )}
       {merged.length > 0 && (
         <div
           style={{
@@ -921,24 +962,27 @@ function AciklamaPopupBody({
     if (yeniAciklama === eski) return;
     const kod = (satir.urunKod ?? '').trim();
     if (!kod) return;
-    const mevcut = urunService.tumUrunleriGetir()
-      .find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
-    // Açıklama editörü asla yeni ürün oluşturmaz — kod DB'de yoksa sessizce çık.
-    if (!mevcut) return;
-    if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
-      initialAciklamaRef.current = yeniAciklama;
-      return;
-    }
-    modal.confirm({
-      title: 'Açıklama Güncellensin mi?',
-      content: `"${kod}" ürününün açıklaması veritabanında güncellensin mi? Bir dahaki sefer bu ürün seçildiğinde yeni açıklama otomatik gelecek.`,
-      okText: 'Güncelle',
-      cancelText: 'Hayır',
-      onOk: () => {
-        urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+    void (async () => {
+      const bulunanlar = await urunService.aramaIle(kod, 10);
+      const mevcut = bulunanlar.find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+      if (!mevcut) return;
+      if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
         initialAciklamaRef.current = yeniAciklama;
-        message.success(`"${kod}" ürününün açıklaması güncellendi. Bir dahaki seçildiğinde yeni açıklama otomatik gelecek.`);
-      },
+        return;
+      }
+      modal.confirm({
+        title: 'Açıklama Güncellensin mi?',
+        content: `"${kod}" ürününün açıklaması veritabanında güncellensin mi? Bir dahaki sefer bu ürün seçildiğinde yeni açıklama otomatik gelecek.`,
+        okText: 'Güncelle',
+        cancelText: 'Hayır',
+        onOk: () => {
+          urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+          initialAciklamaRef.current = yeniAciklama;
+          message.success(`"${kod}" ürününün açıklaması güncellendi. Bir dahaki seçildiğinde yeni açıklama otomatik gelecek.`);
+        },
+      });
+    })().catch((e) => {
+      console.error(e);
     });
   };
 

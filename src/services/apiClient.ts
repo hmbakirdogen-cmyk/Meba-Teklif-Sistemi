@@ -136,10 +136,10 @@ async function parseOrThrow<T>(res: Response, label: string): Promise<T> {
   return (body as T);
 }
 
-async function get<T>(path: string, timeoutMs?: number): Promise<T> {
-  const { signal, clear } = withTimeout(undefined, timeoutMs);
+async function get<T>(path: string, timeoutMs?: number, signal?: AbortSignal): Promise<T> {
+  const { signal: finalSignal, clear } = withTimeout(signal, timeoutMs);
   try {
-    const res = await fetch(`${BASE}${path}`, { headers: buildHeaders(), signal });
+    const res = await fetch(`${BASE}${path}`, { headers: buildHeaders(), signal: finalSignal });
     return parseOrThrow<T>(res, `GET ${path}`);
   } finally {
     clear();
@@ -287,6 +287,8 @@ export const api = {
     upsert:      (u: Urun)              => put<Urun>(`/urunler/${u.id}`, u),
     sil:         (id: string)           => del(`/urunler/${id}`),
     bulkReplace: (liste: Urun[])        => put<Urun[]>('/urunler', liste, TIMEOUT_MS_LONG),
+    search:      (q: string, limit = 20, signal?: AbortSignal) =>
+      get<Urun[]>(`/urunler/search?q=${encodeURIComponent(q)}&limit=${limit}`, undefined, signal),
   },
 
   urunSetleri: {

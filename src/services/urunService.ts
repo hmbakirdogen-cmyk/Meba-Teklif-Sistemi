@@ -1,5 +1,6 @@
 import type { Urun } from '../types';
 import { dataStore } from './dataStore';
+import { api } from './apiClient';
 
 const varsayilanUrunler: Urun[] = [
   { id: 'u1',  urunKod: 'CP96SDB80-200',     urunAdi: '80x200 Manyetik Yastıklı Silindir',                   aciklama: 'Ø80 mm · 200 mm strok · manyetik sensörlü',           kategori: 'Silindir',    birim: 'Adet', varsayilanFiyat: 98.90 },
@@ -35,6 +36,14 @@ function migrateUrun(u: Partial<Urun> & { id: string; urunKod: string; urunAdi: 
 function tumUrunleriGetir(): Urun[] {
   const liste = dataStore.getUrunler();
   return liste.map((u) => migrateUrun(u as Parameters<typeof migrateUrun>[0]));
+}
+
+async function aramaIle(q: string, limit = 20, signal?: AbortSignal): Promise<Urun[]> {
+  const normalizedQuery = q.trim();
+  if (normalizedQuery.length < 2) {
+    return [];
+  }
+  return api.urunler.search(normalizedQuery, limit, signal);
 }
 
 function urunKaydet(urun: Urun): void {
@@ -82,6 +91,7 @@ function markaSenkronize(urunKod: string, marka: string): void {
 
 export const urunService = {
   tumUrunleriGetir,
+  aramaIle,
   urunKaydet,
   urunSil,
   urunIdUret,

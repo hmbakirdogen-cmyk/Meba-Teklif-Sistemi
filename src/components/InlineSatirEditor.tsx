@@ -111,7 +111,9 @@ function pushSonKullanilan(id: string) {
 function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext }: CellEditorProps) {
   const { modal, message } = App.useApp();
   // urunler state — yeni ürün eklendiğinde suggestion panelinde hemen gözüksün.
-  const [urunler, setUrunler] = useState(() => urunService.tumUrunleriGetir());
+  const [aramaTermi, setAramaTermi] = useState(satir.urunKod ?? '');
+  const [sonuclar, setSonuclar] = useState<Urun[]>([]);
+  const [yukleniyor, setYukleniyor] = useState(false);
   const setler = useMemo(() => urunSetService.tumSetleriGetir(), []);
   const inputRef = useRef<InputRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,14 +132,38 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
     bottom: number;
   } | null>(null);
 
+  useEffect(() => {
+    setAramaTermi(satir.urunKod ?? '');
+  }, [satir.urunKod]);
+
+  useEffect(() => {
+    const term = aramaTermi.trim();
+    if (term.length < 2) {
+      setSonuclar([]);
+      setYukleniyor(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setYukleniyor(true);
+    const t = window.setTimeout(async () => {
+      try {
+        const res = await urunService.aramaIle(term, 30, ctrl.signal);
+        setSonuclar(res);
+      } catch (e) {
+        if ((e as { name?: string } | null)?.name !== 'AbortError') console.error(e);
+      } finally {
+        setYukleniyor(false);
+      }
+    }, 300);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [aramaTermi]);
+
   const filtered = useMemo(() => {
     const q = (satir.urunKod ?? '').trim().toLowerCase();
-    const urunOnerileri = (q
-      ? urunler.filter((u) =>
-          u.urunKod.toLowerCase().includes(q) ||
-          (u.aciklama ?? '').toLowerCase().includes(q),
-        )
-      : urunler)
+    const urunOnerileri = sonuclar
       .slice(0, 40)
       .map((u) => ({
         type: 'urun' as const,
@@ -183,7 +209,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
     }
 
     return [...setOnerileri, ...urunOnerileri].slice(0, 50);
-  }, [setler, urunler, satir.urunKod]);
+  }, [setler, sonuclar, satir.urunKod]);
 
   // Suggestion paneli pozisyonu — input altinda, viewport icinde
   useLayoutEffect(() => {
@@ -294,30 +320,34 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
       const yeni = satir.urunKod?.trim();
       if (!yeni) return;
       if (yeni === initialKodRef.current?.trim()) return;
-      const exists = urunler.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
-      if (exists) return;
-      modal.confirm({
-        title: 'Yeni Ürün Olarak Kaydet',
-        content: `"${yeni}" kodlu ürün veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi? Bir dahaki sefer otomatik gelecek.`,
-        okText: 'Kaydet',
-        cancelText: 'İptal',
-        onOk: () => {
-          const yeniUrun: Urun = {
-            id: urunService.urunIdUret(),
-            urunKod: yeni,
-            urunAdi: yeni,
-            aciklama: satir.aciklama ?? '',
-            kategori: '',
-            marka: satir.marka || '',
-            birim: satir.birim || 'Adet',
-            varsayilanFiyat: satir.birimFiyat || 0,
-          };
-          urunService.urunKaydet(yeniUrun);
-          // Suggestion paneli güncel listesini hemen göstersin.
-          setUrunler(urunService.tumUrunleriGetir());
-          initialKodRef.current = yeni;
-          message.success(`"${yeni}" yeni ürün olarak kaydedildi. Bundan sonra otomatik öneri olarak çıkacak.`);
-        },
+      void (async () => {
+        const bulunanlar = await urunService.aramaIle(yeni, 10);
+        const exists = bulunanlar.some((u) => u.urunKod.toLowerCase() === yeni.toLowerCase());
+        if (exists) return;
+        modal.confirm({
+          title: 'Yeni Ürün Olarak Kaydet',
+          content: `"${yeni}" kodlu ürün veritabanında bulunamadı. Yeni ürün olarak kaydedilsin mi? Bir dahaki sefer otomatik gelecek.`,
+          okText: 'Kaydet',
+          cancelText: 'İptal',
+          onOk: () => {
+            const yeniUrun: Urun = {
+              id: urunService.urunIdUret(),
+              urunKod: yeni,
+              urunAdi: yeni,
+              aciklama: satir.aciklama ?? '',
+              kategori: '',
+              marka: satir.marka || '',
+              birim: satir.birim || 'Adet',
+              varsayilanFiyat: satir.birimFiyat || 0,
+            };
+            urunService.urunKaydet(yeniUrun);
+            setSonuclar((onceki) => [yeniUrun, ...onceki.filter((u) => u.id !== yeniUrun.id)]);
+            initialKodRef.current = yeni;
+            message.success(`"${yeni}" yeni ürün olarak kaydedildi. Bundan sonra otomatik öneri olarak çıkacak.`);
+          },
+        });
+      })().catch((e) => {
+        console.error(e);
       });
     }, 150);
   };
@@ -344,6 +374,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
           // Ürün kodu daima büyük harf — Türkçe locale ile (i→İ, ı→I)
           const upper = e.target.value.toLocaleUpperCase('tr-TR');
           onGuncelle('urunKod', upper);
+          setAramaTermi(upper);
           setShowSuggestions(true);
           setHighlightIdx(0);
         }}
@@ -380,7 +411,7 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
           }
         }}
       />
-      {showSuggestions && filtered.length > 0 && anchorRect &&
+      {showSuggestions && anchorRect &&
         createPortal(
           (() => {
             // Viewport-aware konum: alt boşluk yetersizse panel input'un üstüne açılır
@@ -418,6 +449,16 @@ function UrunKodEditor({ satir, autoFocus, onGuncelle, onSetUygula, onEnterNext 
               animation: `cell-popup-fade-in ${POPUP.animation.fadeIn}`,
             }}
           >
+            {yukleniyor && (
+              <div style={{ padding: '8px 12px', fontSize: 12, color: POPUP.surface.textMuted }}>
+                Yükleniyor...
+              </div>
+            )}
+            {!yukleniyor && aramaTermi.trim().length < 2 && (
+              <div style={{ padding: '8px 12px', fontSize: 12, color: POPUP.surface.textMuted }}>
+                Arama yapmak için en az 2 karakter girin
+              </div>
+            )}
             {filtered.map((u, i) => (
               <React.Fragment key={`${u.type}-${u.id}`}>
                 <div
@@ -487,24 +528,27 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
     const kod = (satir.urunKod ?? '').trim();
     if (!kod) return; // ürün kodu yoksa sessizce çık
 
-    const mevcut = urunService.tumUrunleriGetir()
-      .find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
-    // Açıklama editörü asla yeni ürün oluşturmaz — kod DB'de yoksa sessizce çık.
-    if (!mevcut) return;
-    if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
-      initialAciklamaRef.current = yeniAciklama;
-      return;
-    }
-    modal.confirm({
-      title: 'Açıklama Güncellensin mi?',
-      content: `"${kod}" ürününün açıklaması veritabanında güncellensin mi? Bir dahaki sefer bu ürün seçildiğinde yeni açıklama otomatik gelecek.`,
-      okText: 'Güncelle',
-      cancelText: 'Hayır',
-      onOk: () => {
-        urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+    void (async () => {
+      const bulunanlar = await urunService.aramaIle(kod, 10);
+      const mevcut = bulunanlar.find((u) => u.urunKod.toLowerCase() === kod.toLowerCase());
+      if (!mevcut) return;
+      if ((mevcut.aciklama ?? '').trim() === yeniAciklama) {
         initialAciklamaRef.current = yeniAciklama;
-        message.success(`"${kod}" ürününün açıklaması güncellendi. Bir dahaki seçildiğinde yeni açıklama otomatik gelecek.`);
-      },
+        return;
+      }
+      modal.confirm({
+        title: 'Açıklama Güncellensin mi?',
+        content: `"${kod}" ürününün açıklaması veritabanında güncellensin mi? Bir dahaki sefer bu ürün seçildiğinde yeni açıklama otomatik gelecek.`,
+        okText: 'Güncelle',
+        cancelText: 'Hayır',
+        onOk: () => {
+          urunService.urunKaydet({ ...mevcut, aciklama: yeniAciklama });
+          initialAciklamaRef.current = yeniAciklama;
+          message.success(`"${kod}" ürününün açıklaması güncellendi. Bir dahaki seçildiğinde yeni açıklama otomatik gelecek.`);
+        },
+      });
+    })().catch((e) => {
+      console.error(e);
     });
   };
 
