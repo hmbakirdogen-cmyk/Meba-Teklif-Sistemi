@@ -2028,7 +2028,6 @@ export default function PaginatedBelgeInlineEditor({
                     onRowEnter={handleRowEnter}
                     onRowLeave={handleRowLeave}
                     onToggleMark={toggleRowMark}
-                    onSatirGuncelle={onSatirGuncelle}
                     onSatirSil={onSatirSil}
                     onReferanslarAc={handleReferanslarAc}
                   />

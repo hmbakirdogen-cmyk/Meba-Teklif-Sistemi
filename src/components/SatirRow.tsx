@@ -64,7 +64,6 @@ export interface SatirRowProps {
   onRowEnter: (satirId: string) => void;
   onRowLeave: (satirId: string) => void;
   onToggleMark: (satirId: string) => (e: React.MouseEvent) => void;
-  onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatirSil: (id: string) => void;
   onReferanslarAc: (satirId: string) => void;
 }
@@ -87,7 +86,6 @@ function SatirRowImpl({
   onRowEnter,
   onRowLeave,
   onToggleMark,
-  onSatirGuncelle,
   onSatirSil,
   onReferanslarAc,
 }: SatirRowProps) {
@@ -352,7 +350,6 @@ function SatirRowImpl({
           <SatirAksiyonlariPanel
             satir={satir}
             satirBazliIskonto={!satir.setAltKalem && (isRowActive || isPanelInteracting) && satirBazliIskonto}
-            onGuncelle={(alan, deger) => onSatirGuncelle(satir.id, alan, deger)}
             onSil={() => onSatirSil(satir.id)}
             onReferanslar={() => onReferanslarAc(satir.id)}
             onInteract={setIsPanelInteracting}

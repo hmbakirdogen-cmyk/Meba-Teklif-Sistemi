@@ -719,7 +719,6 @@ const actionBtnStyle: React.CSSProperties = {
 interface ActionPanelProps {
   satir: TeklifSatiri;
   satirBazliIskonto: boolean;
-  onGuncelle: (alan: keyof TeklifSatiri, deger: unknown) => void;
   onSil: () => void;
   /** Ürün geçmişi panelini aç. urunKod boşsa tıklanamaz. */
   onReferanslar?: () => void;
@@ -732,7 +731,6 @@ interface ActionPanelProps {
 export function SatirAksiyonlariPanel({
   satir,
   satirBazliIskonto,
-  onGuncelle,
   onSil,
   onReferanslar,
   onInteract,
