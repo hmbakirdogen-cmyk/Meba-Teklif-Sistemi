@@ -503,17 +503,19 @@ export function useBelgeState(
 
   const satirGuncelle = useCallback((id: string, alan: keyof TeklifSatiri, deger: unknown) => {
     setSatirlarState(prev => {
-      const next = prev.map(s => {
-        if (s.id !== id) return s;
-        if (s.setAltKalem && (alan === 'birimFiyat' || alan === 'indirimOrani' || alan === 'teslimTarihi')) {
-          return s;
-        }
-        const g = { ...s, [alan]: deger };
-        if (g.setAltKalem) {
-          return { ...g, birimFiyat: 0, indirimOrani: 0, satirToplami: 0 };
-        }
-        return { ...g, satirToplami: hesaplamaMotoru.satirToplamHesapla(g) };
-      });
+      const index = prev.findIndex((s) => s.id === id);
+      if (index < 0) return prev;
+
+      const current = prev[index];
+      if (current.setAltKalem && (alan === 'birimFiyat' || alan === 'indirimOrani' || alan === 'teslimTarihi')) {
+        return prev;
+      }
+
+      const next = [...prev];
+      const guncelSatir = { ...current, [alan]: deger };
+      next[index] = guncelSatir.setAltKalem
+        ? { ...guncelSatir, birimFiyat: 0, indirimOrani: 0, satirToplami: 0 }
+        : { ...guncelSatir, satirToplami: hesaplamaMotoru.satirToplamHesapla(guncelSatir) };
       satirDegisimiAnlikKaydet(next);
       return next;
     });

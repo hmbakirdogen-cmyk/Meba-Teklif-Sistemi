@@ -360,5 +360,28 @@ function SatirRowImpl({
   );
 }
 
-export const SatirRow = memo(SatirRowImpl);
+const arePropsEqual = (prev: SatirRowProps, next: SatirRowProps) => {
+  if (prev.satir !== next.satir) return false;
+  if (prev.idx !== next.idx) return false;
+  if (prev.satirPb !== next.satirPb) return false;
+  if (prev.mainItemIndex !== next.mainItemIndex) return false;
+  if (prev.setSubitemIndex !== next.setSubitemIndex) return false;
+  if (prev.setGroupPos !== next.setGroupPos) return false;
+  if (prev.isMarked !== next.isMarked) return false;
+  if (prev.isRowActive !== next.isRowActive) return false;
+  if (prev.isHoverRow !== next.isHoverRow) return false;
+  if (prev.activeCellField !== next.activeCellField) return false;
+  if (prev.satirBazliParaBirimi !== next.satirBazliParaBirimi) return false;
+  if (prev.satirBazliIskonto !== next.satirBazliIskonto) return false;
+  if (prev.readOnly !== next.readOnly) return false;
+  if (prev.onCellClick !== next.onCellClick) return false;
+  if (prev.onRowEnter !== next.onRowEnter) return false;
+  if (prev.onRowLeave !== next.onRowLeave) return false;
+  if (prev.onToggleMark !== next.onToggleMark) return false;
+  if (prev.onSatirSil !== next.onSatirSil) return false;
+  if (prev.onReferanslarAc !== next.onReferanslarAc) return false;
+  return true;
+};
+
+export const SatirRow = memo(SatirRowImpl, arePropsEqual);
 SatirRow.displayName = 'SatirRow';
