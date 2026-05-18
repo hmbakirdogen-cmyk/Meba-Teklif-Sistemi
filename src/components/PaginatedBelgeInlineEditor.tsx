@@ -1,6 +1,6 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { AutoComplete, Select, Input, DatePicker, Dropdown, Popover, InputNumber, App, Button, Tooltip } from 'antd';
+import { AutoComplete, Select, Input, DatePicker, Dropdown, Popover, InputNumber, App, Button, Tooltip, Space } from 'antd';
 import type { InputRef } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -494,23 +494,21 @@ function CellEditPopup({
     title = 'Para Birimi';
     const cur = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
     body = (
-      <Select
-        autoFocus
-        defaultOpen
-        size="middle"
-        style={{ width: '100%' }}
-        value={cur}
-        onChange={(value) => {
-          onSatirGuncelle(satir.id, 'paraBirimi', value);
-          onClose();
-        }}
-        options={[
-          { value: 'TRY', label: 'Türk Lirası (TL)' },
-          { value: 'EUR', label: 'Euro (EUR)' },
-          { value: 'USD', label: 'Amerikan Doları (USD)' },
-        ]}
-        getPopupContainer={() => popupRef.current ?? document.body}
-      />
+      <Space>
+        {['TRY', 'EUR', 'USD'].map((pb) => (
+          <Button
+            key={pb}
+            type={cur === pb ? 'primary' : 'default'}
+            size="middle"
+            onClick={() => {
+              onSatirGuncelle(satir.id, 'paraBirimi', pb);
+              onClose();
+            }}
+          >
+            {pb}
+          </Button>
+        ))}
+      </Space>
     );
   } else if (satirFocusCell === 'birimFiyat') {
     title = 'Birim Fiyat';
