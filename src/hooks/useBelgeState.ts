@@ -51,6 +51,8 @@ export interface BelgeState {
   durum: TeklifDurum;
   notlar: string;
   notlarGosterilsin: boolean;
+  kargoNotuMetni: string;
+  kargoNotuGizli: boolean;
   kdvOrani: number;
   iskontoOrani: number;
   odemeVadesi: string;
@@ -123,6 +125,8 @@ interface BelgeActions {
   setTarih: (tarih: string) => void;
   setNotlar: (notlar: string) => void;
   setNotlarGosterilsin: (v: boolean) => void;
+  setKargoNotuMetni: (v: string) => void;
+  setKargoNotuGizli: (v: boolean) => void;
 
   // Panel
   setPanelModu: (mod: PanelModu) => void;
@@ -218,6 +222,8 @@ export function useBelgeState(
   const [notlarGosterilsin, setNotlarGosterilsinState] = useState<boolean>(
     mevcut?.notlarGosterilsin ?? !!(mevcut?.notlar && mevcut.notlar.trim().length > 0)
   );
+  const [kargoNotuMetni, setKargoNotuMetniState] = useState<string>(mevcut?.kargoNotuMetni ?? '');
+  const [kargoNotuGizli, setKargoNotuGizliState] = useState<boolean>(mevcut?.kargoNotuGizli ?? false);
   const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? v?.kdvOrani ?? 0);
   const [iskontoOrani, setIskontoOraniState] = useState(mevcut?.iskontoOrani ?? v?.iskontoOrani ?? 0);
   const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? v?.odemeVadesi ?? '45 Gün');
@@ -391,6 +397,8 @@ export function useBelgeState(
       odemeVadesi,
       notlar: sanitizeMultilineText(notlar),
       notlarGosterilsin,
+      kargoNotuMetni: kargoNotuMetni.trim() ? kargoNotuMetni : undefined,
+      kargoNotuGizli,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
       // Orijinal sahibi koru — mevcut teklifte hazırlayan bilgisi değişmemeli
@@ -424,6 +432,8 @@ export function useBelgeState(
     odemeVadesi,
     notlar,
     notlarGosterilsin,
+    kargoNotuMetni,
+    kargoNotuGizli,
     olusturmaTarihi,
     kullanici,
     contactName,
@@ -633,6 +643,8 @@ export function useBelgeState(
       odemeVadesi,
       notlar: sanitizeMultilineText(notlar),
       notlarGosterilsin,
+      kargoNotuMetni: kargoNotuMetni.trim() ? kargoNotuMetni : undefined,
+      kargoNotuGizli,
       olusturmaTarihi,
       guncellemeTarihi: dayjs().toISOString(),
       // Orijinal sahibi koru — mevcut teklifte hazırlayan bilgisi değişmemeli
@@ -651,7 +663,7 @@ export function useBelgeState(
       visibility,
       firmaId,
     };
-  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, olusturmaTarihi, kullanici, contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad, gecerlilikSuresi, dovizKuru, gorseller, status, visibility, firmaId]);
+  }, [teklifId, teklifNo, tarih, satirBazliParaBirimi, satirBazliIskonto, paraBirimi, durum, cari, satirlar, hesaplanan, kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, kargoNotuMetni, kargoNotuGizli, olusturmaTarihi, kullanici, contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad, gecerlilikSuresi, dovizKuru, gorseller, status, visibility, firmaId]);
 
   /**
    * Belirtilen status ile teklifi kaydet. PDF/email akışında çağrılır.
@@ -722,7 +734,7 @@ export function useBelgeState(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cari, satirlar, paraBirimi, satirBazliParaBirimi, satirBazliIskonto,
-    kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin,
+    kdvOrani, iskontoOrani, odemeVadesi, notlar, notlarGosterilsin, kargoNotuMetni, kargoNotuGizli,
     contactName, contactTitle, ilgiliKisiId, ilgiliKisiAdSoyad,
     tarih, gorseller, durum, teklifNo, teklifNoDurumu, visibility, dovizKuru,
   ]);
@@ -796,6 +808,8 @@ export function useBelgeState(
     durum,
     notlar,
     notlarGosterilsin,
+    kargoNotuMetni,
+    kargoNotuGizli,
     kdvOrani,
     iskontoOrani,
     odemeVadesi,
@@ -852,6 +866,8 @@ export function useBelgeState(
     setTarih,
     setNotlar: setNotlarState,
     setNotlarGosterilsin: setNotlarGosterilsinState,
+    setKargoNotuMetni: setKargoNotuMetniState,
+    setKargoNotuGizli: setKargoNotuGizliState,
     setPanelModu,
     setSeciliSatirId,
     setHoverSatirId,

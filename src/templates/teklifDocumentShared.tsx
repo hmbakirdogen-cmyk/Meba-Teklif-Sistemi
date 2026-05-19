@@ -1254,10 +1254,140 @@ export const KARGO_NOTU_STYLE: CSSProperties = {
   ...noBreak,
 };
 
-export function KargoNotuSatiri() {
+/** Varsayılan kargo notu metni — kullanıcı özelleştirmezse görünür. */
+export const KARGO_NOTU_VARSAYILAN = 'Kargo bedeli alıcıya aittir.';
+
+interface KargoNotuSatiriProps {
+  /** Özel metin — undefined/boş ise varsayılan ('Kargo bedeli alıcıya aittir.') gösterilir. */
+  metin?: string;
+  /** True ise hiç render edilmez. */
+  gizli?: boolean;
+  /** Editör modu — hover'da X butonu (gizle) + tıklayınca inline düzenleme. */
+  editable?: boolean;
+  /** Editör: metin değişti. */
+  onMetinChange?: (yeniMetin: string) => void;
+  /** Editör: X butonuyla gizle. */
+  onGizle?: () => void;
+}
+
+export function KargoNotuSatiri({
+  metin,
+  gizli = false,
+  editable = false,
+  onMetinChange,
+  onGizle,
+}: KargoNotuSatiriProps = {}) {
+  const [hover, setHover] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const ref = useRef<HTMLSpanElement | null>(null);
+
+  if (gizli) return null;
+
+  const goster = (metin && metin.trim().length > 0 ? metin : KARGO_NOTU_VARSAYILAN);
+
+  if (!editable) {
+    return (
+      <div style={KARGO_NOTU_STYLE}>
+        * {goster}
+      </div>
+    );
+  }
+
+  const startEdit = () => {
+    setEditing(true);
+    setTimeout(() => {
+      if (ref.current) {
+        ref.current.focus();
+        // Tüm metni seç
+        const range = document.createRange();
+        range.selectNodeContents(ref.current);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }, 0);
+  };
+
+  const commitEdit = () => {
+    const yeni = (ref.current?.innerText ?? '').trim();
+    setEditing(false);
+    if (onMetinChange) {
+      // Boş veya varsayılana eşitse — özel metin kaydetmeden temizle (varsayılana dön)
+      if (!yeni || yeni === KARGO_NOTU_VARSAYILAN) {
+        onMetinChange('');
+      } else {
+        onMetinChange(yeni);
+      }
+    }
+  };
+
   return (
-    <div style={KARGO_NOTU_STYLE}>
-      * Kargo bedeli alıcıya aittir.
+    <div
+      style={KARGO_NOTU_STYLE}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', verticalAlign: 'middle' }}>
+        {hover && !editing && onGizle && (
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onGizle(); }}
+            title="Bu notu gizle"
+            style={{
+              cursor: 'pointer',
+              width: '16px',
+              height: '16px',
+              padding: 0,
+              border: 'none',
+              borderRadius: '50%',
+              background: '#dc2626',
+              color: '#fff',
+              fontSize: '12px',
+              fontWeight: 700,
+              lineHeight: 1,
+              fontFamily: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0.95,
+              pointerEvents: 'auto',
+              userSelect: 'none',
+            }}
+          >
+            ×
+          </button>
+        )}
+        <span>*&nbsp;</span>
+        <span
+          ref={ref}
+          contentEditable={editing}
+          suppressContentEditableWarning
+          onClick={() => { if (!editing) startEdit(); }}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              ref.current?.blur();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              if (ref.current) ref.current.innerText = goster;
+              setEditing(false);
+            }
+          }}
+          style={{
+            outline: editing ? `1px dashed ${DOCUMENT_COLORS.border}` : 'none',
+            padding: editing ? '1px 4px' : 0,
+            borderRadius: '2px',
+            cursor: editing ? 'text' : 'pointer',
+            minWidth: '40px',
+            display: 'inline-block',
+          }}
+          title={editing ? '' : 'Düzenlemek için tıklayın'}
+        >
+          {goster}
+        </span>
+      </span>
     </div>
   );
 }

@@ -76,6 +76,12 @@ export interface Teklif {
    *  yoksa false. (Geriye uyumluluk: eski teklifler not içeriyorsa görünür
    *  kalır.) */
   notlarGosterilsin?: boolean;
+  /** Toplamlar altındaki "Kargo bedeli alıcıya aittir." mikro-notu.
+   *  Boş/undefined → varsayılan metin gösterilir.
+   *  Özel metin yazılırsa onun yerine o görünür. */
+  kargoNotuMetni?: string;
+  /** Kargo notu tamamen gizli mi? Varsayılan false (görünür). */
+  kargoNotuGizli?: boolean;
   olusturmaTarihi: string;
   guncellemeTarihi: string;
   pdfYolu?: string;

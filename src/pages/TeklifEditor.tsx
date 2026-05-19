@@ -306,6 +306,8 @@ export default function TeklifEditor() {
       odemeVadesi: state.odemeVadesi,
       notlar: state.notlar,
       notlarGosterilsin: state.notlarGosterilsin,
+      kargoNotuMetni: state.kargoNotuMetni,
+      kargoNotuGizli: state.kargoNotuGizli,
       olusturmaTarihi: state.olusturmaTarihi,
       guncellemeTarihi: new Date().toISOString(),
       hazirlayanKullaniciId: state.hazirlayanKullaniciId,
@@ -340,6 +342,8 @@ export default function TeklifEditor() {
     state.odemeVadesi,
     state.notlar,
     state.notlarGosterilsin,
+    state.kargoNotuMetni,
+    state.kargoNotuGizli,
     state.olusturmaTarihi,
     state.hazirlayanKullaniciId,
     state.hazirlayanAdSoyad,
@@ -1009,6 +1013,8 @@ export default function TeklifEditor() {
               pushUndo={pushUndo}
               getSnapshot={getSnapshot}
               onNotlarDegistir={state.setNotlar}
+              onKargoNotuMetniDegistir={state.setKargoNotuMetni}
+              onKargoNotuGizliDegistir={state.setKargoNotuGizli}
               sablonRef={sablonRef}
               kompaktHeaderRef={kompaktHeaderRef}
               readOnly={modeKilitli}
