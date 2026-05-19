@@ -4,23 +4,29 @@ import type { Transporter, SendMailOptions, SentMessageInfo } from 'nodemailer';
 
 /**
  * SMTP credentials her kullanıcı için DB'de saklanır.
- * Şifre AES-256-GCM ile encrypt edilir; key SMTP_ENCRYPTION_KEY env'inden gelir
- * (32 byte = 64 hex char).
+ * Şifre AES-256-GCM ile encrypt edilir; key SMTP_ENCRYPTION_KEY env'inden gelir.
+ *
+ * Key türetme stratejisi (tolerant):
+ *   - Tam 64 hex char ise → raw hex olarak 32 byte key kullan
+ *   - Aksi halde (Render auto-generate, base64 secret, herhangi bir string) →
+ *     SHA-256 ile 32 byte'a hash'le. Bu sayede Render'ın generateValue:true ile
+ *     ürettiği format (hex olmayan) da geçerli olur.
  *
  * Format: base64(iv (12 byte) | ciphertext | authTag (16 byte))
  */
 
-const KEY_HEX = process.env.SMTP_ENCRYPTION_KEY || '';
+const KEY_RAW = process.env.SMTP_ENCRYPTION_KEY || '';
 
 function getKey(): Buffer {
-  if (!KEY_HEX) {
-    throw new Error('SMTP_ENCRYPTION_KEY env yok (32 byte hex bekleniyor).');
+  if (!KEY_RAW) {
+    throw new Error('SMTP_ENCRYPTION_KEY env yok.');
   }
-  const key = Buffer.from(KEY_HEX, 'hex');
-  if (key.length !== 32) {
-    throw new Error(`SMTP_ENCRYPTION_KEY ${key.length} byte, 32 byte (64 hex char) gerekli.`);
+  // 64 hex char ise direkt kullan (geriye uyumluluk + standart)
+  if (/^[0-9a-fA-F]{64}$/.test(KEY_RAW)) {
+    return Buffer.from(KEY_RAW, 'hex');
   }
-  return key;
+  // Aksi halde SHA-256 ile deterministik 32 byte key türet
+  return crypto.createHash('sha256').update(KEY_RAW, 'utf8').digest();
 }
 
 export function encryptPassword(plain: string): string {
