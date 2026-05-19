@@ -926,39 +926,41 @@ export default function TeklifEditor() {
         pdfKayitDurum={pdfKayitDurum}
       />
 
-      {/* Revize banner — kapalı durumda (gönderildi/sonuçlanmış) düzenleme
-          için kullanıcı yönlendirilir. Belgeye tıklamak da aynı modalı açar. */}
+      {/* Revize bar — kapalı durumda (gönderildi/sonuçlanmış) düzenleme
+          için kullanıcı yönlendirilir. İnce şerit: tek satır, kompakt. */}
       {kilitli && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '10px 18px',
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '3px 14px',
           background: 'rgba(124,58,237,0.08)',
           borderBottom: '1px solid rgba(124,58,237,0.28)',
           color: '#5b21b6',
-          fontSize: 13,
+          fontSize: 11.5,
+          lineHeight: 1.4,
         }}>
-          <span style={{ fontSize: 16 }}>⟳</span>
-          <span style={{ flex: 1 }}>
-            Bu teklif <b>{DURUM_ETIKET[state.durum] || state.durum}</b>. Düzenlemek için orijinal kayıt korunur, yeni bir revize teklif oluşturulur.
+          <span style={{ fontSize: 12 }}>⟳</span>
+          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <b>{DURUM_ETIKET[state.durum] || state.durum}</b> · Düzenlemek için yeni revize oluşturulur.
           </span>
           <button
             type="button"
             onClick={revizeOnayAc}
             style={{
-              padding: '6px 14px',
-              borderRadius: 5,
-              fontSize: 12,
+              padding: '2px 10px',
+              borderRadius: 4,
+              fontSize: 11,
               fontWeight: 600,
               color: '#ffffff',
               background: '#7c3aed',
               border: 'none',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
+              lineHeight: 1.5,
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#6d28d9'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#7c3aed'; }}
           >
-            Yeni Revize Oluştur
+            Yeni Revize
           </button>
         </div>
       )}
