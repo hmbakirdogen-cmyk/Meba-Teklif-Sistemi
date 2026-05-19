@@ -97,7 +97,9 @@ function detectSaglayici(email: string): SaglayiciId {
   if (!domain) return 'other';
   if (domain === 'gmail.com' || domain === 'googlemail.com') return 'google';
   if (domain === 'mebamekanik.com') return 'google'; // Google Workspace
-  if (domain === 'mesaenerji.com' || domain === 'mesaenerji.com.tr' || domain === 'elmos.com.tr') return 'yandex';
+  // mesaenerji.com'un MX kaydı yok (sadece .com.tr aktif) — yanlış yönlendirme
+  // yapmamak için bilinçli olarak listeden çıkarıldı.
+  if (domain === 'mesaenerji.com.tr' || domain === 'elmos.com.tr') return 'yandex';
   if (domain.endsWith('yandex.com') || domain.endsWith('yandex.ru') || domain.endsWith('yandex.com.tr')) return 'yandex';
   if (
     domain === 'outlook.com' || domain === 'hotmail.com' || domain === 'live.com' ||
