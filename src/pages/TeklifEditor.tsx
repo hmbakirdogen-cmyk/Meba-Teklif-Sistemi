@@ -36,6 +36,7 @@ import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
 import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
 import SonucModal from '../components/SonucModal';
+import EpostaComposerModal from '../components/EpostaComposerModal';
 import type { Teklif, TeklifDurum } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 import { usePDFKayit } from '../hooks/usePDFKayit';
@@ -104,6 +105,29 @@ export default function TeklifEditor() {
   // dropdown'dan sonuçlanmış bir duruma geçilirse modal açılır; satır seçimi
   // (onay) veya sebep (red/iptal) toplanır, ardından meta'sı yazılır.
   const [sonucModalDurum, setSonucModalDurum] = useState<TeklifDurum | null>(null);
+
+  // E-posta composer modal — premium in-app gönderim (Outlook açmadan).
+  // hedef==='email' akışı PDF kaydından sonra burada toplanır; gönderim
+  // başarılı olursa onSent callback'i teklifi 'gonderildi' yapar.
+  const [epostaComposer, setEpostaComposer] = useState<{
+    open: boolean;
+    pdfBlob: Blob | null;
+    pdfFileName: string;
+    defaultTo: string;
+    defaultSubject: string;
+    defaultBody: string;
+    teklifId: string;
+    firmaLogoPath?: string;
+    firmaKisaAd?: string;
+  }>({
+    open: false,
+    pdfBlob: null,
+    pdfFileName: '',
+    defaultTo: '',
+    defaultSubject: '',
+    defaultBody: '',
+    teklifId: '',
+  });
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
   const cizimKalinlik = useRef(3);
@@ -396,33 +420,6 @@ export default function TeklifEditor() {
     );
   }, [message]);
 
-  const confirmEmailPdfReview = useCallback((): Promise<boolean> => new Promise((resolve) => {
-    let settled = false;
-    const finish = (value: boolean) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    modal.confirm({
-      title: 'PDF teklifini kontrol edin',
-      content: (
-        <div style={{ lineHeight: 1.55 }}>
-          <div>Lütfen göndermeden önce ekli PDF teklifini kontrol ediniz.</div>
-          <div style={{ marginTop: 8, color: '#6b7280' }}>
-            Özellikle çok sayfalı teklifler ve set/grup içeren teklifler için PDF çıktısını doğrulamanız önerilir.
-          </div>
-        </div>
-      ),
-      okText: 'Devam et ve Outlook’u aç',
-      cancelText: 'Vazgeç',
-      centered: true,
-      onOk: () => finish(true),
-      onCancel: () => finish(false),
-      afterClose: () => finish(false),
-    });
-  }), [modal]);
-
   const handleDisaAktar = useCallback(async (hedef: TeklifDisaAktarimHedefi) => {
     if (!teklifObj || uretiliyorRef.current) return;
 
@@ -509,10 +506,9 @@ export default function TeklifEditor() {
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
 
-      if (hedef === 'email') {
-        const devam = await confirmEmailPdfReview();
-        if (!devam) return;
-      }
+      // Eski "PDF'i kontrol et + Outlook'u aç" confirm modal'i kaldırıldı —
+      // in-app composer kullanıcıya PDF eki + alıcı/konu/mesajı düzenleme
+      // fırsatı zaten veriyor; ekstra onay adımı redundant.
 
       // PDF foreground açma — hedef='pdf' için. Klasöre yazım başarılı olsa
       // bile kullanıcı dosyayı anında görmek istiyor. window.open user gesture
@@ -570,34 +566,41 @@ export default function TeklifEditor() {
         hedef,
         firmaPdfKlasorAdi,
         teklifFirmasi,
-        { yerelKayitYapildi },
+        { yerelKayitYapildi, skipMailto: hedef === 'email' },
       );
       teklifService.teklifCacheGuncelle(sonuc.teklif);
-      showExportMessage(sonuc, { yerelKayitYapildi: !!yerelKayitYapildi });
 
       // 3) Durum auto-progression — kullanıcının manuel kararına saygı:
       //    'onaylandı' / 'reddedildi' / 'iptal' (sonuçlanmış) ise otomatik
       //    geçiş tetiklenmez — kapanmış teklifin durumu yanlışlıkla 'hazir' ya
       //    da 'gonderildi'ye dönmesin. Aksi takdirde:
-      //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap
-      //      hedef='email' → e-posta hazırlandıysa 'gönderildi' yap
+      //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap (export sonrası toast)
+      //      hedef='email' → composer modal açılır; gönderim onSent içinde
+      //                      yapılır → durum oradan 'gonderildi'ye geçer.
       const sonuclanmis =
         state.durum === 'onaylandi' ||
         state.durum === 'kismi_onaylandi' ||
         state.durum === 'reddedildi' ||
         state.durum === 'iptal';
-      if (!sonuclanmis) {
-        if (hedef === 'pdf' && state.durum === 'taslak') {
+
+      if (hedef === 'email') {
+        // In-app composer modal açılır — kullanıcı alıcı/konu/mesaj/ekleri
+        // düzenler ve gönderir. Backend SMTP üzerinden gönderim yapılır.
+        setEpostaComposer({
+          open: true,
+          pdfBlob: blob,
+          pdfFileName: sonuc.pdfDosyaAdi,
+          defaultTo: sonuc.aliciEposta || '',
+          defaultSubject: sonuc.mailKonu || '',
+          defaultBody: sonuc.mailGovdesi || '',
+          teklifId: teklifIcinExport.id,
+          firmaLogoPath: teklifFirmasi?.logoPath,
+          firmaKisaAd: teklifFirmasi?.kisaAd,
+        });
+      } else {
+        showExportMessage(sonuc, { yerelKayitYapildi: !!yerelKayitYapildi });
+        if (!sonuclanmis && hedef === 'pdf' && state.durum === 'taslak') {
           state.setDurum('hazir');
-        }
-        if (hedef === 'email' && sonuc.epostaHazirlandi) {
-          // Tek save: state.durum henüz 'gonderildi' olmasa da setDurum +
-          // kaydetWithStatus tek seferde halleder; öncekiyle aynı net etki.
-          const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
-          if (yumusakDurumlar.includes(state.durum)) {
-            state.setDurum('gonderildi');
-          }
-          await state.kaydetWithStatus('gonderildi');
         }
       }
     } catch (error) {
@@ -619,7 +622,7 @@ export default function TeklifEditor() {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message, modal, showExportMessage, confirmEmailPdfReview, aktifKullanici?.firmaId, firmalar, pdfKayit]);
+  }, [teklifObj, state, message, modal, showExportMessage, aktifKullanici?.firmaId, firmalar, pdfKayit]);
 
   const handlePdfIndir = useCallback(async () => {
     await handleDisaAktar('pdf');
@@ -1235,6 +1238,34 @@ export default function TeklifEditor() {
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalDurum(null)}
         onSave={handleSonucKaydet}
+      />
+
+      <EpostaComposerModal
+        open={epostaComposer.open}
+        onClose={() => setEpostaComposer((prev) => ({ ...prev, open: false }))}
+        teklifId={epostaComposer.teklifId}
+        defaultTo={epostaComposer.defaultTo}
+        defaultSubject={epostaComposer.defaultSubject}
+        defaultBody={epostaComposer.defaultBody}
+        pdfBlob={epostaComposer.pdfBlob}
+        pdfFileName={epostaComposer.pdfFileName}
+        firmaLogoPath={epostaComposer.firmaLogoPath}
+        firmaKisaAd={epostaComposer.firmaKisaAd}
+        onSent={() => {
+          // Composer başarıyla gönderdi → teklif durumunu 'gonderildi'ye al
+          // (sonuçlanmış tekliflerde geçiş yapma — kullanıcı kararına saygı).
+          const sonuclanmis =
+            state.durum === 'onaylandi' ||
+            state.durum === 'kismi_onaylandi' ||
+            state.durum === 'reddedildi' ||
+            state.durum === 'iptal';
+          if (sonuclanmis) return;
+          const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
+          if (yumusakDurumlar.includes(state.durum)) {
+            state.setDurum('gonderildi');
+          }
+          void state.kaydetWithStatus('gonderildi');
+        }}
       />
     </div>
   );

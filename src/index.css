@@ -39,6 +39,11 @@
   --popup-shadow-level1: 0 4px 12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
   --popup-shadow-level2: 0 10px 28px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.08);
   --popup-shadow-level3: 0 18px 48px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.10);
+  /* Popup state renkleri */
+  --popup-focus-ring: rgba(59, 130, 246, 0.42);
+  --popup-selected-bg: rgba(37, 99, 235, 0.10);
+  --popup-pressed-bg: rgba(15, 23, 42, 0.06);
+  --popup-backdrop: rgba(15, 23, 42, 0.18);
   color-scheme: light;
 
   /* ── Tipografi sistemi CSS değişkenleri ────────────────────────── */
@@ -112,6 +117,11 @@
   --popup-shadow-level1: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --popup-shadow-level2: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --popup-shadow-level3: 0 18px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  /* Popup state renkleri — dark mode */
+  --popup-focus-ring: rgba(96, 165, 250, 0.55);
+  --popup-selected-bg: rgba(96, 165, 250, 0.18);
+  --popup-pressed-bg: rgba(255, 255, 255, 0.06);
+  --popup-backdrop: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
 }
 
@@ -2441,36 +2451,36 @@ button.referanslar-satir-teklifno:hover .anticon {
   color: #ecf0f4;
 }
 
-/* ── ÜST NAVBAR — koyu antrasit, şeffaf cam ────────────────────────── */
+/* ── ÜST NAVBAR — Onyx Midnight (derin kurumsal charcoal), şeffaf cam ─ */
 .premium-navbar {
   background:
-    radial-gradient(ellipse 900px 360px at  8% -25%, rgba(255,255,255,0.09), transparent 60%),
-    radial-gradient(ellipse 750px 300px at 95% 125%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(ellipse 900px 360px at  8% -25%, rgba(232,224,200,0.08), transparent 60%),
+    radial-gradient(ellipse 750px 300px at 95% 125%, rgba(232,224,200,0.05), transparent 60%),
     linear-gradient(180deg,
-      rgba(34,37,43,0.84) 0%,
-      rgba(22,25,31,0.87) 55%,
-      rgba(11,13,17,0.90) 100%) !important;
+      rgba(18,22,28,0.86) 0%,
+      rgba(11,14,20,0.89) 55%,
+      rgba(5,8,14,0.92) 100%) !important;
   box-shadow:
-    inset 0  1px 0 rgba(255,255,255,0.14),
-    inset 0 -1px 0 rgba(0,0,0,0.60),
+    inset 0  1px 0 rgba(255,255,255,0.12),
+    inset 0 -1px 0 rgba(0,0,0,0.65),
     0 16px 44px -22px rgba(0,0,0,0.85) !important;
 }
 
-/* ── ALT TOOLBAR — koyu gri ton, şeffaf cam ────────────────────────── */
+/* ── ALT TOOLBAR — Graphite (kurumsal koyu grafit, bir ton açık) ───── */
 .premium-toolbar {
   position: sticky;
   top: 0;
   z-index: 100;
   background:
-    radial-gradient(ellipse 900px 360px at  8% -25%, rgba(255,255,255,0.10), transparent 60%),
-    radial-gradient(ellipse 750px 300px at 95% 125%, rgba(255,255,255,0.07), transparent 60%),
+    radial-gradient(ellipse 900px 360px at  8% -25%, rgba(232,224,200,0.09), transparent 60%),
+    radial-gradient(ellipse 750px 300px at 95% 125%, rgba(232,224,200,0.06), transparent 60%),
     linear-gradient(180deg,
-      rgba(54,58,65,0.82) 0%,
-      rgba(41,44,51,0.85) 55%,
-      rgba(27,30,36,0.88) 100%) !important;
+      rgba(38,42,50,0.84) 0%,
+      rgba(30,34,42,0.87) 55%,
+      rgba(22,26,34,0.90) 100%) !important;
   box-shadow:
-    inset 0  1px 0 rgba(255,255,255,0.16),
-    inset 0 -1px 0 rgba(0,0,0,0.55),
+    inset 0  1px 0 rgba(255,255,255,0.14),
+    inset 0 -1px 0 rgba(0,0,0,0.60),
     0 12px 36px -20px rgba(0,0,0,0.75) !important;
 }
 
@@ -3052,6 +3062,11 @@ button.referanslar-satir-teklifno:hover .anticon {
   .premium-toolbar::after {
     opacity: 0.85 !important;
     transform: none !important;
+  }
+  /* Cell popup animasyonunu kapat */
+  .cell-popup-fade-in,
+  [class*="cell-popup-fade-in"] {
+    animation: none !important;
   }
 }
 

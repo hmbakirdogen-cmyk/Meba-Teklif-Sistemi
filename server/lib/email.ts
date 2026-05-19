@@ -1,8 +1,40 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { Firma, Teklif, Kullanici } from '@prisma/client';
 import { decryptPassword, sendViaSMTP, type SMTPConfig } from './smtp.js';
 
 function normalizeWhitespace(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Firma logosunu base64 olarak yükler — imza alanına gömülü olarak gönderilir.
+ * Öncelik: R2 URL (firma.logoUrl) → fetch + base64. Yoksa lokal `public/logo-{id}.png`.
+ * Hiçbiri yoksa null döner; çağıran kod imzayı logo'suz render eder.
+ */
+export async function loadFirmaLogoBase64(firma: Pick<Firma, 'id' | 'logoUrl'> | null): Promise<string | null> {
+  if (!firma) return null;
+  // 1) R2 (veya başka uzak HTTPS) URL'si
+  const url = firma.logoUrl?.trim();
+  if (url && /^https?:\/\//i.test(url)) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length > 0) return buf.toString('base64');
+      }
+    } catch {
+      // sessiz — lokal fallback'e düş
+    }
+  }
+  // 2) Lokal public/ asset (firmaId bazlı)
+  try {
+    const local = path.resolve(process.cwd(), 'public', `logo-${firma.id}.png`);
+    const buf = await fs.readFile(local);
+    return buf.toString('base64');
+  } catch {
+    return null;
+  }
 }
 
 function htmlEscape(value: unknown): string {
@@ -131,13 +163,19 @@ export function mailHtmlGovdesiUret(
 </body></html>`;
 }
 
+export interface SendTeklifMailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export interface SendTeklifMailParams {
-  to: string;
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html: string;
   text: string;
-  pdfBuffer: Buffer;
-  pdfFileName: string;
+  attachments: SendTeklifMailAttachment[];
 }
 
 export interface SendTeklifMailResult {
@@ -178,10 +216,12 @@ export async function sendTeklifEmailFromUser(
   };
   const result = await sendViaSMTP(config, {
     to: params.to,
+    cc: params.cc,
+    bcc: params.bcc,
     subject: params.subject,
     html: params.html,
     text: params.text,
-    attachments: [{ filename: params.pdfFileName, content: params.pdfBuffer }],
+    attachments: params.attachments,
   });
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, messageId: result.messageId };

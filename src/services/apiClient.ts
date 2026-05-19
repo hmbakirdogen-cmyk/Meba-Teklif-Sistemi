@@ -384,6 +384,26 @@ export const api = {
       post<{ ok: boolean; to?: string; messageId?: string; error?: string }>('/auth/smtp-test-mail', {}),
   },
 
+  // ── E-posta gönderim (composer modal'dan) ────────────────────────────────
+  eposta: {
+    gonder: (payload: {
+      teklifId: string;
+      to: string[];
+      cc?: string[];
+      bcc?: string[];
+      bccSelf?: boolean;
+      subject: string;
+      customText?: string;
+      pdfBase64: string;
+      extraAttachments?: Array<{ filename: string; base64: string }>;
+    }) =>
+      post<{ ok: true; messageId?: string; fileName?: string; subject?: string } | { ok: false; error: string }>(
+        '/teklif/eposta-gonder',
+        payload,
+        TIMEOUT_MS_LONG,
+      ),
+  },
+
   // ── Firmalar ────────────────────────────────────────────────────────────────
   firmalar: {
     /** Public — login ekranindaki splash icin token gerektirmez. */

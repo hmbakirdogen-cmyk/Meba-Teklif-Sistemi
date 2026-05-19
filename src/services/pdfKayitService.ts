@@ -268,7 +268,13 @@ export async function teklifDisaAktar(
   hedef: TeklifDisaAktarimHedefi,
   firmaPdfKlasorAdi?: string,
   firmaProfil?: Firma,
-  options?: { yerelKayitYapildi?: { saved: boolean; path?: string } },
+  options?: {
+    yerelKayitYapildi?: { saved: boolean; path?: string };
+    /** true → mailto açma adımı atlanır; caller (örn. in-app composer modal)
+     *  gönderimi kendisi yapar. mailKonu/mailGovdesi/aliciEposta yine
+     *  döndürülür ki caller prefill yapabilsin. */
+    skipMailto?: boolean;
+  },
 ): Promise<TeklifDisaAktarimSonucu> {
   const fallbackFileName = buildPdfDosyaAdi(teklif);
   const aliciEposta = teklif.cari?.ePosta?.trim() || undefined;
@@ -298,14 +304,33 @@ export async function teklifDisaAktar(
     };
   }
 
-  // hedef === 'email': SADECE sistem varsayılan e-posta uygulaması (mailto)
-  // Eski Resend yolu bypass edildi — kullanıcı tercihiyle her zaman kendi
-  // e-posta istemcisi (Outlook desktop / Apple Mail / Thunderbird / vs.)
-  // açılır. PDF eki manuel; İndirilenler'e zaten kaydedildi.
-  // (Eski resendIleGonder() / Resend env hala mevcut, kullanılmıyor — ileride
-  //  istenirse seçenek olarak ekleyebiliriz.)
+  // hedef === 'email': iki yol var —
+  //   1) skipMailto=true → caller in-app composer ile SMTP üzerinden gönderim
+  //      yapacak; bu fonksiyon sadece local PDF save + prefill verisini döner.
+  //   2) skipMailto=false (legacy) → sistem varsayılan e-posta uygulaması
+  //      (mailto:) açılır, PDF eki manuel.
   void resendIleGonder; // unused — ileride seçenek olarak geri açılabilir
   void blobToBase64;    // unused — Resend bypass nedeniyle PDF base64 gerekmez
+
+  if (options?.skipMailto) {
+    return {
+      hedef,
+      teklif,
+      pdfYolu: '',
+      pdfDosyaAdi: fallbackFileName,
+      klasorYolu: '',
+      masaustuYolu: '',
+      kayitYontemi: 'tarayici',
+      dosyaAcildi: false,
+      epostaHazirlandi: false,
+      epostaTaslakYontemi: null,
+      aliciEposta,
+      mailKonu,
+      mailGovdesi,
+      yerelKayitYolu: localSave.relativePath,
+    };
+  }
+
   const mailtoOpened = openMailtoDraft(aliciEposta, mailKonu, mailGovdesi);
   return {
     hedef,
@@ -339,7 +364,7 @@ export async function teklifDisaAktarVeGerekirseYerelTaslakAc(
   hedef: TeklifDisaAktarimHedefi,
   firmaPdfKlasorAdi?: string,
   firmaProfil?: Firma,
-  options?: { yerelKayitYapildi?: { saved: boolean; path?: string } },
+  options?: { yerelKayitYapildi?: { saved: boolean; path?: string }; skipMailto?: boolean },
 ): Promise<TeklifDisaAktarimSonucu> {
   return teklifDisaAktar(blob, teklif, hedef, firmaPdfKlasorAdi, firmaProfil, options);
 }
