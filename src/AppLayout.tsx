@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
+import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover, Alert } from 'antd';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
+import SelfServeSmtpModal from './components/SelfServeSmtpModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
 import BildirimPaneli from './components/BildirimPaneli';
@@ -34,7 +35,7 @@ export default function AppLayout() {
   const navigate   = useNavigate();
   const location   = useLocation();
   const { modal }  = App.useApp();
-  const { aktifKullanici, cikisYap } = useKullanici();
+  const { aktifKullanici, cikisYap, refreshKullanici } = useKullanici();
   const { aktifFirma, firmalar, setAktifFirma } = useFirma();
   const { isDark, temaToggle } = useTheme();
   const C          = useColors();
@@ -42,6 +43,8 @@ export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profilFotoModalOpen, setProfilFotoModalOpen] = useState(false);
   const [profilDuzenleOpen, setProfilDuzenleOpen] = useState(false);
+  // SMTP kurulum sihirbazı — banner'dan tetiklenir
+  const [smtpSetupOpen, setSmtpSetupOpen] = useState(false);
   const [adminGbDrawerAcik, setAdminGbDrawerAcik] = useState(false);
   const [okunmamisGb, setOkunmamisGb] = useState(0);
   const [bildirimDrawerAcik, setBildirimDrawerAcik] = useState(false);
@@ -734,6 +737,25 @@ export default function AppLayout() {
         )}
       </Drawer>
 
+      {/* SMTP kurulmamış kullanıcılar için login sonrası tek seferlik uyarı banner'ı.
+          Bir kez kurulduğunda smtpPasswordSet=true olur ve banner otomatik kaybolur. */}
+      {aktifKullanici && aktifKullanici.smtpPasswordSet === false && (
+        <Alert
+          message="Mail ayarlarınız henüz yapılmamış"
+          description="Teklif gönderebilmek için mail adresinizi ve mail şifrenizi tanımlamanız gerekiyor. Tek seferlik, kolay bir kurulum."
+          type="warning"
+          showIcon
+          banner
+          closable={false}
+          action={
+            <Button size="small" type="primary" onClick={() => setSmtpSetupOpen(true)}>
+              Şimdi kur
+            </Button>
+          }
+          style={{ borderRadius: 0 }}
+        />
+      )}
+
       <Content style={{ background: 'transparent' }}>
         <Outlet />
       </Content>
@@ -748,6 +770,18 @@ export default function AppLayout() {
       <ProfilDuzenleModal
         open={profilDuzenleOpen}
         onClose={() => setProfilDuzenleOpen(false)}
+      />
+
+      {/* Self-serve mail kurulum sihirbazı — üstteki uyarı banner'ından
+          tetiklenir. Tamamlandığında smtpPasswordSet=true olur ve banner
+          otomatik kaybolur (refreshKullanici ile aktifKullanici güncellenir). */}
+      <SelfServeSmtpModal
+        open={smtpSetupOpen}
+        onClose={() => setSmtpSetupOpen(false)}
+        onCompleted={() => {
+          setSmtpSetupOpen(false);
+          void refreshKullanici();
+        }}
       />
 
       {/* Geri Bildirim floating buton — tüm sayfalarda (TeklifEditor dâhil)

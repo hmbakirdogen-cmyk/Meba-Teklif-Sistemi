@@ -310,6 +310,39 @@ export const api = {
     incrementFor: (firmaId: string)     => post<Sayac & { firmaId: string }>(`/sayac/${firmaId}/increment`, {}),
   },
 
+  // ── Teklif e-posta gönderim (in-app Outlook benzeri modal'dan) ──────────
+  teklifEposta: {
+    /** Modal'dan gelen verilerle teklif PDF'i mail eki olarak gönderir +
+     *  başarılı SMTP send sonrası IMAP APPEND ile "Gönderilmiş Öğeler"
+     *  klasörüne kopya yazılır (Outlook/365 / Yandex / Zoho için otomatik;
+     *  Gmail için Gmail kendi yazar; custom SMTP için skip). */
+    gonder: (payload: {
+      teklifId: string;
+      to: string | string[];
+      cc?: string[];
+      bcc?: string[];
+      subject?: string;
+      bodyHtml?: string;
+      bodyText?: string;
+      logoBase64?: string;
+      logoContentType?: string;
+      /** Bayilik markaları — her birinin CID + base64 + contentType. Backend
+       *  body içindeki cid:partner-X referanslarını eşler. */
+      partnerLogos?: Array<{ cid: string; base64: string; contentType: string }>;
+      pdfBase64: string;
+    }) =>
+      post<{
+        ok: boolean;
+        messageId?: string;
+        fileName?: string;
+        subject?: string;
+        sentSyncOk?: boolean;
+        sentSyncError?: string | null;
+        sentMailbox?: string | null;
+        error?: string;
+      }>('/teklif/eposta-gonder', payload, TIMEOUT_MS_LONG),
+  },
+
   // ── Geri Bildirim (kullanıcı → süper admin mesaj kanalı) ──────────────────
   geriBildirimler: {
     list:    ()                                                                  => get<GeriBildirim[]>('/geribildirim'),
@@ -382,6 +415,45 @@ export const api = {
       post<{ ok: true } | { ok: false; error: string }>('/auth/smtp-test', payload),
     smtpTestMail: () =>
       post<{ ok: boolean; to?: string; messageId?: string; error?: string }>('/auth/smtp-test-mail', {}),
+
+    // ── Admin: bir başka kullanıcının SMTP'sini kur ─────────────────
+    smtpAyarlarForUser: (userId: string) =>
+      get<{
+        userId: string;
+        adSoyad: string;
+        kullaniciAdi: string;
+        smtpHost: string | null;
+        smtpPort: number | null;
+        smtpSecure: boolean | null;
+        smtpUser: string | null;
+        smtpFromName: string | null;
+        smtpFromAddress: string | null;
+        hasPassword: boolean;
+        presets: Record<string, { host: string; port: number; secure: boolean; label: string }>;
+      }>(`/auth/admin/smtp-ayarlar/${userId}`),
+    smtpAyarlariGuncelleForUser: (userId: string, payload: {
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecure?: boolean;
+      smtpUser?: string;
+      smtpFromName?: string;
+      smtpFromAddress?: string;
+      smtpPassword?: string;
+      clearPassword?: boolean;
+    }) =>
+      patch<{
+        ok: boolean;
+        userId: string;
+        smtpHost: string | null;
+        smtpPort: number | null;
+        smtpSecure: boolean | null;
+        smtpUser: string | null;
+        smtpFromName: string | null;
+        smtpFromAddress: string | null;
+        hasPassword: boolean;
+      }>(`/auth/admin/smtp-ayarlar/${userId}`, payload),
+    smtpTestMailForUser: (userId: string) =>
+      post<{ ok: boolean; to?: string; messageId?: string; error?: string }>(`/auth/admin/smtp-test-mail/${userId}`, {}),
   },
 
   // ── Firmalar ────────────────────────────────────────────────────────────────

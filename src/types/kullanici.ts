@@ -39,6 +39,15 @@ export interface Kullanici {
   silmeTarihi?: string;
   sifreDegisikligi?: string;
   profilFotoYuklemeTarihi?: string;
+  // ── SMTP gönderim alanları (server sanitizeUser ile dönülür) ──────
+  // Şifre HİÇ frontend'e gelmez; sadece "tanımlı mı?" flag'i (smtpPasswordSet).
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpSecure?: boolean | null;
+  smtpUser?: string | null;
+  smtpFromName?: string | null;
+  smtpFromAddress?: string | null;
+  smtpPasswordSet?: boolean;
 }
 
 export const ROL_ETIKET: Record<KullaniciRol, string> = {

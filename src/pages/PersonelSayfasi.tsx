@@ -274,6 +274,20 @@ export default function PersonelSayfasi() {
           : <Tag color="green">Tamam</Tag>,
     },
     {
+      title: 'Mail Hesabı',
+      key: 'smtpStatus',
+      render: (_: unknown, k: Kullanici) => {
+        if (k.smtpPasswordSet && k.smtpUser) {
+          return (
+            <Tag color="green" style={{ fontSize: 11 }}>
+              {k.smtpUser}
+            </Tag>
+          );
+        }
+        return <Tag color="red">Kurulmamış</Tag>;
+      },
+    },
+    {
       title: 'İşlemler',
       key: 'actions',
       align: 'right' as const,

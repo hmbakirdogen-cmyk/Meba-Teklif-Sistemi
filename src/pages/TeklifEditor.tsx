@@ -36,6 +36,8 @@ import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
 import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
 import SonucModal from '../components/SonucModal';
+import MailComposeModal, { type MailComposeContext } from '../components/MailComposeModal';
+import SelfServeSmtpModal from '../components/SelfServeSmtpModal';
 import type { Teklif, TeklifDurum } from '../types';
 import type { EditingAlan } from '../components/PaginatedBelgeInlineEditor';
 import { usePDFKayit } from '../hooks/usePDFKayit';
@@ -60,7 +62,7 @@ export default function TeklifEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
-  const { aktifKullanici } = useKullanici();
+  const { aktifKullanici, refreshKullanici } = useKullanici();
   const { firmalar, aktifFirma } = useFirma();
   const pdfKayit = usePDFKayit();
   // PDF kayıt klasörü erişim durumu — rozet 3 durumu (ok/izinKayip/klasorYok)
@@ -104,6 +106,15 @@ export default function TeklifEditor() {
   // dropdown'dan sonuçlanmış bir duruma geçilirse modal açılır; satır seçimi
   // (onay) veya sebep (red/iptal) toplanır, ardından meta'sı yazılır.
   const [sonucModalDurum, setSonucModalDurum] = useState<TeklifDurum | null>(null);
+  // In-app Outlook benzeri mail compose modal'ı. PDF üretildikten + yerel
+  // kayıt yapıldıktan sonra açılır; modal kendi içinde backend'i çağırıp
+  // SMTP send + IMAP APPEND yapar. Mailto akışı tamamen devre dışı.
+  const [mailCtx, setMailCtx] = useState<MailComposeContext | null>(null);
+  // Self-serve SMTP kurulum modal'ı. Kullanıcı ilk teklif gönderiminde SMTP
+  // tanımlı değilse otomatik açılır. pendingMailCtx, kurulum bitince hangi
+  // compose context'ine geçileceğini hatırlar.
+  const [smtpSetupOpen, setSmtpSetupOpen] = useState(false);
+  const [pendingMailCtx, setPendingMailCtx] = useState<MailComposeContext | null>(null);
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
   const cizimKalinlik = useRef(3);
@@ -396,33 +407,6 @@ export default function TeklifEditor() {
     );
   }, [message]);
 
-  const confirmEmailPdfReview = useCallback((): Promise<boolean> => new Promise((resolve) => {
-    let settled = false;
-    const finish = (value: boolean) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    modal.confirm({
-      title: 'PDF teklifini kontrol edin',
-      content: (
-        <div style={{ lineHeight: 1.55 }}>
-          <div>Lütfen göndermeden önce ekli PDF teklifini kontrol ediniz.</div>
-          <div style={{ marginTop: 8, color: '#6b7280' }}>
-            Özellikle çok sayfalı teklifler ve set/grup içeren teklifler için PDF çıktısını doğrulamanız önerilir.
-          </div>
-        </div>
-      ),
-      okText: 'Devam et ve Outlook’u aç',
-      cancelText: 'Vazgeç',
-      centered: true,
-      onOk: () => finish(true),
-      onCancel: () => finish(false),
-      afterClose: () => finish(false),
-    });
-  }), [modal]);
-
   const handleDisaAktar = useCallback(async (hedef: TeklifDisaAktarimHedefi) => {
     if (!teklifObj || uretiliyorRef.current) return;
 
@@ -509,11 +493,6 @@ export default function TeklifEditor() {
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
 
-      if (hedef === 'email') {
-        const devam = await confirmEmailPdfReview();
-        if (!devam) return;
-      }
-
       // PDF foreground açma — hedef='pdf' için. Klasöre yazım başarılı olsa
       // bile kullanıcı dosyayı anında görmek istiyor. window.open user gesture
       // chain içinde tetikleniyor; pop-up engellenirse console.warn ile geçer.
@@ -564,40 +543,57 @@ export default function TeklifEditor() {
         }
       }
 
-      const sonuc = await teklifDisaAktarVeGerekirseYerelTaslakAc(
-        blob,
-        teklifIcinExport,
-        hedef,
-        firmaPdfKlasorAdi,
-        teklifFirmasi,
-        { yerelKayitYapildi },
-      );
-      teklifService.teklifCacheGuncelle(sonuc.teklif);
-      showExportMessage(sonuc, { yerelKayitYapildi: !!yerelKayitYapildi });
-
-      // 3) Durum auto-progression — kullanıcının manuel kararına saygı:
-      //    'onaylandı' / 'reddedildi' / 'iptal' (sonuçlanmış) ise otomatik
-      //    geçiş tetiklenmez — kapanmış teklifin durumu yanlışlıkla 'hazir' ya
-      //    da 'gonderildi'ye dönmesin. Aksi takdirde:
-      //      hedef='pdf'   → durum 'taslak' ise 'hazır' yap
-      //      hedef='email' → e-posta hazırlandıysa 'gönderildi' yap
-      const sonuclanmis =
-        state.durum === 'onaylandi' ||
-        state.durum === 'kismi_onaylandi' ||
-        state.durum === 'reddedildi' ||
-        state.durum === 'iptal';
-      if (!sonuclanmis) {
-        if (hedef === 'pdf' && state.durum === 'taslak') {
+      // PDF için her zaman yerel kayıt + arşiv mesajı; email için modal açılır,
+      // gönderim sonrası status auto-progression handleMailSent içinde olur.
+      if (hedef === 'pdf') {
+        const sonuc = await teklifDisaAktarVeGerekirseYerelTaslakAc(
+          blob,
+          teklifIcinExport,
+          'pdf',
+          firmaPdfKlasorAdi,
+          teklifFirmasi,
+          { yerelKayitYapildi },
+        );
+        teklifService.teklifCacheGuncelle(sonuc.teklif);
+        showExportMessage(sonuc, { yerelKayitYapildi: !!yerelKayitYapildi });
+        const sonuclanmis =
+          state.durum === 'onaylandi' ||
+          state.durum === 'kismi_onaylandi' ||
+          state.durum === 'reddedildi' ||
+          state.durum === 'iptal';
+        if (!sonuclanmis && state.durum === 'taslak') {
           state.setDurum('hazir');
         }
-        if (hedef === 'email' && sonuc.epostaHazirlandi) {
-          // Tek save: state.durum henüz 'gonderildi' olmasa da setDurum +
-          // kaydetWithStatus tek seferde halleder; öncekiyle aynı net etki.
-          const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
-          if (yumusakDurumlar.includes(state.durum)) {
-            state.setDurum('gonderildi');
-          }
-          await state.kaydetWithStatus('gonderildi');
+      } else {
+        // hedef === 'email' — uygulama içi compose modal'ı aç. Kullanıcı modal'da
+        // alıcı/konu/gövdeyi gözden geçirip "Gönder"e basınca SMTP send + IMAP
+        // APPEND backend'de çalışır. Mailto açılmaz; Outlook desktop tetiklenmez.
+        const cariStem = (state.cari?.firmaAdi || 'TEKLIF')
+          .toLocaleUpperCase('tr-TR')
+          .replace(/[<>:"/\\|?*]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .split(' ')
+          .slice(0, 2)
+          .join(' ');
+        const teklifNoSeg = (state.teklifNo || '').trim();
+        const pdfFileName = (teklifNoSeg ? `${cariStem} - ${teklifNoSeg}` : cariStem) + '.pdf';
+        const ctx: MailComposeContext = {
+          teklif: teklifIcinExport,
+          firma: teklifFirmasi || null,
+          kullanici: aktifKullanici,
+          pdfBlob: blob,
+          pdfFileName,
+          defaultTo: state.cari?.ePosta || undefined,
+        };
+        // SMTP tanımlı mı? Değilse önce self-serve kurulum modal'ı aç.
+        // Kurulum bitince pending context ile compose modal'ı açılır.
+        const smtpHazir = Boolean(aktifKullanici?.smtpPasswordSet && aktifKullanici?.smtpUser);
+        if (!smtpHazir) {
+          setPendingMailCtx(ctx);
+          setSmtpSetupOpen(true);
+        } else {
+          setMailCtx(ctx);
         }
       }
     } catch (error) {
@@ -619,7 +615,7 @@ export default function TeklifEditor() {
       uretiliyorRef.current = false;
       state.setUretiliyor(false);
     }
-  }, [teklifObj, state, message, modal, showExportMessage, confirmEmailPdfReview, aktifKullanici?.firmaId, firmalar, pdfKayit]);
+  }, [teklifObj, state, message, modal, showExportMessage, aktifKullanici, firmalar, pdfKayit]);
 
   const handlePdfIndir = useCallback(async () => {
     await handleDisaAktar('pdf');
@@ -628,6 +624,21 @@ export default function TeklifEditor() {
   const handleEMailGonder = useCallback(async () => {
     await handleDisaAktar('email');
   }, [handleDisaAktar]);
+
+  /** Compose modal'da "Gönder" başarılı olduğunda durumu 'gonderildi'ye çek. */
+  const handleMailSent = useCallback(async () => {
+    const sonuclanmis =
+      state.durum === 'onaylandi' ||
+      state.durum === 'kismi_onaylandi' ||
+      state.durum === 'reddedildi' ||
+      state.durum === 'iptal';
+    if (sonuclanmis) return;
+    const yumusakDurumlar: Array<typeof state.durum> = ['taslak', 'hazir'];
+    if (yumusakDurumlar.includes(state.durum)) {
+      state.setDurum('gonderildi');
+    }
+    await state.kaydetWithStatus('gonderildi');
+  }, [state]);
 
   const handleYazdir = useCallback(async () => {
     if (!teklifObj || !sablonRef.current || !kompaktHeaderRef.current || uretiliyorRef.current) return;
@@ -1235,6 +1246,28 @@ export default function TeklifEditor() {
         teklif={sonucModalTeklif}
         onClose={() => setSonucModalDurum(null)}
         onSave={handleSonucKaydet}
+      />
+
+      <MailComposeModal
+        open={mailCtx !== null}
+        context={mailCtx}
+        onClose={() => setMailCtx(null)}
+        onSent={() => { void handleMailSent(); }}
+      />
+
+      <SelfServeSmtpModal
+        open={smtpSetupOpen}
+        onClose={() => { setSmtpSetupOpen(false); setPendingMailCtx(null); }}
+        onCompleted={() => {
+          setSmtpSetupOpen(false);
+          // Kullanıcı bilgisini tazele ki smtpPasswordSet doğru gelsin
+          void refreshKullanici();
+          // Pending compose context'i varsa şimdi onunla compose modal'ı aç
+          if (pendingMailCtx) {
+            setMailCtx(pendingMailCtx);
+            setPendingMailCtx(null);
+          }
+        }}
       />
     </div>
   );

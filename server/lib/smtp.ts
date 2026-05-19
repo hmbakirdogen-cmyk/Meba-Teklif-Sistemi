@@ -87,6 +87,40 @@ export async function sendViaSMTP(
   }
 }
 
+/**
+ * Raw MIME üretimi + SMTP gönderim. Aynı raw buffer'ı IMAP APPEND ile
+ * "Gönderilenler" klasörüne yazmak için döner. Tek seferde compose →
+ * SMTP'ye stream → buffer'ı da geri ver.
+ *
+ * Akış:
+ *   1) streamTransport=true bir composer transport ile mesaj raw MIME'ye
+ *      derlenir (info.message = Buffer).
+ *   2) Gerçek SMTP transporter ile { raw, envelope } kullanılarak gönderilir
+ *      → ağa giden bayt birebir raw buffer. IMAP APPEND'e aynı buffer'ı
+ *      verince server-side "Sent" klasöründeki kopya da bire bir aynı olur.
+ */
+export async function sendAndComposeRaw(
+  config: SMTPConfig,
+  mail: Omit<SendMailOptions, 'from'>,
+): Promise<{ ok: true; messageId: string; raw: Buffer; envelopeTo: string[] } | { ok: false; error: string }> {
+  let transporter: Transporter | null = null;
+  try {
+    const fromDisplay = config.fromName ? `"${config.fromName}" <${config.fromAddress}>` : config.fromAddress;
+    const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'unix' });
+    const composed = await composer.sendMail({ from: fromDisplay, ...mail });
+    const raw: Buffer = composed.message as Buffer;
+    const envelope = composed.envelope as { from: string; to: string[] };
+    transporter = buildTransporter(config);
+    const info = await transporter.sendMail({ envelope, raw });
+    return { ok: true, messageId: info.messageId || composed.messageId, raw, envelopeTo: envelope.to };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'SMTP gönderim başarısız.';
+    return { ok: false, error: message };
+  } finally {
+    if (transporter) transporter.close();
+  }
+}
+
 /** Sadece bağlantı + auth testi yap, mail göndermez. */
 export async function verifySMTP(
   config: Omit<SMTPConfig, 'fromAddress' | 'fromName'>,
