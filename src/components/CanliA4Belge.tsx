@@ -38,6 +38,8 @@ interface CanliA4BelgeProps {
   onSatirEkle: () => void;
   onSatirArayaEkle: (afterIndex: number) => void;
   onNotlarDegistir: (notlar: string) => void;
+  onKargoNotuMetniDegistir?: (metin: string) => void;
+  onKargoNotuGizliDegistir?: (gizli: boolean) => void;
   sablonRef: React.RefObject<HTMLDivElement | null>;
   kompaktHeaderRef: React.RefObject<HTMLDivElement | null>;
   readOnly?: boolean;
@@ -90,6 +92,8 @@ export default function CanliA4Belge({
   onSatirEkle,
   onSatirArayaEkle,
   onNotlarDegistir,
+  onKargoNotuMetniDegistir,
+  onKargoNotuGizliDegistir,
   sablonRef,
   kompaktHeaderRef,
   readOnly = false,
@@ -262,6 +266,8 @@ export default function CanliA4Belge({
           onSatirEkle={onSatirEkle}
           onSatirArayaEkle={onSatirArayaEkle}
           onNotlarDegistir={onNotlarDegistir}
+          onKargoNotuMetniDegistir={onKargoNotuMetniDegistir}
+          onKargoNotuGizliDegistir={onKargoNotuGizliDegistir}
           readOnly
           rootClassName="belge-pdf-source"
           pushUndo={pushUndo}
@@ -350,6 +356,8 @@ export default function CanliA4Belge({
             onSatirEkle={onSatirEkle}
             onSatirArayaEkle={onSatirArayaEkle}
             onNotlarDegistir={onNotlarDegistir}
+            onKargoNotuMetniDegistir={onKargoNotuMetniDegistir}
+            onKargoNotuGizliDegistir={onKargoNotuGizliDegistir}
             readOnly={readOnly}
             pushUndo={pushUndo}
             getSnapshot={getSnapshot}

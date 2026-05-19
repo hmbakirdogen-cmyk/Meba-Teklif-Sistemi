@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
+import SelfServeSmtpModal from './components/SelfServeSmtpModal';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
 import BildirimPaneli from './components/BildirimPaneli';
@@ -34,7 +35,7 @@ export default function AppLayout() {
   const navigate   = useNavigate();
   const location   = useLocation();
   const { modal }  = App.useApp();
-  const { aktifKullanici, cikisYap } = useKullanici();
+  const { aktifKullanici, cikisYap, refreshKullanici } = useKullanici();
   const { aktifFirma, firmalar, setAktifFirma } = useFirma();
   const { isDark, temaToggle } = useTheme();
   const C          = useColors();
@@ -42,6 +43,8 @@ export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profilFotoModalOpen, setProfilFotoModalOpen] = useState(false);
   const [profilDuzenleOpen, setProfilDuzenleOpen] = useState(false);
+  // SMTP kurulum sihirbazı — banner'dan tetiklenir
+  const [smtpSetupOpen, setSmtpSetupOpen] = useState(false);
   const [adminGbDrawerAcik, setAdminGbDrawerAcik] = useState(false);
   const [okunmamisGb, setOkunmamisGb] = useState(0);
   const [bildirimDrawerAcik, setBildirimDrawerAcik] = useState(false);
@@ -560,15 +563,36 @@ export default function AppLayout() {
               />
             </Tooltip>
 
-            {/* E-posta Ayarları — kendi SMTP credentials'larını yönet */}
-            <Tooltip title="E-posta Ayarları">
+            {/* E-posta Ayarları — kendi SMTP credentials'larını yönet.
+                SMTP kurulmamışsa kırmızı uyarı noktası + tooltip değişir;
+                tıklayınca self-serve sihirbazı doğrudan açılır. */}
+            <Tooltip title={aktifKullanici.smtpPasswordSet === false ? 'Mail ayarlarınız henüz yapılmamış — şimdi kurun' : 'E-posta Ayarları'}>
               <Button
                 type="text"
-                icon={<Icon icon="solar:letter-bold-duotone" width={17} height={17} />}
-                onClick={() => navigate('/profil/eposta')}
+                icon={
+                  <span style={{ position: 'relative', display: 'inline-flex' }}>
+                    <Icon icon="solar:letter-bold-duotone" width={17} height={17} />
+                    {aktifKullanici.smtpPasswordSet === false && (
+                      <span style={{
+                        position: 'absolute',
+                        top: -2, right: -2,
+                        width: 7, height: 7, borderRadius: '50%',
+                        background: '#ef4444',
+                        boxShadow: '0 0 0 1.5px rgba(15,23,42,0.95)',
+                      }} />
+                    )}
+                  </span>
+                }
+                onClick={() => {
+                  if (aktifKullanici.smtpPasswordSet === false) {
+                    setSmtpSetupOpen(true);
+                  } else {
+                    navigate('/profil/eposta');
+                  }
+                }}
                 size="small"
                 className={buttonClassNames.iconGhostSmall}
-                style={{ color: 'rgba(148,163,184,0.8)' }}
+                style={{ color: aktifKullanici.smtpPasswordSet === false ? '#fca5a5' : 'rgba(148,163,184,0.8)' }}
               />
             </Tooltip>
 
@@ -734,6 +758,10 @@ export default function AppLayout() {
         )}
       </Drawer>
 
+      {/* SMTP kurulmamışken uyarı: header'daki "E-posta Ayarları" ikonu üzerinde
+          kırmızı nokta gösterilir; tıklayınca self-serve sihirbazı açılır.
+          Eski full-width Alert bar yer kaplıyordu → discreet badge tercih edildi. */}
+
       <Content style={{ background: 'transparent' }}>
         <Outlet />
       </Content>
@@ -748,6 +776,18 @@ export default function AppLayout() {
       <ProfilDuzenleModal
         open={profilDuzenleOpen}
         onClose={() => setProfilDuzenleOpen(false)}
+      />
+
+      {/* Self-serve mail kurulum sihirbazı — üstteki uyarı banner'ından
+          tetiklenir. Tamamlandığında smtpPasswordSet=true olur ve banner
+          otomatik kaybolur (refreshKullanici ile aktifKullanici güncellenir). */}
+      <SelfServeSmtpModal
+        open={smtpSetupOpen}
+        onClose={() => setSmtpSetupOpen(false)}
+        onCompleted={() => {
+          setSmtpSetupOpen(false);
+          void refreshKullanici();
+        }}
       />
 
       {/* Geri Bildirim floating buton — tüm sayfalarda (TeklifEditor dâhil)

@@ -108,6 +108,10 @@ interface PaginatedBelgeInlineEditorProps {
   onSatirEkle: () => void;
   onSatirArayaEkle: (afterIndex: number) => void;
   onNotlarDegistir: (notlar: string) => void;
+  /** Kargo notu özel metni — '' veya undefined ise varsayılan gösterilir. */
+  onKargoNotuMetniDegistir?: (metin: string) => void;
+  /** Kargo notunu gizle / göster. */
+  onKargoNotuGizliDegistir?: (gizli: boolean) => void;
   readOnly?: boolean;
   renderPageOverlay?: (pageIndex: number) => React.ReactNode;
   scale?: number;
@@ -1066,6 +1070,8 @@ export default function PaginatedBelgeInlineEditor({
   onSatirEkle,
   onSatirArayaEkle,
   onNotlarDegistir,
+  onKargoNotuMetniDegistir,
+  onKargoNotuGizliDegistir,
   readOnly = false,
   renderPageOverlay,
   scale = 1,
@@ -2125,7 +2131,13 @@ export default function PaginatedBelgeInlineEditor({
                 variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
-              <KargoNotuSatiri />
+              <KargoNotuSatiri
+                metin={teklif.kargoNotuMetni}
+                gizli={teklif.kargoNotuGizli}
+                editable={!readOnly}
+                onMetinChange={onKargoNotuMetniDegistir}
+                onGizle={onKargoNotuGizliDegistir ? () => onKargoNotuGizliDegistir(true) : undefined}
+              />
             </td>
           </tr>
         </tbody>
@@ -2152,7 +2164,13 @@ export default function PaginatedBelgeInlineEditor({
                   </div>
                 ))}
               </div>
-              <KargoNotuSatiri />
+              <KargoNotuSatiri
+                metin={teklif.kargoNotuMetni}
+                gizli={teklif.kargoNotuGizli}
+                editable={!readOnly}
+                onMetinChange={onKargoNotuMetniDegistir}
+                onGizle={onKargoNotuGizliDegistir ? () => onKargoNotuGizliDegistir(true) : undefined}
+              />
             </td>
           </tr>
         </tbody>

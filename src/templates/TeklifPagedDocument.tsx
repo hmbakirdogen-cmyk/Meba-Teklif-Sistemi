@@ -477,7 +477,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                 variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
               />
-              <KargoNotuSatiri />
+              <KargoNotuSatiri metin={teklif.kargoNotuMetni} gizli={teklif.kargoNotuGizli} />
             </td>
           </tr>
         </tbody>
@@ -526,7 +526,7 @@ function TotalsBlock({ teklif, totals }: { teklif: Teklif; totals: TeklifToplam 
                   </div>
                 ))}
               </div>
-              <KargoNotuSatiri />
+              <KargoNotuSatiri metin={teklif.kargoNotuMetni} gizli={teklif.kargoNotuGizli} />
             </td>
           </tr>
         </tbody>

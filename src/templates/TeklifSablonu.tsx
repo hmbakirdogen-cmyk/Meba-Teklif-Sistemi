@@ -640,7 +640,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   variant="light"
                   amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
                 />
-                <KargoNotuSatiri />
+                <KargoNotuSatiri metin={teklif.kargoNotuMetni} gizli={teklif.kargoNotuGizli} />
               </td>
             </tr>
           </tbody>
@@ -702,7 +702,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                       </div>
                     ))}
                   </div>
-                  <KargoNotuSatiri />
+                  <KargoNotuSatiri metin={teklif.kargoNotuMetni} gizli={teklif.kargoNotuGizli} />
                 </td>
               </tr>
             );

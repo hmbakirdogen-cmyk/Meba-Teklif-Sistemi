@@ -1,8 +1,9 @@
 import { Router } from 'express';
+import dns from 'node:dns/promises';
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword, isVarsayilanSifre } from '../lib/auth.js';
 import { olusturOturum, oturumKapat, kullaniciOturumlariniIptalEt } from '../lib/sessions.js';
-import { canAccessFirma } from '../lib/firmaScope.js';
+import { canAccessFirma, isYonetici } from '../lib/firmaScope.js';
 import { sanitizeUser, sanitizeFirma, uretInitials } from '../lib/sanitize.js';
 import { uploadFile, decodeDataUrl, mimeToExt, MAX_PHOTO_BYTES } from '../lib/storage.js';
 import { encryptPassword, verifySMTP, sendViaSMTP, SMTP_PRESETS } from '../lib/smtp.js';
@@ -408,6 +409,208 @@ authRouter.post(
       return;
     }
     res.json({ ok: true });
+  }),
+);
+
+/** Hem doğrudan domain hem de MX kaydına bakarak uygun SMTP sunucusunu tespit
+ *  eder. Google Workspace (mebamekanik.com → Google MX), Yandex Mail for Domain
+ *  (elmos.com.tr → Yandex MX), Microsoft 365 (custom domain → outlook.com MX)
+ *  durumları otomatik çözülür. MX lookup başarısız olursa son çare olarak
+ *  domain ekine bakar; o da bilinmiyorsa Office 365 varsayar. */
+async function deriveSmtpFromEmail(email: string): Promise<{ host: string; port: number; secure: boolean }> {
+  const domain = email.split('@')[1]?.toLowerCase() || '';
+  // Doğrudan tüketici sağlayıcıları — MX lookup'a gerek yok
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    return { host: 'smtp.gmail.com', port: 465, secure: true };
+  }
+  if (domain === 'outlook.com' || domain === 'hotmail.com' || domain === 'live.com' || domain.endsWith('.onmicrosoft.com')) {
+    return { host: 'smtp.office365.com', port: 587, secure: false };
+  }
+  if (domain.endsWith('yandex.com') || domain.endsWith('yandex.ru') || domain.endsWith('yandex.com.tr')) {
+    return { host: 'smtp.yandex.com', port: 465, secure: true };
+  }
+  if (domain.endsWith('zoho.com') || domain.endsWith('zoho.eu')) {
+    return { host: 'smtp.zoho.com', port: 465, secure: true };
+  }
+
+  // Kurumsal domain (mebamekanik.com, elmos.com.tr vb) — MX kaydından tespit et
+  try {
+    const records = await dns.resolveMx(domain);
+    const exchanges = records.map((r) => r.exchange.toLowerCase());
+    if (exchanges.some((x) => x.includes('google.com') || x.includes('googlemail.com'))) {
+      return { host: 'smtp.gmail.com', port: 465, secure: true };
+    }
+    if (exchanges.some((x) => x.includes('yandex.net') || x.includes('yandex.ru'))) {
+      return { host: 'smtp.yandex.com', port: 465, secure: true };
+    }
+    if (exchanges.some((x) => x.includes('outlook.com') || x.includes('protection.outlook.com'))) {
+      return { host: 'smtp.office365.com', port: 587, secure: false };
+    }
+    if (exchanges.some((x) => x.includes('zoho.com') || x.includes('zoho.eu'))) {
+      return { host: 'smtp.zoho.com', port: 465, secure: true };
+    }
+  } catch {
+    // DNS hatası — fallback
+  }
+
+  // Son çare: Office 365 varsayımı
+  return { host: 'smtp.office365.com', port: 587, secure: false };
+}
+
+// ── GET /api/auth/admin/smtp-ayarlar/:userId ────────────────────
+// Bir başka kullanıcının SMTP konfigürasyonunu döner (yönetici yetkisi ister).
+// firma_admin sadece kendi firmasındaki kullanıcıları, super_admin tümünü görür.
+authRouter.get(
+  '/admin/smtp-ayarlar/:userId',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const me = req.authCtx!.kullanici;
+    if (!isYonetici(me.rol)) throw new HttpError(403, 'Bu işlem için yönetici yetkisi gerekir.');
+    const userId = String(req.params.userId || '');
+    const hedef = await prisma.kullanici.findUnique({ where: { id: userId } });
+    if (!hedef) throw new HttpError(404, 'Kullanıcı bulunamadı.');
+    if (!hedef.firmaId || !canAccessFirma(me, hedef.firmaId)) {
+      throw new HttpError(403, 'Bu kullanıcıya erişim yetkiniz yok.');
+    }
+    res.json({
+      userId: hedef.id,
+      adSoyad: hedef.adSoyad,
+      kullaniciAdi: hedef.kullaniciAdi,
+      smtpHost: hedef.smtpHost ?? null,
+      smtpPort: hedef.smtpPort ?? null,
+      smtpSecure: hedef.smtpSecure ?? null,
+      smtpUser: hedef.smtpUser ?? null,
+      smtpFromName: hedef.smtpFromName ?? null,
+      smtpFromAddress: hedef.smtpFromAddress ?? null,
+      hasPassword: Boolean(hedef.smtpPasswordEncrypted),
+      presets: SMTP_PRESETS,
+    });
+  }),
+);
+
+// ── PATCH /api/auth/admin/smtp-ayarlar/:userId ──────────────────
+// Bir başka kullanıcının SMTP konfigürasyonunu günceller (yönetici yetkisi).
+// "Kolay mod": sadece email + appPassword gönderirse host/port domain'den
+// türetilir, fromName = hedefin adSoyad'ı olur, fromAddress = email.
+authRouter.patch(
+  '/admin/smtp-ayarlar/:userId',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const me = req.authCtx!.kullanici;
+    if (!isYonetici(me.rol)) throw new HttpError(403, 'Bu işlem için yönetici yetkisi gerekir.');
+    const userId = String(req.params.userId || '');
+    const hedef = await prisma.kullanici.findUnique({ where: { id: userId } });
+    if (!hedef) throw new HttpError(404, 'Kullanıcı bulunamadı.');
+    if (!hedef.firmaId || !canAccessFirma(me, hedef.firmaId)) {
+      throw new HttpError(403, 'Bu kullanıcıya erişim yetkiniz yok.');
+    }
+    const body = req.body ?? {};
+    const data: Record<string, unknown> = {};
+
+    // Kolay mod: sadece email verilirse host/port otomatik
+    const userEmail = typeof body.smtpUser === 'string' ? String(body.smtpUser).trim() : '';
+    const explicitHost = 'smtpHost' in body ? String(body.smtpHost || '').trim() : '';
+    if (userEmail) {
+      data.smtpUser = userEmail;
+      if (!explicitHost) {
+        const derived = await deriveSmtpFromEmail(userEmail);
+        data.smtpHost = derived.host;
+        data.smtpPort = derived.port;
+        data.smtpSecure = derived.secure;
+      }
+      // fromAddress default = smtpUser, fromName default = hedefin adSoyad'ı
+      if (!('smtpFromAddress' in body)) data.smtpFromAddress = userEmail;
+      if (!('smtpFromName' in body) && !hedef.smtpFromName) data.smtpFromName = hedef.adSoyad;
+    }
+
+    if (explicitHost) data.smtpHost = explicitHost;
+    if ('smtpPort' in body) {
+      const port = Number(body.smtpPort);
+      data.smtpPort = Number.isFinite(port) && port > 0 ? Math.floor(port) : null;
+    }
+    if ('smtpSecure' in body) data.smtpSecure = Boolean(body.smtpSecure);
+    if ('smtpFromName' in body) data.smtpFromName = String(body.smtpFromName || '').trim() || null;
+    if ('smtpFromAddress' in body) data.smtpFromAddress = String(body.smtpFromAddress || '').trim() || null;
+
+    if (typeof body.smtpPassword === 'string' && body.smtpPassword.length > 0) {
+      try {
+        data.smtpPasswordEncrypted = encryptPassword(body.smtpPassword);
+      } catch (err) {
+        throw new HttpError(500, err instanceof Error ? err.message : 'SMTP şifresi şifrelenemedi.');
+      }
+    }
+    if ('clearPassword' in body && body.clearPassword === true) {
+      data.smtpPasswordEncrypted = null;
+    }
+
+    const updated = await prisma.kullanici.update({ where: { id: userId }, data });
+    await audit('admin_smtp_ayarlar_guncellendi', {
+      kullaniciId: me.id,
+      kullaniciAdi: `${me.kullaniciAdi} → ${hedef.kullaniciAdi}`,
+      firmaId: hedef.firmaId,
+    });
+    res.json({
+      ok: true,
+      userId: updated.id,
+      smtpHost: updated.smtpHost,
+      smtpPort: updated.smtpPort,
+      smtpSecure: updated.smtpSecure,
+      smtpUser: updated.smtpUser,
+      smtpFromName: updated.smtpFromName,
+      smtpFromAddress: updated.smtpFromAddress,
+      hasPassword: Boolean(updated.smtpPasswordEncrypted),
+    });
+  }),
+);
+
+// ── POST /api/auth/admin/smtp-test-mail/:userId ─────────────────
+// Belirtilen kullanıcının SMTP ayarlarını gerçek bir bağlantıyla test eder
+// (kullanıcının kendi adresine bir test maili gönderir).
+authRouter.post(
+  '/admin/smtp-test-mail/:userId',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const me = req.authCtx!.kullanici;
+    if (!isYonetici(me.rol)) throw new HttpError(403, 'Bu işlem için yönetici yetkisi gerekir.');
+    const userId = String(req.params.userId || '');
+    const hedef = await prisma.kullanici.findUnique({ where: { id: userId } });
+    if (!hedef) throw new HttpError(404, 'Kullanıcı bulunamadı.');
+    if (!hedef.firmaId || !canAccessFirma(me, hedef.firmaId)) {
+      throw new HttpError(403, 'Bu kullanıcıya erişim yetkiniz yok.');
+    }
+    if (!hedef.smtpHost || !hedef.smtpUser || !hedef.smtpPasswordEncrypted) {
+      throw new HttpError(400, 'Önce kullanıcının SMTP ayarlarını kaydedin.');
+    }
+    const { decryptPassword } = await import('../lib/smtp.js');
+    let plainPassword: string;
+    try {
+      plainPassword = decryptPassword(hedef.smtpPasswordEncrypted);
+    } catch (err) {
+      throw new HttpError(500, err instanceof Error ? err.message : 'SMTP şifresi okunamadı.');
+    }
+    const toAddress = hedef.smtpFromAddress || hedef.smtpUser;
+    const result = await sendViaSMTP(
+      {
+        host: hedef.smtpHost,
+        port: hedef.smtpPort ?? 587,
+        secure: hedef.smtpSecure ?? true,
+        user: hedef.smtpUser,
+        password: plainPassword,
+        fromName: hedef.smtpFromName || hedef.adSoyad,
+        fromAddress: toAddress,
+      },
+      {
+        to: toAddress,
+        subject: 'Teklif Yönetim Sistemi — SMTP Test (Admin)',
+        text: 'Bu bir admin test mailidir. SMTP ayarlarınız doğru çalışıyor.',
+        html: '<p>Bu bir <strong>admin test maili</strong>dir. SMTP ayarlarınız doğru çalışıyor.</p>',
+      },
+    );
+    if (!result.ok) {
+      res.status(502).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true, to: toAddress, messageId: result.messageId });
   }),
 );
 

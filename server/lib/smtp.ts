@@ -4,23 +4,29 @@ import type { Transporter, SendMailOptions, SentMessageInfo } from 'nodemailer';
 
 /**
  * SMTP credentials her kullanıcı için DB'de saklanır.
- * Şifre AES-256-GCM ile encrypt edilir; key SMTP_ENCRYPTION_KEY env'inden gelir
- * (32 byte = 64 hex char).
+ * Şifre AES-256-GCM ile encrypt edilir; key SMTP_ENCRYPTION_KEY env'inden gelir.
+ *
+ * Key türetme stratejisi (tolerant):
+ *   - Tam 64 hex char ise → raw hex olarak 32 byte key kullan
+ *   - Aksi halde (Render auto-generate, base64 secret, herhangi bir string) →
+ *     SHA-256 ile 32 byte'a hash'le. Bu sayede Render'ın generateValue:true ile
+ *     ürettiği format (hex olmayan) da geçerli olur.
  *
  * Format: base64(iv (12 byte) | ciphertext | authTag (16 byte))
  */
 
-const KEY_HEX = process.env.SMTP_ENCRYPTION_KEY || '';
+const KEY_RAW = process.env.SMTP_ENCRYPTION_KEY || '';
 
 function getKey(): Buffer {
-  if (!KEY_HEX) {
-    throw new Error('SMTP_ENCRYPTION_KEY env yok (32 byte hex bekleniyor).');
+  if (!KEY_RAW) {
+    throw new Error('SMTP_ENCRYPTION_KEY env yok.');
   }
-  const key = Buffer.from(KEY_HEX, 'hex');
-  if (key.length !== 32) {
-    throw new Error(`SMTP_ENCRYPTION_KEY ${key.length} byte, 32 byte (64 hex char) gerekli.`);
+  // 64 hex char ise direkt kullan (geriye uyumluluk + standart)
+  if (/^[0-9a-fA-F]{64}$/.test(KEY_RAW)) {
+    return Buffer.from(KEY_RAW, 'hex');
   }
-  return key;
+  // Aksi halde SHA-256 ile deterministik 32 byte key türet
+  return crypto.createHash('sha256').update(KEY_RAW, 'utf8').digest();
 }
 
 export function encryptPassword(plain: string): string {
@@ -79,6 +85,40 @@ export async function sendViaSMTP(
       ...mail,
     });
     return { ok: true, messageId: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'SMTP gönderim başarısız.';
+    return { ok: false, error: message };
+  } finally {
+    if (transporter) transporter.close();
+  }
+}
+
+/**
+ * Raw MIME üretimi + SMTP gönderim. Aynı raw buffer'ı IMAP APPEND ile
+ * "Gönderilenler" klasörüne yazmak için döner. Tek seferde compose →
+ * SMTP'ye stream → buffer'ı da geri ver.
+ *
+ * Akış:
+ *   1) streamTransport=true bir composer transport ile mesaj raw MIME'ye
+ *      derlenir (info.message = Buffer).
+ *   2) Gerçek SMTP transporter ile { raw, envelope } kullanılarak gönderilir
+ *      → ağa giden bayt birebir raw buffer. IMAP APPEND'e aynı buffer'ı
+ *      verince server-side "Sent" klasöründeki kopya da bire bir aynı olur.
+ */
+export async function sendAndComposeRaw(
+  config: SMTPConfig,
+  mail: Omit<SendMailOptions, 'from'>,
+): Promise<{ ok: true; messageId: string; raw: Buffer; envelopeTo: string[] } | { ok: false; error: string }> {
+  let transporter: Transporter | null = null;
+  try {
+    const fromDisplay = config.fromName ? `"${config.fromName}" <${config.fromAddress}>` : config.fromAddress;
+    const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'unix' });
+    const composed = await composer.sendMail({ from: fromDisplay, ...mail });
+    const raw: Buffer = composed.message as Buffer;
+    const envelope = composed.envelope as { from: string; to: string[] };
+    transporter = buildTransporter(config);
+    const info = await transporter.sendMail({ envelope, raw });
+    return { ok: true, messageId: info.messageId || composed.messageId, raw, envelopeTo: envelope.to };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'SMTP gönderim başarısız.';
     return { ok: false, error: message };

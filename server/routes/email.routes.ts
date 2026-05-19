@@ -1,14 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { canAccessFirma } from '../lib/firmaScope.js';
-import {
-  mailKonuUret,
-  mailGovdesiUretText,
-  mailHtmlGovdesiUret,
-  sendTeklifEmailFromUser,
-  loadFirmaLogoBase64,
-  type SendTeklifMailAttachment,
-} from '../lib/email.js';
+import { mailKonuUret, mailGovdesiUretText, mailHtmlGovdesiUret, sendTeklifEmailFromUser } from '../lib/email.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
 
@@ -21,29 +14,33 @@ function buildFileName(teklifNo: string | null, cariAdi: string | null): string 
   return (tn ? `${cari} - ${tn}` : cari) + '.pdf';
 }
 
-// Tek satır "a@x.com, b@y.com" veya ["a", "b"] formatlarını normalize eder.
-function parseEmailList(input: unknown): string[] {
-  if (!input) return [];
-  const raw = Array.isArray(input) ? input.join(',') : String(input);
-  return raw
-    .split(/[,;]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+function normalizeRecipients(value: unknown): string[] {
+  if (!value) return [];
+  if (typeof value === 'string') {
+    return value.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v || '').trim()).filter(Boolean);
+  }
+  return [];
 }
 
-// Kullanıcı düz-metin gövdeyi düzenleyebildiği için, html templatesi yerine
-// basit bir HTML versiyon üret (newline → <br>). Imzaya logo ekle (varsa).
-function plainTextToHtml(text: string, logoBase64: string | null): string {
-  const escape = (s: string) => s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-  const logoBlock = logoBase64
-    ? `<div style="margin-top:20px;padding-top:16px;border-top:1px solid #dde3ec;"><img src="data:image/png;base64,${logoBase64}" alt="" style="display:block;height:64px;width:auto;"></div>`
-    : '';
-  return `<!DOCTYPE html><html><body style="margin:0;padding:24px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1e293b;line-height:1.6;"><div style="white-space:pre-wrap;">${escape(text)}</div>${logoBlock}</body></html>`;
+/** HTML body'den plain text fallback üretir (basit tag-strip). */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // ── POST /api/teklif/eposta-gonder ──────────────────────────────
@@ -56,16 +53,18 @@ emailRouter.post(
       to?: string | string[];
       cc?: string | string[];
       bcc?: string | string[];
-      bccSelf?: boolean;
       subject?: string;
-      customText?: string;
+      bodyHtml?: string;
+      bodyText?: string;
+      logoBase64?: string;
+      logoContentType?: string;
+      partnerLogos?: Array<{ cid?: string; base64?: string; contentType?: string }>;
       pdfBase64?: string;
-      extraAttachments?: Array<{ filename?: string; base64?: string }>;
     };
     const teklifId = String(body.teklifId || '').trim();
-    const toList = parseEmailList(body.to);
-    const ccList = parseEmailList(body.cc);
-    const bccList = parseEmailList(body.bcc);
+    const toList = normalizeRecipients(body.to);
+    const ccList = normalizeRecipients(body.cc);
+    const bccList = normalizeRecipients(body.bcc);
     const pdfBase64 = String(body.pdfBase64 || '').trim();
     if (!teklifId) throw new HttpError(400, 'teklifId zorunlu.');
     if (toList.length === 0) throw new HttpError(400, 'Alıcı e-posta zorunlu.');
@@ -80,59 +79,79 @@ emailRouter.post(
     const firma = await prisma.firma.findUnique({ where: { id: teklif.firmaId } });
     const cariSnap = teklif.cariSnapshot as { firmaAdi?: string } | null;
     const subject = body.subject?.trim() || mailKonuUret({ teklifNo: teklif.teklifNo }, firma);
+
+    // Modal'dan bodyHtml geldiyse onu kullan; gelmediyse template ile üret
+    // (eski mailto akışından dönen istekler için backward compat).
+    // İmza HER ZAMAN şu an mail gönderen (aktif) kullanıcının bilgilerini gösterir;
+    // teklifi orijinal kimin hazırladığından bağımsız. Sebep: bir başkası başka
+    // birinin teklifini "kendi" gönderdiğinde imzada kendi bilgisinin görünmesi
+    // gerekiyor (alıcı maile yanıt verirse doğru kişiye gitsin).
+    const meKullanici = req.authCtx!.kullanici;
     const ctx = {
       contactName: teklif.contactName,
       contactTitle: teklif.contactTitle,
       cariAdi: cariSnap?.firmaAdi ?? null,
       teklifNo: teklif.teklifNo,
-      hazirlayanAdSoyad: teklif.hazirlayanAdSoyad,
-      hazirlayanUnvan: teklif.hazirlayanUnvan,
+      hazirlayanAdSoyad: meKullanici.adSoyad ?? teklif.hazirlayanAdSoyad,
+      hazirlayanUnvan: meKullanici.unvan ?? teklif.hazirlayanUnvan,
+      hazirlayanTelefon: meKullanici.telefon,
+      hazirlayanEposta: meKullanici.smtpFromAddress ?? meKullanici.smtpUser,
     };
-    // Kullanıcı gövdeyi düzenlediyse onu kullan; aksi halde varsayılan template'i koru.
-    // İmza bloğuna firma logosu eklenir (R2 URL → fetch; yoksa lokal public/).
-    const customText = body.customText?.trim();
-    const text = customText || mailGovdesiUretText(ctx, firma);
-    const logoBase64 = await loadFirmaLogoBase64(firma);
-    const html = customText
-      ? plainTextToHtml(customText, logoBase64)
-      : mailHtmlGovdesiUret(ctx, firma, logoBase64);
+    const html = (body.bodyHtml && body.bodyHtml.trim().length > 0)
+      ? body.bodyHtml
+      : mailHtmlGovdesiUret(ctx, firma, null);
+    const text = (body.bodyText && body.bodyText.trim().length > 0)
+      ? body.bodyText
+      : (body.bodyHtml ? htmlToText(body.bodyHtml) : mailGovdesiUretText(ctx, firma));
+
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
     if (pdfBuffer.length === 0) throw new HttpError(400, 'PDF verisi geçersiz.');
     const fileName = buildFileName(teklif.teklifNo, cariSnap?.firmaAdi ?? null);
 
-    const me = req.authCtx!.kullanici;
-
-    // bccSelf → kullanıcının kendi SMTP user adresini BCC'ye ekle. Aynı adres
-    // hem to hem bcc'de olursa SMTP sunucusu çoğu zaman tek kopya gönderir;
-    // yine de duplicate'i defansif olarak temizle.
-    const senderSelf = (me.smtpFromAddress || me.smtpUser || '').trim();
-    const effectiveBcc = [...bccList];
-    if (body.bccSelf && senderSelf) {
-      if (!effectiveBcc.includes(senderSelf) && !toList.includes(senderSelf) && !ccList.includes(senderSelf)) {
-        effectiveBcc.push(senderSelf);
+    let logoCid: { cid: string; buffer: Buffer; contentType: string } | null = null;
+    if (body.logoBase64 && body.logoBase64.length > 0) {
+      try {
+        const buf = Buffer.from(body.logoBase64, 'base64');
+        if (buf.length > 0) {
+          logoCid = { cid: 'firma-logo', buffer: buf, contentType: body.logoContentType || 'image/png' };
+        }
+      } catch {
+        // logo opsiyonel — dönüştürme hatası gönderimi engellemesin
       }
     }
 
-    // Extra ekler (kullanıcı modal'dan eklediği dosyalar).
-    const extraAttachments = Array.isArray(body.extraAttachments) ? body.extraAttachments : [];
-    const attachments: SendTeklifMailAttachment[] = [{ filename: fileName, content: pdfBuffer }];
-    for (const a of extraAttachments) {
-      const name = String(a?.filename || '').trim();
-      const data = String(a?.base64 || '').trim();
-      if (!name || !data) continue;
-      const buf = Buffer.from(data, 'base64');
-      if (buf.length === 0) continue;
-      attachments.push({ filename: name, content: buf });
+    // Bayilik markaları — body içinde cid:partner-X referansları varsa
+    // her biri ayrı CID attachment olarak eklenir.
+    const partnerCids: Array<{ cid: string; buffer: Buffer; contentType: string }> = [];
+    if (Array.isArray(body.partnerLogos)) {
+      for (const p of body.partnerLogos) {
+        if (!p.cid || !p.base64) continue;
+        try {
+          const buf = Buffer.from(p.base64, 'base64');
+          if (buf.length === 0) continue;
+          partnerCids.push({
+            cid: p.cid,
+            buffer: buf,
+            contentType: p.contentType || 'image/png',
+          });
+        } catch {
+          // skip — opsiyonel
+        }
+      }
     }
 
+    const me = req.authCtx!.kullanici;
     const sonuc = await sendTeklifEmailFromUser(me, {
-      to: toList,
-      cc: ccList.length > 0 ? ccList : undefined,
-      bcc: effectiveBcc.length > 0 ? effectiveBcc : undefined,
+      to: toList.join(', '),
+      cc: ccList,
+      bcc: bccList,
       subject,
       html,
       text,
-      attachments,
+      pdfBuffer,
+      pdfFileName: fileName,
+      logoCid,
+      partnerCids,
     });
 
     await prisma.emailLog.create({
@@ -143,7 +162,7 @@ emailRouter.post(
         gonderen: me.smtpFromAddress || me.smtpUser || null,
         durum: sonuc.ok ? 'sent' : 'failed',
         resendId: sonuc.messageId || null,
-        hata: sonuc.error || null,
+        hata: sonuc.error || (sonuc.sentSyncError ? `SENT_SYNC: ${sonuc.sentSyncError}` : null),
       },
     });
 
@@ -151,6 +170,14 @@ emailRouter.post(
       res.status(502).json({ ok: false, error: sonuc.error || 'E-posta gönderilemedi.' });
       return;
     }
-    res.json({ ok: true, messageId: sonuc.messageId, fileName, subject });
+    res.json({
+      ok: true,
+      messageId: sonuc.messageId,
+      fileName,
+      subject,
+      sentSyncOk: sonuc.sentSyncOk ?? false,
+      sentSyncError: sonuc.sentSyncError || null,
+      sentMailbox: sonuc.sentMailbox || null,
+    });
   }),
 );
