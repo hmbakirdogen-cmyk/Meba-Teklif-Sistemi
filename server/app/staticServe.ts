@@ -28,10 +28,13 @@ export function mountStaticServe(app: Express): void {
     }),
   );
 
-  // Diğer statik dosyalar (logo, favicon, vb.) — orta cache.
+  // Diğer statik dosyalar (logo, favicon, markalar/*.png, vb.) — kisa cache.
+  // 5 dakika: kullanici PWA'sini tekrar acinca veya 5 dk pasif kalinca yeni
+  // surum gelir. 24 saat once cok uzundu (logo guncellemeleri 1 gun sonra
+  // gorunuyordu). Hash'li /assets/* zaten 1y cache (icerik hash'i ile bust).
   app.use(
     express.static(DIST_DIR, {
-      maxAge: '1d',
+      maxAge: '5m',
       fallthrough: true,
       index: false,
     }),
