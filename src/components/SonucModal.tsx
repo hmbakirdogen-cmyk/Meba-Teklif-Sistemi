@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Input, Modal, Select } from 'antd';
 import type { Teklif, TeklifDurum, KayipSebebi } from '../types';
 import { formatCurrency } from '../utils/formatters';
@@ -45,9 +45,29 @@ export default function SonucModal({ open, teklif, onClose, onSave }: SonucModal
     });
   }
 
+  const teklifSatirlar = teklif?.satirlar;
+  const teklifPb = teklif?.paraBirimi;
+
+  // Canlı toplam göstergesi — kullanıcı kalem işaretlerken finansal etkiyi
+  // anlık görsün. Belge para biriminde satırların alt toplamı (iskonto/KDV
+  // hariç ham ara toplam) hesaplanır; iptal işaretli satırlar düşülür.
+  // useMemo erken return'den ÖNCE tutulur ki hook çağrı sırası sabit kalsın
+  // (parent component key={teklif?.id} ile remount etse de defansif konum).
+  const canliToplam = useMemo(() => {
+    if (mod !== 'satir' || !teklifPb || !teklifSatirlar) return null;
+    const onayliSatir = teklifSatirlar.filter((s) => satirOnay[s.id] && !s.setAltKalem);
+    const iptalSatir = teklifSatirlar.filter((s) => !satirOnay[s.id] && !s.setAltKalem);
+    const toplam = hesaplamaMotoru.paraBirimineGoreToplamlar(onayliSatir, teklifPb);
+    const iptalToplam = hesaplamaMotoru.paraBirimineGoreToplamlar(iptalSatir, teklifPb);
+    const aktifPb = (['TRY', 'EUR', 'USD'] as const).filter(
+      (pb) => toplam[pb] > 0 || iptalToplam[pb] > 0,
+    );
+    return { onaylanan: toplam, iptal: iptalToplam, aktifPb };
+  }, [mod, satirOnay, teklifSatirlar, teklifPb]);
+
   if (!teklif) return null;
 
-  const satirlar = teklif.satirlar ?? [];
+  const satirlar = teklifSatirlar ?? [];
   const onayliSayi = satirlar.filter((s) => satirOnay[s.id]).length;
   const toplamSayi = satirlar.length;
   const hepsi = onayliSayi === toplamSayi && toplamSayi > 0;
@@ -222,6 +242,43 @@ export default function SonucModal({ open, teklif, onClose, onSave }: SonucModal
               </div>
             )}
           </div>
+
+          {canliToplam && canliToplam.aktifPb.length > 0 && (
+            <div style={{
+              marginTop: 10,
+              padding: '8px 12px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              fontSize: 12,
+            }}>
+              {canliToplam.aktifPb.map((pb) => {
+                const onayli = canliToplam.onaylanan[pb];
+                const iptal = canliToplam.iptal[pb];
+                return (
+                  <div key={pb} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8,
+                  }}>
+                    <span style={{ color: '#475569', fontWeight: 500 }}>{pb} ara toplam</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ color: '#059669', fontWeight: 600 }}>{formatCurrency(onayli, pb)}</span>
+                      {iptal > 0 && (
+                        <span style={{ color: '#dc2626', textDecoration: 'line-through', marginLeft: 8, fontWeight: 400 }}>
+                          {formatCurrency(iptal, pb)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+              <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 2 }}>
+                İskonto/KDV hariç. Kaydedildiğinde tüm toplamlar (genel toplam dahil) iptal satırları düşülerek güncellenir.
+              </div>
+            </div>
+          )}
 
           <Input.TextArea
             value={not}
