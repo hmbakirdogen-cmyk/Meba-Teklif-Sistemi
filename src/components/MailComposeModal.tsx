@@ -506,7 +506,6 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
     setSubject(teklifNo ? `${kisaAd} Teklif Belgesi - ${teklifNo}` : `${kisaAd} Teklif Belgesi`);
     setShowCcBcc(false);
     setLogoData(null);
-    setGoGreenLogo(null);
     setPartnerLogosData([]);
     setLogoLoading(true);
     void (async () => {
