@@ -701,8 +701,14 @@ function KlasorGorunumu({
   function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
     // Sonuçlanma sürecinin TAMAMI artık modal üzerinden:
     //  - reddedildi / iptal → sebep girişi modu
-    //  - onaylandi          → satır seçimi modu (kullanıcı kısmi onay verebilir)
-    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal' || yeniDurum === 'onaylandi') {
+    //  - onaylandi          → satır seçimi modu
+    //  - kismi_onaylandi    → satır seçimi modu (iptal satırları işaretle)
+    if (
+      yeniDurum === 'reddedildi' ||
+      yeniDurum === 'iptal' ||
+      yeniDurum === 'onaylandi' ||
+      yeniDurum === 'kismi_onaylandi'
+    ) {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
     }
@@ -1836,22 +1842,24 @@ function DurumSonucCell({
     transition: 'border-color 0.12s',
   };
 
-  // Chip'in 6-durum dropdown'u — durum değiştirme için
+  // Chip'in 7-durum dropdown'u — durum değiştirme için
   const tumDurumlarMenu = [
-    { key: 'taslak',     label: <DurumMenuLabel durum="taslak"     hint="Üzerinde çalışılıyor" />, onClick: () => onSonucHizli('taslak') },
-    { key: 'hazir',      label: <DurumMenuLabel durum="hazir"      hint="PDF üretildi" />,         onClick: () => onSonucHizli('hazir') },
-    { key: 'gonderildi', label: <DurumMenuLabel durum="gonderildi" hint="Müşteriye gönderildi" />, onClick: () => onSonucHizli('gonderildi') },
+    { key: 'taslak',          label: <DurumMenuLabel durum="taslak"          hint="Üzerinde çalışılıyor" />,         onClick: () => onSonucHizli('taslak') },
+    { key: 'hazir',           label: <DurumMenuLabel durum="hazir"           hint="PDF üretildi" />,                 onClick: () => onSonucHizli('hazir') },
+    { key: 'gonderildi',      label: <DurumMenuLabel durum="gonderildi"      hint="Müşteriye gönderildi" />,         onClick: () => onSonucHizli('gonderildi') },
     { type: 'divider' as const },
-    { key: 'onaylandi',  label: <DurumMenuLabel durum="onaylandi"  hint="Müşteri onay verdi" />,   onClick: () => onSonucHizli('onaylandi') },
-    { key: 'reddedildi', label: <DurumMenuLabel durum="reddedildi" hint="Sebep girilir" />,        onClick: () => onSonucHizli('reddedildi') },
-    { key: 'iptal',      label: <DurumMenuLabel durum="iptal"      hint="Sebep girilir" />,        onClick: () => onSonucHizli('iptal') },
+    { key: 'onaylandi',       label: <DurumMenuLabel durum="onaylandi"       hint="Tüm kalemler onaylandı" />,        onClick: () => onSonucHizli('onaylandi') },
+    { key: 'kismi_onaylandi', label: <DurumMenuLabel durum="kismi_onaylandi" hint="Bazı kalemler iptal edildi" />,    onClick: () => onSonucHizli('kismi_onaylandi') },
+    { key: 'reddedildi',      label: <DurumMenuLabel durum="reddedildi"      hint="Sebep girilir" />,                 onClick: () => onSonucHizli('reddedildi') },
+    { key: 'iptal',           label: <DurumMenuLabel durum="iptal"           hint="Sebep girilir" />,                 onClick: () => onSonucHizli('iptal') },
   ];
 
-  // Sonuç gir butonu — sadece Gönderildi'de görünür, 3 sonuç dropdown
+  // Sonuç gir butonu — sadece Gönderildi'de görünür, 4 sonuç dropdown
   const sonucMenu = [
-    { key: 'onaylandi',  label: <DurumMenuLabel durum="onaylandi"  hint="Müşteri onay verdi" />, onClick: () => onSonucHizli('onaylandi') },
-    { key: 'reddedildi', label: <DurumMenuLabel durum="reddedildi" hint="Sebep girilir" />,      onClick: () => onSonucHizli('reddedildi') },
-    { key: 'iptal',      label: <DurumMenuLabel durum="iptal"      hint="Sebep girilir" />,      onClick: () => onSonucHizli('iptal') },
+    { key: 'onaylandi',       label: <DurumMenuLabel durum="onaylandi"       hint="Müşteri tüm kalemleri onayladı" />, onClick: () => onSonucHizli('onaylandi') },
+    { key: 'kismi_onaylandi', label: <DurumMenuLabel durum="kismi_onaylandi" hint="Bazı kalemler iptal edildi" />,     onClick: () => onSonucHizli('kismi_onaylandi') },
+    { key: 'reddedildi',      label: <DurumMenuLabel durum="reddedildi"      hint="Sebep girilir" />,                  onClick: () => onSonucHizli('reddedildi') },
+    { key: 'iptal',           label: <DurumMenuLabel durum="iptal"           hint="Sebep girilir" />,                  onClick: () => onSonucHizli('iptal') },
   ];
 
   // 2+ gündür gönderildi durumda kalan teklif → "Sonuç gir" butonunun yanında
