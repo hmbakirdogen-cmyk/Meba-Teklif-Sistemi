@@ -361,7 +361,7 @@ function buildBodyHtml(opts: {
                   const next = partnerLogos[i + 1];
                   const beforeFlourish = !isLast && next && FLOURISH_BRANDS.has(next.name);
                   const gap = isLast ? 0 : (beforeFlourish ? 6 : 14);
-                  return `<td valign="middle" style="padding:8px ${gap}px 8px 0;line-height:0;font-size:0;vertical-align:middle;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:block;height:${p.height}px;width:auto;border:0;vertical-align:middle;"></td>`;
+                  return `<td valign="middle" align="center" style="padding:6px ${gap}px 6px 0;vertical-align:middle;text-align:center;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:inline-block;height:${p.height}px;width:auto;border:0;vertical-align:middle;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;"></td>`;
                 }).join('')}
               </tr>
             </table>
