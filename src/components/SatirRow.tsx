@@ -123,6 +123,10 @@ function SatirRowImpl({
   // local state. Panel onInteract callback ile true/false bildirir.
   const [isPanelInteracting, setIsPanelInteracting] = useState(false);
 
+  const effectiveRowHeight = satir.rowHeight && satir.rowHeight > 0
+    ? satir.rowHeight
+    : LINE_ITEM_METRICS.rowHeightPx;
+
   return (
     <tr
       data-satir-id={satir.id}
@@ -140,7 +144,7 @@ function SatirRowImpl({
       onMouseLeave={() => onRowLeave(satir.id)}
       style={{
         ...noBreak,
-        ...(satir.rowHeight && satir.rowHeight > 0 ? { height: `${satir.rowHeight}px` } : null),
+        height: `${effectiveRowHeight}px`,
         ...(kismiSecimAktif ? { cursor: 'pointer' } : null),
       }}
     >

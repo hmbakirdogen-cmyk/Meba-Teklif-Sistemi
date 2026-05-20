@@ -96,7 +96,7 @@ export default function ReferanslarDrawer({
       open={open}
       onClose={onClose}
       placement="right"
-      width={isMobile ? '100%' : 560}
+      size={isMobile ? '100%' : 560}
       closable={false}
       destroyOnHidden
       maskClosable

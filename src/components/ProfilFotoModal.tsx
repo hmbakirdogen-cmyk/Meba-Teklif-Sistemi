@@ -113,7 +113,7 @@ export default function ProfilFotoModal({ open, onClose }: ProfilFotoModalProps)
       onCancel={kapat}
       title="Profil Fotoğrafı"
       width={420}
-      destroyOnClose
+      destroyOnHidden
       footer={[
         <Button key="iptal" onClick={kapat} disabled={yukleniyor}>
           {yeniFoto ? 'Vazgeç' : 'Kapat'}

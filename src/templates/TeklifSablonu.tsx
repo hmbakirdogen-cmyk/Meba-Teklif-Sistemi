@@ -428,6 +428,9 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
           {teklif.satirlar.map((satir, idx) => {
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
             const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
+            const effectiveRowHeight = satir.rowHeight && satir.rowHeight > 0
+              ? satir.rowHeight
+              : LINE_ITEM_METRICS.rowHeightPx;
             // Spacer: bir sonraki satır farklı bir gruba/satıra ait ise 2px hava;
             // grup içinde değilse de aynen 2px (eski border-spacing davranışı).
             const isLast = idx === teklif.satirlar.length - 1;
@@ -446,9 +449,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   // background on <td> via rcCell — html2canvas 1.4.1 skips <tr> backgrounds
                   pageBreakInside: 'avoid',
                   breakInside: 'avoid',
-                  ...(satir.rowHeight && satir.rowHeight > 0
-                    ? { height: `${satir.rowHeight}px` }
-                    : null),
+                  height: `${effectiveRowHeight}px`,
                 }}
               >
                 {/* No */}
@@ -506,7 +507,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                   ...getOfferTableSeparatorStyle('aciklama'),
                   ...rcCell('mid', idx, undefined, setGroupPos),
                 })}>
-                  <DescText text={satir.aciklama ?? ''} />
+                  <DescText text={satir.aciklama || '-'} />
                 </td>
                 {/* Miktar */}
                 <td className={getOfferTableSeparatorClass('miktar')} style={applyCellStyle({

@@ -644,21 +644,21 @@ export const FIELD_CSS = `
   white-space: nowrap;
   overflow: visible !important;
   text-overflow: clip !important;
-  line-height: 1.15 !important;
+  line-height: var(--line-cell-line-height) !important;
   contain: paint;
 }
-/* df-4 (wrap modu) cell üzerinde white-space: normal'i zorlar — !important ile
-   parent default'unu yener, böylece 10.5px'te bile sığmayan metin gerçekten
-   alt satıra geçer. */
+/* df-4 dahi olsa satır geometrisi korunur: açıklama hücresi tek satırda kalır.
+   Böylece bazı satırlarda görülen açıklama-hücresi yükseklik sapması oluşmaz. */
 .description-cell:has(.description-text.df-4) {
-  white-space: normal !important;
+  white-space: nowrap !important;
 }
 .description-text {
   display: inline-block;
   max-width: 100%;
   font-size: 11px;
   font-weight: 400;
-  line-height: 1.15;
+  line-height: inherit;
+  vertical-align: middle;
   color: #2A2A2A;
   white-space: nowrap;
   overflow: visible;
@@ -668,14 +668,12 @@ export const FIELD_CSS = `
 .description-text.df-2 { font-size: 11px;   white-space: nowrap; }
 .description-text.df-3 { font-size: 10.5px; white-space: nowrap; }
 .description-text.df-4 {
-  display: block;
+  display: inline-block;
   font-size: 10.5px;
-  line-height: 1.15;
-  /* pre-wrap: manuel alt satır (\n) saygılanır + uzun satır otomatik wrap.
-     Kullanıcı Shift+Enter ile yazdığı satır geçişi PDF'te de görünür. */
-  white-space: pre-wrap !important;
-  overflow-wrap: anywhere;
-  word-break: normal;
+  line-height: var(--line-cell-line-height);
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1096,9 +1094,12 @@ export const FIELD_CSS = `
   --offer-col-separator: rgba(99, 102, 241, 0.22);
 }
 
-/* Sub-item / no-click / readOnly — efekt sıfır */
-.belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"]::after,
-.belge-inline .offer-table tbody tr[data-satir-id] > td.no-click::after {
+/* Sub-item / no-click / readOnly — efekt sıfır
+   Not: Kısmi onaydaki iptal satırlarında kırmızı strike çizgisi bu aynı
+   pseudo-element üzerinden çiziliyor; bu yüzden data-iptal satırlarında
+   ::after kapatılmamalı. */
+.belge-inline .offer-table tbody tr[data-satir-id]:not([data-iptal="true"]) > td[style*="cursor: default"]::after,
+.belge-inline .offer-table tbody tr[data-satir-id]:not([data-iptal="true"]) > td.no-click::after {
   display: none !important;
 }
 .belge-inline .offer-table tbody tr[data-satir-id] > td[style*="cursor: default"],
@@ -1108,6 +1109,27 @@ export const FIELD_CSS = `
 .belge-readonly .offer-table tbody tr[data-satir-id] > td::after,
 .belge-inline.belge-readonly .offer-table tbody tr[data-satir-id] > td::after {
   display: none !important;
+}
+.belge-inline.belge-editor.belge-readonly .offer-table tbody tr[data-satir-id] > td {
+  cursor: default !important;
+  user-select: none !important;
+  pointer-events: none !important;
+}
+/* Kısmi onay seçim modunda (kilitli teklifte) satır tıklaması tekrar açık olmalı.
+   Bu istisna sadece seçim aktif satırlarına uygulanır. */
+.belge-kismi-secim-aktif .belge-inline.belge-editor.belge-readonly .offer-table tbody tr[data-satir-id][data-kismi-secim-aktif="true"] > td {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+.belge-inline.belge-editor.belge-readonly .offer-table tbody tr[data-satir-id] > td.is-active-cell {
+  cursor: default !important;
+}
+.belge-inline.belge-editor.belge-readonly .offer-table tbody tr[data-satir-id] > td.is-active-cell::after,
+.belge-inline.belge-editor.belge-readonly .offer-table tbody tr[data-satir-id] > td:hover::after {
+  display: none !important;
+  opacity: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 /* ── DARK MODE — aynı tech görünüm, koyu zeminde daha parlak ton ─────────── */
@@ -1403,6 +1425,16 @@ export const FIELD_CSS = `
       rgba(255, 255, 255, 0.65) 50%,
       transparent 80%
     );
+}
+/* Kismi secim modu: hucre-bazli beyaz hover/isik katmanlarini tamamen kapat.
+   Satir secimi tek parca satir highlight'i ile gorunsun. */
+.belge-kismi-secim-aktif .belge-inline .offer-table tbody tr[data-satir-id] > td::after,
+.belge-kismi-secim-aktif .belge-inline .offer-table td[data-cell-field]::before,
+.belge-kismi-secim-aktif .belge-inline .offer-table [data-editable="true"]::after {
+  display: none !important;
+  opacity: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 /* readonly modda hücre seçilemediği için spotlight gereksiz; tamamen kapat. */
 .belge-readonly .offer-table td[data-cell-field]::before,

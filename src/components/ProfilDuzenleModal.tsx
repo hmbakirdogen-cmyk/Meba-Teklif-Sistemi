@@ -138,7 +138,7 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
       okText="Kaydet"
       cancelText="Vazgeç"
       okButtonProps={{ loading: yukleniyor }}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" onFinish={kaydet}>
         <Form.Item

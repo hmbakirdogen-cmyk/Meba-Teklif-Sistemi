@@ -363,6 +363,44 @@ export default function TeklifEditor() {
     state.gorseller,
   ]);
 
+  // Kismi onay secim modunda satir reddi/anlik onay secimi belgede hemen
+  // toplamlara yansisin; "Tamamla" olmadan sadece preview olarak hesaplanir.
+  const canliTeklifObj: Teklif | null = useMemo(() => {
+    if (!teklifObj) return null;
+    if (!kismiSecimAktif) return teklifObj;
+
+    const previewSatirlar = teklifObj.satirlar.map((s) => ({
+      ...s,
+      onayDurumu: kismiIptalSet.has(s.id) ? ('reddedildi' as const) : ('onaylandi' as const),
+    }));
+
+    const toplamlar = hesaplamaMotoru.genelToplamHesapla(
+      previewSatirlar,
+      teklifObj.kdvOrani,
+      teklifObj.iskontoOrani,
+      teklifObj.paraBirimi,
+    );
+
+    return {
+      ...teklifObj,
+      satirlar: previewSatirlar,
+      araToplam: toplamlar.araToplam,
+      toplamIndirim: toplamlar.toplamIndirim,
+      toplamVergi: toplamlar.kdvTutar,
+      genelToplam: toplamlar.genelToplam,
+    };
+  }, [teklifObj, kismiSecimAktif, kismiIptalSet]);
+
+  // Kumanda paneli sadece eyleme acik oldugunda gorunsun.
+  // - Baska personel, baskasinin teklifini izlerken panel tamamen gizlenir.
+  // - Kismi onay secim modunda panel dikkat dagitmasin.
+  // - Sonuclanmis durumlar (onaylandi/kismi_onaylandi/reddedildi/iptal) kilitli → panel gerek yok.
+  //   NOT: Burada `modeKilitli` (read-only toggle) DEGIL `kilitli` (durum bazli)
+  //   kullanilir. Aksi halde kullanici kilit ikonuna basinca panel kaybolur ve
+  //   geri acmanin yolu kalmaz — panel kendi icindeki kilit toggle ile acilir.
+  const kilitliDurum = (KAPALI_DURUMLAR as readonly string[]).includes(state.durum);
+  const kumandaPaneliGoster = !!teklifObj && !sahipDegil && !kismiSecimAktif && !kilitliDurum;
+
   // ── Aksiyonlar ──
   // Manuel "Kaydet" yok; useBelgeState içindeki auto-save effect tüm değişimleri
   // 600ms debounce ile sessizce taslak olarak persist eder.
@@ -1207,9 +1245,9 @@ export default function TeklifEditor() {
             position: 'relative',
           }}
         >
-          {teklifObj ? (
+          {canliTeklifObj ? (
             <CanliA4Belge
-              teklif={teklifObj}
+              teklif={canliTeklifObj}
               editingAlan={editingAlan}
               onEditingAlanDegistir={setEditingAlan}
               onCariDegistir={state.setCari}
@@ -1434,7 +1472,7 @@ export default function TeklifEditor() {
       </div>
 
       {/* Kumanda Paneli (fixed overlay — viewport'a sabit) */}
-      {teklifObj && (
+      {kumandaPaneliGoster && (
         <KumandaPaneli
           readOnly={modeKilitli}
           onReadOnlyDegistir={handleModeKilitliDegistir}

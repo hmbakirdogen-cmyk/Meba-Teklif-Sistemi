@@ -153,7 +153,7 @@ export default function GeriBildirimDrawer({ open, onClose, initialSayfa }: Prop
       placement="right"
       onClose={onClose}
       open={open}
-      width={460}
+      size={460}
       styles={{ body: { padding: 16 } }}
     >
       {!adminMi && (

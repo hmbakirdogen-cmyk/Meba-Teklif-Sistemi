@@ -2151,7 +2151,7 @@ export default function PaginatedBelgeInlineEditor({
                 paraBirimi={useKart ? tek.pb : teklif.paraBirimi}
                 variant="light"
                 amountRightOffsetPx={computeTotalsAmountRightOffset(teklif.satirlar, false)}
-                animate={!readOnly}
+                animate={!readOnly || !!kismiOnaySecim}
               />
               <KargoNotuSatiri
                 metin={teklif.kargoNotuMetni}
@@ -2182,7 +2182,7 @@ export default function PaginatedBelgeInlineEditor({
                     kaldırıldı; TotalsCard kendi kart görselini sağlar. */}
                 {kullanilanParaKartlari.map((item) => (
                   <div key={item.pb} style={{ width: '220px', minWidth: '220px', flexShrink: 0 }}>
-                    <TotalsCard araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="light" animate={!readOnly} />
+                    <TotalsCard araToplam={item.araToplam} iskontoOrani={iskontoOrani} iskontoTutar={item.iskontoTutar} kdvOrani={kdvOrani} kdvTutar={item.kdvTutar} genelToplam={item.total} paraBirimi={item.pb} variant="light" animate={!readOnly || !!kismiOnaySecim} />
                   </div>
                 ))}
               </div>

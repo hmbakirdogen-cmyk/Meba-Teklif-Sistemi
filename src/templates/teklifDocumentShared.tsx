@@ -664,10 +664,12 @@ export const URUN_KOD_OVERFLOW: CSSProperties = {
   overflow: 'visible',
 };
 
-// Açıklama hücresi: kesme / ellipsis / line-clamp YOK.
-// Tek satıra sığan metin doğal olarak tek satırda kalır; sığmayan metin
-// kelime sınırında 2. satıra düşer. Satır yüksekliği sadece ihtiyaç halinde
-// büyüyebilsin diye rcCell() max-height uygulamaz.
+// Açıklama hücresi: satır geometrisi tutarli olsun diye tek satira sıkıştırıldı.
+// .description-cell + .description-text.df-1..df-4 CSS kurallarinda metin
+// nowrap + (df-4 icin) overflow:hidden + text-overflow:ellipsis ile kesilir.
+// Bu inline style yalnizca line-height token'inin (rcCell pad'i ile birlikte)
+// satir bazli set edilmesini sağlar; whiteSpace/overflow degerleri CSS
+// tarafindan ezilir.
 export const ACIKLAMA_OVERFLOW: CSSProperties = {
   whiteSpace: 'normal',
   overflow: 'visible',
@@ -847,12 +849,13 @@ export function rcCell(
   const radius      = isInSetGroup ? SET_FRAME.radius : ROW_CARD.radius;
   const border      = `${borderWidth} solid ${borderColor}`;
 
-  // Personelin elle çektiği rowHeight varsa td'nin "height"i olur.
-  // CSS table cell semantiğinde td height ZEMIN gibi davranır → içerik
-  // daha çok yer isterse satır yine büyür, ama altına da düşmez.
-  const heightStyle: CSSProperties = rowHeight && rowHeight > 0
-    ? { height: `${rowHeight}px` }
-    : {};
+  // Satır geometri tutarlılığı: varsayılan satır yüksekliği her zaman sabit.
+  // Kullanıcı row-resize ile büyüttüyse o değer kullanılır.
+  // Böylece bazı satırlarda açıklama hücresinin farklı ölçü üretmesi engellenir.
+  const effectiveRowHeight = rowHeight && rowHeight > 0
+    ? rowHeight
+    : LINE_ITEM_METRICS.rowHeightPx;
+  const heightStyle: CSSProperties = { height: `${effectiveRowHeight}px` };
 
   // Grup içi: alt sınır 'top'+'middle' satırlarında, üst sınır 'middle'+
   // 'bottom' satırlarında çizilmez. Köşe radius'ları yalnızca dış kenarlarda.
@@ -885,8 +888,7 @@ export function rcCell(
     : 'none';
 
   return {
-    // Sabit yükseklik yok; kısa açıklamalar min-height'te kalır,
-    // 2. satıra düşen açıklama varsa sadece o satır büyür.
+    // Varsayılan satır yüksekliği sabit; manuel row-resize ile artırılabilir.
     minHeight:              LINE_ITEM_ROW_HEIGHT,
     ...heightStyle,
     boxSizing:              'border-box',

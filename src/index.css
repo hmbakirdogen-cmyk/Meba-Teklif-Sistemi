@@ -1715,38 +1715,39 @@ button.app-btn:active,
   --offer-col-separator: rgba(26, 43, 66, 0.17);
 }
 
-/* ────────────────────────────────────────────────────────────────────────
-   KISMI ONAYDA IPTAL SATIR — TEK PARCA, INCE, ELIT STRIKE-THROUGH
-   ────────────────────────────────────────────────────────────────────────
-   Satira `data-iptal="true"` set edildiginde:
-     1) 1px tek parca koyu kirmizi (#b91c1c) yatay cizgi — hucre tabanli
-        gradient + sutun ayraci transparan + bg-clip border-box ile satir
-        boyunca KESINTISIZ akar.
-     2) Cizgi sadece arka plan katmanindan gecer (text-decoration KOY-
-        ULMUYOR -> daha temiz, "iki cizgi" coupling'i yok).
-     3) Sutun ayraci 1px border-left'i transparan -> column gap'leri kayb-
-        olur, cizgi tek parca gorunur.
+/* ════════════════════════════════════════════════════════════════════════
+   KISMI ONAY — IPTAL SATIRINDA STRIKE-THROUGH (YAPIYI BOZMADAN)
+   ════════════════════════════════════════════════════════════════════════
+   Hedef: satir kirilmadan gorunsun ama tablo yerlesimi etkilenmesin.
 
-   Renk paleti: #b91c1c (medium-tone burgundy-red) — saf #dc2626'dan daha
-   sade ve premium. Surface-light icin yeterli kontrast, agresif degil.
-
-   Hem PDF templates (TeklifSablonu, TeklifPagedDocument) hem canli editor
-   (SatirRow) icin tek kaynak — `data-iptal` attribute setlendigi her yer.
-
-   !important: PDF templates'da rcCell inline `background: <color>` shorthand'i
-   ile bg-image'i sifirliyordu; CSS !important ile uzerine yaziyoruz. */
-tr[data-iptal="true"] > td {
-  background-image: linear-gradient(
-    to bottom,
-    transparent calc(50% - 0.5px),
-    #b91c1c calc(50% - 0.5px),
-    #b91c1c calc(50% + 0.5px),
-    transparent calc(50% + 0.5px)
-  ) !important;
-  background-clip: border-box !important;
+   Cozum: hover/active icin kullanilan td::after katmanina dokunmadan,
+   strike cizgisi td::before katmanina tasinir. Bu sayede pseudo cakismasi
+   ortadan kalkar ve table-row geometri/paint davranisi degismez. */
+.belge-inline.belge-editor .offer-table tbody tr[data-iptal="true"][data-satir-id] > td::before {
+  content: '' !important;
+  display: block !important;
+  position: absolute !important;
+  /* Çizgiyi her hücrede optik orta hatta kilitle. */
+  top: 50% !important;
+  left: -1px !important;
+  right: -1px !important;
+  height: 0.75px !important;
+  background: #991b1b !important;
+  opacity: 1 !important;
+  z-index: 2 !important;
+  transform: translateY(-50%) !important;
+  pointer-events: none !important;
 }
-tr[data-iptal="true"] > td.optical-separator-col {
+.belge-inline.belge-editor .offer-table tbody tr[data-iptal="true"][data-satir-id] > td::after,
+.belge-inline .offer-table tbody tr[data-iptal="true"][data-satir-id] > td::after {
+  display: none !important;
+  content: none !important;
+  opacity: 0 !important;
+}
+.belge-inline.belge-editor .offer-table tbody tr[data-iptal="true"][data-satir-id] > td {
   border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  overflow: visible !important;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -1770,15 +1771,42 @@ tr[data-iptal="true"] > td.optical-separator-col {
   border-radius: 6px;
   transition: box-shadow 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-/* Hover'da satir hafif vurgu — selection feedback (sadece kismi modda) */
+/* Kismi modda satir HER ZAMAN tek blok gorunsun — hem hover hem static.
+   Sebep: optical-separator-col'un 1px border-left'i + first/last cell'in
+   colored border'lari hucreleri birbirinden gorsel olarak ayiriyordu.
+   Tum left/right cell separator'larini kismi modda transparent yap. */
+.belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"] > td.optical-separator-col,
+.belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"] > td:first-child,
+.belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"] > td:last-child {
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+}
+
+/* Hover'da satir bgcolor uygulanir - bg-clip border-box ile cell sinirlarini
+   asar, tek surekli sari serit gorunur. Per-cell outline yok. */
 .belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"]:hover > td {
   background-color: rgba(254, 243, 199, 0.55) !important;
-  background-clip: padding-box !important;
+  background-clip: border-box !important;
   transition: background-color 140ms ease;
 }
 /* iptal isaretliyse hover'da daha koyu kirmizi tint */
 .belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"][data-iptal="true"]:hover > td {
   background-color: rgba(254, 226, 226, 0.45) !important;
+}
+/* Kismi modda her satir icin default (hover olmadan) tum hucrelerde
+   per-cell hover overlay (indigo gradient) kapali olsun. */
+.belge-kismi-secim-aktif .offer-table tbody tr[data-kismi-secim-aktif="true"] > td:hover:not(.is-active-cell)::after,
+.belge-kismi-secim-aktif .offer-table tbody tr[data-kismi-secim-aktif="true"] > td.is-active-cell::after {
+  opacity: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* Kismi secim modunda hucre-bazli hover ikonu/isigi tamamen kapat:
+   satir isaretleme tek parca satir hover'i ile gorunsun. */
+.belge-kismi-secim-aktif .offer-table td[data-cell-field]::before,
+.belge-kismi-secim-aktif .offer-table [data-editable="true"]::after {
+  display: none !important;
+  opacity: 0 !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .belge-kismi-secim-aktif .offer-table { transition: none; }

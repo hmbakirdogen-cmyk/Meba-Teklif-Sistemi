@@ -351,6 +351,9 @@ function TableSection({
             const idx = rowStart + localIndex;
             const satirPb = hesaplamaMotoru.satirParaBirimiGetir(satir, teklif.paraBirimi);
             const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
+            const effectiveRowHeight = satir.rowHeight && satir.rowHeight > 0
+              ? satir.rowHeight
+              : LINE_ITEM_METRICS.rowHeightPx;
             const isLastInPage = localIndex === satirlar.length - 1;
             const renderSpacer = !isLastInPage && setGroupPos !== 'top' && setGroupPos !== 'middle';
             const isMarked = markedRowIds?.has(satir.id) ?? false;
@@ -369,9 +372,7 @@ function TableSection({
                 style={{
                   pageBreakInside: 'avoid',
                   breakInside: 'avoid',
-                  ...(satir.rowHeight && satir.rowHeight > 0
-                    ? { height: `${satir.rowHeight}px` }
-                    : null),
+                  height: `${effectiveRowHeight}px`,
                 }}
               >
                 <td style={applyCellStyle({ padding: CELL_PAD, textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', color: TABLE_TEXT.passive, whiteSpace: 'nowrap', ...rcCell('first', idx, undefined, setGroupPos) })}>
@@ -390,7 +391,7 @@ function TableSection({
                   {satir.urunKod || '-'}
                 </td>
                 <td className={`description-cell ${getOfferTableSeparatorClass('aciklama') ?? ''}`.trim()} style={applyCellStyle({ padding: CELL_PAD, fontWeight: 400, color: TABLE_TEXT.description, verticalAlign: 'middle', ...ACIKLAMA_OVERFLOW, ...getOfferTableSeparatorStyle('aciklama'), ...rcCell('mid', idx, undefined, setGroupPos) })}>
-                  <DescText text={satir.aciklama ?? ''} />
+                  <DescText text={satir.aciklama || '-'} />
                 </td>
                 <td className={getOfferTableSeparatorClass('miktar')} style={applyCellStyle({
                   padding: CELL_PAD,

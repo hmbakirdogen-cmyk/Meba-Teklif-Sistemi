@@ -386,7 +386,7 @@ export default function PersonelSayfasi() {
         onOk={() => form.submit()}
         okText={duzenlenen ? 'Kaydet' : 'Ekle'}
         cancelText="Vazgeç"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

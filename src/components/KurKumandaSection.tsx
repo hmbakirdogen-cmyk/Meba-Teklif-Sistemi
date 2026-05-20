@@ -193,7 +193,8 @@ export default function KurKumandaSection() {
       trigger="hover"
       mouseEnterDelay={0.25}
       mouseLeaveDelay={0.1}
-      overlayInnerStyle={{
+      styles={{
+        container: {
         // Kumanda Paneli tooltip diline uyumlu dark theme: TOOLTIP_COLOR
         // background + ince pembe border + biraz daha opak (içerikli olduğu
         // için 0.62 yerine 0.88).
@@ -205,6 +206,7 @@ export default function KurKumandaSection() {
           '0 8px 24px rgba(5, 0, 2, 0.45), 0 0 14px rgba(255, 112, 134, 0.06)',
         backdropFilter: 'blur(8px) saturate(1.05)',
         WebkitBackdropFilter: 'blur(8px) saturate(1.05)',
+        },
       }}
     >
       <div className="kp-kur-rozet" style={{ position: 'relative' }}>

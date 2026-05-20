@@ -68,9 +68,11 @@ storageRouter.get(/^\/(.+)/, async (req, res) => {
       // 500 alarmı vermez. Asıl gerçek hatalar için 500 ayrılı.
       const code = String((err as { Code?: string })?.Code ?? '');
       const name = String((err as { name?: string })?.name ?? '');
+      const message = String((err as { message?: string })?.message ?? '');
       const isPermissionOrNotFound =
         code === 'AccessDenied' || code === 'NoSuchKey' ||
-        name === 'AccessDenied' || name === 'NoSuchKey';
+        name === 'AccessDenied' || name === 'NoSuchKey' ||
+        message.includes('R2 env vars eksik');
       if (isPermissionOrNotFound) {
         res.status(404).json({ error: 'Dosya bulunamadi.' });
       } else {
