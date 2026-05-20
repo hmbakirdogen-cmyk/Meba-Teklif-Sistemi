@@ -49,6 +49,15 @@ interface CanliA4BelgeProps {
   /** Undo stack push — popup commit + cari/ayar değişikliklerinde tetiklenir. */
   pushUndo: (snapshot: Snapshot) => void;
   getSnapshot: () => Snapshot;
+  /**
+   * Kısmi onay seçim modu — A4'te satır tıkla-işaretle ile iptal kalemleri
+   * belirlenir. Sadece görünür (live editor) instance'a iletilir; offscreen
+   * PDF source clone'una geçilmez (PDF capture sırasında scrim olmaz).
+   */
+  kismiOnaySecim?: {
+    iptalSet: Set<string>;
+    onToggle: (satirId: string) => void;
+  };
 }
 
 const FALLBACK_PAGINATION: TeklifPaginationResult = {
@@ -102,6 +111,7 @@ export default function CanliA4Belge({
   onGorselSil,
   pushUndo,
   getSnapshot,
+  kismiOnaySecim,
 }: CanliA4BelgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -203,7 +213,11 @@ export default function CanliA4Belge({
   };
 
   return (
-    <div ref={containerRef} style={{ width: '100%', maxWidth: `${A4_W_PX}px` }}>
+    <div
+      ref={containerRef}
+      className={kismiOnaySecim ? 'belge-kismi-secim-aktif' : undefined}
+      style={{ width: '100%', maxWidth: `${A4_W_PX}px` }}
+    >
       <div
         ref={measureRef}
         aria-hidden
@@ -359,6 +373,7 @@ export default function CanliA4Belge({
             onKargoNotuMetniDegistir={onKargoNotuMetniDegistir}
             onKargoNotuGizliDegistir={onKargoNotuGizliDegistir}
             readOnly={readOnly}
+            kismiOnaySecim={kismiOnaySecim}
             pushUndo={pushUndo}
             getSnapshot={getSnapshot}
             renderPageOverlay={(pageIndex) => (

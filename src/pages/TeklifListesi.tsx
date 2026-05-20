@@ -699,15 +699,20 @@ function KlasorGorunumu({
   }
 
   function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
-    // Sonuçlanma sürecinin TAMAMI artık modal üzerinden:
+    // Kismi onay: modal yerine A4 sayfasinda inline secim (yeni UX).
+    // Editor sayfasi ?action=kismi-onay query'sini gorunce otomatik
+    // secim modunu baslatir.
+    if (yeniDurum === 'kismi_onaylandi') {
+      navigate(`/teklif/${teklif.id}?action=kismi-onay`);
+      return;
+    }
+    // Diger sonuc durumlarinda hala modal:
     //  - reddedildi / iptal → sebep girişi modu
     //  - onaylandi          → satır seçimi modu
-    //  - kismi_onaylandi    → satır seçimi modu (iptal satırları işaretle)
     if (
       yeniDurum === 'reddedildi' ||
       yeniDurum === 'iptal' ||
-      yeniDurum === 'onaylandi' ||
-      yeniDurum === 'kismi_onaylandi'
+      yeniDurum === 'onaylandi'
     ) {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
@@ -1671,14 +1676,18 @@ function DetayGorunumu({
   }
 
   function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
-    // Sonuçlanma sürecinin TAMAMI modal üzerinden:
-    //  - reddedildi / iptal     → sebep girişi modu
-    //  - onaylandi / kismi      → satır seçimi modu
+    // Kismi onay: modal yerine A4 sayfasinda inline secim (yeni UX).
+    if (yeniDurum === 'kismi_onaylandi') {
+      navigate(`/teklif/${teklif.id}?action=kismi-onay`);
+      return;
+    }
+    // Diger sonuc durumlari modal:
+    //  - reddedildi / iptal → sebep girişi modu
+    //  - onaylandi          → satır seçimi modu
     if (
       yeniDurum === 'reddedildi' ||
       yeniDurum === 'iptal' ||
-      yeniDurum === 'onaylandi' ||
-      yeniDurum === 'kismi_onaylandi'
+      yeniDurum === 'onaylandi'
     ) {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;

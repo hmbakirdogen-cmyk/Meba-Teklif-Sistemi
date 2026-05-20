@@ -10,7 +10,7 @@
  */
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import type React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { App } from 'antd';
 import { useKullanici } from '../context/useKullanici';
 import { useFirma } from '../context/useFirma';
@@ -26,7 +26,8 @@ import {
   type TeklifDisaAktarimSonucu,
   TeklifDisaAktarimHatasi,
 } from '../services/pdfKayitService';
-import { formatCariAdi } from '../utils/formatters';
+import { formatCariAdi, formatCurrency } from '../utils/formatters';
+import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { isYonetici } from '../utils/yetkiUtils';
 import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import CanliA4Belge from '../components/CanliA4Belge';
@@ -102,10 +103,17 @@ export default function TeklifEditor() {
   // Serbest çizim modu
   const [cizimModu, setCizimModu] = useState(false);
   const [ilgiliKisiModalAcik, setIlgiliKisiModalAcik] = useState(false);
-  // Sonuç (onaylandi/kismi_onaylandi/reddedildi/iptal) seçimi için modal —
+  // Sonuç (onaylandi/reddedildi/iptal) seçimi için modal —
   // dropdown'dan sonuçlanmış bir duruma geçilirse modal açılır; satır seçimi
   // (onay) veya sebep (red/iptal) toplanır, ardından meta'sı yazılır.
+  // NOT: 'kismi_onaylandi' için modal YERINE A4 üzerinde inline seçim
+  // (kismiSecimAktif state'i) kullanılır.
   const [sonucModalDurum, setSonucModalDurum] = useState<TeklifDurum | null>(null);
+  // Kısmi onay seçim modu — A4 sayfasında inline iptal kalemi işaretleme:
+  // user clicks rows on the live A4, banner üstte. iptalSet local preview state;
+  // "Tamamla" tıklanınca satır.onayDurumu + durum + totals patch'lenir.
+  const [kismiSecimAktif, setKismiSecimAktif] = useState(false);
+  const [kismiIptalSet, setKismiIptalSet] = useState<Set<string>>(new Set());
   // In-app Outlook benzeri mail compose modal'ı. PDF üretildikten + yerel
   // kayıt yapıldıktan sonra açılır; modal kendi içinde backend'i çağırıp
   // SMTP send + IMAP APPEND yapar. Mailto akışı tamamen devre dışı.
@@ -837,13 +845,44 @@ export default function TeklifEditor() {
   // (red/iptal) toplar ve meta veriyi (sonucTarihi, sonucGirenKullaniciId,
   // kayipSebebi, vb.) eksiksiz yazar. Diğer durumlar (taslak/hazir/gonderildi)
   // doğrudan state.setDurum'a düşer.
+  // Kısmi onay seçim modunu başlat — A4 üzerinde inline tıkla-işaretle.
+  // iptalSet, varsa mevcut s.onayDurumu='reddedildi' satırlardan başlatılır
+  // (önceden işaretliyse korunur; kullanıcı eklemeden başlamamış olur).
+  const handleKismiOnayBaslat = useCallback(() => {
+    if (!teklifObj) return;
+    const init = new Set<string>();
+    for (const s of teklifObj.satirlar) {
+      if (s.onayDurumu === 'reddedildi') init.add(s.id);
+    }
+    setKismiIptalSet(init);
+    setKismiSecimAktif(true);
+    setEditingAlan(null);
+  }, [teklifObj]);
+
+  const handleKismiSatirToggle = useCallback((satirId: string) => {
+    setKismiIptalSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(satirId)) next.delete(satirId);
+      else next.add(satirId);
+      return next;
+    });
+  }, []);
+
+  const handleKismiVazgec = useCallback(() => {
+    setKismiSecimAktif(false);
+    setKismiIptalSet(new Set());
+  }, []);
+
   const handleDurumDegistir = useCallback((yeniDurum: TeklifDurum) => {
-    // Tum sonuclanmis durumlar (onay/kismi/red/iptal) SonucModal'i tetikler.
-    // Kismi onay her secildiginde modal acilir; kullanici onaylanmayan
-    // satirlari isaretler ve sonuc kaydedilir.
+    // Kismi onay: SonucModal yerine A4 sayfasinda inline secim modunu baslat
+    // (kullanici reddedilen satirlari A4 uzerinde tikla-isaretle yapar).
+    if (yeniDurum === 'kismi_onaylandi') {
+      handleKismiOnayBaslat();
+      return;
+    }
+    // Diger sonuclanmis durumlar (onay/red/iptal) hala SonucModal'i tetikler.
     if (
       yeniDurum === 'onaylandi' ||
-      yeniDurum === 'kismi_onaylandi' ||
       yeniDurum === 'reddedildi' ||
       yeniDurum === 'iptal'
     ) {
@@ -864,7 +903,7 @@ export default function TeklifEditor() {
       state.setSatirlar(temizSatirlar);
     }
     state.setDurum(yeniDurum);
-  }, [state]);
+  }, [state, handleKismiOnayBaslat]);
 
   // SonucModal kaydedince — patch tüm gerekli alanları içerir (durum, satırlar,
   // meta). Önce store'a tam kayıt (auto-save'in meta'yı ezmemesi için bu son
@@ -888,6 +927,63 @@ export default function TeklifEditor() {
     message.success('Durum güncellendi.');
   }, [teklifObj, state, aktifKullanici?.id, message]);
 
+  // Kısmi onay seçim modunu tamamla — A4'te işaretlenmiş iptal satırlarına
+  // göre onayDurumu yazılır, durum (onayli/kismi/reddedildi) sayıma göre
+  // belirlenir, totals yeniden hesaplanır ve patch handleSonucKaydet'e
+  // verilir. Mod kapatılır.
+  const handleKismiTamamla = useCallback(() => {
+    if (!teklifObj) return;
+    const yeniSatirlar = teklifObj.satirlar.map((s) => ({
+      ...s,
+      onayDurumu: kismiIptalSet.has(s.id) ? ('reddedildi' as const) : ('onaylandi' as const),
+    }));
+    const aktifSatirlar = yeniSatirlar.filter((s) => !s.setAltKalem);
+    const iptal = aktifSatirlar.filter((s) => s.onayDurumu === 'reddedildi').length;
+    const onayli = aktifSatirlar.length - iptal;
+    let yeniDurum: TeklifDurum;
+    if (iptal === 0) yeniDurum = 'onaylandi';
+    else if (onayli === 0) yeniDurum = 'reddedildi';
+    else yeniDurum = 'kismi_onaylandi';
+
+    const toplamlar = hesaplamaMotoru.genelToplamHesapla(
+      yeniSatirlar,
+      teklifObj.kdvOrani,
+      teklifObj.iskontoOrani,
+      teklifObj.paraBirimi,
+    );
+
+    handleSonucKaydet({
+      durum: yeniDurum,
+      satirlar: yeniSatirlar,
+      araToplam: toplamlar.araToplam,
+      toplamIndirim: toplamlar.toplamIndirim,
+      toplamVergi: toplamlar.kdvTutar,
+      genelToplam: toplamlar.genelToplam,
+      sonucTarihi: new Date().toISOString(),
+    });
+    setKismiSecimAktif(false);
+    setKismiIptalSet(new Set());
+  }, [teklifObj, kismiIptalSet, handleSonucKaydet]);
+
+  // Banner'da gösterilecek canlı sayaç + her para biriminde net onaylanan
+  // toplam (iskonto/KDV hariç ham ara toplam). useMemo: iptalSet değişimine
+  // ve satırlara duyarlı.
+  const kismiOzet = useMemo(() => {
+    if (!kismiSecimAktif || !teklifObj) return null;
+    const aktif = teklifObj.satirlar.filter((s) => !s.setAltKalem);
+    const iptal = aktif.filter((s) => kismiIptalSet.has(s.id)).length;
+    const onayli = aktif.length - iptal;
+    const onayliSatirlar = teklifObj.satirlar.filter(
+      (s) => !s.setAltKalem && !kismiIptalSet.has(s.id),
+    );
+    const toplamlar = hesaplamaMotoru.paraBirimineGoreToplamlar(
+      onayliSatirlar,
+      teklifObj.paraBirimi,
+    );
+    const aktifPb = (['TRY', 'EUR', 'USD'] as const).filter((pb) => toplamlar[pb] > 0);
+    return { iptal, onayli, toplamSayi: aktif.length, toplamlar, aktifPb };
+  }, [kismiSecimAktif, teklifObj, kismiIptalSet]);
+
   // SonucModal'a verilen Teklif snapshot'ı — hedef durum üzerine bindirilir ki
   // modal "onaylandi"yı görünce satır seçimi modunda, "reddedildi/iptal"i
   // görünce sebep modunda açılsın.
@@ -895,6 +991,22 @@ export default function TeklifEditor() {
     if (!teklifObj || !sonucModalDurum) return null;
     return { ...teklifObj, durum: sonucModalDurum };
   }, [teklifObj, sonucModalDurum]);
+
+  // Query param ?action=kismi-onay → teklif yuklendikten sonra otomatik
+  // kismi onay secim moduna gir. searchParams temizlenir ki refresh
+  // re-trigger etmesin.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const kismiAutoTetiklendiRef = useRef(false);
+  useEffect(() => {
+    if (kismiAutoTetiklendiRef.current) return;
+    if (searchParams.get('action') !== 'kismi-onay') return;
+    if (!teklifObj) return;
+    kismiAutoTetiklendiRef.current = true;
+    handleKismiOnayBaslat();
+    const next = new URLSearchParams(searchParams);
+    next.delete('action');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, teklifObj, handleKismiOnayBaslat, setSearchParams]);
 
   const handleModeKilitliDegistir = useCallback((v: boolean) => {
     // Sahip olmayan personel kilidi açamaz
@@ -947,9 +1059,97 @@ export default function TeklifEditor() {
         pdfKayitDurum={pdfKayitDurum}
       />
 
+      {/* Kısmi Onay seçim modu banner'ı — A4 sayfasında satır işaretleme
+          aktifken görünür. Sticky top: kullanıcı sayfayı scroll etse de
+          görmeye devam eder. Tamamla/Vazgeç burada. */}
+      {kismiSecimAktif && kismiOzet && (
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            padding: '10px 18px',
+            background: 'linear-gradient(180deg, #fef9c3 0%, #fef3c7 100%)',
+            borderBottom: '1px solid #f59e0b',
+            color: '#78350f',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.18)',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.005em' }}>
+              Kısmi Onay — Müşterinin reddettiği kalemleri A4 üzerinde tıklayıp <span style={{ color: '#dc2626' }}>✕</span> işaretleyin
+            </div>
+            <div style={{ fontSize: 11.5, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span>
+                <b style={{ color: '#059669' }}>{kismiOzet.onayli}</b> onaylanacak
+                {' · '}
+                <b style={{ color: '#dc2626' }}>{kismiOzet.iptal}</b> reddedilecek
+                {' '}
+                <span style={{ color: '#92400e', opacity: 0.7 }}>/ {kismiOzet.toplamSayi}</span>
+              </span>
+              {kismiOzet.aktifPb.length > 0 && (
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: '#065f46', fontWeight: 600 }}>
+                  Onaylı ara toplam:{' '}
+                  {kismiOzet.aktifPb.map((pb, i) => (
+                    <span key={pb}>
+                      {i > 0 && ' · '}
+                      {formatCurrency(kismiOzet.toplamlar[pb], pb)}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleKismiVazgec}
+            style={{
+              padding: '7px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#78350f',
+              background: '#fef9c3',
+              border: '1px solid #f59e0b',
+              cursor: 'pointer',
+              lineHeight: 1.3,
+              transition: 'background 120ms ease',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#fde68a'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#fef9c3'; }}
+          >
+            Vazgeç
+          </button>
+          <button
+            type="button"
+            onClick={handleKismiTamamla}
+            style={{
+              padding: '7px 16px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#ffffff',
+              background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)',
+              border: '1px solid #166534',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(22, 101, 52, 0.30), inset 0 1px 0 rgba(255,255,255,0.18)',
+              lineHeight: 1.3,
+              transition: 'filter 120ms ease',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.07)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = 'none'; }}
+          >
+            Tamamla
+          </button>
+        </div>
+      )}
+
       {/* Revize bar — kapalı durumda (gönderildi/sonuçlanmış) düzenleme
           için kullanıcı yönlendirilir. İnce şerit: tek satır, kompakt. */}
-      {kilitli && (
+      {kilitli && !kismiSecimAktif && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '3px 14px',
@@ -1044,6 +1244,11 @@ export default function TeklifEditor() {
               gorseller={state.gorseller}
               onGorselGuncelle={state.gorselGuncelle}
               onGorselSil={state.gorselSil}
+              kismiOnaySecim={
+                kismiSecimAktif
+                  ? { iptalSet: kismiIptalSet, onToggle: handleKismiSatirToggle }
+                  : undefined
+              }
             />
           ) : (
             <div style={{

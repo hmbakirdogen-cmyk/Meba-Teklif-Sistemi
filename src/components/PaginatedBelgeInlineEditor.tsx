@@ -126,6 +126,16 @@ interface PaginatedBelgeInlineEditorProps {
   toggleRowMark: (satirId: string) => (e: React.MouseEvent) => void;
   /** PDF export kaynağı gibi özel readOnly varyantları için ek root class. */
   rootClassName?: string;
+  /**
+   * Kısmi onay seçim modu. Aktifken:
+   *  - Hücre tıklaması → iptal toggle (cell edit devre dışı, readOnly olmasa bile)
+   *  - Tablo dışı sayfa elemanları scrim altında (CSS .belge-kismi-secim-aktif)
+   *  - SatirRow `data-iptal` attribute'u iptalSet üyeliğinden türer (satır.onayDurumu'na değil)
+   */
+  kismiOnaySecim?: {
+    iptalSet: Set<string>;
+    onToggle: (satirId: string) => void;
+  };
 }
 
 function CompactHeaderBlock({ teklif }: { teklif: Teklif }) {
@@ -1080,6 +1090,7 @@ export default function PaginatedBelgeInlineEditor({
   markedRowIds,
   toggleRowMark,
   rootClassName = '',
+  kismiOnaySecim,
 }: PaginatedBelgeInlineEditorProps) {
   const firmaBilgi = useTeklifFirmaBilgileri(teklif);
   const { araToplam, iskontoOrani, iskontoTutar, kdvOrani, kdvTutar, genelToplam } = totals;
@@ -1219,6 +1230,14 @@ export default function PaginatedBelgeInlineEditor({
   // Aşağıdaki callback'ler primitive parametre alır, dependency'leri sabittir.
   const handleCellClickFlat = useCallback(
     (satirId: string, cell: SatirCellField, e: React.MouseEvent) => {
+      // Kismi onay secim modu: hucre tiklamasi cell edit yerine iptal toggle
+      // tetikler. readOnly bypass edilir (teklif zaten kilitli durumda olabilir
+      // ama kullanici secim yapmak istiyor).
+      if (kismiOnaySecim) {
+        e.stopPropagation();
+        kismiOnaySecim.onToggle(satirId);
+        return;
+      }
       if (readOnly) return;
       e.stopPropagation();
       const isSameActive = editingAlan === `satir-${satirId}` && satirFocusCell === cell;
@@ -1229,7 +1248,7 @@ export default function PaginatedBelgeInlineEditor({
       setSatirFocusCell(cell);
       onEditingAlanDegistir(`satir-${satirId}`);
     },
-    [editingAlan, satirFocusCell, onEditingAlanDegistir, readOnly],
+    [editingAlan, satirFocusCell, onEditingAlanDegistir, readOnly, kismiOnaySecim],
   );
 
   const handleRowEnter = useCallback((satirId: string) => {
@@ -2028,6 +2047,8 @@ export default function PaginatedBelgeInlineEditor({
                     satirBazliParaBirimi={satirBazliParaBirimi}
                     satirBazliIskonto={satirBazliIskonto}
                     readOnly={readOnly}
+                    kismiSecimAktif={!!kismiOnaySecim}
+                    kismiIptalSecili={kismiOnaySecim ? kismiOnaySecim.iptalSet.has(satir.id) : false}
                     onCellClick={handleCellClickFlat}
                     onRowEnter={handleRowEnter}
                     onRowLeave={handleRowLeave}

@@ -59,6 +59,11 @@ export interface SatirRowProps {
   satirBazliParaBirimi: boolean;
   satirBazliIskonto: boolean;
   readOnly: boolean;
+  /** Kısmi onay seçim modu aktif mi (üst seviyeden gelir). */
+  kismiSecimAktif?: boolean;
+  /** Bu satır kısmi onay seçimde "reddedildi" işaretli mi. data-iptal
+   *  attribute'u bu değerden türer (mode aktifken s.onayDurumu yok sayılır). */
+  kismiIptalSecili?: boolean;
   // Callbacks — TÜMÜ stable (parent useCallback)
   onCellClick: (satirId: string, cell: SatirCellField, e: React.MouseEvent) => void;
   onRowEnter: (satirId: string) => void;
@@ -82,6 +87,8 @@ function SatirRowImpl({
   satirBazliParaBirimi,
   satirBazliIskonto,
   readOnly,
+  kismiSecimAktif = false,
+  kismiIptalSecili = false,
   onCellClick,
   onRowEnter,
   onRowLeave,
@@ -93,6 +100,15 @@ function SatirRowImpl({
   const activeClass = (cell: SatirCellField) => (isActiveCell(cell) ? 'is-active-cell' : undefined);
   const handleClick = (cell: SatirCellField) => (e: React.MouseEvent) =>
     onCellClick(satir.id, cell, e);
+  // Satır numarası span'inin click handler'i:
+  //  - Normal mod: onToggleMark (markedRowIds highlight toggle)
+  //  - Kısmi onay mod: onCellClick → handleCellClickFlat → iptal toggle
+  const handleRowNumberClick = kismiSecimAktif
+    ? (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onCellClick(satir.id, 'aciklama' as SatirCellField, e);
+      }
+    : onToggleMark(satir.id);
   const noCellContentStyle: React.CSSProperties = {
     display: 'inline-flex',
     width: '100%',
@@ -111,12 +127,21 @@ function SatirRowImpl({
     <tr
       data-satir-id={satir.id}
       data-marked={isMarked ? 'true' : undefined}
-      data-iptal={satir.onayDurumu === 'reddedildi' ? 'true' : undefined}
+      // Mode aktifken iptal görünümü local seçimden türer (preview); aksi
+      // halde persisted satır.onayDurumu'ndan. Tamamla'ya basılana kadar
+      // s.onayDurumu yazılmaz, böylece "Vazgeç" hiçbir şeyi değiştirmez.
+      data-iptal={
+        (kismiSecimAktif ? kismiIptalSecili : satir.onayDurumu === 'reddedildi')
+          ? 'true'
+          : undefined
+      }
+      data-kismi-secim-aktif={kismiSecimAktif ? 'true' : undefined}
       onMouseEnter={() => onRowEnter(satir.id)}
       onMouseLeave={() => onRowLeave(satir.id)}
       style={{
         ...noBreak,
         ...(satir.rowHeight && satir.rowHeight > 0 ? { height: `${satir.rowHeight}px` } : null),
+        ...(kismiSecimAktif ? { cursor: 'pointer' } : null),
       }}
     >
       <RowCell
@@ -130,8 +155,8 @@ function SatirRowImpl({
       >
         {satir.setAltKalem ? (
           <span
-            onClick={onToggleMark(satir.id)}
-            title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
+            onClick={handleRowNumberClick}
+            title={kismiSecimAktif ? (kismiIptalSecili ? 'Onaylı yap' : 'Reddedildi olarak işaretle') : (isMarked ? 'İşareti kaldır' : 'Satırı işaretle')}
             style={{
               ...noCellContentStyle,
               ...SET_SUBITEM_NUMBER_STYLE,
@@ -144,8 +169,8 @@ function SatirRowImpl({
           </span>
         ) : (
           <span
-            onClick={onToggleMark(satir.id)}
-            title={isMarked ? 'İşareti kaldır' : 'Satırı işaretle'}
+            onClick={handleRowNumberClick}
+            title={kismiSecimAktif ? (kismiIptalSecili ? 'Onaylı yap' : 'Reddedildi olarak işaretle') : (isMarked ? 'İşareti kaldır' : 'Satırı işaretle')}
             style={{ ...noCellContentStyle, cursor: 'pointer' }}
           >
             {String(mainItemIndex).padStart(2, '0')}
@@ -375,6 +400,8 @@ const arePropsEqual = (prev: SatirRowProps, next: SatirRowProps) => {
   if (prev.satirBazliParaBirimi !== next.satirBazliParaBirimi) return false;
   if (prev.satirBazliIskonto !== next.satirBazliIskonto) return false;
   if (prev.readOnly !== next.readOnly) return false;
+  if (prev.kismiSecimAktif !== next.kismiSecimAktif) return false;
+  if (prev.kismiIptalSecili !== next.kismiIptalSecili) return false;
   if (prev.onCellClick !== next.onCellClick) return false;
   if (prev.onRowEnter !== next.onRowEnter) return false;
   if (prev.onRowLeave !== next.onRowLeave) return false;
