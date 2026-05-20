@@ -850,6 +850,19 @@ export default function TeklifEditor() {
       setSonucModalDurum(yeniDurum);
       return;
     }
+    // Kismi onaydan geri donulurken (taslak/hazir/gonderildi) satir-bazli
+    // iptal isaretleri (onayDurumu='reddedildi') temizlenir. Aksi halde
+    // toplamlar dusuk kalir ve teklif "gonderildi" gorunse de PDF/analitik
+    // hala kismi gibi davranir.
+    if (state.durum === 'kismi_onaylandi' && state.satirlar.some((s) => s.onayDurumu)) {
+      const temizSatirlar = state.satirlar.map((s) => {
+        if (!s.onayDurumu) return s;
+        const r = { ...s };
+        delete r.onayDurumu;
+        return r;
+      });
+      state.setSatirlar(temizSatirlar);
+    }
     state.setDurum(yeniDurum);
   }, [state]);
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Input, Modal, Select } from 'antd';
 import type { Teklif, TeklifDurum, KayipSebebi } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { hesaplamaMotoru } from '../services/hesaplamaMotoru';
 import { KAYIP_SEBEBI_LABEL } from '../pages/teklifListesiShared';
 
 export interface SonucModalProps {
@@ -70,9 +71,26 @@ export default function SonucModal({ open, teklif, onClose, onSave }: SonucModal
       onayDurumu: satirOnay[s.id] ? ('onaylandi' as const) : ('reddedildi' as const),
     }));
     const yeniDurum: TeklifDurum = hepsi ? 'onaylandi' : hicbiri ? 'reddedildi' : 'kismi_onaylandi';
+
+    // Toplamları yeniden hesapla — iptal satırlar `genelToplamHesapla`
+    // içindeki `onayDurumu === 'reddedildi'` filtresiyle düşer. Patch'in
+    // toplamları içermesi şart: aksi halde TeklifEditor / TeklifListesi
+    // sonradan yazarken stale (full) toplamları üzerine yazıp analitik
+    // ekranlarda yanlış değer kaydeder.
+    const toplamlar = hesaplamaMotoru.genelToplamHesapla(
+      yeniSatirlar,
+      teklif.kdvOrani,
+      teklif.iskontoOrani,
+      teklif.paraBirimi,
+    );
+
     const patch: Partial<Teklif> = {
       durum: yeniDurum,
       satirlar: yeniSatirlar,
+      araToplam: toplamlar.araToplam,
+      toplamIndirim: toplamlar.toplamIndirim,
+      toplamVergi: toplamlar.kdvTutar,
+      genelToplam: toplamlar.genelToplam,
       sonucTarihi: new Date().toISOString(),
       sonucNotu: not.trim() || undefined,
       kayipSebebi: yeniDurum === 'reddedildi' ? sebep : undefined,

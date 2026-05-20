@@ -712,10 +712,31 @@ function KlasorGorunumu({
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
     }
-    sonucYaz(teklif, {
+    // Kismi onaydan geri donulurken (taslak/hazir/gonderildi) iptal
+    // isaretleri temizlenir ve toplamlar yeniden hesaplanir; aksi halde
+    // analitik/listede dusuk tutar gorunur.
+    const satirReset = teklif.durum === 'kismi_onaylandi' && teklif.satirlar?.some((s) => s.onayDurumu);
+    const patch: Partial<Teklif> = {
       durum: yeniDurum, sonucTarihi: new Date().toISOString(),
       kayipSebebi: undefined, rakipFirma: undefined,
-    });
+    };
+    if (satirReset) {
+      const temiz = teklif.satirlar.map((s) => {
+        if (!s.onayDurumu) return s;
+        const r = { ...s };
+        delete r.onayDurumu;
+        return r;
+      });
+      const toplamlar = hesaplamaMotoru.genelToplamHesapla(
+        temiz, teklif.kdvOrani, teklif.iskontoOrani, teklif.paraBirimi,
+      );
+      patch.satirlar = temiz;
+      patch.araToplam = toplamlar.araToplam;
+      patch.toplamIndirim = toplamlar.toplamIndirim;
+      patch.toplamVergi = toplamlar.kdvTutar;
+      patch.genelToplam = toplamlar.genelToplam;
+    }
+    sonucYaz(teklif, patch);
   }
 
   function hizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
@@ -1651,18 +1672,43 @@ function DetayGorunumu({
 
   function uygulaHizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
     // Sonuçlanma sürecinin TAMAMI modal üzerinden:
-    //  - reddedildi / iptal → sebep girişi modu
-    //  - onaylandi          → satır seçimi modu (kullanıcı kısmi onay verebilir)
-    if (yeniDurum === 'reddedildi' || yeniDurum === 'iptal' || yeniDurum === 'onaylandi') {
+    //  - reddedildi / iptal     → sebep girişi modu
+    //  - onaylandi / kismi      → satır seçimi modu
+    if (
+      yeniDurum === 'reddedildi' ||
+      yeniDurum === 'iptal' ||
+      yeniDurum === 'onaylandi' ||
+      yeniDurum === 'kismi_onaylandi'
+    ) {
       setSonucModalTeklif({ ...teklif, durum: yeniDurum });
       return;
     }
-    sonucYaz(teklif, {
+    // Kismi onaydan geri donulurken iptal isaretleri temizlenir;
+    // toplamlar yeniden hesaplanarak full degere doner.
+    const satirReset = teklif.durum === 'kismi_onaylandi' && teklif.satirlar?.some((s) => s.onayDurumu);
+    const patch: Partial<Teklif> = {
       durum: yeniDurum,
       sonucTarihi: new Date().toISOString(),
       kayipSebebi: undefined,
       rakipFirma: undefined,
-    });
+    };
+    if (satirReset) {
+      const temiz = teklif.satirlar.map((s) => {
+        if (!s.onayDurumu) return s;
+        const r = { ...s };
+        delete r.onayDurumu;
+        return r;
+      });
+      const toplamlar = hesaplamaMotoru.genelToplamHesapla(
+        temiz, teklif.kdvOrani, teklif.iskontoOrani, teklif.paraBirimi,
+      );
+      patch.satirlar = temiz;
+      patch.araToplam = toplamlar.araToplam;
+      patch.toplamIndirim = toplamlar.toplamIndirim;
+      patch.toplamVergi = toplamlar.kdvTutar;
+      patch.genelToplam = toplamlar.genelToplam;
+    }
+    sonucYaz(teklif, patch);
   }
 
   return (
