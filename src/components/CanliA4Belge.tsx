@@ -127,34 +127,14 @@ export default function CanliA4Belge({
   // satır PDF çıktısında da görsel olarak aynı şekilde işaretli görünür.
   const { markedRowIds, toggleRowMark } = useMarkedRows();
 
-  // Kismi onay secim modu aktifken: satirlardan onayDurumu preview ile
-  // yeniden hesapla (genelToplamHesapla 'reddedildi' satirlari excludes ediyor).
-  // iptalSet degisikligi -> yeni totals object -> TotalsCard useTweenNumber
-  // kendi reactivity'si ile count-up tween + pulse tetikler.
-  //
-  // Normal modda: persisted teklif.araToplam'dan KDV/iskonto turetilir
-  // (genelToplamHesapla'yi cagirmak yerine ucuz teklifToplamlariniHesapla).
-  const totals = useMemo(() => {
-    if (kismiOnaySecim) {
-      const previewSatirlar = teklif.satirlar.map((s) => ({
-        ...s,
-        onayDurumu: kismiOnaySecim.iptalSet.has(s.id)
-          ? ('reddedildi' as const)
-          : undefined,
-      }));
-      return hesaplamaMotoru.genelToplamHesapla(
-        previewSatirlar,
-        teklif.kdvOrani,
-        teklif.iskontoOrani ?? 0,
-        teklif.paraBirimi,
-      );
-    }
-    return hesaplamaMotoru.teklifToplamlariniHesapla({
+  const totals = useMemo(
+    () => hesaplamaMotoru.teklifToplamlariniHesapla({
       araToplam: teklif.araToplam,
       kdvOrani: teklif.kdvOrani,
       iskontoOrani: teklif.iskontoOrani ?? 0,
-    });
-  }, [teklif, kismiOnaySecim]);
+    }),
+    [teklif.araToplam, teklif.kdvOrani, teklif.iskontoOrani],
+  );
 
   useEffect(() => {
     const el = containerRef.current;

@@ -1716,85 +1716,69 @@ button.app-btn:active,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   KISMI ONAYDA IPTAL SATIR — PREMIUM TEK PARCA STRIKE-THROUGH
+   KISMI ONAYDA IPTAL SATIR — TEK PARCA, INCE, ELIT STRIKE-THROUGH
    ────────────────────────────────────────────────────────────────────────
-   Onceki yaklasim per-cell linear-gradient + bg-clip border-box idi; ama
-   cell heightlari sub-pixel oldugunda (auto layout) 50% farkli pixel
-   grid'e snap'leniyor -> hucre gecislerinde gorunur kirikliklar.
+   Satira `data-iptal="true"` set edildiginde:
+     1) 1px tek parca koyu kirmizi (#b91c1c) yatay cizgi — hucre tabanli
+        gradient + sutun ayraci transparan + bg-clip border-box ile satir
+        boyunca KESINTISIZ akar.
+     2) Cizgi sadece arka plan katmanindan gecer (text-decoration KOY-
+        ULMUYOR -> daha temiz, "iki cizgi" coupling'i yok).
+     3) Sutun ayraci 1px border-left'i transparan -> column gap'leri kayb-
+        olur, cizgi tek parca gorunur.
 
-   Yeni yaklasim: `tr::after` ile tek parca absolute-positioned 1px line.
-   Position:relative tr uzerinde modern browser'larda calisir (Chrome 75+,
-   FF 100+, Safari 14+). html2canvas pseudo-element rendering destekliyor.
+   Renk paleti: #b91c1c (medium-tone burgundy-red) — saf #dc2626'dan daha
+   sade ve premium. Surface-light icin yeterli kontrast, agresif degil.
 
-   Premium gorunum:
-   - 90deg gradient: uclarda hafif karararak merkezi vurgu (subtle taper)
-   - Box-shadow ile minik depth (havada yuzen ipek seridi hissi)
-   - Renk: #991b1b (red-800) — refined burgundy, agresif degil */
-tr[data-iptal="true"] {
-  position: relative;
+   Hem PDF templates (TeklifSablonu, TeklifPagedDocument) hem canli editor
+   (SatirRow) icin tek kaynak — `data-iptal` attribute setlendigi her yer.
+
+   !important: PDF templates'da rcCell inline `background: <color>` shorthand'i
+   ile bg-image'i sifirliyordu; CSS !important ile uzerine yaziyoruz. */
+tr[data-iptal="true"] > td {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(50% - 0.5px),
+    #b91c1c calc(50% - 0.5px),
+    #b91c1c calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  ) !important;
+  background-clip: border-box !important;
 }
-tr[data-iptal="true"]::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(127, 29, 29, 0.88) 0%,
-    #991b1b 8%,
-    #991b1b 92%,
-    rgba(127, 29, 29, 0.88) 100%
-  );
-  box-shadow: 0 0.5px 1px rgba(127, 29, 29, 0.22);
-  transform: translateY(-50%);
-  pointer-events: none;
-  z-index: 2;
+tr[data-iptal="true"] > td.optical-separator-col {
+  border-left-color: transparent !important;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   KISMI ONAY SECIM MODU — PREMIUM SPOTLIGHT
+   KISMI ONAY SECIM MODU — SPOTLIGHT
    ────────────────────────────────────────────────────────────────────────
    `.belge-kismi-secim-aktif` aktifken A4'te sadece line items tablosu
-   aydinlik kalir; geri kalan koyu scrim altinda kaybolur.
-
-   Multi-layer box-shadow ile derinlik:
-   1) Outer scrim: 9999px koyu rgba — tabloyu yalitir
-   2) Drop shadows: tablo havada yuzuyor hissi (24px ve 8px iki katman)
-   3) Inset top highlight: ust kenarda hafif beyaz cizgi (premium "lifted" hissi)
-   4) Inset border: hafif beyaz cerceve (tablo siniri belirgin)
+   aydinlik kalir; geri kalan (header, totals, signature, footer, notlar)
+   koyu scrim altinda kaybolur. Box-shadow 9999px trick'i ile tablo
+   etrafindaki tum alan koyu rgba ile kaplanir; tablo .offer-table kendi
+   raised z-index ile uzerinde durur.
 
    Page wrapper [data-pdf-page] zaten overflow:hidden oldugu icin shadow
-   page bounds disina tasmaz. */
+   page bounds disina tasmaz — her sayfa kendi kapsami icinde spotlight.
+
+   Ek: data-iptal cizgisinin selection moddaki anlik on-izlemesi de ayni
+   CSS rule'lardan beslenir (tr[data-iptal="true"]). */
 .belge-kismi-secim-aktif .offer-table {
   position: relative;
   z-index: 5;
-  border-radius: 8px;
-  box-shadow:
-    0 0 0 9999px rgba(15, 23, 42, 0.65),
-    0 24px 48px -12px rgba(0, 0, 0, 0.55),
-    0 8px 24px -8px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.20);
-  transition: box-shadow 360ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55);
+  border-radius: 6px;
+  transition: box-shadow 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-
-/* Hover'da satir BIRLESIK tek blok gorunsun: hucre ayraci border'i de
-   transparent yapilarak satir bir butun gibi hissedilir. Onceki versiyonda
-   border-left'leri gorunur kalip "her hucre ayri ayri highlight olmus
-   gibi" gorunuyordu (kullanici sikayeti). */
+/* Hover'da satir hafif vurgu — selection feedback (sadece kismi modda) */
 .belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"]:hover > td {
-  background-color: rgba(254, 243, 199, 0.62) !important;
-  background-clip: border-box !important;
-  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.06);
-  transition: background-color 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  background-color: rgba(254, 243, 199, 0.55) !important;
+  background-clip: padding-box !important;
+  transition: background-color 140ms ease;
 }
-.belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"]:hover > td.optical-separator-col {
-  border-left-color: transparent !important;
-}
+/* iptal isaretliyse hover'da daha koyu kirmizi tint */
 .belge-kismi-secim-aktif tr[data-kismi-secim-aktif="true"][data-iptal="true"]:hover > td {
-  background-color: rgba(254, 226, 226, 0.55) !important;
+  background-color: rgba(254, 226, 226, 0.45) !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .belge-kismi-secim-aktif .offer-table { transition: none; }

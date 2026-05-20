@@ -1037,9 +1037,6 @@ export default function TeklifEditor() {
       flexDirection: 'column',
       minHeight: '100vh',
       background: C.bgBody,
-      // Kismi onay banner'i bu container icinde absolute overlay olarak
-      // konumlandirilir (layout shift'i onlemek icin) -> containing block.
-      position: 'relative',
     }}>
       {/* Toolbar */}
       <BelgeToolbar
@@ -1062,17 +1059,15 @@ export default function TeklifEditor() {
         pdfKayitDurum={pdfKayitDurum}
       />
 
-      {/* Kısmi Onay seçim modu banner'ı — toolbar'ı tamamen kaplar
-          (position: absolute + z-index: 100). Flex column'a girmedigi icin
-          A4 alani asagi kaymaz; layout shift = 0. Tamamla/Vazgec icerikte. */}
+      {/* Kısmi Onay seçim modu banner'ı — A4 sayfasında satır işaretleme
+          aktifken görünür. Sticky top: kullanıcı sayfayı scroll etse de
+          görmeye devam eder. Tamamla/Vazgeç burada. */}
       {kismiSecimAktif && kismiOzet && (
         <div
           style={{
-            position: 'absolute',
+            position: 'sticky',
             top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
+            zIndex: 50,
             display: 'flex',
             alignItems: 'center',
             gap: 14,
@@ -1080,7 +1075,7 @@ export default function TeklifEditor() {
             background: 'linear-gradient(180deg, #fef9c3 0%, #fef3c7 100%)',
             borderBottom: '1px solid #f59e0b',
             color: '#78350f',
-            boxShadow: '0 2px 12px rgba(245, 158, 11, 0.28), 0 4px 24px rgba(0,0,0,0.08)',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.18)',
           }}
         >
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
