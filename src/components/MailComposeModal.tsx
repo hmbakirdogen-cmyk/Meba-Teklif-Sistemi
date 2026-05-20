@@ -214,6 +214,8 @@ function buildBodyHtml(opts: {
    *   • src: preview için data:URL veya local /markalar/ path; gönderimde cid:partner-X
    *   • height: render yüksekliği (wordmark yazısı görsel olarak eşitlensin diye) */
   partnerLogos?: Array<{ name: string; src: string; height: number }>;
+  /** Go Green rozeti — partner footer'in en sagi, sag alt kose. */
+  goGreenSrc?: string;
   /** Locked zone'ları işaretlemek için: modal contenteditable içinde sadece
    *  mesaj editlenebilir, diğerleri contenteditable="false". Gönderim öncesi
    *  bu attribute strip edilir. */
@@ -224,7 +226,7 @@ function buildBodyHtml(opts: {
     hazirlayanAdSoyad, hazirlayanUnvan,
     firmaKisaAd, firmaAd, firmaSlogan,
     telefon, eposta, web, adres,
-    logoSrc, partnerLogos, forEditor,
+    logoSrc, partnerLogos, goGreenSrc, forEditor,
   } = opts;
 
   // Editor modunda SADECE mesaj td'si contenteditable=true; outer wrapper React'te
@@ -345,25 +347,26 @@ function buildBodyHtml(opts: {
   // Partner şeridi yapı: etiket sol sabit hücre + logo grubu kalan alanda ortalı.
   // Bu sayede logolar "etiket ile çerçevenin sağ kenarı arasında" merkez hizalı durur.
   const partnerFooterHtml = (partnerLogos && partnerLogos.length > 0)
-    ? `<tr><td style="padding:14px 0 4px 0;">
+    ? `<tr><td style="padding:18px 0 8px 0;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;border-top:1px solid #eef1f5;width:100%;">
-    <tr><td style="padding:6px 0 0 0;">
+    <tr><td style="padding:12px 0 6px 0;">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;width:100%;">
         <tr>
-          <td valign="middle" align="center" width="130" style="width:130px;padding:0;font-family:${EMAIL_FONT_STACK};font-size:7.5px;letter-spacing:0.16em;color:#6b7a8f;text-transform:uppercase;line-height:1.35;font-weight:500;white-space:nowrap;text-align:center;">Yetkili Bölge<br>Bayilikleri</td>
-          <td valign="middle" align="center" style="text-align:center;">
+          <td valign="middle" align="center" width="120" style="width:120px;padding:4px 0;font-family:${EMAIL_FONT_STACK};font-size:8px;letter-spacing:0.14em;color:#6b7a8f;text-transform:uppercase;line-height:1.4;font-weight:600;white-space:nowrap;text-align:center;">Yetkili Bölge<br>Bayilikleri</td>
+          <td valign="middle" align="center" style="text-align:center;padding:4px 0;">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;margin:0 auto;">
               <tr>
                 ${partnerLogos.map((p, i) => {
                   const isLast = i === partnerLogos.length - 1;
                   const next = partnerLogos[i + 1];
                   const beforeFlourish = !isLast && next && FLOURISH_BRANDS.has(next.name);
-                  const gap = isLast ? 0 : (beforeFlourish ? 4 : 10);
-                  return `<td valign="middle" style="padding:0 ${gap}px 0 0;line-height:0;font-size:0;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:block;height:${p.height}px;width:auto;opacity:0.65;border:0;"></td>`;
+                  const gap = isLast ? 0 : (beforeFlourish ? 6 : 14);
+                  return `<td valign="middle" style="padding:0 ${gap}px 0 0;line-height:0;font-size:0;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:block;height:${p.height}px;width:auto;border:0;"></td>`;
                 }).join('')}
               </tr>
             </table>
           </td>
+          ${goGreenSrc ? `<td valign="middle" align="right" width="50" style="width:50px;padding:0;line-height:0;font-size:0;text-align:right;"><img src="${goGreenSrc}" alt="Go Green" width="36" height="48" style="display:inline-block;width:36px;height:48px;border:0;"></td>` : ''}
         </tr>
       </table>
     </td></tr>
@@ -428,6 +431,8 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
   const [subject, setSubject] = useState('');
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [logoData, setLogoData] = useState<{ base64: string; contentType: string } | null>(null);
+  // Go Green rozeti (sag alt kose): tek dosya, opsiyonel
+  const [goGreenLogo, setGoGreenLogo] = useState<{ base64: string; contentType: string } | null>(null);
   const [logoLoading, setLogoLoading] = useState(false);
   // Partner brand logoları (base64 + cid). Firma'ya göre PARTNER_BRANDS'tan
   // çekilip /markalar/X.png'den yüklenir; preview'da data: URL, gönderimde cid.
@@ -512,12 +517,14 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
     void (async () => {
       const firmaId = context.firma?.id || '';
       const partnerList: PartnerBrand[] = PARTNER_BRANDS[firmaId] || [];
-      const [logo, ayarlar, ...partners] = await Promise.all([
+      const [logo, ayarlar, goGreen, ...partners] = await Promise.all([
         fetchLogoAsBase64(context.firma?.logoPath),
         api.auth.smtpAyarlar().catch(() => null),
+        fetchLogoAsBase64('/markalar/go-green.png'),
         ...partnerList.map((p) => fetchLogoAsBase64(`/markalar/${p.file}`)),
       ]);
       setLogoData(logo);
+      setGoGreenLogo(goGreen);
       // Eksik logoları sessizce skip (dosya yoksa null döner)
       const loadedPartners = partnerList
         .map((p, i) => {
@@ -574,6 +581,7 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
       src: `data:${p.contentType};base64,${p.base64}`,
       height: p.height,
     }));
+    const goGreenSrc = goGreenLogo ? `data:${goGreenLogo.contentType};base64,${goGreenLogo.base64}` : '';
     editorRef.current.innerHTML = buildBodyHtml({
       greetingText: tpl.greetingText,
       messageText: tpl.messageText,
@@ -589,9 +597,10 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
       adres: tpl.adres,
       logoSrc,
       partnerLogos: partnerLogosForPreview,
+      goGreenSrc,
       forEditor: true,
     });
-  }, [open, tpl, logoData, partnerLogosData]);
+  }, [open, tpl, logoData, partnerLogosData, goGreenLogo]);
 
   const handleAcEk = useCallback(() => {
     if (!pdfUrl) return;
@@ -607,20 +616,31 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
     }
     setGonderiliyor(true);
     try {
-      // Sanitize: data: URL → cid: lookup partner brand list (alt text bazlı)
-      const sanitizeRefs = partnerLogosData.map((p) => ({ cid: p.cid, name: p.name }));
+      // Sanitize: data: URL → cid: alt text bazli lookup
+      // (partner brand list + Go Green rozeti)
+      const sanitizeRefs = [
+        ...partnerLogosData.map((p) => ({ cid: p.cid, name: p.name })),
+        ...(goGreenLogo ? [{ cid: 'go-green', name: 'Go Green' }] : []),
+      ];
       const editorHtml = editorRef.current.innerHTML;
       const bodyHtml = sanitizeForSend(editorHtml, sanitizeRefs);
       const pdfBase64 = await blobToBase64(context.pdfBlob);
       const ccList = cc.map((s) => s.trim()).filter(Boolean);
       const bccList = bcc.map((s) => s.trim()).filter(Boolean);
 
-      // Backend'e gönderilen CID attachment listesi: sadece partner logoları
-      const allCidImages = partnerLogosData.map((p) => ({
-        cid: p.cid,
-        base64: p.base64,
-        contentType: p.contentType,
-      }));
+      // Backend'e gönderilen CID attachment listesi: partner logoları + Go Green
+      const allCidImages = [
+        ...partnerLogosData.map((p) => ({
+          cid: p.cid,
+          base64: p.base64,
+          contentType: p.contentType,
+        })),
+        ...(goGreenLogo ? [{
+          cid: 'go-green',
+          base64: goGreenLogo.base64,
+          contentType: goGreenLogo.contentType,
+        }] : []),
+      ];
 
       const sonuc = await api.teklifEposta.gonder({
         teklifId: context.teklif.id,
