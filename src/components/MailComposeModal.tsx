@@ -407,24 +407,21 @@ function sanitizeForSend(
   partnerLogos: Array<{ cid: string; name: string }>,
 ): string {
   let result = html.replace(/\s*contenteditable="(true|false)"/g, '');
-  // Her <img src="data:..."> bulunduğunda sırayla CID'lere eşle:
-  //   1. img → firma-logo
-  //   2..N img → partner-X (PARTNER_BRANDS sırasıyla, alt text üzerinden eşleştir)
-  let firstImg = true;
+  // Her <img src="data:..."> alt text'e göre eşlenir:
+  //   • alt partnerLogos[].name ile eşleşirse → cid:partner-X (veya cid:go-green)
+  //   • Aksi halde firma logosu varsayılır → cid:firma-logo
+  // Önemli: pozisyon bazlı eşleştirme YANLIŞ — template'de greeting row'daki
+  // Go Green badge ilk image olduğu için "1. img = firma-logo" varsayımı
+  // Go Green'in yerine MEBA logosunun render edilmesine yol açıyordu.
   result = result.replace(/<img([^>]*?)src="data:[^"]+"([^>]*)>/gi, (match, pre, post) => {
-    if (firstImg) {
-      firstImg = false;
-      return `<img${pre}src="cid:${LOGO_CID}"${post}>`;
-    }
-    // Partner logo: alt text'ten brand'i bul
     const altMatch = match.match(/alt="([^"]+)"/i);
     const altText = altMatch ? altMatch[1] : '';
     const partner = partnerLogos.find((p) => p.name === altText);
     if (partner) {
       return `<img${pre}src="cid:${partner.cid}"${post}>`;
     }
-    // Bilinmeyen image (kullanıcının yapıştırdığı imaj olabilir) — olduğu gibi bırak
-    return match;
+    // Bilinmiyorsa firma logosu kabul et (signature'daki ana logo)
+    return `<img${pre}src="cid:${LOGO_CID}"${post}>`;
   });
   return result;
 }
