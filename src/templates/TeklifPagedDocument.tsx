@@ -354,11 +354,18 @@ function TableSection({
             const isLastInPage = localIndex === satirlar.length - 1;
             const renderSpacer = !isLastInPage && setGroupPos !== 'top' && setGroupPos !== 'middle';
             const isMarked = markedRowIds?.has(satir.id) ?? false;
-            // Kismi onayda iptal edilen satir: ustu cizgili (line-through) ama
-            // metin yine okunabilir kalir. applyCellStyle her hucrede uygular.
+            // Kismi onayda iptal edilen satir: hem text-decoration line-through
+            // (sadece metni keser) hem de linear-gradient ile tum satir genisliginde
+            // sabit kirmizi yatay cizgi (bosluklar/hucre araları dahil ortadan geçer).
+            // Metin yine okunabilir.
             const iptal = satir.onayDurumu === 'reddedildi';
             const cizgiStyle: React.CSSProperties = iptal
-              ? { textDecoration: 'line-through', textDecorationThickness: '1.5px', textDecorationColor: '#dc2626' }
+              ? {
+                  textDecoration: 'line-through',
+                  textDecorationThickness: '1.5px',
+                  textDecorationColor: '#dc2626',
+                  backgroundImage: 'linear-gradient(to bottom, transparent calc(50% - 0.9px), #dc2626 calc(50% - 0.9px), #dc2626 calc(50% + 0.9px), transparent calc(50% + 0.9px))',
+                }
               : {};
             const applyCellStyle = (style: React.CSSProperties): React.CSSProperties =>
               ({ ...style, ...cizgiStyle });

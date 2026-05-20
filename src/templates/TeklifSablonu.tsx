@@ -432,10 +432,17 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
             // grup içinde değilse de aynen 2px (eski border-spacing davranışı).
             const isLast = idx === teklif.satirlar.length - 1;
             const renderSpacer = !isLast && setGroupPos !== 'top' && setGroupPos !== 'middle';
-            // Kismi onayda iptal edilen satir: ustu cizili, hala okunabilir.
+            // Kismi onayda iptal edilen satir: text-decoration metni keser +
+            // linear-gradient ile tum satir boyunca kirmizi yatay cizgi (bosluklar
+            // dahil). Metin yine okunabilir.
             const iptal = satir.onayDurumu === 'reddedildi';
             const cizgiStyle: React.CSSProperties = iptal
-              ? { textDecoration: 'line-through', textDecorationThickness: '1.5px', textDecorationColor: '#dc2626' }
+              ? {
+                  textDecoration: 'line-through',
+                  textDecorationThickness: '1.5px',
+                  textDecorationColor: '#dc2626',
+                  backgroundImage: 'linear-gradient(to bottom, transparent calc(50% - 0.9px), #dc2626 calc(50% - 0.9px), #dc2626 calc(50% + 0.9px), transparent calc(50% + 0.9px))',
+                }
               : {};
             const applyCellStyle = (style: React.CSSProperties): React.CSSProperties =>
               ({ ...style, ...cizgiStyle });
