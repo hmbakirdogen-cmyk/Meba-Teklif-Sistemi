@@ -838,7 +838,15 @@ export default function TeklifEditor() {
   // kayipSebebi, vb.) eksiksiz yazar. Diğer durumlar (taslak/hazir/gonderildi)
   // doğrudan state.setDurum'a düşer.
   const handleDurumDegistir = useCallback((yeniDurum: TeklifDurum) => {
-    if (yeniDurum === 'onaylandi' || yeniDurum === 'reddedildi' || yeniDurum === 'iptal') {
+    // Tum sonuclanmis durumlar (onay/kismi/red/iptal) SonucModal'i tetikler.
+    // Kismi onay her secildiginde modal acilir; kullanici onaylanmayan
+    // satirlari isaretler ve sonuc kaydedilir.
+    if (
+      yeniDurum === 'onaylandi' ||
+      yeniDurum === 'kismi_onaylandi' ||
+      yeniDurum === 'reddedildi' ||
+      yeniDurum === 'iptal'
+    ) {
       setSonucModalDurum(yeniDurum);
       return;
     }

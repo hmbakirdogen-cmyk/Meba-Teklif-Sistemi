@@ -67,6 +67,7 @@ function paraBirimineGoreToplamlar(
 
   for (const satir of satirlar) {
     if (satir.setAltKalem) continue; // Defansif: alt kalem birimFiyat'ı 0 olsa bile döngüye girmesin.
+    if (satir.onayDurumu === 'reddedildi') continue; // Kismi onayda iptal edilen satir hesaba dahil olmaz.
     const pb = satirParaBirimiGetir(satir, teklifParaBirimi);
     // satir.satirToplami stale olabilir (eski kayıt). Hep taze hesap kullan.
     toplamlar[pb] += satirToplamHesapla(satir);
@@ -96,6 +97,7 @@ function genelToplamHesapla(
 
   for (const satir of satirlar) {
     if (satir.setAltKalem) continue; // Set alt kalemi toplama girmez.
+    if (satir.onayDurumu === 'reddedildi') continue; // Kismi onayda iptal edilen satir hesaba dahil olmaz.
     if (belgePb) {
       const sPb = satirParaBirimiGetir(satir, teklifParaBirimi);
       if (sPb !== belgePb) continue; // Farklı para birimindeki satırlar bu bucket'a girmez.

@@ -353,14 +353,21 @@ function TableSection({
             const setGroupPos = computeSetGroupPos(teklif.satirlar, idx);
             const isLastInPage = localIndex === satirlar.length - 1;
             const renderSpacer = !isLastInPage && setGroupPos !== 'top' && setGroupPos !== 'middle';
-            const applyCellStyle = (style: React.CSSProperties): React.CSSProperties => style;
-
             const isMarked = markedRowIds?.has(satir.id) ?? false;
+            // Kismi onayda iptal edilen satir: ustu cizgili (line-through) ama
+            // metin yine okunabilir kalir. applyCellStyle her hucrede uygular.
+            const iptal = satir.onayDurumu === 'reddedildi';
+            const cizgiStyle: React.CSSProperties = iptal
+              ? { textDecoration: 'line-through', textDecorationThickness: '1.5px', textDecorationColor: '#dc2626' }
+              : {};
+            const applyCellStyle = (style: React.CSSProperties): React.CSSProperties =>
+              ({ ...style, ...cizgiStyle });
             return (
               <React.Fragment key={satir.id}>
               <tr
                 data-satir-id={satir.id}
                 data-marked={isMarked ? 'true' : undefined}
+                data-iptal={iptal ? 'true' : undefined}
                 style={{
                   pageBreakInside: 'avoid',
                   breakInside: 'avoid',
