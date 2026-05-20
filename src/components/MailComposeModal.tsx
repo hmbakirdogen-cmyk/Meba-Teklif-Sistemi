@@ -361,12 +361,12 @@ function buildBodyHtml(opts: {
                   const next = partnerLogos[i + 1];
                   const beforeFlourish = !isLast && next && FLOURISH_BRANDS.has(next.name);
                   const gap = isLast ? 0 : (beforeFlourish ? 6 : 14);
-                  return `<td valign="middle" style="padding:0 ${gap}px 0 0;line-height:0;font-size:0;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:block;height:${p.height}px;width:auto;border:0;"></td>`;
+                  return `<td valign="middle" style="padding:8px ${gap}px 8px 0;line-height:0;font-size:0;vertical-align:middle;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:block;height:${p.height}px;width:auto;border:0;vertical-align:middle;"></td>`;
                 }).join('')}
               </tr>
             </table>
           </td>
-          ${goGreenSrc ? `<td valign="middle" align="right" width="50" style="width:50px;padding:0;line-height:0;font-size:0;text-align:right;"><img src="${goGreenSrc}" alt="Go Green" width="36" height="48" style="display:inline-block;width:36px;height:48px;border:0;"></td>` : ''}
+          ${goGreenSrc ? `<td valign="middle" align="right" width="48" style="width:48px;padding:0 0 0 16px;line-height:0;font-size:0;text-align:right;"><img src="${goGreenSrc}" alt="Go Green" width="22" height="30" style="display:inline-block;width:22px;height:30px;border:0;"></td>` : ''}
         </tr>
       </table>
     </td></tr>
