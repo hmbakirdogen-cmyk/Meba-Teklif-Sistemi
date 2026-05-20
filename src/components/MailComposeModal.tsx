@@ -245,7 +245,7 @@ function buildBodyHtml(opts: {
   const greetingHtml = `
 <tr>
   <td style="padding:0 0 10px 0;font-family:${EMAIL_FONT_STACK};font-size:13.5px;color:${EMAIL_TEXT_COLOR};line-height:1.55;vertical-align:middle;">${htmlEscape(greetingText)}</td>
-  ${goGreenSrc ? `<td valign="middle" align="right" style="padding:0;line-height:0;font-size:0;width:35px;"><img src="${goGreenSrc}" alt="Go Green" style="display:inline-block;height:48px;width:auto;border:0;margin-top:-26px;margin-bottom:-15px;margin-right:-51px;"></td>` : ''}
+  ${goGreenSrc ? `<td valign="middle" align="right" style="padding:0;line-height:0;font-size:0;width:35px;"><img src="${goGreenSrc}" alt="Go Green" width="30" height="48" style="display:inline-block;height:48px;width:30px;border:0;margin-top:-26px;margin-bottom:-15px;margin-right:-51px;"></td>` : ''}
 </tr>`;
 
   // Mesaj paragrafı (EDITABLE) — yalnız bu zon editlenebilir; colspan=2 çünkü
@@ -365,7 +365,7 @@ function buildBodyHtml(opts: {
                   const next = partnerLogos[i + 1];
                   const beforeFlourish = !isLast && next && FLOURISH_BRANDS.has(next.name);
                   const gap = isLast ? 0 : (beforeFlourish ? 4 : 10);
-                  return `<td valign="middle" style="padding:0 ${gap}px 0 0;line-height:0;font-size:0;"><img src="${p.src}" alt="${htmlEscape(p.name)}" style="display:block;height:${p.height}px;width:auto;opacity:0.65;border:0;"></td>`;
+                  return `<td valign="middle" style="padding:0 ${gap}px 0 0;line-height:0;font-size:0;"><img src="${p.src}" alt="${htmlEscape(p.name)}" height="${p.height}" style="display:block;height:${p.height}px;width:auto;opacity:0.65;border:0;"></td>`;
                 }).join('')}
               </tr>
             </table>
