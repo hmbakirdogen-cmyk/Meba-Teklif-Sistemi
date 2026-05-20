@@ -2084,8 +2084,6 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
           pdfAc();
         }
       }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
       style={{
         display: 'flex',
         alignItems: 'stretch',
@@ -2097,9 +2095,16 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
           : C.borderSubtle}`,
         borderRadius: 10,
         overflow: 'visible',
-        transition: 'box-shadow 0.14s',
+        // hover/active/focus-visible state'leri index.css'te .teklif-karti-button
+        // class'ı üzerinden yönetilir — translateY lift + shadow elevation + active press.
+        // Inline'da SADECE base transition kalır; transform-origin GPU compositing icin.
+        transition:
+          'transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1), ' +
+          'box-shadow 180ms cubic-bezier(0.2, 0.7, 0.2, 1), ' +
+          'border-color 180ms ease',
         position: 'relative',
         cursor: 'pointer',
+        willChange: 'transform, box-shadow',
       }}
     >
       {/* Gösterge lambası — gönderilmiş 2+ gün eski mi? */}

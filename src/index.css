@@ -3165,6 +3165,56 @@ button.referanslar-satir-teklifno:hover .anticon {
   box-shadow: var(--popup-shadow-level1) !important;
 }
 
+/* ─── Teklif kartı — "basılabilir buton" hissi ─────────────────────────────
+   Kart bütünüyle role="button". Hover: hafif yukari kalkis + elevation shadow
+   + border vurgusu. Active: kucuk press feedback. Focus-visible: klavye odagi
+   icin ring. Rozet ayrica scale + glow ile karsilik verir (asagidaki kural).
+   Transition'lar GPU-friendly: transform + opacity + box-shadow. */
+.teklif-karti-button:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 2px rgba(15, 31, 69, 0.05),
+    0 6px 18px rgba(15, 31, 69, 0.10),
+    0 0 0 1px rgba(15, 31, 69, 0.04);
+  border-color: rgba(15, 31, 69, 0.22) !important;
+}
+.teklif-karti-button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 2px rgba(15, 31, 69, 0.06),
+    0 2px 4px rgba(15, 31, 69, 0.05);
+  transition-duration: 90ms;
+}
+.teklif-karti-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(30, 64, 175, 0.18),
+    0 1px 2px rgba(15, 31, 69, 0.05),
+    0 6px 18px rgba(15, 31, 69, 0.10);
+  border-color: rgba(30, 64, 175, 0.55) !important;
+}
+[data-theme="dark"] .teklif-karti-button:hover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 8px 22px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+[data-theme="dark"] .teklif-karti-button:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(96, 165, 250, 0.30),
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+  border-color: rgba(96, 165, 250, 0.65) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .teklif-karti-button:hover,
+  .teklif-karti-button:active,
+  .teklif-karti-button:focus-visible {
+    transform: none;
+  }
+}
+
 /* ─── Teklif kartı PDF rozeti — "basılabilir" hover etkileşimi ──────────
    Karta hover gelince rozet yukarı kalkar + parlar (gerçek bir buton gibi).
    Kart click'lendiğinde rozet hafifçe basılır (press feedback).
