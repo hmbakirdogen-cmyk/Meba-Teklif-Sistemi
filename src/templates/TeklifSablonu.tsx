@@ -450,6 +450,7 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
               <React.Fragment key={satir.id}>
               <tr
                 data-satir-id={satir.id}
+                data-iptal={iptal ? 'true' : undefined}
                 style={{
                   // background on <td> via rcCell — html2canvas 1.4.1 skips <tr> backgrounds
                   pageBreakInside: 'avoid',

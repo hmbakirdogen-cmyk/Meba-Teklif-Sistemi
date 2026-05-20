@@ -1715,6 +1715,38 @@ button.app-btn:active,
   --offer-col-separator: rgba(26, 43, 66, 0.17);
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   KISMI ONAYDA IPTAL SATIR — KESINTISIZ STRIKE-THROUGH
+   ────────────────────────────────────────────────────────────────────────
+   Satira `data-iptal="true"` set edildiginde tum hucrelerde:
+     1) 1.8px kirmizi yatay gradient (cell tabanli, full genislik)
+     2) text-decoration line-through (hucre icindeki metnin uzerinde de cizgi)
+     3) Sutun ayraci 1px border-left'ini transparan yap -> aksi halde her
+        cell sinirinda 1px'lik gap olusup cizgi kopuyordu (kullanici talebi:
+        "uzeri komple cizgi gorunsun").
+
+   Hem PDF templates (TeklifSablonu, TeklifPagedDocument) hem canli editor
+   (SatirRow ile PaginatedBelgeInlineEditor) icin tek kaynak — `data-iptal`
+   attribute setlendigi her surface'te ayni gorunur.
+
+   !important: PDF templates'da rcCell inline `background: <color>` sortcut
+   shorthand'i ile bg-image'i sifirliyordu; CSS !important ile uzerine yaziyoruz. */
+tr[data-iptal="true"] > td {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(50% - 0.9px),
+    #dc2626 calc(50% - 0.9px),
+    #dc2626 calc(50% + 0.9px),
+    transparent calc(50% + 0.9px)
+  ) !important;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: #dc2626;
+}
+tr[data-iptal="true"] > td.optical-separator-col {
+  border-left-color: transparent !important;
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    GLOBAL UI TUTARLILIK — A4 editör hover/aktif tasarımının diğer tablolara
    ve liste'lere uygulaması. .urun-tablo özel kapsül tasarımı korunsun diye

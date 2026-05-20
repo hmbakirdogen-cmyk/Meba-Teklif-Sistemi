@@ -111,6 +111,7 @@ function SatirRowImpl({
     <tr
       data-satir-id={satir.id}
       data-marked={isMarked ? 'true' : undefined}
+      data-iptal={satir.onayDurumu === 'reddedildi' ? 'true' : undefined}
       onMouseEnter={() => onRowEnter(satir.id)}
       onMouseLeave={() => onRowLeave(satir.id)}
       style={{
