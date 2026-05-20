@@ -154,6 +154,9 @@ function FirmaForm({ firma, onSave }: { firma: Firma; onSave: (patch: Partial<Fi
               <Input />
             </Form.Item>
           </div>
+          <Form.Item name="web" label="Web Adresi">
+            <Input placeholder="www.mebamekanik.com" />
+          </Form.Item>
           <Form.Item name="iban" label="IBAN">
             <Input placeholder="TR..." />
           </Form.Item>
