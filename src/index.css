@@ -1653,6 +1653,33 @@ button.app-btn:active,
   animation: sonuc-buton-pulse 2.6s ease-in-out infinite;
 }
 
+/* ── TotalsCard Genel Toplam Pulse ─────────────────────────────────────────
+   Genel toplam degeri her degisikte 600ms'lik scale + glow keyframe.
+   transform-origin: right (TotalsCard'da inline set edilir) -> rakam saga
+   hizali kalir, hizasi bozulmaz. Light/dark variant'lar farkli glow rengi. */
+@keyframes totals-grand-pulse {
+  0%   { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(16,185,129,0)); }
+  35%  { transform: scale(1.045); filter: drop-shadow(0 0 5px rgba(16,185,129,0.45)); }
+  100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(16,185,129,0)); }
+}
+@keyframes totals-grand-pulse-dark {
+  0%   { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(134,239,172,0)); }
+  35%  { transform: scale(1.045); filter: drop-shadow(0 0 6px rgba(134,239,172,0.65)); }
+  100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(134,239,172,0)); }
+}
+.totals-grand-wrap.totals-grand-pulse {
+  animation: totals-grand-pulse 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.totals-grand-wrap.is-dark.totals-grand-pulse {
+  animation: totals-grand-pulse-dark 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .totals-grand-wrap.totals-grand-pulse,
+  .totals-grand-wrap.is-dark.totals-grand-pulse {
+    animation: none !important;
+  }
+}
+
 /* ── Klasör Pulse Animasyonları ────────────────────────────────────────────────── */
 
 @keyframes klasorLambaGlow {

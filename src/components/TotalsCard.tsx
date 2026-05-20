@@ -17,13 +17,58 @@
  *     "Genel Toplam" satırı her zaman aynı kart içinde aynı sağ X'te durur,
  *     üst alana detay satırları akar.
  */
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   DOCUMENT_BRAND,
   HEADER_SURFACE,
   LINE_ITEM_METRICS,
   SEMBOL,
 } from '../templates/teklifDocumentShared';
+
+/**
+ * Hedef değere doğru easeOutCubic tween — sayı değiştikçe gösterilen değer
+ * eski'den yeni'ye yumuşak interpole olur. İlk render'da hedef = displayed
+ * olduğu için animasyon başlamaz (PDF capture'ında statik kalır). Reduced
+ * motion tercihinde veya `enabled=false` ise tween devre dışı — direkt
+ * yeni değer atanır.
+ */
+function useTweenNumber(target: number, opts: { duration?: number; enabled?: boolean } = {}): number {
+  const duration = opts.duration ?? 420;
+  const enabled = opts.enabled !== false;
+  const [displayed, setDisplayed] = useState(target);
+  const prevTargetRef = useRef(target);
+
+  useEffect(() => {
+    if (prevTargetRef.current === target) return;
+    prevTargetRef.current = target;
+
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!enabled || reduceMotion) {
+      setDisplayed(target);
+      return;
+    }
+
+    // Closure'da freeze edilmiş "from" — efekt yeniden çalışana kadar sabit
+    const from = displayed;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      setDisplayed(from + (target - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  // displayed bilerek dependency-array dışı: tween "efektin çalıştığı an
+  // gösterilen değer"den başlar; her ara frame'de re-trigger olmaz.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, duration, enabled]);
+
+  return displayed;
+}
 
 export interface TotalsCardProps {
   araToplam: number;
@@ -43,6 +88,12 @@ export interface TotalsCardProps {
    * Verilmezse CELL_PAD (4px) kullanılır.
    */
   amountRightOffsetPx?: number;
+  /**
+   * Değişen rakamları yumuşak tween + pulse ile gösterir. Sadece canlı
+   * editor'da true; PDF kaynağında (offscreen html2canvas hedefi) false
+   * geçilir ki capture sırasında mid-tween yakalama riski olmasın.
+   */
+  animate?: boolean;
 }
 
 // Paylaşılan ölçüler — tek kaynak (tablo "Toplam" kolonu ile birebir eşleşir)
@@ -66,6 +117,7 @@ export function TotalsCard({
   paraBirimi,
   variant = 'light',
   amountRightOffsetPx,
+  animate = true,
 }: TotalsCardProps) {
   const amountRightPx = `${amountRightOffsetPx ?? LINE_ITEM_METRICS.cellPaddingXpx}px`;
   const isDark    = variant === 'dark';
@@ -74,6 +126,36 @@ export function TotalsCard({
   const hasDetail = iskontoOrani > 0 || kdvOrani > 0;
   const fmtN      = (n: number) =>
     n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // ── Tween edilmiş değerler ──────────────────────────────────────────────
+  // Her parasal değer değiştiğinde easeOutCubic ile yeni hedefe interpole
+  // olur. PDF'te değerler statik (efektin "değişim algılaması" tetiklenmez)
+  // → tarayıcıda canlı düzenleme sırasında animasyon, PDF'te değişmez render.
+  const animAraToplam   = useTweenNumber(araToplam,   { enabled: animate });
+  const animIskontoTutar = useTweenNumber(iskontoTutar, { enabled: animate });
+  const animKdvTutar    = useTweenNumber(kdvTutar,    { enabled: animate });
+  const animGenelToplam = useTweenNumber(genelToplam, { enabled: animate });
+
+  // Genel Toplam pulse — değer değiştiğinde 600ms'lik scale+glow keyframe.
+  // React state yerine ref + classList ile yapılır: setState-in-effect'ten
+  // kaçınmak için (lint kuralı + ekstra render maliyeti yok).
+  const grandRef = useRef<HTMLDivElement>(null);
+  const prevGenelRef = useRef(genelToplam);
+  useEffect(() => {
+    if (prevGenelRef.current === genelToplam) return;
+    prevGenelRef.current = genelToplam;
+    if (!animate) return;
+    const el = grandRef.current;
+    if (!el) return;
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+    // Class kaldırılır → reflow ile keyframe yeniden tetiklenir → eklenir
+    el.classList.remove('totals-grand-pulse');
+    void el.offsetWidth;
+    el.classList.add('totals-grand-pulse');
+  }, [genelToplam, animate]);
 
   const cl = isDark
     ? {
@@ -187,9 +269,9 @@ export function TotalsCard({
           paddingBottom: '5px',
           borderBottom:  `0.75px solid ${cl.separator}`,
         }}>
-          {detailRow('Ara Toplam', araToplam, cl.text, '')}
-          {iskontoOrani > 0 && detailRow(`İskonto %${iskontoOrani}`, iskontoTutar, cl.negRed, '–')}
-          {kdvOrani    > 0 && detailRow(`KDV %${kdvOrani}`,          kdvTutar,     cl.posGreen, '+')}
+          {detailRow('Ara Toplam', animAraToplam, cl.text, '')}
+          {iskontoOrani > 0 && detailRow(`İskonto %${iskontoOrani}`, animIskontoTutar, cl.negRed, '–')}
+          {kdvOrani    > 0 && detailRow(`KDV %${kdvOrani}`,          animKdvTutar,     cl.posGreen, '+')}
         </div>
       )}
 
@@ -227,14 +309,22 @@ export function TotalsCard({
         </div>
         <div style={{ flex: 1 }} />
         {/* Sembol + rakam: kendi içinde flex (sembol bağımsız konum), birlikte
-            sağa AMOUNT_PR padding ile yerleşir — detay rakamlarıyla aynı X */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: '4px',
-          paddingRight: amountRightPx,
-          flexShrink: 0,
-        }}>
+            sağa AMOUNT_PR padding ile yerleşir — detay rakamlarıyla aynı X.
+            Pulse: ref ile classList toggle (keyframe ../styles altında).
+            transform-origin sağ kenardan → hizalama bozulmaz. */}
+        <div
+          ref={grandRef}
+          className={isDark ? 'totals-grand-wrap is-dark' : 'totals-grand-wrap'}
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '4px',
+            paddingRight: amountRightPx,
+            flexShrink: 0,
+            transformOrigin: 'right center',
+            willChange: 'transform, filter',
+          }}
+        >
           <span style={{
             fontSize: SYMBOL_FS,
             fontWeight: 900,
@@ -254,7 +344,7 @@ export function TotalsCard({
             color: cl.text,
             whiteSpace: 'nowrap',
           }}>
-            {fmtN(genelToplam)}
+            {fmtN(animGenelToplam)}
           </span>
         </div>
       </div>
