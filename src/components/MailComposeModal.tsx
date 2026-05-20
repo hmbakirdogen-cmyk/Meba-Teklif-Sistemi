@@ -594,9 +594,30 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
   }, [open, tpl, logoData, partnerLogosData]);
 
   const handleAcEk = useCallback(() => {
-    if (!pdfUrl) return;
-    window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-  }, [pdfUrl]);
+    if (!pdfUrl) {
+      message.warning('PDF henüz hazır değil.');
+      return;
+    }
+    try {
+      // Once yeni sekmede acmayi dene. PWA / popup blocker veya cikis policy'si
+      // window.open'i engelliyorsa null doner -> download fallback'ine geriler.
+      const w = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+      if (!w) {
+        // Popup engellendi VEYA PWA windows.open kabul etmiyor -> indir.
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.download = context?.pdfFileName || 'teklif.pdf';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        message.info('PDF indirildi (yeni sekme engellenmis).');
+      }
+    } catch (err) {
+      console.error('[MailComposeModal] PDF acma hatasi:', err);
+      message.error('PDF acilamadi. Lutfen yeniden olusturun.');
+    }
+  }, [pdfUrl, context?.pdfFileName]);
 
   const handleGonder = useCallback(async () => {
     if (!context || !editorRef.current) return;
