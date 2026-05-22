@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { lazy, Suspense, type ReactNode } from 'react';
-import { Spin } from 'antd';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { Spin, Modal, Button } from 'antd';
+import { WarningOutlined, MailOutlined } from '@ant-design/icons';
 import AppLayout from './AppLayout';
 import GirisEkrani from './pages/GirisEkrani';
 import { useKullanici } from './context/useKullanici';
 import IlkGirisModal from './components/IlkGirisModal';
 import { ilkGirisGerekli } from './utils/ilkGiris';
 import { isYonetici } from './utils/yetkiUtils';
+import { useNavigate } from 'react-router-dom';
 
 // Lazy-loaded pages — ağır sayfalar başlangıçta yüklenmez
 const TeklifListesi = lazy(() => import('./pages/TeklifListesi'));
@@ -42,6 +44,55 @@ function YoneticiOnly({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function SmtpUyarisi() {
+  const { aktifKullanici } = useKullanici();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!aktifKullanici) return;
+    const smtpTamam = aktifKullanici.smtpUser && aktifKullanici.smtpPasswordSet;
+    if (smtpTamam) return;
+    const storageKey = `smtp_uyari_${aktifKullanici.id}`;
+    if (sessionStorage.getItem(storageKey)) return;
+    sessionStorage.setItem(storageKey, '1');
+
+    Modal.warning({
+      title: (
+        <span style={{ fontSize: 16 }}>
+          <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
+          E-posta adresiniz tanımlı değil!
+        </span>
+      ),
+      content: (
+        <div style={{ lineHeight: 1.7 }}>
+          <p>
+            Sayın <strong>{aktifKullanici.adSoyad}</strong>, e-posta adresinizi sisteme
+            tanıtmadınız. Bu gidişle teklif göndermeye çalıştığınızda sistem{' '}
+            <strong>"e-posta yok, ben ne yapayım?"</strong> diye çaresizce bakıp kalacak —
+            bilgisayar patlamaz ama siz paniklersiniz. 😅
+          </p>
+          <p style={{ color: '#8c8c8c', fontSize: 13 }}>
+            Ayarlar → E-posta bölümünden 2 dakikada tanıtın, bir daha bu uyarıyı görmezsiniz.
+          </p>
+        </div>
+      ),
+      okText: (
+        <span>
+          <MailOutlined style={{ marginRight: 6 }} />
+          Hemen Tanıt
+        </span>
+      ),
+      cancelText: 'Sonra',
+      okCancel: true,
+      centered: true,
+      maskClosable: true,
+      onOk: () => navigate('/profil/eposta'),
+    });
+  }, [aktifKullanici?.id]);
+
+  return null;
+}
+
 function RouterIcerigi() {
   const { aktifKullanici, yukleniyor } = useKullanici();
 
@@ -75,6 +126,7 @@ function RouterIcerigi() {
 
   return (
     <>
+      <SmtpUyarisi />
       <Routes>
         <Route path="/" element={<Navigate to="/teklifler" replace />} />
         <Route element={<AppLayout />}>

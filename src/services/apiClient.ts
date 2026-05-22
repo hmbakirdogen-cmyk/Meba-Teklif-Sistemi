@@ -269,8 +269,10 @@ export const api = {
      *  or list page wants fresh data). */
     list:   (kullanici?: { id: string; rol: string }) =>
       get<Teklif[]>(`/teklifler${userQuery(kullanici)}`),
-    upsert: (t: Teklif)                 => put<Teklif>(`/teklifler/${t.id}`, t),
-    sil:    (id: string)                => del(`/teklifler/${id}`),
+    upsert:    (t: Teklif)                => put<Teklif>(`/teklifler/${t.id}`, t),
+    sil:       (id: string)              => del(`/teklifler/${id}`),
+    pdfYukle:  (id: string, pdfBase64: string, dosyaAdi: string) =>
+      post<{ ok: boolean; pdfUrl: string; teklif: Teklif }>(`/teklifler/${id}/pdf-yukle`, { pdfBase64, dosyaAdi }),
   },
 
   cariler: {

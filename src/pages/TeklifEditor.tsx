@@ -543,6 +543,32 @@ export default function TeklifEditor() {
       state.setPdfBlob(blob);
       state.setPdfHazir(true);
 
+      // R2 arşiv — background, kullanıcıyı bloklamaz
+      void (async () => {
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              const r = reader.result as string;
+              resolve(r.includes(',') ? r.split(',')[1] : r);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          const cariStem = (state.cari?.firmaAdi || 'TEKLIF')
+            .toLocaleUpperCase('tr-TR')
+            .replace(/[<>:"/\\|?*]/g, ' ')
+            .replace(/\s+/g, '_')
+            .trim()
+            .slice(0, 40);
+          const dosyaAdi = `${cariStem}_${state.teklifNo || teklifIcinExport.id}.pdf`;
+          const r = await api.teklifler.pdfYukle(teklifIcinExport.id, base64, dosyaAdi);
+          if (r.ok) teklifService.teklifCacheGuncelle(r.teklif);
+        } catch (e) {
+          console.warn('[TeklifEditor] R2 PDF arşiv hatası:', e);
+        }
+      })();
+
       // PDF foreground açma — hedef='pdf' için. Klasöre yazım başarılı olsa
       // bile kullanıcı dosyayı anında görmek istiyor. window.open user gesture
       // chain içinde tetikleniyor; pop-up engellenirse console.warn ile geçer.

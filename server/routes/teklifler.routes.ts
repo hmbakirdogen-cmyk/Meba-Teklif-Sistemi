@@ -7,6 +7,7 @@ import { deriveCtx } from '../lib/reqCtx.js';
 import { shapeTeklif, shapeTeklifList } from '../lib/shape.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
+import { uploadFile, deleteFile, r2Configured } from '../lib/storage.js';
 
 export const tekliflerRouter: Router = Router();
 
@@ -144,6 +145,52 @@ tekliflerRouter.put(
     }
 
     res.json(shapeTeklif(final));
+  }),
+);
+
+// ── POST /api/teklifler/:id/pdf-yukle — R2 arşiv ───────────────
+tekliflerRouter.post(
+  '/:id/pdf-yukle',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!r2Configured) throw new HttpError(503, 'R2 depolama yapılandırılmamış.');
+    const id = paramStr(req, 'id');
+    const me = req.authCtx!.kullanici;
+    const existing = await prisma.teklif.findUnique({ where: { id } });
+    if (!existing) throw new HttpError(404, 'Teklif bulunamadı.');
+    if (existing.firmaId && !canAccessFirma(me, existing.firmaId)) {
+      throw new HttpError(403, 'Bu teklife erişim yetkiniz yok.');
+    }
+
+    const body = req.body ?? {};
+    const pdfBase64 = String(body.pdfBase64 || '');
+    const dosyaAdi = String(body.dosyaAdi || `${id}.pdf`).replace(/[^a-zA-Z0-9._\- ]/g, '_');
+    if (!pdfBase64) throw new HttpError(400, 'pdfBase64 zorunlu.');
+
+    const buffer = Buffer.from(pdfBase64, 'base64');
+    if (buffer.length === 0) throw new HttpError(400, 'PDF verisi geçersiz.');
+
+    // Eski PDF varsa sil
+    if (existing.pdfUrl) {
+      const oldKey = existing.pdfUrl.replace(/^https?:\/\/[^/]+\//, '').split('?')[0];
+      deleteFile(oldKey).catch(() => {});
+    }
+
+    const firmaId = existing.firmaId || 'ortak';
+    const key = `teklifler/${firmaId}/${id}/${dosyaAdi}`;
+    const { url } = await uploadFile(key, buffer, 'application/pdf', {
+      contentDisposition: `inline; filename="${dosyaAdi}"`,
+      cacheControl: 'no-cache',
+    });
+
+    const ctx = deriveCtx(req);
+    const sync = bumpFields(existing.version, { deviceId: ctx.deviceId, userId: ctx.userId });
+    const updated = await prisma.teklif.update({
+      where: { id },
+      data: { pdfUrl: url, pdfDosyaAdi: dosyaAdi, pdfOlusturmaTarihi: new Date(), ...sync },
+    });
+
+    res.json({ ok: true, pdfUrl: url, teklif: shapeTeklif(updated) });
   }),
 );
 
