@@ -51,8 +51,15 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
           // hakkı varsa mevcut active firma korunsun, sadece geçersiz/yoksa
           // default'a düş. Personel her zaman default'a zorlanır (güvenlik).
           const k = r.kullanici;
+          // firma_admin'in gosterilenFirmalar listesi BOS ise tum firmalara
+          // erisir (varsayilan davranis — backend canAccessFirma ile uyumlu).
+          // Liste varsa o listeye kisitli.
+          const firmaAdminTumune =
+            k.rol === 'firma_admin' &&
+            (!Array.isArray(k.gosterilenFirmalar) || k.gosterilenFirmalar.length === 0);
           const cokFirmaErisir =
             k.rol === 'super_admin' ||
+            firmaAdminTumune ||
             (k.rol === 'firma_admin'
               && Array.isArray(k.gosterilenFirmalar)
               && k.gosterilenFirmalar.length > 0);
@@ -60,6 +67,7 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
           const currentValid =
             !!current && (
               k.rol === 'super_admin' ||
+              firmaAdminTumune ||
               (k.rol === 'firma_admin'
                 && Array.isArray(k.gosterilenFirmalar)
                 && k.gosterilenFirmalar.includes(current))
