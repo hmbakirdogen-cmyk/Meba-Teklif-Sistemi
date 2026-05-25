@@ -1349,6 +1349,42 @@ export default function TeklifEditor() {
           50%, 70%  { transform: translateY(11px); }
           85%, 100% { transform: translateY(0); }
         }
+        /* Yeni gercekci animasyonlar — mini A4 satir uzerinde cursor */
+        @keyframes meba-cursor-hover-between {
+          0%, 15%   { opacity: 0; transform: translate(0, 0); }
+          25%, 40%  { opacity: 1; transform: translate(-2px, -1px); }
+          50%, 65%  { opacity: 1; transform: translate(0, 0); }
+          75%, 100% { opacity: 0; transform: translate(2px, 1px); }
+        }
+        @keyframes meba-plus-pop {
+          0%, 35%   { opacity: 0; transform: scale(0.3); }
+          50%, 70%  { opacity: 1; transform: scale(1); }
+          85%, 100% { opacity: 0; transform: scale(0.3); }
+        }
+        @keyframes meba-row-push-down {
+          0%, 40%   { transform: translateY(0); }
+          60%, 100% { transform: translateY(13px); }
+        }
+        @keyframes meba-new-row-appear {
+          0%, 55%   { opacity: 0; transform: scale(0.95) translateX(-4px); }
+          70%, 100% { opacity: 1; transform: scale(1) translateX(0); }
+        }
+        @keyframes meba-resize-cursor-grab {
+          0%, 20%   { opacity: 0; transform: translate(0, 0); }
+          30%, 45%  { opacity: 1; transform: translate(0, -2px); }
+          55%, 75%  { opacity: 1; transform: translate(0, 14px); }
+          85%, 100% { opacity: 0; transform: translate(0, 14px); }
+        }
+        @keyframes meba-row-tall {
+          0%, 25%   { height: 14px; }
+          40%, 75%  { height: 28px; }
+          90%, 100% { height: 14px; }
+        }
+        @keyframes meba-handle-blue {
+          0%, 20%   { opacity: 0; }
+          30%, 80%  { opacity: 1; }
+          90%, 100% { opacity: 0; }
+        }
         /* Akilli Hucreler demolari */
         @keyframes meba-type-cursor {
           0%, 100% { opacity: 1; }
@@ -1521,51 +1557,115 @@ export default function TeklifEditor() {
             animation: 'meba-fade-slide-in 280ms ease-out',
           }}
         >
-          {/* Demo 1: Satir arasina kalem ekle */}
-          <div style={{ flex: '0 0 124px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <svg viewBox="0 0 120 50" width="120" height="50" style={{ flexShrink: 0 }}>
-              <rect x="4" y="4" width="112" height="13" rx="2" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="0.6" />
-              <line x1="10" y1="10.5" x2="40" y2="10.5" stroke="#6366f1" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
-              <line x1="50" y1="10.5" x2="100" y2="10.5" stroke="#6366f1" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
-              <g style={{ animation: 'meba-row-insert-gap 2.6s ease-in-out infinite' }}>
-                <rect x="4" y="20" width="112" height="13" rx="2" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="0.6" />
-                <line x1="10" y1="26.5" x2="36" y2="26.5" stroke="#6366f1" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
-                <line x1="46" y1="26.5" x2="100" y2="26.5" stroke="#6366f1" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
+          {/* Demo 1: Iki satir + ARAYA fareyle gelinir + butonu cikar + tiklayinca yeni satir araya akar */}
+          <div style={{ flex: '0 0 200px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <svg viewBox="0 0 200 64" width="200" height="64" style={{ flexShrink: 0 }}>
+              {/* Header (kolonlar) */}
+              <g opacity="0.5">
+                <text x="9" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">No</text>
+                <text x="20" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Marka</text>
+                <text x="42" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Ürün Kodu</text>
+                <text x="80" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Açıklama</text>
+                <text x="138" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Mik</text>
+                <text x="156" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Fiyat</text>
+                <text x="180" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Top</text>
               </g>
-              <g transform="translate(60, 20)" style={{ animation: 'meba-row-insert-plus 2.6s ease-in-out infinite', transformOrigin: 'center' }}>
-                <circle cx="0" cy="0" r="5.5" fill="#5b8def" />
-                <line x1="-2.6" y1="0" x2="2.6" y2="0" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
-                <line x1="0" y1="-2.6" x2="0" y2="2.6" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
+              {/* Satir 1 (üst) — sabit */}
+              <g>
+                <rect x="4" y="8" width="192" height="11" rx="1.5" fill="#fff" stroke="#cbd5e1" strokeWidth="0.4" />
+                <text x="10" y="15.5" fontSize="4.5" fill="#1e293b" fontWeight="700">01</text>
+                <text x="20" y="15.5" fontSize="4" fill="#475569">SMC</text>
+                <text x="42" y="15.5" fontSize="4" fill="#1e293b" fontFamily="monospace" fontWeight="600">AS1201F-M5</text>
+                <text x="80" y="15.5" fontSize="4" fill="#475569">Hava filtresi</text>
+                <text x="138" y="15.5" fontSize="4" fill="#1e293b" fontWeight="600">2</text>
+                <text x="156" y="15.5" fontSize="4" fill="#1e293b" fontWeight="600">125 €</text>
+                <text x="180" y="15.5" fontSize="4" fill="#1e293b" fontWeight="700">250 €</text>
+              </g>
+              {/* Satir 2 — aşağı kayar */}
+              <g style={{ animation: 'meba-row-push-down 3.4s ease-in-out infinite' }}>
+                <rect x="4" y="20" width="192" height="11" rx="1.5" fill="#fff" stroke="#cbd5e1" strokeWidth="0.4" />
+                <text x="10" y="27.5" fontSize="4.5" fill="#1e293b" fontWeight="700">02</text>
+                <text x="20" y="27.5" fontSize="4" fill="#475569">SICK</text>
+                <text x="42" y="27.5" fontSize="4" fill="#1e293b" fontFamily="monospace" fontWeight="600">WL12-3P2431</text>
+                <text x="80" y="27.5" fontSize="4" fill="#475569">Optik sensör</text>
+                <text x="138" y="27.5" fontSize="4" fill="#1e293b" fontWeight="600">1</text>
+                <text x="156" y="27.5" fontSize="4" fill="#1e293b" fontWeight="600">340 €</text>
+                <text x="180" y="27.5" fontSize="4" fill="#1e293b" fontWeight="700">340 €</text>
+              </g>
+              {/* + butonu — ARAYA cikar */}
+              <g transform="translate(100, 20)" style={{ animation: 'meba-plus-pop 3.4s ease-in-out infinite', transformOrigin: 'center' }}>
+                <circle cx="0" cy="0" r="4.2" fill="#5b8def" />
+                <line x1="-2" y1="0" x2="2" y2="0" stroke="#fff" strokeWidth="1.1" strokeLinecap="round" />
+                <line x1="0" y1="-2" x2="0" y2="2" stroke="#fff" strokeWidth="1.1" strokeLinecap="round" />
+              </g>
+              {/* Yeni eklenen satir (3. olarak gorulur) */}
+              <g style={{ animation: 'meba-new-row-appear 3.4s ease-in-out infinite' }}>
+                <rect x="4" y="20" width="192" height="11" rx="1.5" fill="#ecfdf5" stroke="#10b981" strokeWidth="0.7" strokeDasharray="2 1" />
+                <text x="10" y="27.5" fontSize="4.5" fill="#047857" fontWeight="700" opacity="0.7">02</text>
+                <text x="42" y="27.5" fontSize="4" fill="#10b981" fontWeight="600">yeni satır...</text>
+              </g>
+              {/* Mouse cursor — iki satir arasi hover, sonra + butonuna kayar */}
+              <g style={{ animation: 'meba-cursor-hover-between 3.4s ease-in-out infinite' }}>
+                <path
+                  d="M 96 18 L 96 27 L 99 24.5 L 101 28 L 102.5 27.5 L 100.5 24 L 104 24 Z"
+                  fill="#1e293b" stroke="#fff" strokeWidth="0.5"
+                />
               </g>
             </svg>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              ARAYA EKLE
+              Araya Kalem Ekle
             </div>
           </div>
 
           <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
 
-          {/* Demo 2: Mavi cizgili row resize */}
-          <div style={{ flex: '0 0 124px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <svg viewBox="0 0 120 50" width="120" height="50" style={{ flexShrink: 0 }}>
-              <g style={{ animation: 'meba-row-resize-grow 2.6s ease-in-out infinite' }}>
-                <rect x="4" y="6" width="112" height="14" rx="2" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="0.6" />
-                <line x1="10" y1="13" x2="36" y2="13" stroke="#6366f1" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
-                <line x1="46" y1="13" x2="98" y2="13" stroke="#6366f1" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
+          {/* Demo 2: 1 satir + alt kenarda mavi handle belirir + cursor tutup asagi cekiyor + satir buyur */}
+          <div style={{ flex: '0 0 200px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <svg viewBox="0 0 200 64" width="200" height="64" style={{ flexShrink: 0 }}>
+              <g opacity="0.5">
+                <text x="9" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">No</text>
+                <text x="20" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Marka</text>
+                <text x="42" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Ürün Kodu</text>
+                <text x="80" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Açıklama</text>
               </g>
-              {/* Mavi handle line — alt kenarda hover'da beliren */}
+              {/* Buyuyen satir — foreignObject ile height animation */}
+              <foreignObject x="4" y="8" width="192" height="56">
+                <div
+                  style={{
+                    width: '100%',
+                    height: 14,
+                    background: '#fff',
+                    border: '0.4px solid #cbd5e1',
+                    borderRadius: 1.5,
+                    position: 'relative',
+                    animation: 'meba-row-tall 3.4s ease-in-out infinite',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: 3.5, left: 6, fontSize: 4.5, color: '#1e293b', fontWeight: 700 }}>03</div>
+                  <div style={{ position: 'absolute', top: 4, left: 16, fontSize: 4, color: '#475569' }}>SMC</div>
+                  <div style={{ position: 'absolute', top: 4, left: 38, fontSize: 4, color: '#1e293b', fontFamily: 'monospace', fontWeight: 600 }}>AS3001F-M5</div>
+                  <div style={{ position: 'absolute', top: 4, left: 76, fontSize: 4, color: '#475569', maxWidth: 80, lineHeight: 1.4 }}>
+                    Yüksek basınçlı hidrolik valf, paslanmaz çelik, korozyona dayanıklı
+                  </div>
+                </div>
+              </foreignObject>
+              {/* Mavi resize handle — satir alt kenarinda */}
               <line
-                x1="20" y1="20.5" x2="100" y2="20.5"
-                stroke="#5b8def" strokeWidth="2" strokeLinecap="round"
-                style={{ animation: 'meba-row-resize-handle 2.6s ease-in-out infinite', transformOrigin: 'center' }}
+                x1="76" y1="22" x2="124" y2="22"
+                stroke="#5b8def" strokeWidth="1.6" strokeLinecap="round"
+                style={{ animation: 'meba-handle-blue 3.4s ease-in-out infinite' }}
               />
-              {/* Cursor (resize arrow) — handle uzerine konumlanip asagi suruklenir */}
-              <g style={{ animation: 'meba-resize-cursor-move 2.6s ease-in-out infinite' }}>
-                <path d="M 60 20.5 L 60 18 M 60 20.5 L 60 23 M 58 18.5 L 60 16.5 L 62 18.5 M 58 22.5 L 60 24.5 L 62 22.5" stroke="#1e293b" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              {/* Cursor (resize) — handle'i tutuyor asagi suruklenir */}
+              <g style={{ animation: 'meba-resize-cursor-grab 3.4s ease-in-out infinite' }}>
+                <path
+                  d="M 96 22 L 96 31 L 99 28.5 L 101 32 L 102.5 31.5 L 100.5 28 L 104 28 Z"
+                  fill="#1e293b" stroke="#fff" strokeWidth="0.5"
+                />
               </g>
             </svg>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              YÜKSEKLİĞİ AYARLA
+              Yüksekliği Ayarla
             </div>
           </div>
 
@@ -1574,18 +1674,18 @@ export default function TeklifEditor() {
           <div style={{ flex: 1, minWidth: 0, paddingRight: 20 }}>
             <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>💡</span>
-              <span>Satır İşlemleri — İki Pratik Kısayol</span>
+              <span>Satır İşlemleri</span>
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>
-              <div style={{ marginBottom: 3 }}>
-                <b>Araya kalem ekle:</b> Bir satırın hemen üstüne fareyi getirin, beliren <b>+</b> butonuyla yeni satır araya eklenir.
+              <div style={{ marginBottom: 2 }}>
+                <b>Araya kalem ekle:</b> İki satır arasına fareni getir, beliren <b>+</b> butonuna bas.
               </div>
               <div>
-                <b>Yüksekliği ayarla:</b> Satır hücresinin alt kenarında beliren <b>mavi çizgiyi</b> tutup aşağı sürükleyin — uzun açıklamalar için satır boyu büyür.
+                <b>Yüksekliği ayarla:</b> Bir satırın alt kenarında beliren <b>mavi çizgiyi</b> tutup aşağı sürükle.
               </div>
               {satirIslemleriSayisi < TAVSIYE_MAX - 1 && (
-                <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
-                  ({TAVSIYE_MAX - satirIslemleriSayisi} gösterim sonra otomatik gizlenir)
+                <div style={{ marginTop: 5, fontSize: 11, color: '#94a3b8' }}>
+                  {TAVSIYE_MAX - satirIslemleriSayisi} kez daha
                 </div>
               )}
             </div>
