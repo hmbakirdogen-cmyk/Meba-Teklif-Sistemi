@@ -95,3 +95,29 @@ scripts/migrate/
 - **Storage:** R2 — profil fotoğrafları, cari logoları, firma logoları.
 - **Multi-tenant:** 3 firma (meba/elmos/mesa); `X-Firma-Id` header'ı + `canAccessFirma` ile izolasyon.
 - **PWA:** Render HTTPS sayesinde install prompt çalışır.
+
+## Coklu Proje Baslatma (DevHub)
+
+Iki farkli projeyi karistirmadan ayni duzenle acmak icin DevHub kullan.
+
+Kurulum:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\install-devhub.ps1
+```
+
+Ornek proje kayitlari:
+
+```powershell
+devhub add -Key teklif-motoru -Name "Teklif Motoru" -RepoUrl "https://github.com/hmbakirdogen-cmyk/Meba-Teklif-Sistemi.git" -LocalPath "C:\Users\user\Desktop\Projects\Teklif-Motoru" -Branch "feature/eposta-composer-onyx-tema" -StartCommand "npm run dev" -Url "http://localhost:5173/" -Ports "3001,5173"
+```
+
+Gunluk kullanim:
+
+```powershell
+devhub menu
+devhub launch -Key teklif-motoru
+devhub list
+```
+
+Detaylar icin: `docs/devhub-kullanim.md`
