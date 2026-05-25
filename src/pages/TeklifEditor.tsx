@@ -71,6 +71,17 @@ export default function TeklifEditor() {
   // (visibilitychange) güncellenir — kullanıcı başka pencerede izin değişimi
   // yaparsa veya tarayıcıyı yeniden açarsa rozet doğru duruma düşer.
   const [pdfKayitDurum, setPdfKayitDurum] = useState<'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor'>('klasorYok');
+
+  // ── Yeni teklif baslangic tavsiyesi (yumusak ipucu) ─────────────────
+  // Yeni kullaniciya "kalemleri eklemeden once ust kisimdaki bilgileri
+  // doldur" tavsiyesi. 5 yeni teklif acilisindan sonra her kullanici icin
+  // otomatik sessize alinir (localStorage per-user counter). Kullanici X
+  // butonuyla manuel de kapatabilir; bir sonraki teklif acilisinda counter
+  // hala dolmadiysa tekrar gorulur (alistirma akisi).
+  const TAVSIYE_MAX = 5;
+  const tavsiyeKey = `meba_teklif_baslangic_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
+  const [tavsiyeKapatildi, setTavsiyeKapatildi] = useState(false);
+  const [tavsiyeBumped, setTavsiyeBumped] = useState(false);
   useEffect(() => {
     let iptal = false;
     const sorgula = async () => {
@@ -86,6 +97,13 @@ export default function TeklifEditor() {
     };
   }, [pdfKayit]);
   const C = useColors();
+
+  // Teklif degisince tavsiye flag'lerini sifirla — her yeni teklif acılışında
+  // counter limitine kadar gosterilir.
+  useEffect(() => {
+    setTavsiyeKapatildi(false);
+    setTavsiyeBumped(false);
+  }, [id]);
 
   const sablonRef = useRef<HTMLDivElement>(null);
   const kompaktHeaderRef = useRef<HTMLDivElement>(null);
@@ -1095,6 +1113,28 @@ export default function TeklifEditor() {
     }
   }, [persistStatusByMode, sahipDegil, message, kilitli, revizeOnayAc]);
 
+  // Tavsiye gosterilecek mi? Yeni teklif (satir yok) + counter dolmamis +
+  // manuel kapatilmamis. Render sirasinda hesaplanir.
+  const tavsiyeSayisi = (() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = window.localStorage.getItem(tavsiyeKey);
+    return raw ? Number.parseInt(raw, 10) || 0 : 0;
+  })();
+  const tavsiyeGoster =
+    state.satirlar.length === 0 &&
+    !tavsiyeKapatildi &&
+    !kilitli &&
+    tavsiyeSayisi < TAVSIYE_MAX;
+
+  // Tavsiye gosterildiyse counter'i bump et (sadece bu teklif acilisinda 1 kere)
+  useEffect(() => {
+    if (tavsiyeGoster && !tavsiyeBumped && typeof window !== 'undefined') {
+      const yeni = (Number.parseInt(window.localStorage.getItem(tavsiyeKey) || '0', 10) || 0) + 1;
+      window.localStorage.setItem(tavsiyeKey, String(yeni));
+      setTavsiyeBumped(true);
+    }
+  }, [tavsiyeGoster, tavsiyeBumped, tavsiyeKey]);
+
   return (
     <div style={{
       display: 'flex',
@@ -1122,6 +1162,73 @@ export default function TeklifEditor() {
         pdfKayitKlasorAdi={pdfKayit.klasorAdi}
         pdfKayitDurum={pdfKayitDurum}
       />
+
+      {/* Yeni Teklif Tavsiyesi — yumusak ipucu, ilk N teklifte gosterilir,
+          sonra otomatik kapanir (per-user counter localStorage). Tip:
+          "Kalemlere baslamadan once ust kisimdaki bilgileri tamamla". */}
+      {tavsiyeGoster && (
+        <div
+          role="status"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 12,
+            padding: '10px 18px',
+            margin: '0 16px',
+            marginTop: 8,
+            background: 'linear-gradient(135deg, rgba(99,179,237,0.10) 0%, rgba(159,140,232,0.08) 100%)',
+            border: '1px solid rgba(99,179,237,0.22)',
+            borderLeft: '3px solid #5b8def',
+            borderRadius: 8,
+            fontSize: 12.5,
+            lineHeight: 1.45,
+            color: 'var(--text-primary)',
+            boxShadow: '0 1px 2px rgba(91,141,239,0.06)',
+          }}
+        >
+          <span style={{
+            fontSize: 16,
+            lineHeight: 1,
+            paddingTop: 1,
+            color: '#5b8def',
+            flexShrink: 0,
+          }}>💡</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, marginBottom: 2, color: 'var(--text-primary)' }}>
+              Tavsiye — Akış İçin Sıralama
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              Kalemleri eklemeye başlamadan önce A4'ün üst kısmındaki <b>cari</b>, <b>ilgili kişi</b>, <b>tarih</b>, <b>para birimi</b>, <b>KDV</b> ve <b>ödeme vadesi</b> gibi bilgileri tamamlamanız akışı çok daha rahat hale getirir.
+              {tavsiyeSayisi < TAVSIYE_MAX - 1 && (
+                <span style={{ marginLeft: 6, color: '#94a3b8', fontSize: 11 }}>
+                  ({TAVSIYE_MAX - tavsiyeSayisi} gösterim sonra otomatik gizlenir)
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTavsiyeKapatildi(true)}
+            aria-label="Tavsiyeyi kapat"
+            title="Bu mesajı kapat"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: 4,
+              fontSize: 14,
+              lineHeight: 1,
+              borderRadius: 4,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#475569'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Kısmi Onay seçim modu banner'ı — A4 sayfasında satır işaretleme
           aktifken görünür. Sticky top: kullanıcı sayfayı scroll etse de
@@ -1507,8 +1614,6 @@ export default function TeklifEditor() {
           onKdvOraniDegistir={state.setKdvOrani}
           iskontoOrani={state.iskontoOrani}
           onIskontoOraniDegistir={state.setIskontoOrani}
-          satirBazliParaBirimi={state.satirBazliParaBirimi}
-          onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
           satirBazliIskonto={state.satirBazliIskonto}
           onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           notlarGosterilsin={state.notlarGosterilsin}

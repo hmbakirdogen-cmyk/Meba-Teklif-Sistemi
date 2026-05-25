@@ -4,7 +4,6 @@ import {
   PremiumEditIcon,
   PremiumImageIcon,
   PremiumRowDiscountIcon,
-  PremiumRowCurrencyIcon,
   PremiumKdvIcon,
   PremiumDiscountIcon,
   PremiumVisibilityIcon,
@@ -45,8 +44,6 @@ interface KumandaPaneliProps {
   onKdvOraniDegistir: (v: number) => void;
   iskontoOrani: number;
   onIskontoOraniDegistir: (v: number) => void;
-  satirBazliParaBirimi: boolean;
-  onSatirBazliParaBirimiDegistir: (v: boolean) => void;
   satirBazliIskonto: boolean;
   onSatirBazliIskontoDegistir: (v: boolean) => void;
   /** Not alanının A4 görünümünde + PDF'te gösterilip gösterilmeyeceği. */
@@ -75,7 +72,6 @@ export default function KumandaPaneli({
   readOnly, onReadOnlyDegistir,
   kdvOrani, onKdvOraniDegistir,
   iskontoOrani, onIskontoOraniDegistir,
-  satirBazliParaBirimi, onSatirBazliParaBirimiDegistir,
   satirBazliIskonto, onSatirBazliIskontoDegistir,
   notlarGosterilsin, onNotlarGosterilsinDegistir,
   sagPanelOpen, cellPopupOpen = false, onResimEkle,
@@ -1790,16 +1786,10 @@ export default function KumandaPaneli({
               onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
               disabled={readOnly}
             />
-            <SquareToggle
-              labelLines={[]}
-              ariaLabel={satirBazliParaBirimi ? 'Satır Para Birimi: Açık' : 'Satır Para Birimi: Kapalı'}
-              tooltipPlacement="right"
-              extraClass="button-row-currency"
-              icon={<PremiumRowCurrencyIcon />}
-              on={satirBazliParaBirimi}
-              onClick={() => onSatirBazliParaBirimiDegistir(!satirBazliParaBirimi)}
-              disabled={readOnly}
-            />
+            {/* "Satir Para Birimi" toggle butonu KALDIRILDI: A4 para birimi
+                karti zaten "Karisik (Satir Bazli)" secenegini sunuyor. Tek
+                tip secimi karti uzerinden otomatik kapatiliyor. Panel'de
+                ikinci bir buton ayni mantik icin gereksizdi. */}
             <SquareToggle
               labelLines={[]}
               ariaLabel={notlarGosterilsin ? 'Notlar: Gösteriliyor' : 'Notlar: Gizli'}
