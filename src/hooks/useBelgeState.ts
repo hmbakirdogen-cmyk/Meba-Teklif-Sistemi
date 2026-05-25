@@ -19,6 +19,7 @@ import { cariService } from '../services/musteriService';
 import { urunSetService } from '../services/urunSetService';
 import { referansVeriService, getVarsayilanMarka } from '../services/referansVeriService';
 import { useFirma } from '../context/useFirma';
+import { useAkilliReferans } from './useAkilliReferans';
 import { sanitizeMultilineText, formatAciklama } from '../utils/formatters';
 import { isYonetici } from '../utils/yetkiUtils';
 import type { Teklif, Cari, TeklifSatiri, TeklifDurum, ParaBirimi, ImageItem, TeklifStatus, TeklifVisibility } from '../types';
@@ -181,6 +182,30 @@ export function useBelgeState(
   const { aktifFirma } = useFirma();
   const v = aktifFirma?.varsayilanlar;
   const varsayilanMarka = getVarsayilanMarka(v);
+
+  // ── Akilli varsayilanlar — kullanicinin en cok kullandigi degerler ──
+  // Yeni teklif acilirken default'larin kaynagi (oncelik sirasi):
+  //   1) Mevcut teklif kayitindaki deger (existing teklif)
+  //   2) Kullanicinin GECMIS TEKLIFLERINDEN en cok kullandigi (akilli)
+  //   3) Firma 'Teklif Varsayilanlari' bolumunde manuel set edilmis (fallback)
+  //   4) Hardcoded sabit (en son care)
+  // Kullaniciyi "varsayilan ayarlama" sayfasina zorlamadan, aliskanligindan
+  // ogrenir. Hic teklif yapmamis kullanici icin firma defaults devreye girer.
+  const akilliPBList = useAkilliReferans('paraBirimleri');
+  const akilliKDVList = useAkilliReferans('kdvOranlari');
+  const akilliOdemeList = useAkilliReferans('odemeVadesiSecenekleri');
+  const akilliGecerlilikList = useAkilliReferans('gecerlilikSecenekleri');
+  const akilliDovizList = useAkilliReferans('dovizKuruSecenekleri');
+  const PB_VALID: ParaBirimi[] = ['TRY', 'EUR', 'USD'];
+  const akilliPB = (PB_VALID as readonly string[]).includes(akilliPBList[0] ?? '')
+    ? (akilliPBList[0] as ParaBirimi)
+    : undefined;
+  const akilliKDV = akilliKDVList[0] !== undefined && !Number.isNaN(Number(akilliKDVList[0]))
+    ? Number(akilliKDVList[0])
+    : undefined;
+  const akilliOdeme = akilliOdemeList[0];
+  const akilliGecerlilik = akilliGecerlilikList[0];
+  const akilliDoviz = akilliDovizList[0];
   // Mevcut teklifin orijinal sahibi — useRef ile tek seferinde sabitlenir.
   // teklifGetir her render'da çağrılır; autoSave sonrası store'daki sahip değişirse
   // bu ref etkilenmez ve kontrol geçerliliğini korur.
@@ -213,7 +238,7 @@ export function useBelgeState(
   const [tarih, setTarih] = useState(mevcut?.tarih ?? dayjs().format('YYYY-MM-DD'));
   const [cari, setCariState] = useState<Cari | null>(mevcut?.cari ? cariEpostaVarsayilanla(mevcut.cari) : null);
   const [satirlar, setSatirlarState] = useState<TeklifSatiri[]>(mevcut?.satirlar ?? []);
-  const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? (v?.paraBirimi as ParaBirimi) ?? 'EUR');
+  const [paraBirimi, setParaBirimiState] = useState<ParaBirimi>(mevcut?.paraBirimi ?? akilliPB ?? (v?.paraBirimi as ParaBirimi) ?? 'EUR');
   const [satirBazliParaBirimi, setSatirBazliParaBirimiState] = useState(mevcut?.satirBazliParaBirimi ?? false);
   const [satirBazliIskonto, setSatirBazliIskontoState] = useState(mevcut?.satirBazliIskonto ?? false);
   const [durum, setDurumState] = useState<TeklifDurum>(mevcut?.durum ?? 'taslak');
@@ -224,15 +249,15 @@ export function useBelgeState(
   );
   const [kargoNotuMetni, setKargoNotuMetniState] = useState<string>(mevcut?.kargoNotuMetni ?? '');
   const [kargoNotuGizli, setKargoNotuGizliState] = useState<boolean>(mevcut?.kargoNotuGizli ?? false);
-  const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? v?.kdvOrani ?? 0);
+  const [kdvOrani, setKdvOraniState] = useState(mevcut?.kdvOrani ?? akilliKDV ?? v?.kdvOrani ?? 0);
   const [iskontoOrani, setIskontoOraniState] = useState(mevcut?.iskontoOrani ?? v?.iskontoOrani ?? 0);
-  const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? v?.odemeVadesi ?? '45 Gün');
+  const [odemeVadesi, setOdemeVadesiState] = useState(mevcut?.odemeVadesi ?? akilliOdeme ?? v?.odemeVadesi ?? '45 Gün');
   const [contactName, setContactNameState] = useState(mevcut?.contactName ?? '');
   const [contactTitle, setContactTitleState] = useState<'BEY' | 'HANIM' | 'YETKILI'>(mevcut?.contactTitle ?? 'BEY');
   const [ilgiliKisiId, setIlgiliKisiIdState] = useState<string | undefined>(mevcut?.ilgiliKisiId);
   const [ilgiliKisiAdSoyad, setIlgiliKisiAdSoyadState] = useState<string | undefined>(mevcut?.ilgiliKisiAdSoyad);
-  const [gecerlilikSuresi, setGecerlilikSuresiState] = useState<string>(mevcut?.gecerlilikSuresi ?? v?.gecerlilikSuresi ?? '1 Hafta');
-  const [dovizKuru, setDovizKuruState] = useState<string>(mevcut?.dovizKuru ?? 'TCMB Fatura');
+  const [gecerlilikSuresi, setGecerlilikSuresiState] = useState<string>(mevcut?.gecerlilikSuresi ?? akilliGecerlilik ?? v?.gecerlilikSuresi ?? '1 Hafta');
+  const [dovizKuru, setDovizKuruState] = useState<string>(mevcut?.dovizKuru ?? akilliDoviz ?? 'TCMB Fatura');
   const [olusturmaTarihi] = useState(mevcut?.olusturmaTarihi ?? dayjs().toISOString());
   const [gorseller, setGorsellerState] = useState<ImageItem[]>(mevcut?.gorseller ?? []);
   const [status, setStatus] = useState<TeklifStatus>(mevcut?.status ?? 'taslak');
