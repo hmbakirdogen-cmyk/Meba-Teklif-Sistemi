@@ -69,6 +69,64 @@ export default function AppLayout() {
     return () => { aktif = false; window.clearInterval(id); };
   }, [adminMi, adminGbDrawerAcik]);
 
+  // ── Ahmet ESMERAY ozel karsilamasi (firma switcher fix bildirimi) ──
+  // Tek seferlik — adi gecen kullanici programi ilk kez actiginda otomatik
+  // acilir. localStorage flag'i ile gosterildi/gosterilmedi takip edilir.
+  // Espirili ton: bug duzeltildi mesaji + geri bildirim istegi.
+  useEffect(() => {
+    if (!aktifKullanici) return;
+    const adKontrol = String(aktifKullanici.adSoyad || '').toLocaleLowerCase('tr-TR');
+    const ahmetMi = adKontrol.includes('ahmet') && adKontrol.includes('esmeray');
+    if (!ahmetMi) return;
+    const flagKey = `meba_ahmet_firma_switcher_welcome_${aktifKullanici.id}`;
+    if (typeof window === 'undefined') return;
+    if (window.localStorage.getItem(flagKey) === '1') return;
+    // Modal'i bir sonraki tick'te ac — login redirect race'inden kacin
+    const timer = window.setTimeout(() => {
+      modal.success({
+        title: 'Hadi işin oldu Ahmet abi! 🎉',
+        width: 520,
+        centered: true,
+        okText: '😊 Anladım, deneyeceğim',
+        content: (
+          <div style={{ fontSize: 14, lineHeight: 1.65, paddingTop: 8 }}>
+            <p style={{ marginTop: 0, marginBottom: 12 }}>
+              Senin uzun süredir canını sıkan o <b>"logoya bastım MEBA seçtim ama Elmos'a geri döndü"</b> bug'ını sonunda yakaladık 🐛
+            </p>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(99,179,237,0.10) 0%, rgba(159,140,232,0.07) 100%)',
+              border: '1px solid rgba(99,179,237,0.25)',
+              borderLeft: '3px solid #5b8def',
+              borderRadius: 8,
+              padding: '10px 14px',
+              marginBottom: 14,
+            }}>
+              <div style={{ fontWeight: 600, color: '#1e3a8a', marginBottom: 4 }}>
+                ✓ Çözüldü — Frontend + Backend birlikte
+              </div>
+              <div style={{ color: '#475569', fontSize: 13 }}>
+                Artık logo'ya tıkla, dropdown'dan <b>MEBA</b> veya <b>MESA</b> seç → orada kalır, geri dönmez.
+              </div>
+            </div>
+            <p style={{ marginBottom: 10 }}>
+              <b>Önemli:</b> Eğer hâlâ Elmos'a geri dönüyorsa programdan tamamen çık, 1 dakika bekle, tekrar aç (cache temizliği için).
+            </p>
+            <p style={{ marginBottom: 8, fontSize: 13.5 }}>
+              <i>Just try it. Pls send me back if it's ok or not</i> — eğer hâlâ sıkıntı varsa Mehmet abiye söyle, hızlıca bakarız 🙌
+            </p>
+            <p style={{ marginBottom: 0, fontSize: 12, color: '#94a3b8', fontStyle: 'italic', textAlign: 'right' }}>
+              — MEBA · MESA · ELMOS Teklif Sistemi
+            </p>
+          </div>
+        ),
+        onOk: () => {
+          window.localStorage.setItem(flagKey, '1');
+        },
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [aktifKullanici, modal]);
+
   // Tum kullanicilar icin okunmamis bildirim sayisi (atama/teklif olaylari).
   useEffect(() => {
     if (!aktifKullanici) return;
