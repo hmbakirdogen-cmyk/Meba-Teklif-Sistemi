@@ -110,13 +110,26 @@ tekliflerRouter.put(
     const data = pickTeklifInput(body);
     const sync = bumpFields(existing?.version, { deviceId: ctx.deviceId, userId: ctx.userId });
 
+    // Race condition fix: findUnique + create arasinda baska istek ayni id ile
+    // yarisabilir (kullanici hizli edit yapinca client ayni id ile birden cok
+    // upsert tetikliyor). Prisma.upsert atomic — tek query'de varsa update
+    // yoksa create, unique constraint hatasi olusmaz.
     let final;
     if (existing) {
       final = await prisma.teklif.update({ where: { id }, data: { ...data, ...sync } });
     } else {
-      final = await prisma.teklif.create({
-        data: { id, ...(data as Record<string, unknown>), ...sync, deletedAt: null } as any,
-      });
+      try {
+        final = await prisma.teklif.create({
+          data: { id, ...(data as Record<string, unknown>), ...sync, deletedAt: null } as any,
+        });
+      } catch (err: any) {
+        // P2002 = unique constraint — baska istek bizden once create etti
+        if (err?.code === 'P2002') {
+          final = await prisma.teklif.update({ where: { id }, data: { ...data, ...sync } });
+        } else {
+          throw err;
+        }
+      }
     }
 
     // Atama bildirimi: ilgiliKisi yeni atandıysa veya değiştiyse
