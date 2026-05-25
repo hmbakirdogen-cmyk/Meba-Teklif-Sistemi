@@ -21,6 +21,7 @@ interface FormValues {
   unvan: string;
   rol: KullaniciRol;
   firmaId?: string;
+  gosterilenFirmalar?: string[];
   telefon?: string;
   dahili?: string;
 }
@@ -122,6 +123,7 @@ export default function PersonelSayfasi() {
       unvan: k.unvan,
       rol: k.rol,
       firmaId: k.firmaId || undefined,
+      gosterilenFirmalar: Array.isArray(k.gosterilenFirmalar) ? k.gosterilenFirmalar : [],
       telefon: k.telefon || '',
       dahili: k.dahili || '',
     });
@@ -138,6 +140,7 @@ export default function PersonelSayfasi() {
           adSoyad: normalizedAdSoyad,
           unvan: normalizedUnvan,
           rol: values.rol,
+          gosterilenFirmalar: values.rol === 'firma_admin' ? (values.gosterilenFirmalar ?? []) : [],
           telefon: (values.telefon ?? '').trim(),
           dahili: (values.dahili ?? '').trim(),
         });
@@ -440,6 +443,32 @@ export default function PersonelSayfasi() {
                 </Select.Option>
               )}
             </Select>
+          </Form.Item>
+          {/* Firma yoneticisi (firma_admin) icin opsiyonel firma kisitlamasi:
+              bos birakirsa TUM firmalara erisir; liste secilirse sadece o
+              firmalara erisir. Bu UI olmadan eski yoneticiler logoya basinca
+              farkli firmaya gecemiyordu. */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.rol !== curr.rol}
+          >
+            {({ getFieldValue }) =>
+              getFieldValue('rol') === 'firma_admin' ? (
+                <Form.Item
+                  name="gosterilenFirmalar"
+                  label="Erişebileceği Firmalar"
+                  tooltip="Boş bırakılırsa tüm firmalara erişir (varsayılan). Belirli firma seçilirse sadece o firmalara erişebilir."
+                >
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder="Boş = tüm firmalar"
+                    options={firmalar.map((f) => ({ value: f.id, label: f.ad }))}
+                    getPopupContainer={(t) => (t.parentNode as HTMLElement) ?? document.body}
+                  />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
           {tumFirmalaraErisir && !duzenlenen && (
             <Form.Item
