@@ -1347,12 +1347,31 @@ export default function TeklifEditor() {
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>
               Kalemleri eklemeye başlamadan önce A4'ün üst kısmındaki <b>cari</b>, <b>ilgili kişi</b>, <b>tarih</b>, <b>para birimi</b>, <b>KDV</b> ve <b>ödeme vadesi</b> gibi bilgileri tamamlamanız akışı çok daha rahat hale getirir.
-              {tavsiyeSayisi < TAVSIYE_MAX - 1 && (
-                <span style={{ marginLeft: 6, color: '#94a3b8', fontSize: 11 }}>
-                  ({TAVSIYE_MAX - tavsiyeSayisi} gösterim sonra otomatik gizlenir)
-                </span>
-              )}
             </div>
+            {/* Para birimi kritik uyarisi — onemli yanlis kullanim riski */}
+            <div style={{
+              marginTop: 8,
+              padding: '6px 10px 6px 12px',
+              background: 'rgba(251, 191, 36, 0.10)',
+              border: '1px solid rgba(251, 191, 36, 0.35)',
+              borderLeft: '3px solid #f59e0b',
+              borderRadius: 6,
+              fontSize: 11.5,
+              color: '#78350f',
+              lineHeight: 1.45,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <span style={{ fontSize: 13, lineHeight: 1, paddingTop: 1, flexShrink: 0 }}>⚠️</span>
+                <div>
+                  <b>Para birimi uyarısı:</b> Önce EUR girip rakamları yazdıktan sonra USD'ye geçerseniz, <b>fiyatlar değişmez, sadece etiket değişir</b> (100 EUR → 100 USD olur, dönüşüm <i>yapılmaz</i>). Yanlış fiyatlandırma riskine karşı para birimini <b>kalemlere başlamadan önce</b> belirleyin.
+                </div>
+              </div>
+            </div>
+            {tavsiyeSayisi < TAVSIYE_MAX - 1 && (
+              <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 11 }}>
+                ({TAVSIYE_MAX - tavsiyeSayisi} gösterim sonra otomatik gizlenir)
+              </div>
+            )}
           </div>
           <button
             type="button"
