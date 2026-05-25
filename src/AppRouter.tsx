@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
-import { Spin, Modal, Button } from 'antd';
+import { Spin, Modal } from 'antd';
 import { WarningOutlined, MailOutlined } from '@ant-design/icons';
 import AppLayout from './AppLayout';
 import GirisEkrani from './pages/GirisEkrani';

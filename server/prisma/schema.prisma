@@ -172,6 +172,12 @@ model Teklif {
 
   // Satırlar + toplamlar
   satirlar                 Json        @default("[]")
+  // A4 sayfasina yerlestirilen serbest gorseller (ImageItem[]). Data URL veya
+  // URL src + pageIndex + pozisyon + boyut. Frontend useBelgeState'in
+  // `gorseller` alanidir. Daha once tip Postgres'e map edilmedigi icin save
+  // sirasinda Prisma "Unknown field" hatasi atıyordu — bu da PDF olustur
+  // akisini bloklayan kullanici hatasiyla sonuclaniyordu.
+  gorseller                Json        @default("[]")
   araToplam                Float       @default(0)
   toplamIndirim            Float       @default(0)
   toplamVergi              Float       @default(0)
