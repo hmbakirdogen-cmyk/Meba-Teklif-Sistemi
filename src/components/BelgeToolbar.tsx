@@ -9,7 +9,7 @@
  * pill click → manuel override menüsü.
  */
 
-import { App, Button, Dropdown, Space, Tooltip, Spin } from 'antd';
+import { App, Button, Dropdown, Popover, Space, Tooltip, Spin } from 'antd';
 import type { MenuProps } from 'antd';
 import { Icon } from '@iconify/react';
 import type { TeklifDurum, TeklifStatus } from '../types';
@@ -40,6 +40,12 @@ interface BelgeToolbarProps {
   pdfKayitDestekli?: boolean;
   /** Klasör erişim durumu — rozet rengini ve mesajını belirler. */
   pdfKayitDurum?: 'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor';
+  /** Notlar butonu uzerinde gosterilen coachmark popover'i acik mi?
+   *  Yeni kullaniciya butonun varligini ve kullanim amacini tanitan
+   *  bir balon — butona ok ile pointing. Parent (TeklifEditor) per-user
+   *  counter ile yonetir; X kapama callback'i ile durdurulur. */
+  notlarTavsiyeAcik?: boolean;
+  onNotlarTavsiyeKapat?: () => void;
 }
 
 const DURUM_RENK: Record<TeklifDurum, { color: string; bg: string; border: string }> = {
@@ -93,6 +99,8 @@ export default function BelgeToolbar({
   pdfKayitKlasorAdi,
   pdfKayitDestekli,
   pdfKayitDurum,
+  notlarTavsiyeAcik = false,
+  onNotlarTavsiyeKapat,
 }: BelgeToolbarProps) {
   const { modal } = App.useApp();
   const durumRenk = DURUM_RENK[durum];
@@ -294,27 +302,65 @@ export default function BelgeToolbar({
             {ilgiliKisiAdSoyad ? ilgiliKisiAdSoyad.split(' ')[0] : null}
           </Button>
         </Tooltip>
-        <Tooltip title="Notlar">
-          <Button
-            type="text"
-            icon={
-              <svg viewBox="0 0 20 20" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                <circle cx="5" cy="4" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
-                <circle cx="5" cy="7" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
-                <circle cx="5" cy="10" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
-                <rect x="6.5" y="2" width="9" height="13" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.80" />
-                <line x1="8.5" y1="5.2" x2="13.5" y2="5.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
-                <line x1="8.5" y1="7.6" x2="13.5" y2="7.6" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
-                <line x1="8.5" y1="10" x2="11.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
-                <g transform="rotate(-40 13 14)">
-                  <rect x="12" y="11" width="2" height="5.5" rx="0.4" fill="currentColor" opacity="0.85" />
-                  <polygon points="12,16.5 14,16.5 13,18.5" fill="currentColor" opacity="0.70" />
-                </g>
-              </svg>
-            }
-            onClick={() => onPanelAc('notlar')}
-          />
-        </Tooltip>
+        <Popover
+          open={notlarTavsiyeAcik}
+          placement="bottom"
+          arrow
+          overlayClassName="meba-notlar-tavsiye-popover"
+          content={
+            <div style={{ maxWidth: 280, fontSize: 12.5, lineHeight: 1.5, color: '#334155', position: 'relative', paddingRight: 16 }}>
+              <button
+                type="button"
+                onClick={() => onNotlarTavsiyeKapat?.()}
+                aria-label="Tavsiyeyi kapat"
+                title="Kapat"
+                style={{
+                  position: 'absolute', top: -2, right: -4,
+                  background: 'transparent', border: 'none',
+                  color: '#94a3b8', cursor: 'pointer',
+                  padding: 2, fontSize: 12, lineHeight: 1,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#475569'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+              >✕</button>
+              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>📝</span>
+                <span>Notlar — Şirket İçi Hafıza</span>
+              </div>
+              <div style={{ color: '#475569' }}>
+                Bu butonu kullanarak <b>kendiniz için</b> her tür notu kaydedebilirsiniz: müşteri görüşmeleri, telefon notları, fiyat tartışmaları, rakip bilgileri…
+              </div>
+              <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(99,179,237,0.08)', borderRadius: 4, fontSize: 11.5, color: '#475569', borderLeft: '2px solid #5b8def' }}>
+                <b>Asla müşteriye gitmez.</b> Sadece sizin iç akışınızdaki notlar.
+              </div>
+            </div>
+          }
+        >
+          <Tooltip title="Notlar">
+            <Button
+              type="text"
+              icon={
+                <svg viewBox="0 0 20 20" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="4" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
+                  <circle cx="5" cy="7" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
+                  <circle cx="5" cy="10" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
+                  <rect x="6.5" y="2" width="9" height="13" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.80" />
+                  <line x1="8.5" y1="5.2" x2="13.5" y2="5.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+                  <line x1="8.5" y1="7.6" x2="13.5" y2="7.6" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+                  <line x1="8.5" y1="10" x2="11.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+                  <g transform="rotate(-40 13 14)">
+                    <rect x="12" y="11" width="2" height="5.5" rx="0.4" fill="currentColor" opacity="0.85" />
+                    <polygon points="12,16.5 14,16.5 13,18.5" fill="currentColor" opacity="0.70" />
+                  </g>
+                </svg>
+              }
+              onClick={() => {
+                onNotlarTavsiyeKapat?.(); // tıklayınca popover'i kapat
+                onPanelAc('notlar');
+              }}
+            />
+          </Tooltip>
+        </Popover>
 
         <div style={{
           width: 1, height: 20, margin: '0 4px',

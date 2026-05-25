@@ -72,16 +72,19 @@ export default function TeklifEditor() {
   // yaparsa veya tarayıcıyı yeniden açarsa rozet doğru duruma düşer.
   const [pdfKayitDurum, setPdfKayitDurum] = useState<'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor'>('klasorYok');
 
-  // ── Yeni teklif baslangic tavsiyesi (yumusak ipucu) ─────────────────
-  // Yeni kullaniciya "kalemleri eklemeden once ust kisimdaki bilgileri
-  // doldur" tavsiyesi. 5 yeni teklif acilisindan sonra her kullanici icin
-  // otomatik sessize alinir (localStorage per-user counter). Kullanici X
-  // butonuyla manuel de kapatabilir; bir sonraki teklif acilisinda counter
-  // hala dolmadiysa tekrar gorulur (alistirma akisi).
+  // ── Yumusak ipucu sistemi (per-user, sayac dolunca otomatik gizlenir) ──
+  //  1) BASLANGIC banner: yeni teklif → ust bilgileri once doldur
+  //  2) NOTLAR POPOVER: bardaki Notlar butonunu isaret edip aciklayan
+  //     coachmark (Antd Popover ile, butona arrow ile pointing). Ilgili
+  //     kisi henuz atanmamis ise gorulur — atama yapilinca anlamsiz hale
+  //     gelir, gizlenir. Per-user counter, sikmadan hatirlatma felsefesi.
   const TAVSIYE_MAX = 5;
   const tavsiyeKey = `meba_teklif_baslangic_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
+  const notlarPopoverKey = `meba_notlar_popover_${aktifKullanici?.id || 'anon'}`;
   const [tavsiyeKapatildi, setTavsiyeKapatildi] = useState(false);
   const [tavsiyeBumped, setTavsiyeBumped] = useState(false);
+  const [notlarPopoverKapatildi, setNotlarPopoverKapatildi] = useState(false);
+  const [notlarPopoverBumped, setNotlarPopoverBumped] = useState(false);
   useEffect(() => {
     let iptal = false;
     const sorgula = async () => {
@@ -103,6 +106,8 @@ export default function TeklifEditor() {
   useEffect(() => {
     setTavsiyeKapatildi(false);
     setTavsiyeBumped(false);
+    setNotlarPopoverKapatildi(false);
+    setNotlarPopoverBumped(false);
   }, [id]);
 
   const sablonRef = useRef<HTMLDivElement>(null);
@@ -1135,6 +1140,27 @@ export default function TeklifEditor() {
     }
   }, [tavsiyeGoster, tavsiyeBumped, tavsiyeKey]);
 
+  // Notlar Popover (Antd Popover coachmark): bardaki Notlar butonunu isaret
+  // edip aciklayan. Notlar atanmamis (state.notlar bos) ve counter dolmamis
+  // ise gorulur. Kullanici notlar yazinca veya X kapatinca gizlenir.
+  const notlarPopoverSayisi = (() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = window.localStorage.getItem(notlarPopoverKey);
+    return raw ? Number.parseInt(raw, 10) || 0 : 0;
+  })();
+  const notlarPopoverGoster =
+    !(state.notlar && state.notlar.trim().length > 0) &&
+    !notlarPopoverKapatildi &&
+    !kilitli &&
+    notlarPopoverSayisi < TAVSIYE_MAX;
+  useEffect(() => {
+    if (notlarPopoverGoster && !notlarPopoverBumped && typeof window !== 'undefined') {
+      const yeni = (Number.parseInt(window.localStorage.getItem(notlarPopoverKey) || '0', 10) || 0) + 1;
+      window.localStorage.setItem(notlarPopoverKey, String(yeni));
+      setNotlarPopoverBumped(true);
+    }
+  }, [notlarPopoverGoster, notlarPopoverBumped, notlarPopoverKey]);
+
   return (
     <div style={{
       display: 'flex',
@@ -1161,6 +1187,8 @@ export default function TeklifEditor() {
         pdfKayitDestekli={pdfKayit.supported}
         pdfKayitKlasorAdi={pdfKayit.klasorAdi}
         pdfKayitDurum={pdfKayitDurum}
+        notlarTavsiyeAcik={notlarPopoverGoster}
+        onNotlarTavsiyeKapat={() => setNotlarPopoverKapatildi(true)}
       />
 
       {/* Yeni Teklif Tavsiyesi — yumusak ipucu, ilk N teklifte gosterilir,
