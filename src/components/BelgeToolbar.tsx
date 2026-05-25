@@ -308,7 +308,7 @@ export default function BelgeToolbar({
           arrow
           overlayClassName="meba-notlar-tavsiye-popover"
           content={
-            <div style={{ maxWidth: 280, fontSize: 12.5, lineHeight: 1.5, color: '#334155', position: 'relative', paddingRight: 16 }}>
+            <div style={{ maxWidth: 320, fontSize: 12.5, lineHeight: 1.5, color: '#334155', position: 'relative', paddingRight: 16 }}>
               <button
                 type="button"
                 onClick={() => onNotlarTavsiyeKapat?.()}
@@ -323,9 +323,53 @@ export default function BelgeToolbar({
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#475569'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
               >✕</button>
-              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>📝</span>
                 <span>Notlar — Şirket İçi Hafıza</span>
+              </div>
+              {/* Animasyonlu notepad demo — kalem yaziyor, satirlar belirir */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                <svg viewBox="0 0 140 70" width="140" height="70">
+                  <style>{`
+                    @keyframes meba-notepad-line-1 { 0%, 5% { width: 0; } 18%, 95% { width: 92px; } 100% { width: 0; } }
+                    @keyframes meba-notepad-line-2 { 0%, 22% { width: 0; } 35%, 95% { width: 78px; } 100% { width: 0; } }
+                    @keyframes meba-notepad-line-3 { 0%, 40% { width: 0; } 53%, 95% { width: 86px; } 100% { width: 0; } }
+                    @keyframes meba-pencil-move {
+                      0%, 5%   { transform: translate(15px, 15px); }
+                      22%      { transform: translate(105px, 15px); }
+                      23%, 25% { transform: translate(15px, 30px); }
+                      38%      { transform: translate(91px, 30px); }
+                      39%, 42% { transform: translate(15px, 45px); }
+                      55%      { transform: translate(99px, 45px); }
+                      75%, 100%{ transform: translate(99px, 45px); }
+                    }
+                  `}</style>
+                  {/* Notepad arka plan */}
+                  <rect x="8" y="6" width="124" height="58" rx="3" fill="#fffaf0" stroke="#fbbf24" strokeWidth="0.8" />
+                  <line x1="8" y1="14" x2="132" y2="14" stroke="#fbbf24" strokeWidth="0.5" opacity="0.5" />
+                  {/* Yazi cizgi placeholder'lari (faded gri) */}
+                  <line x1="13" y1="22" x2="115" y2="22" stroke="#e2e8f0" strokeWidth="0.8" />
+                  <line x1="13" y1="37" x2="115" y2="37" stroke="#e2e8f0" strokeWidth="0.8" />
+                  <line x1="13" y1="52" x2="115" y2="52" stroke="#e2e8f0" strokeWidth="0.8" />
+                  {/* Yazi cizgileri (mavi, sirayla beliren) */}
+                  <foreignObject x="13" y="19" width="120" height="6">
+                    <div style={{ width: 0, height: 2, background: '#5b8def', borderRadius: 1, animation: 'meba-notepad-line-1 5s ease-in-out infinite' }} />
+                  </foreignObject>
+                  <foreignObject x="13" y="34" width="120" height="6">
+                    <div style={{ width: 0, height: 2, background: '#5b8def', borderRadius: 1, animation: 'meba-notepad-line-2 5s ease-in-out infinite' }} />
+                  </foreignObject>
+                  <foreignObject x="13" y="49" width="120" height="6">
+                    <div style={{ width: 0, height: 2, background: '#5b8def', borderRadius: 1, animation: 'meba-notepad-line-3 5s ease-in-out infinite' }} />
+                  </foreignObject>
+                  {/* Kalem — animasyonla satirlari "yazar gibi" hareket eder */}
+                  <g style={{ animation: 'meba-pencil-move 5s ease-in-out infinite' }}>
+                    <g transform="translate(0, -6)">
+                      <rect x="-1" y="0" width="2" height="9" fill="#475569" />
+                      <polygon points="-1,9 1,9 0,12" fill="#1e293b" />
+                      <rect x="-1" y="-3" width="2" height="3" fill="#fbbf24" />
+                    </g>
+                  </g>
+                </svg>
               </div>
               <div style={{ color: '#475569' }}>
                 Bu butonu kullanarak <b>kendiniz için</b> her tür notu kaydedebilirsiniz: müşteri görüşmeleri, telefon notları, fiyat tartışmaları, rakip bilgileri…

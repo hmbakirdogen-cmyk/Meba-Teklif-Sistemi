@@ -72,19 +72,32 @@ export default function TeklifEditor() {
   // yaparsa veya tarayıcıyı yeniden açarsa rozet doğru duruma düşer.
   const [pdfKayitDurum, setPdfKayitDurum] = useState<'ok' | 'izinKayip' | 'klasorYok' | 'desteklenmiyor'>('klasorYok');
 
-  // ── Yumusak ipucu sistemi (per-user, sayac dolunca otomatik gizlenir) ──
-  //  1) BASLANGIC banner: yeni teklif → ust bilgileri once doldur
-  //  2) NOTLAR POPOVER: bardaki Notlar butonunu isaret edip aciklayan
-  //     coachmark (Antd Popover ile, butona arrow ile pointing). Ilgili
-  //     kisi henuz atanmamis ise gorulur — atama yapilinca anlamsiz hale
-  //     gelir, gizlenir. Per-user counter, sikmadan hatirlatma felsefesi.
+  // ── Yumusak ipucu sistemi (per-user, sayac + cooldown) ──────────────
+  // Tavsiyeler ara ara farkli zamanlarda gorulur — kullaniciyi sikmamak icin:
+  //  • Per-user counter (5 gosterim sonra otomatik gizlenir)
+  //  • Cooldown (4 saat icinde ayni tip tekrar gosterilmez)
+  //  • Mutex (ayni anda en fazla 1 tip gorulur — oncelik sirasi:
+  //     baslangic > notlar popover > satir islemleri)
   const TAVSIYE_MAX = 5;
+  const TIP_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 saat
+  const tipCooldownGecmis = (k: string): boolean => {
+    if (typeof window === 'undefined') return true;
+    const last = Number.parseInt(window.localStorage.getItem(`${k}_lastShown`) || '0', 10) || 0;
+    return Date.now() - last > TIP_COOLDOWN_MS;
+  };
+  const tipLastShownYaz = (k: string): void => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(`${k}_lastShown`, String(Date.now()));
+  };
   const tavsiyeKey = `meba_teklif_baslangic_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
   const notlarPopoverKey = `meba_notlar_popover_${aktifKullanici?.id || 'anon'}`;
+  const satirIslemleriKey = `meba_satir_islemleri_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
   const [tavsiyeKapatildi, setTavsiyeKapatildi] = useState(false);
   const [tavsiyeBumped, setTavsiyeBumped] = useState(false);
   const [notlarPopoverKapatildi, setNotlarPopoverKapatildi] = useState(false);
   const [notlarPopoverBumped, setNotlarPopoverBumped] = useState(false);
+  const [satirIslemleriKapatildi, setSatirIslemleriKapatildi] = useState(false);
+  const [satirIslemleriBumped, setSatirIslemleriBumped] = useState(false);
   useEffect(() => {
     let iptal = false;
     const sorgula = async () => {
@@ -108,6 +121,8 @@ export default function TeklifEditor() {
     setTavsiyeBumped(false);
     setNotlarPopoverKapatildi(false);
     setNotlarPopoverBumped(false);
+    setSatirIslemleriKapatildi(false);
+    setSatirIslemleriBumped(false);
   }, [id]);
 
   const sablonRef = useRef<HTMLDivElement>(null);
@@ -1119,25 +1134,29 @@ export default function TeklifEditor() {
   }, [persistStatusByMode, sahipDegil, message, kilitli, revizeOnayAc]);
 
   // Tavsiye gosterilecek mi? Yeni teklif (satir yok) + counter dolmamis +
-  // manuel kapatilmamis. Render sirasinda hesaplanir.
+  // manuel kapatilmamis + cooldown gecmis. Render sirasinda hesaplanir.
   const tavsiyeSayisi = (() => {
     if (typeof window === 'undefined') return 0;
     const raw = window.localStorage.getItem(tavsiyeKey);
     return raw ? Number.parseInt(raw, 10) || 0 : 0;
   })();
-  const tavsiyeGoster =
+  const tavsiyeEligible =
     state.satirlar.length === 0 &&
     !tavsiyeKapatildi &&
     !kilitli &&
-    tavsiyeSayisi < TAVSIYE_MAX;
+    tavsiyeSayisi < TAVSIYE_MAX &&
+    tipCooldownGecmis(tavsiyeKey);
+  const tavsiyeGoster = tavsiyeEligible; // baslangic en yuksek oncelik
 
-  // Tavsiye gosterildiyse counter'i bump et (sadece bu teklif acilisinda 1 kere)
+  // Tavsiye gosterildiyse counter + lastShown bump et (1 kere bu acilista)
   useEffect(() => {
     if (tavsiyeGoster && !tavsiyeBumped && typeof window !== 'undefined') {
       const yeni = (Number.parseInt(window.localStorage.getItem(tavsiyeKey) || '0', 10) || 0) + 1;
       window.localStorage.setItem(tavsiyeKey, String(yeni));
+      tipLastShownYaz(tavsiyeKey);
       setTavsiyeBumped(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tavsiyeGoster, tavsiyeBumped, tavsiyeKey]);
 
   // Notlar Popover (Antd Popover coachmark): bardaki Notlar butonunu isaret
@@ -1148,18 +1167,50 @@ export default function TeklifEditor() {
     const raw = window.localStorage.getItem(notlarPopoverKey);
     return raw ? Number.parseInt(raw, 10) || 0 : 0;
   })();
-  const notlarPopoverGoster =
+  const notlarEligible =
     !(state.notlar && state.notlar.trim().length > 0) &&
     !notlarPopoverKapatildi &&
     !kilitli &&
-    notlarPopoverSayisi < TAVSIYE_MAX;
+    notlarPopoverSayisi < TAVSIYE_MAX &&
+    tipCooldownGecmis(notlarPopoverKey);
+  // Mutex: baslangic gosterildiyse notlar bekler
+  const notlarPopoverGoster = notlarEligible && !tavsiyeGoster;
   useEffect(() => {
     if (notlarPopoverGoster && !notlarPopoverBumped && typeof window !== 'undefined') {
       const yeni = (Number.parseInt(window.localStorage.getItem(notlarPopoverKey) || '0', 10) || 0) + 1;
       window.localStorage.setItem(notlarPopoverKey, String(yeni));
+      tipLastShownYaz(notlarPopoverKey);
       setNotlarPopoverBumped(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notlarPopoverGoster, notlarPopoverBumped, notlarPopoverKey]);
+
+  // Satir Islemleri Tavsiyesi (animasyonlu banner): satir arasina kalem ekleme
+  // ve satir hucresinde mavi cizgi ile yukseklik ayarlama ozelliklerini SVG
+  // animasyonlu demolarla anlatir. En az 1 satir varsa gorunur (eylem
+  // anlamli olur), counter < MAX ve kapatilmamis.
+  const satirIslemleriSayisi = (() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = window.localStorage.getItem(satirIslemleriKey);
+    return raw ? Number.parseInt(raw, 10) || 0 : 0;
+  })();
+  const satirIslemleriEligible =
+    state.satirlar.length >= 1 &&
+    !satirIslemleriKapatildi &&
+    !kilitli &&
+    satirIslemleriSayisi < TAVSIYE_MAX &&
+    tipCooldownGecmis(satirIslemleriKey);
+  // Mutex: baslangic veya notlar gosterildiyse satir islemleri bekler
+  const satirIslemleriGoster = satirIslemleriEligible && !tavsiyeGoster && !notlarPopoverGoster;
+  useEffect(() => {
+    if (satirIslemleriGoster && !satirIslemleriBumped && typeof window !== 'undefined') {
+      const yeni = (Number.parseInt(window.localStorage.getItem(satirIslemleriKey) || '0', 10) || 0) + 1;
+      window.localStorage.setItem(satirIslemleriKey, String(yeni));
+      tipLastShownYaz(satirIslemleriKey);
+      setSatirIslemleriBumped(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satirIslemleriGoster, satirIslemleriBumped, satirIslemleriKey]);
 
   return (
     <div style={{
@@ -1191,6 +1242,40 @@ export default function TeklifEditor() {
         onNotlarTavsiyeKapat={() => setNotlarPopoverKapatildi(true)}
       />
 
+      {/* Animasyonli tavsiye banner'larini ortak kullanan CSS keyframe'leri.
+          Inline tutuyoruz ki banner ile birlikte gelsin (separated CSS yok). */}
+      <style>{`
+        @keyframes meba-fade-slide-in {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes meba-row-insert-gap {
+          0%, 20%   { transform: translateY(0); }
+          40%, 60%  { transform: translateY(7px); }
+          80%, 100% { transform: translateY(0); }
+        }
+        @keyframes meba-row-insert-plus {
+          0%, 30%  { opacity: 0; transform: scale(0.6); }
+          50%, 70% { opacity: 1; transform: scale(1); }
+          90%, 100%{ opacity: 0; transform: scale(0.6); }
+        }
+        @keyframes meba-row-resize-handle {
+          0%, 15%   { opacity: 0; transform: scaleX(0.4); }
+          25%, 75%  { opacity: 1; transform: scaleX(1); }
+          90%, 100% { opacity: 0; transform: scaleX(0.4); }
+        }
+        @keyframes meba-row-resize-grow {
+          0%, 30%   { transform: scaleY(1); transform-origin: top; }
+          50%, 70%  { transform: scaleY(1.55); transform-origin: top; }
+          85%, 100% { transform: scaleY(1); transform-origin: top; }
+        }
+        @keyframes meba-resize-cursor-move {
+          0%, 30%   { transform: translateY(0); }
+          50%, 70%  { transform: translateY(11px); }
+          85%, 100% { transform: translateY(0); }
+        }
+      `}</style>
+
       {/* Yeni Teklif Tavsiyesi — yumusak ipucu, ilk N teklifte gosterilir,
           sonra otomatik kapanir (per-user counter localStorage). Tip:
           "Kalemlere baslamadan once ust kisimdaki bilgileri tamamla". */}
@@ -1212,18 +1297,53 @@ export default function TeklifEditor() {
             lineHeight: 1.45,
             color: 'var(--text-primary)',
             boxShadow: '0 1px 2px rgba(91,141,239,0.06)',
+            animation: 'meba-fade-slide-in 280ms ease-out',
           }}
         >
-          <span style={{
-            fontSize: 16,
-            lineHeight: 1,
-            paddingTop: 1,
-            color: '#5b8def',
-            flexShrink: 0,
-          }}>💡</span>
+          {/* Animasyonlu demo: tepe alanindaki bilgi kutularinin sirayla
+              "checkmark" alarak doldurulmasi — kullaniciya akis dramatik gosterir. */}
+          <div style={{ flex: '0 0 92px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 92 52" width="92" height="52">
+              <style>{`
+                .meba-baslangic-cell { fill: #e0e7ff; stroke: #a5b4fc; stroke-width: 0.6; }
+                .meba-baslangic-fill { transform-origin: left center; }
+                .meba-baslangic-fill-1 { animation: meba-fill-cell 4s ease-in-out infinite; animation-delay: 0.2s; }
+                .meba-baslangic-fill-2 { animation: meba-fill-cell 4s ease-in-out infinite; animation-delay: 0.7s; }
+                .meba-baslangic-fill-3 { animation: meba-fill-cell 4s ease-in-out infinite; animation-delay: 1.2s; }
+                .meba-baslangic-fill-4 { animation: meba-fill-cell 4s ease-in-out infinite; animation-delay: 1.7s; }
+                .meba-baslangic-check-1 { animation: meba-check-show 4s ease-in-out infinite; animation-delay: 0.6s; }
+                .meba-baslangic-check-2 { animation: meba-check-show 4s ease-in-out infinite; animation-delay: 1.1s; }
+                .meba-baslangic-check-3 { animation: meba-check-show 4s ease-in-out infinite; animation-delay: 1.6s; }
+                .meba-baslangic-check-4 { animation: meba-check-show 4s ease-in-out infinite; animation-delay: 2.1s; }
+                @keyframes meba-fill-cell { 0%, 5% { transform: scaleX(0); } 12%, 75% { transform: scaleX(1); } 88%, 100% { transform: scaleX(0); } }
+                @keyframes meba-check-show { 0%, 12% { opacity: 0; transform: scale(0.4); } 22%, 75% { opacity: 1; transform: scale(1); } 88%, 100% { opacity: 0; transform: scale(0.4); } }
+              `}</style>
+              {/* 4 satir, her biri 2 hucre — bir form goruntusu */}
+              {[0, 1, 2, 3].map((row) => {
+                const y = 4 + row * 11;
+                return (
+                  <g key={row}>
+                    {/* Label hücresi */}
+                    <rect x="4" y={y} width="20" height="9" rx="1.5" className="meba-baslangic-cell" />
+                    <line x1="6" y1={y + 4.7} x2="20" y2={y + 4.7} stroke="#6366f1" strokeWidth="0.9" strokeLinecap="round" opacity="0.55" />
+                    {/* Value hücresi — soluk arka plan, animasyonla dolar */}
+                    <rect x="26" y={y} width="50" height="9" rx="1.5" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="0.5" />
+                    <rect x="26" y={y} width="50" height="9" rx="1.5" fill="#c7d2fe" className={`meba-baslangic-fill meba-baslangic-fill-${row + 1}`} />
+                    <line x1="28" y1={y + 4.7} x2="58" y2={y + 4.7} stroke="#4f46e5" strokeWidth="1" strokeLinecap="round" opacity="0.75" className={`meba-baslangic-fill meba-baslangic-fill-${row + 1}`} />
+                    {/* Sag tarafta checkmark — degisiklik tamamlandi */}
+                    <g transform={`translate(${82}, ${y + 4.5})`} className={`meba-baslangic-check meba-baslangic-check-${row + 1}`} style={{ transformOrigin: 'center' }}>
+                      <circle cx="0" cy="0" r="3.2" fill="#10b981" />
+                      <path d="M -1.6 0 L -0.4 1.2 L 1.6 -1" stroke="#fff" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </g>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, marginBottom: 2, color: 'var(--text-primary)' }}>
-              Tavsiye — Akış İçin Sıralama
+            <div style={{ fontWeight: 600, marginBottom: 2, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>💡</span>
+              <span>Tavsiye — Akış İçin Sıralama</span>
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>
               Kalemleri eklemeye başlamadan önce A4'ün üst kısmındaki <b>cari</b>, <b>ilgili kişi</b>, <b>tarih</b>, <b>para birimi</b>, <b>KDV</b> ve <b>ödeme vadesi</b> gibi bilgileri tamamlamanız akışı çok daha rahat hale getirir.
@@ -1240,6 +1360,127 @@ export default function TeklifEditor() {
             aria-label="Tavsiyeyi kapat"
             title="Bu mesajı kapat"
             style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: 4,
+              fontSize: 14,
+              lineHeight: 1,
+              borderRadius: 4,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#475569'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Satir Islemleri Tavsiyesi — iki animasyonlu SVG demo:
+          1) Satir arasina kalem ekleme: rows separate, + appears between
+          2) Satir yuksekligi: mavi handle belirir, cursor sürükler, satır büyür */}
+      {satirIslemleriGoster && (
+        <div
+          role="status"
+          style={{
+            display: 'flex',
+            alignItems: 'stretch',
+            gap: 14,
+            padding: '12px 16px',
+            margin: '8px 16px 0 16px',
+            background: 'linear-gradient(135deg, rgba(99,179,237,0.10) 0%, rgba(159,140,232,0.07) 100%)',
+            border: '1px solid rgba(99,179,237,0.22)',
+            borderLeft: '3px solid #5b8def',
+            borderRadius: 8,
+            fontSize: 12.5,
+            lineHeight: 1.45,
+            color: 'var(--text-primary)',
+            boxShadow: '0 1px 2px rgba(91,141,239,0.06)',
+            position: 'relative',
+            animation: 'meba-fade-slide-in 280ms ease-out',
+          }}
+        >
+          {/* Demo 1: Satir arasina kalem ekle */}
+          <div style={{ flex: '0 0 124px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 120 50" width="120" height="50" style={{ flexShrink: 0 }}>
+              <rect x="4" y="4" width="112" height="13" rx="2" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="0.6" />
+              <line x1="10" y1="10.5" x2="40" y2="10.5" stroke="#6366f1" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+              <line x1="50" y1="10.5" x2="100" y2="10.5" stroke="#6366f1" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
+              <g style={{ animation: 'meba-row-insert-gap 2.6s ease-in-out infinite' }}>
+                <rect x="4" y="20" width="112" height="13" rx="2" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="0.6" />
+                <line x1="10" y1="26.5" x2="36" y2="26.5" stroke="#6366f1" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+                <line x1="46" y1="26.5" x2="100" y2="26.5" stroke="#6366f1" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
+              </g>
+              <g transform="translate(60, 20)" style={{ animation: 'meba-row-insert-plus 2.6s ease-in-out infinite', transformOrigin: 'center' }}>
+                <circle cx="0" cy="0" r="5.5" fill="#5b8def" />
+                <line x1="-2.6" y1="0" x2="2.6" y2="0" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
+                <line x1="0" y1="-2.6" x2="0" y2="2.6" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
+              </g>
+            </svg>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              ARAYA EKLE
+            </div>
+          </div>
+
+          <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
+
+          {/* Demo 2: Mavi cizgili row resize */}
+          <div style={{ flex: '0 0 124px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 120 50" width="120" height="50" style={{ flexShrink: 0 }}>
+              <g style={{ animation: 'meba-row-resize-grow 2.6s ease-in-out infinite' }}>
+                <rect x="4" y="6" width="112" height="14" rx="2" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="0.6" />
+                <line x1="10" y1="13" x2="36" y2="13" stroke="#6366f1" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+                <line x1="46" y1="13" x2="98" y2="13" stroke="#6366f1" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
+              </g>
+              {/* Mavi handle line — alt kenarda hover'da beliren */}
+              <line
+                x1="20" y1="20.5" x2="100" y2="20.5"
+                stroke="#5b8def" strokeWidth="2" strokeLinecap="round"
+                style={{ animation: 'meba-row-resize-handle 2.6s ease-in-out infinite', transformOrigin: 'center' }}
+              />
+              {/* Cursor (resize arrow) — handle uzerine konumlanip asagi suruklenir */}
+              <g style={{ animation: 'meba-resize-cursor-move 2.6s ease-in-out infinite' }}>
+                <path d="M 60 20.5 L 60 18 M 60 20.5 L 60 23 M 58 18.5 L 60 16.5 L 62 18.5 M 58 22.5 L 60 24.5 L 62 22.5" stroke="#1e293b" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </g>
+            </svg>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              YÜKSEKLİĞİ AYARLA
+            </div>
+          </div>
+
+          <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
+
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 20 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>💡</span>
+              <span>Satır İşlemleri — İki Pratik Kısayol</span>
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: 3 }}>
+                <b>Araya kalem ekle:</b> Bir satırın hemen üstüne fareyi getirin, beliren <b>+</b> butonuyla yeni satır araya eklenir.
+              </div>
+              <div>
+                <b>Yüksekliği ayarla:</b> Satır hücresinin alt kenarında beliren <b>mavi çizgiyi</b> tutup aşağı sürükleyin — uzun açıklamalar için satır boyu büyür.
+              </div>
+              {satirIslemleriSayisi < TAVSIYE_MAX - 1 && (
+                <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
+                  ({TAVSIYE_MAX - satirIslemleriSayisi} gösterim sonra otomatik gizlenir)
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSatirIslemleriKapatildi(true)}
+            aria-label="Tavsiyeyi kapat"
+            title="Bu mesajı kapat"
+            style={{
+              position: 'absolute',
+              top: 6,
+              right: 8,
               background: 'transparent',
               border: 'none',
               color: '#94a3b8',
