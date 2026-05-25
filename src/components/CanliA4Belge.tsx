@@ -362,6 +362,7 @@ export default function CanliA4Belge({
             onTarihDegistir={onTarihDegistir}
             onParaBirimiDegistir={onParaBirimiDegistir}
             satirBazliParaBirimi={satirBazliParaBirimi}
+            onSatirBazliParaBirimiDegistir={onSatirBazliParaBirimiDegistir}
             satirBazliIskonto={satirBazliIskonto}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
