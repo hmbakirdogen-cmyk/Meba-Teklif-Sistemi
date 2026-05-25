@@ -3,7 +3,6 @@ import { Tooltip } from 'antd';
 import {
   PremiumEditIcon,
   PremiumImageIcon,
-  PremiumRowDiscountIcon,
   PremiumKdvIcon,
   PremiumDiscountIcon,
   PremiumVisibilityIcon,
@@ -44,8 +43,6 @@ interface KumandaPaneliProps {
   onKdvOraniDegistir: (v: number) => void;
   iskontoOrani: number;
   onIskontoOraniDegistir: (v: number) => void;
-  satirBazliIskonto: boolean;
-  onSatirBazliIskontoDegistir: (v: boolean) => void;
   /** Not alanının A4 görünümünde + PDF'te gösterilip gösterilmeyeceği. */
   notlarGosterilsin: boolean;
   onNotlarGosterilsinDegistir: (v: boolean) => void;
@@ -72,7 +69,6 @@ export default function KumandaPaneli({
   readOnly, onReadOnlyDegistir,
   kdvOrani, onKdvOraniDegistir,
   iskontoOrani, onIskontoOraniDegistir,
-  satirBazliIskonto, onSatirBazliIskontoDegistir,
   notlarGosterilsin, onNotlarGosterilsinDegistir,
   sagPanelOpen, cellPopupOpen = false, onResimEkle,
   visibility, onVisibilityDegistir,
@@ -1777,15 +1773,10 @@ export default function KumandaPaneli({
         <section className="panel-section">
           <SecLabel text="Satır Ayarları" />
           <div className="grid">
-            <SquareToggle
-              labelLines={[]}
-              ariaLabel={satirBazliIskonto ? 'Satır İskontosu: Açık' : 'Satır İskontosu: Kapalı'}
-              extraClass="button-row-discount"
-              icon={<PremiumRowDiscountIcon />}
-              on={satirBazliIskonto}
-              onClick={() => onSatirBazliIskontoDegistir(!satirBazliIskonto)}
-              disabled={readOnly}
-            />
+            {/* "Satir Iskonto" toggle butonu KALDIRILDI: Birim Fiyat popup'inda
+                Iskonto alani her zaman gorunur. Kullanici deger girince
+                satirBazliIskonto auto-true olur (kolon ortaya cikar). Manuel
+                toggle gereksiz — kullanici dostu pattern. */}
             {/* "Satir Para Birimi" toggle butonu KALDIRILDI: A4 para birimi
                 karti zaten "Karisik (Satir Bazli)" secenegini sunuyor. Tek
                 tip secimi karti uzerinden otomatik kapatiliyor. Panel'de

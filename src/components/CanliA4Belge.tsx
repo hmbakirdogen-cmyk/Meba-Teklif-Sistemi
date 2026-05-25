@@ -29,6 +29,7 @@ interface CanliA4BelgeProps {
   satirBazliParaBirimi: boolean;
   onSatirBazliParaBirimiDegistir?: (aktif: boolean) => void;
   satirBazliIskonto: boolean;
+  onSatirBazliIskontoDegistir?: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onGecerlilikSuresiDegistir: (sure: string) => void;
@@ -93,6 +94,7 @@ export default function CanliA4Belge({
   satirBazliParaBirimi,
   onSatirBazliParaBirimiDegistir,
   satirBazliIskonto,
+  onSatirBazliIskontoDegistir,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onGecerlilikSuresiDegistir,
@@ -273,6 +275,7 @@ export default function CanliA4Belge({
           satirBazliParaBirimi={satirBazliParaBirimi}
           onSatirBazliParaBirimiDegistir={onSatirBazliParaBirimiDegistir}
           satirBazliIskonto={satirBazliIskonto}
+          onSatirBazliIskontoDegistir={onSatirBazliIskontoDegistir}
           onKdvOraniDegistir={onKdvOraniDegistir}
           onOdemeVadesiDegistir={onOdemeVadesiDegistir}
           onGecerlilikSuresiDegistir={onGecerlilikSuresiDegistir}
@@ -364,6 +367,7 @@ export default function CanliA4Belge({
             satirBazliParaBirimi={satirBazliParaBirimi}
             onSatirBazliParaBirimiDegistir={onSatirBazliParaBirimiDegistir}
             satirBazliIskonto={satirBazliIskonto}
+          onSatirBazliIskontoDegistir={onSatirBazliIskontoDegistir}
             onKdvOraniDegistir={onKdvOraniDegistir}
             onOdemeVadesiDegistir={onOdemeVadesiDegistir}
             onGecerlilikSuresiDegistir={onGecerlilikSuresiDegistir}

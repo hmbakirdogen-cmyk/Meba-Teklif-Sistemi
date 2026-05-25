@@ -1684,6 +1684,7 @@ export default function TeklifEditor() {
               satirBazliParaBirimi={state.satirBazliParaBirimi}
               onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
               satirBazliIskonto={state.satirBazliIskonto}
+              onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
               onGecerlilikSuresiDegistir={state.setGecerlilikSuresi}
@@ -1902,8 +1903,6 @@ export default function TeklifEditor() {
           onKdvOraniDegistir={state.setKdvOrani}
           iskontoOrani={state.iskontoOrani}
           onIskontoOraniDegistir={state.setIskontoOrani}
-          satirBazliIskonto={state.satirBazliIskonto}
-          onSatirBazliIskontoDegistir={state.setSatirBazliIskonto}
           notlarGosterilsin={state.notlarGosterilsin}
           onNotlarGosterilsinDegistir={state.setNotlarGosterilsin}
           sagPanelOpen={state.panelModu !== null}

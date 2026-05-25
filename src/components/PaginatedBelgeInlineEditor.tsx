@@ -99,6 +99,9 @@ interface PaginatedBelgeInlineEditorProps {
   satirBazliParaBirimi: boolean;
   onSatirBazliParaBirimiDegistir?: (aktif: boolean) => void;
   satirBazliIskonto: boolean;
+  /** Popup'ta iskonto alanina deger girilince auto-enable icin kullanilir.
+   *  Manuel toggle kaldirildi — kullanici eylem yaptiginda otomatik aktiflesir. */
+  onSatirBazliIskontoDegistir?: (aktif: boolean) => void;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
   onGecerlilikSuresiDegistir: (sure: string) => void;
@@ -257,6 +260,7 @@ function CellEditPopup({
   editingAlan,
   satirFocusCell,
   satirBazliIskonto,
+  onSatirBazliIskontoDegistir,
   onSatirGuncelle,
   onSatiraSetUygula,
   onClose,
@@ -267,6 +271,8 @@ function CellEditPopup({
   editingAlan: EditingAlan;
   satirFocusCell: SatirCellField;
   satirBazliIskonto: boolean;
+  /** Iskonto degeri > 0 girilince auto-enable icin (manuel toggle kaldirildi). */
+  onSatirBazliIskontoDegistir?: (aktif: boolean) => void;
   onSatirGuncelle: (id: string, alan: keyof TeklifSatiri, deger: unknown) => void;
   onSatiraSetUygula: (satirId: string, setId: string) => void;
   onClose: () => void;
@@ -527,26 +533,11 @@ function CellEditPopup({
     );
   } else if (satirFocusCell === 'birimFiyat') {
     title = 'Birim Fiyat';
-    if (!satirBazliIskonto) {
-      body = (
-        <InputNumber
-          autoFocus
-          size="middle"
-          style={{ width: '100%' }}
-          value={satir.birimFiyat}
-          min={0}
-          step={0.01}
-          decimalSeparator=","
-          controls={false}
-          onChange={(value) => onSatirGuncelle(satir.id, 'birimFiyat', value ?? 0)}
-          onFocus={(e) => (e.target as HTMLInputElement).select?.()}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); closeAndPersistLastPrice(); }
-            if (e.key === 'Escape') onClose();
-          }}
-        />
-      );
-    } else {
+    {
+      // Birim Fiyat + Iskonto kompakt popup — IKISI DE her zaman gosterilir.
+      // Iskonto alanina deger girilince satirBazliIskonto auto-true olur
+      // (kolon ortaya cikar). Manuel toggle kalkti — kullanici eylem yapinca
+      // sistem kendi acar. Bos veya 0 birakirsa hicbir sey gozukmez.
       const handleApplyLastPrice = () => {
         if (!sonUrunFiyati) return;
         onSatirGuncelle(satir.id, 'birimFiyat', sonUrunFiyati.birimFiyat);
@@ -584,7 +575,15 @@ function CellEditPopup({
               decimalSeparator=","
               controls={false}
               addonAfter="%"
-              onChange={(value) => onSatirGuncelle(satir.id, 'indirimOrani', value ?? 0)}
+              onChange={(value) => {
+                const yeni = value ?? 0;
+                onSatirGuncelle(satir.id, 'indirimOrani', yeni);
+                // Auto-enable: iskonto kolonu A4'te ortaya cikar — kullanici
+                // toggle butonu aramak zorunda kalmaz.
+                if (yeni > 0 && !satirBazliIskonto) {
+                  onSatirBazliIskontoDegistir?.(true);
+                }
+              }}
               onFocus={(e) => (e.target as HTMLInputElement).select?.()}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -1072,6 +1071,7 @@ export default function PaginatedBelgeInlineEditor({
   satirBazliParaBirimi,
   onSatirBazliParaBirimiDegistir,
   satirBazliIskonto,
+  onSatirBazliIskontoDegistir,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
   onGecerlilikSuresiDegistir,
@@ -2494,6 +2494,7 @@ export default function PaginatedBelgeInlineEditor({
           editingAlan={editingAlan}
           satirFocusCell={satirFocusCell}
           satirBazliIskonto={satirBazliIskonto}
+          onSatirBazliIskontoDegistir={onSatirBazliIskontoDegistir}
           onSatirGuncelle={onSatirGuncelle}
           onSatiraSetUygula={onSatiraSetUygula}
           onClose={() => onEditingAlanDegistir(null)}
