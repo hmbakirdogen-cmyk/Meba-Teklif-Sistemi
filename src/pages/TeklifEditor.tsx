@@ -77,15 +77,26 @@ export default function TeklifEditor() {
   //  • Per-user counter (5 gosterim sonra otomatik gizlenir)
   //  • Cooldown (4 saat icinde ayni tip tekrar gosterilmez)
   //  • Mutex (ayni anda en fazla 1 tip gorulur — oncelik sirasi:
-  //     baslangic > notlar popover > satir islemleri)
-  const TAVSIYE_MAX = 5;
-  const TIP_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 saat
+  //     baslangic > notlar popover > satir islemleri > akilli hucreler)
+  //
+  // DEBUG MODE: ?gostertavsiye=1 query param veya localStorage debug flag
+  // ile counter + cooldown BYPASS olur → tavsiyeler mutlaka gorulur (test).
+  const debugTavsiye = (() => {
+    if (typeof window === 'undefined') return false;
+    const fromUrl = new URLSearchParams(window.location.search).get('gostertavsiye') === '1';
+    const fromLs = window.localStorage.getItem('meba_debug_tavsiye') === '1';
+    return fromUrl || fromLs;
+  })();
+  const TAVSIYE_MAX = debugTavsiye ? 99999 : 5;
+  const TIP_COOLDOWN_MS = debugTavsiye ? 0 : 4 * 60 * 60 * 1000; // debug=0, normal 4 saat
   const tipCooldownGecmis = (k: string): boolean => {
+    if (debugTavsiye) return true;
     if (typeof window === 'undefined') return true;
     const last = Number.parseInt(window.localStorage.getItem(`${k}_lastShown`) || '0', 10) || 0;
     return Date.now() - last > TIP_COOLDOWN_MS;
   };
   const tipLastShownYaz = (k: string): void => {
+    if (debugTavsiye) return; // debug mode'da yazma → her zaman gorulebilir
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(`${k}_lastShown`, String(Date.now()));
   };
@@ -1246,6 +1257,35 @@ export default function TeklifEditor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [akilliHucrelerGoster, akilliHucrelerBumped, akilliHucrelerKey]);
+
+  // Debug log — kullanici neden tavsiyelerin gorulmedigini console'dan goruyor.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const tavsiyeDebug = {
+      debugMode: debugTavsiye,
+      kilitli,
+      satirSayisi: state.satirlar.length,
+      notlarBosMu: !(state.notlar && state.notlar.trim().length > 0),
+      // Sayaclar
+      baslangicSayim: tavsiyeSayisi,
+      notlarSayim: notlarPopoverSayisi,
+      satirIslemSayim: satirIslemleriSayisi,
+      akilliSayim: akilliHucrelerSayisi,
+      // Goster mi?
+      baslangicGoster: tavsiyeGoster,
+      notlarGoster: notlarPopoverGoster,
+      satirIslemGoster: satirIslemleriGoster,
+      akilliGoster: akilliHucrelerGoster,
+    };
+    console.log('[MEBA Tavsiye Debug]', tavsiyeDebug);
+    if (debugTavsiye) {
+      console.log('%c⚡ DEBUG MODE AKTIF — tavsiyeler kosul kontrolusuz gorulur', 'color: #5b8def; font-weight: bold;');
+    }
+  }, [
+    debugTavsiye, kilitli, state.satirlar.length, state.notlar,
+    tavsiyeSayisi, notlarPopoverSayisi, satirIslemleriSayisi, akilliHucrelerSayisi,
+    tavsiyeGoster, notlarPopoverGoster, satirIslemleriGoster, akilliHucrelerGoster,
+  ]);
 
   return (
     <div style={{
