@@ -1850,11 +1850,13 @@ export default function PaginatedBelgeInlineEditor({
         // 'KARISIK' ozel anahtar — secilince satirBazliParaBirimi acilir, her
         // satir kendi para birimine sahip olur. Document-level paraBirimi
         // degismez (mevcut deger korunur, gerek olursa kullanilir).
+        // Label'da semboller (₺ · € · $) ile kullaniciya ne demek oldugu
+        // direkt gorunur — 'Satır Bazlı' jargon yerine.
         const paraBirimiMenuItems = [
           ...akilliParaBirimleri.map(pb => ({ key: pb, label: PB_LABEL[pb] || pb })),
           ...(onSatirBazliParaBirimiDegistir ? [
             { type: 'divider' as const },
-            { key: 'KARISIK', label: 'Karışık (Satır Bazlı)' },
+            { key: 'KARISIK', label: 'Karışık (₺ · € · $)' },
           ] : []),
         ];
         const odemeVadesiMenuItems = akilliOdemeVadesi.map((v) => ({ key: v, label: v }));
