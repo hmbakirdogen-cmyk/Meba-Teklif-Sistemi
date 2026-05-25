@@ -579,8 +579,27 @@ export function useBelgeState(
   }, [birimler, paraBirimi, satirDegisimiAnlikKaydet, varsayilanMarka]);
 
   const setParaBirimi = useCallback((pb: ParaBirimi) => {
+    if (pb === paraBirimi) return;
+    const eski = paraBirimi;
+    // Mevcut FIYATLI satirlari ESKI para biriminde pinle — kullanicinin daha
+    // once EUR girdigi 100 sayisi USD'ye gecince 100 USD olarak ezilmesin.
+    // Genel toplam karisik para birimi olarak (orn. 5000 EUR + 1200 USD)
+    // dogru sekilde gosterilir. satirBazliParaBirimi otomatik acilir ki
+    // kullanici hangi satir hangi para biriminde belli olsun.
+    const pinlenecekVar = satirlar.some((s) =>
+      !s.setAltKalem && !s.paraBirimi && (s.birimFiyat ?? 0) > 0,
+    );
+    if (pinlenecekVar) {
+      setSatirlarState((prev) => prev.map((s) => {
+        if (s.setAltKalem) return s;
+        if (s.paraBirimi) return s;
+        if ((s.birimFiyat ?? 0) <= 0) return s;
+        return { ...s, paraBirimi: eski };
+      }));
+      setSatirBazliParaBirimiState(true);
+    }
     setParaBirimiState(pb);
-  }, []);
+  }, [paraBirimi, satirlar]);
 
   const setSatirBazliParaBirimi = useCallback((aktif: boolean) => {
     setSatirBazliParaBirimiState(aktif);

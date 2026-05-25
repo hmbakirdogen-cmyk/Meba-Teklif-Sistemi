@@ -1348,22 +1348,22 @@ export default function TeklifEditor() {
             <div style={{ color: 'var(--text-secondary)' }}>
               Kalemleri eklemeye başlamadan önce A4'ün üst kısmındaki <b>cari</b>, <b>ilgili kişi</b>, <b>tarih</b>, <b>para birimi</b>, <b>KDV</b> ve <b>ödeme vadesi</b> gibi bilgileri tamamlamanız akışı çok daha rahat hale getirir.
             </div>
-            {/* Para birimi kritik uyarisi — onemli yanlis kullanim riski */}
+            {/* Para birimi bilgi notu — kullanici davranisi dogru anlasin */}
             <div style={{
               marginTop: 8,
               padding: '6px 10px 6px 12px',
-              background: 'rgba(251, 191, 36, 0.10)',
-              border: '1px solid rgba(251, 191, 36, 0.35)',
-              borderLeft: '3px solid #f59e0b',
+              background: 'rgba(99, 179, 237, 0.08)',
+              border: '1px solid rgba(99, 179, 237, 0.25)',
+              borderLeft: '3px solid #5b8def',
               borderRadius: 6,
               fontSize: 11.5,
-              color: '#78350f',
+              color: '#1e3a8a',
               lineHeight: 1.45,
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                <span style={{ fontSize: 13, lineHeight: 1, paddingTop: 1, flexShrink: 0 }}>⚠️</span>
+                <span style={{ fontSize: 13, lineHeight: 1, paddingTop: 1, flexShrink: 0 }}>ℹ️</span>
                 <div>
-                  <b>Para birimi uyarısı:</b> Önce EUR girip rakamları yazdıktan sonra USD'ye geçerseniz, <b>fiyatlar değişmez, sadece etiket değişir</b> (100 EUR → 100 USD olur, dönüşüm <i>yapılmaz</i>). Yanlış fiyatlandırma riskine karşı para birimini <b>kalemlere başlamadan önce</b> belirleyin.
+                  <b>Para birimi:</b> Sonradan değiştirirseniz endişe etmeyin — <b>önceki satırların fiyatları girildiği para biriminde otomatik korunur</b>. Örn: 100 EUR girip USD'ye geçerseniz, o satır 100 EUR olarak kalır, sadece yeni satırlar USD olur. Genel toplam karma para birimi olarak gösterilir.
                 </div>
               </div>
             </div>
