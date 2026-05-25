@@ -5,7 +5,10 @@ param(
   [switch]$NoUpdate,
   [switch]$NoBrowser,
   [switch]$OpenVSCode,
-  [switch]$AutoStash
+  [switch]$AutoStash,
+  [switch]$LiveApi,
+  [string]$LiveApiBase = "https://meba-teklif.onrender.com/api",
+  [int]$LivePort = 5174
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,6 +64,15 @@ function Test-HttpOk([string]$Url, [int]$TimeoutSec = 3) {
 function Test-ApiOk {
   try {
     $res = Invoke-RestMethod -Uri "http://localhost:3001/api/health" -TimeoutSec 3
+    return ($res.ok -eq $true -and $res.prismaOk -eq $true)
+  } catch {
+    return $false
+  }
+}
+
+function Test-LiveApiOk {
+  try {
+    $res = Invoke-RestMethod -Uri "$LiveApiBase/health" -TimeoutSec 10
     return ($res.ok -eq $true -and $res.prismaOk -eq $true)
   } catch {
     return $false
@@ -278,6 +290,11 @@ function Ensure-Prisma([string]$Root) {
 }
 
 function Start-DevServer([string]$Root) {
+  if ($LiveApi) {
+    Start-LiveApiFrontend $Root
+    return
+  }
+
   $apiReady = Test-ApiOk
   $webReady = Test-HttpOk "http://localhost:5173/"
 
@@ -316,6 +333,45 @@ function Start-DevServer([string]$Root) {
   }
 }
 
+function Start-LiveApiFrontend([string]$Root) {
+  if (Test-LiveApiOk) {
+    Write-Ok "Canli API hazir: $LiveApiBase"
+  } else {
+    Write-Warn "Canli API saglik kontrolu gecemedi: $LiveApiBase"
+  }
+
+  $url = "http://localhost:$LivePort/"
+  if (Test-HttpOk $url) {
+    Write-Ok "Canli API modunda localhost zaten calisiyor: $url"
+    return
+  }
+
+  if (Test-LocalPort $LivePort) {
+    Write-Warn "$LivePort portu dolu ama web cevap vermiyor. Eski sureci kapatman gerekebilir."
+  }
+
+  Write-Step "Frontend canli API modunda baslatiliyor..."
+  $log = Join-Path $Root "dev-live-api-runtime.log"
+  $escapedRoot = $Root.Replace("'", "''")
+  $escapedLog = $log.Replace("'", "''")
+  $escapedApi = $LiveApiBase.Replace("'", "''")
+  $cmd = "Set-Location -LiteralPath '$escapedRoot'; `$env:VITE_API_BASE='$escapedApi'; npx vite --host 0.0.0.0 --port $LivePort *> '$escapedLog'"
+  $proc = Start-Process -FilePath "powershell" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd) -WindowStyle Hidden -PassThru
+  Write-Ok "Canli API frontend sureci basladi (PID $($proc.Id)). Log: $log"
+
+  $deadline = (Get-Date).AddSeconds(60)
+  do {
+    Start-Sleep -Seconds 2
+    if (Test-HttpOk $url) { break }
+  } while ((Get-Date) -lt $deadline)
+
+  if (Test-HttpOk $url) {
+    Write-Ok "Canli API modu hazir: $url"
+  } else {
+    Write-Warn "Canli API modu tam hazir gorunmuyor. Log dosyasini kontrol et: $log"
+  }
+}
+
 $root = Resolve-RepoPath
 if (-not (Test-Path -LiteralPath (Join-Path $root ".git"))) {
   throw "Repo bulunamadi: $root"
@@ -330,7 +386,7 @@ Set-Location -LiteralPath $root
 Update-FromGit $root
 
 $alreadyRunning = (Test-ApiOk) -and (Test-HttpOk "http://localhost:5173/")
-if ($alreadyRunning -and -not $script:CodeUpdated -and -not $script:NpmInstallNeededFromGit) {
+if (-not $LiveApi -and $alreadyRunning -and -not $script:CodeUpdated -and -not $script:NpmInstallNeededFromGit) {
   Write-Ok "Localhost zaten calisiyor; gereksiz kurulum adimlari atlandi."
   if (-not $NoBrowser) {
     Start-Process "http://localhost:5173/"
@@ -348,12 +404,20 @@ if ($alreadyRunning -and $script:CodeUpdated) {
 }
 
 Ensure-NpmInstall $root
-Ensure-Postgres $root
-Ensure-Prisma $root
+if ($LiveApi) {
+  Write-Ok "Canli API modunda lokal Postgres/migration adimlari atlandi."
+} else {
+  Ensure-Postgres $root
+  Ensure-Prisma $root
+}
 Start-DevServer $root
 
 if (-not $NoBrowser) {
-  Start-Process "http://localhost:5173/"
+  if ($LiveApi) {
+    Start-Process "http://localhost:$LivePort/"
+  } else {
+    Start-Process "http://localhost:5173/"
+  }
 }
 
 if ($OpenVSCode -and (Test-Command "code")) {

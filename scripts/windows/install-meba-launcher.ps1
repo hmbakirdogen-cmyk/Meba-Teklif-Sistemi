@@ -27,11 +27,13 @@ function Resolve-RepoPath {
   return (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path
 }
 
-function New-MebaShortcut([string]$ShortcutPath, [string]$RepoRoot, [string]$StartScript) {
+function New-MebaShortcut([string]$ShortcutPath, [string]$RepoRoot, [string]$StartScript, [string]$ExtraArgs = "") {
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($ShortcutPath)
   $shortcut.TargetPath = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
-  $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$StartScript`""
+  $args = "-NoProfile -ExecutionPolicy Bypass -File `"$StartScript`""
+  if ($ExtraArgs) { $args = "$args $ExtraArgs" }
+  $shortcut.Arguments = $args
   $shortcut.WorkingDirectory = $RepoRoot
   $icon = Join-Path $RepoRoot "build\icon.ico"
   if (Test-Path -LiteralPath $icon) {
@@ -78,13 +80,18 @@ if (-not $NoPathUpdate) {
 $desktop = [Environment]::GetFolderPath("Desktop")
 $desktopShortcut = Join-Path $desktop "MEBA Teklif - Guncel Baslat.lnk"
 New-MebaShortcut $desktopShortcut $root $startScript
+$desktopLiveApiShortcut = Join-Path $desktop "MEBA Teklif - Canli API Localhost.lnk"
+New-MebaShortcut $desktopLiveApiShortcut $root $startScript "-LiveApi"
 
 $startMenu = Join-Path ([Environment]::GetFolderPath("StartMenu")) "Programs"
 $startMenuShortcut = Join-Path $startMenu "MEBA Teklif - Guncel Baslat.lnk"
 New-MebaShortcut $startMenuShortcut $root $startScript
+$startMenuLiveApiShortcut = Join-Path $startMenu "MEBA Teklif - Canli API Localhost.lnk"
+New-MebaShortcut $startMenuLiveApiShortcut $root $startScript "-LiveApi"
 
 Write-Ok "Komut: meba"
 Write-Ok "Masaustu kisayolu: $desktopShortcut"
+Write-Ok "Canli API localhost kisayolu: $desktopLiveApiShortcut"
 Write-Ok "Baslat menusu kisayolu: $startMenuShortcut"
 Write-Host ""
 Write-Host "Not: Acik terminaller PATH degisikligini hemen gormeyebilir. Yeni terminalde 'meba' yazman yeterli." -ForegroundColor Yellow

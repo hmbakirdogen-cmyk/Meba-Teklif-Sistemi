@@ -49,3 +49,15 @@ Yerel degisiklik varken yine de GitHub guncellemesini denemek icin:
 ```powershell
 meba -AutoStash
 ```
+
+## Canli veriyle localhost
+
+Lokal PostgreSQL eski kaldiginda ve giris ekraninda personeller eksik gorundugunde, local arayuzu canli Render API'ye baglayarak ac:
+
+```powershell
+meba -LiveApi
+```
+
+Bu mod `http://localhost:5174/` adresini acar. Arayuz yerel koddan gelir, veri ve giris canli sistemden gelir.
+
+Dikkat: Bu modda kaydetme/silme gibi islemler canli veriyi etkiler.
