@@ -1,3 +1,19 @@
+/* ── Iskonto field (popup içi) — bos durumda soluk, focus/hover'da canli ─────
+   Birim Fiyat popup'inda iskonto alani her zaman gorulur ama deger=0 iken
+   dikkati birim fiyata vermek icin opacity ile soluklasir. Opacity tema-agnostik
+   calisir (light ve dark mode'da aynı oranda soluk goruntu).
+*/
+.meba-iskonto-input {
+  transition: opacity 220ms ease;
+}
+.meba-iskonto-input.meba-iskonto-bos {
+  opacity: 0.42;
+}
+.meba-iskonto-input:focus-within,
+.meba-iskonto-input:hover {
+  opacity: 1 !important;
+}
+
 /* ── Tema değişkenleri ──────────────────────────────────────────────────────── */
 :root {
   --bg-body:        linear-gradient(180deg, #FAFAF8 0%, #F4F3F0 100%);

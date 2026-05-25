@@ -567,6 +567,7 @@ function CellEditPopup({
             />
             <InputNumber
               size="middle"
+              className={`meba-iskonto-input${(!satir.indirimOrani || satir.indirimOrani <= 0) ? ' meba-iskonto-bos' : ''}`}
               style={{ width: 56, flex: '0 0 56px' }}
               value={satir.indirimOrani}
               min={0}

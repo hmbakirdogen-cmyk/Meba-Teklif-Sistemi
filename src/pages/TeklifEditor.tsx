@@ -92,12 +92,15 @@ export default function TeklifEditor() {
   const tavsiyeKey = `meba_teklif_baslangic_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
   const notlarPopoverKey = `meba_notlar_popover_${aktifKullanici?.id || 'anon'}`;
   const satirIslemleriKey = `meba_satir_islemleri_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
+  const akilliHucrelerKey = `meba_akilli_hucreler_tavsiyesi_${aktifKullanici?.id || 'anon'}`;
   const [tavsiyeKapatildi, setTavsiyeKapatildi] = useState(false);
   const [tavsiyeBumped, setTavsiyeBumped] = useState(false);
   const [notlarPopoverKapatildi, setNotlarPopoverKapatildi] = useState(false);
   const [notlarPopoverBumped, setNotlarPopoverBumped] = useState(false);
   const [satirIslemleriKapatildi, setSatirIslemleriKapatildi] = useState(false);
   const [satirIslemleriBumped, setSatirIslemleriBumped] = useState(false);
+  const [akilliHucrelerKapatildi, setAkilliHucrelerKapatildi] = useState(false);
+  const [akilliHucrelerBumped, setAkilliHucrelerBumped] = useState(false);
   useEffect(() => {
     let iptal = false;
     const sorgula = async () => {
@@ -123,6 +126,8 @@ export default function TeklifEditor() {
     setNotlarPopoverBumped(false);
     setSatirIslemleriKapatildi(false);
     setSatirIslemleriBumped(false);
+    setAkilliHucrelerKapatildi(false);
+    setAkilliHucrelerBumped(false);
   }, [id]);
 
   const sablonRef = useRef<HTMLDivElement>(null);
@@ -1212,6 +1217,36 @@ export default function TeklifEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satirIslemleriGoster, satirIslemleriBumped, satirIslemleriKey]);
 
+  // Akilli Hucreler Tavsiyesi: Urun Kodu/Aciklama yazinca onerilen kalemlerin
+  // dropdown ile cikmasi + Birim Fiyat tikla->son liste fiyati rozeti animasyon
+  // demolari. En az 1 satir varsa tetiklenir, oncekiler bittikten sonra mutex
+  // ile sirayla acilir.
+  const akilliHucrelerSayisi = (() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = window.localStorage.getItem(akilliHucrelerKey);
+    return raw ? Number.parseInt(raw, 10) || 0 : 0;
+  })();
+  const akilliHucrelerEligible =
+    state.satirlar.length >= 1 &&
+    !akilliHucrelerKapatildi &&
+    !kilitli &&
+    akilliHucrelerSayisi < TAVSIYE_MAX &&
+    tipCooldownGecmis(akilliHucrelerKey);
+  const akilliHucrelerGoster =
+    akilliHucrelerEligible &&
+    !tavsiyeGoster &&
+    !notlarPopoverGoster &&
+    !satirIslemleriGoster;
+  useEffect(() => {
+    if (akilliHucrelerGoster && !akilliHucrelerBumped && typeof window !== 'undefined') {
+      const yeni = (Number.parseInt(window.localStorage.getItem(akilliHucrelerKey) || '0', 10) || 0) + 1;
+      window.localStorage.setItem(akilliHucrelerKey, String(yeni));
+      tipLastShownYaz(akilliHucrelerKey);
+      setAkilliHucrelerBumped(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [akilliHucrelerGoster, akilliHucrelerBumped, akilliHucrelerKey]);
+
   return (
     <div style={{
       display: 'flex',
@@ -1273,6 +1308,31 @@ export default function TeklifEditor() {
           0%, 30%   { transform: translateY(0); }
           50%, 70%  { transform: translateY(11px); }
           85%, 100% { transform: translateY(0); }
+        }
+        /* Akilli Hucreler demolari */
+        @keyframes meba-type-cursor {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        @keyframes meba-typing-fill {
+          0%, 5%   { width: 0; }
+          30%, 60% { width: 28px; }
+          80%, 100%{ width: 0; }
+        }
+        @keyframes meba-suggest-slide {
+          0%, 25%   { opacity: 0; transform: translateY(-4px); }
+          40%, 70%  { opacity: 1; transform: translateY(0); }
+          85%, 100% { opacity: 0; transform: translateY(-4px); }
+        }
+        @keyframes meba-chip-slide-up {
+          0%, 35%   { opacity: 0; transform: translateY(8px); }
+          50%, 75%  { opacity: 1; transform: translateY(0); }
+          88%, 100% { opacity: 0; transform: translateY(8px); }
+        }
+        @keyframes meba-price-fill {
+          0%, 65%  { width: 0; }
+          80%, 95% { width: 42px; }
+          100%     { width: 0; }
         }
       `}</style>
 
@@ -1509,6 +1569,109 @@ export default function TeklifEditor() {
               lineHeight: 1,
               borderRadius: 4,
               flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#475569'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Akilli Hucreler Tavsiyesi: 2 animasyonlu demo
+          1) Urun Kodu/Aciklama yazinca onerilen kalemler dropdown ile cikar
+          2) Birim Fiyat tikla -> son liste fiyati rozeti slide-up + tikla->dolar */}
+      {akilliHucrelerGoster && (
+        <div
+          role="status"
+          style={{
+            display: 'flex', alignItems: 'stretch', gap: 14,
+            padding: '12px 16px', margin: '8px 16px 0 16px',
+            background: 'linear-gradient(135deg, rgba(99,179,237,0.10) 0%, rgba(159,140,232,0.07) 100%)',
+            border: '1px solid rgba(99,179,237,0.22)', borderLeft: '3px solid #5b8def',
+            borderRadius: 8, fontSize: 12.5, lineHeight: 1.45, color: 'var(--text-primary)',
+            boxShadow: '0 1px 2px rgba(91,141,239,0.06)', position: 'relative',
+            animation: 'meba-fade-slide-in 280ms ease-out',
+          }}
+        >
+          {/* Demo 1: Urun Kodu yazinca oneri dropdown */}
+          <div style={{ flex: '0 0 132px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 130 56" width="130" height="56">
+              <rect x="4" y="4" width="80" height="14" rx="2" fill="#fff" stroke="#a5b4fc" strokeWidth="0.6" />
+              {/* Yazi cizgisi animasyon (dolu kismi geliyor) */}
+              <foreignObject x="8" y="9" width="70" height="4">
+                <div style={{ width: 0, height: 2.5, background: '#1e293b', borderRadius: 1, animation: 'meba-typing-fill 3s ease-in-out infinite' }} />
+              </foreignObject>
+              {/* Yanip sonen cursor */}
+              <line x1="42" y1="8" x2="42" y2="14" stroke="#1e293b" strokeWidth="1.2" style={{ animation: 'meba-type-cursor 0.8s ease-in-out infinite' }} />
+              {/* Oneri dropdown — slide-in */}
+              <g style={{ animation: 'meba-suggest-slide 3s ease-in-out infinite' }}>
+                <rect x="4" y="22" width="120" height="30" rx="2" fill="#f8fafc" stroke="#5b8def" strokeWidth="0.8" />
+                <rect x="6" y="24" width="116" height="8" rx="1.5" fill="#e0e7ff" />
+                <text x="10" y="30" fontSize="5.5" fill="#1e293b" fontWeight="600">SMC AS1201F-M5...</text>
+                <text x="10" y="38" fontSize="5" fill="#475569">SMC AS2001F-M5</text>
+                <text x="10" y="46" fontSize="5" fill="#475569">SMC AS3001F-M5</text>
+              </g>
+            </svg>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              ÜRÜN KODU
+            </div>
+          </div>
+
+          <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
+
+          {/* Demo 2: Birim Fiyat tikla -> son liste fiyati rozeti */}
+          <div style={{ flex: '0 0 132px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 130 56" width="130" height="56">
+              <rect x="4" y="4" width="58" height="14" rx="2" fill="#fff" stroke="#a5b4fc" strokeWidth="0.6" />
+              <text x="8" y="13" fontSize="6.5" fill="#1e293b" fontWeight="600">Birim Fiyat</text>
+              {/* Fiyat dolma animasyonu */}
+              <foreignObject x="8" y="15" width="50" height="3">
+                <div style={{ width: 0, height: 2, background: '#10b981', borderRadius: 1, animation: 'meba-price-fill 3s ease-in-out infinite' }} />
+              </foreignObject>
+              {/* Liste fiyati rozet — slide-up */}
+              <g style={{ animation: 'meba-chip-slide-up 3s ease-in-out infinite' }}>
+                <rect x="4" y="26" width="122" height="22" rx="11" fill="#ecfdf5" stroke="#10b981" strokeWidth="0.8" />
+                <text x="11" y="36" fontSize="5" fill="#047857" fontWeight="600">★ Son liste fiyatı</text>
+                <text x="64" y="40" fontSize="7.5" fill="#10b981" fontWeight="800">1.250 €</text>
+              </g>
+            </svg>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              LİSTE FİYATI
+            </div>
+          </div>
+
+          <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
+
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 20 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>💡</span>
+              <span>Akıllı Hücreler — Otomatik Yardımcılar</span>
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: 3 }}>
+                <b>Ürün Kodu / Açıklama:</b> Yazmaya başladığında <b>geçmiş tekliflerinizden öneriler</b> dropdown ile çıkar. Birini seçin → tüm satır otomatik dolar (marka, açıklama, fiyat).
+              </div>
+              <div>
+                <b>Birim Fiyat:</b> Hücreye tıklayınca, aynı ürün için <b>son verdiğiniz liste fiyatı</b> rozeti popup'ın altında belirir. Rozete tıklayın → fiyat tek tıkla dolar (tutarlı fiyatlama).
+              </div>
+              {akilliHucrelerSayisi < TAVSIYE_MAX - 1 && (
+                <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
+                  ({TAVSIYE_MAX - akilliHucrelerSayisi} gösterim sonra otomatik gizlenir)
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setAkilliHucrelerKapatildi(true)}
+            aria-label="Tavsiyeyi kapat"
+            title="Bu mesajı kapat"
+            style={{
+              position: 'absolute', top: 6, right: 8,
+              background: 'transparent', border: 'none', color: '#94a3b8',
+              cursor: 'pointer', padding: 4, fontSize: 14, lineHeight: 1, borderRadius: 4,
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#475569'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
