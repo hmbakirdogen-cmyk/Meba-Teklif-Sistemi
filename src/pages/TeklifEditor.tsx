@@ -1410,6 +1410,69 @@ export default function TeklifEditor() {
           80%, 95% { width: 42px; }
           100%     { width: 0; }
         }
+        /* Akilli Hucreler — gercek aksiyon sonuclari animasyonlari */
+        @keyframes meba-cell-typing {
+          0%, 8%    { width: 0; }
+          18%, 38%  { width: 100%; }
+          92%, 100% { width: 0; }
+        }
+        @keyframes meba-suggest-slide-real {
+          0%, 38%   { opacity: 0; transform: translateY(-8px) scale(0.96); }
+          46%, 56%  { opacity: 1; transform: translateY(0) scale(1); }
+          62%, 100% { opacity: 0; transform: translateY(-8px) scale(0.96); }
+        }
+        @keyframes meba-cursor-pick-suggest {
+          0%, 40%   { opacity: 0; transform: translate(0, 0) scale(1); }
+          46%, 50%  { opacity: 1; transform: translate(0, 0) scale(1); }
+          54%, 58%  { opacity: 1; transform: translate(-3px, -3px) scale(0.82); }
+          62%, 100% { opacity: 0; transform: translate(0, 0) scale(1); }
+        }
+        @keyframes meba-autofill-glow {
+          0%, 58%   { opacity: 0; transform: scale(0.6); transform-origin: left center; }
+          64%, 68%  { opacity: 1; transform: scale(1.08); transform-origin: left center; }
+          74%, 92%  { opacity: 1; transform: scale(1); transform-origin: left center; }
+          98%, 100% { opacity: 0; transform: scale(0.6); transform-origin: left center; }
+        }
+        @keyframes meba-autofill-glow-2 {
+          0%, 64%   { opacity: 0; transform: scale(0.6); transform-origin: left center; }
+          70%, 74%  { opacity: 1; transform: scale(1.06); transform-origin: left center; }
+          80%, 92%  { opacity: 1; transform: scale(1); transform-origin: left center; }
+          98%, 100% { opacity: 0; transform: scale(0.6); transform-origin: left center; }
+        }
+        @keyframes meba-autofill-glow-3 {
+          0%, 70%   { opacity: 0; transform: scale(0.6); transform-origin: left center; }
+          76%, 80%  { opacity: 1; transform: scale(1.06); transform-origin: left center; }
+          86%, 94%  { opacity: 1; transform: scale(1); transform-origin: left center; }
+          100%      { opacity: 0; transform: scale(0.6); transform-origin: left center; }
+        }
+        @keyframes meba-success-check {
+          0%, 80%   { opacity: 0; transform: scale(0); }
+          86%, 90%  { opacity: 1; transform: scale(1.25); }
+          94%, 100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes meba-text-fade-out {
+          0%, 18%   { opacity: 1; }
+          26%, 95%  { opacity: 0; }
+          100%      { opacity: 1; }
+        }
+        @keyframes meba-text-fade-in {
+          0%, 22%   { opacity: 0; }
+          32%, 95%  { opacity: 1; }
+          100%      { opacity: 0; }
+        }
+        @keyframes meba-modal-pop {
+          0%, 35%   { opacity: 0; transform: translateY(6px) scale(0.85); transform-origin: center; }
+          43%, 50%  { opacity: 1; transform: translateY(-2px) scale(1.04); transform-origin: center; }
+          56%, 92%  { opacity: 1; transform: translateY(0) scale(1); transform-origin: center; }
+          100%      { opacity: 0; transform: translateY(6px) scale(0.85); transform-origin: center; }
+        }
+        @keyframes meba-cursor-pick-modal {
+          0%, 52%   { opacity: 0; transform: translate(0, 0) scale(1); }
+          58%, 64%  { opacity: 1; transform: translate(0, 0) scale(1); }
+          68%, 74%  { opacity: 1; transform: translate(-4px, -4px) scale(0.82); }
+          80%, 92%  { opacity: 1; transform: translate(0, 0) scale(1); }
+          100%      { opacity: 0; transform: translate(0, 0) scale(1); }
+        }
       `}</style>
 
       {/* Yeni Teklif Tavsiyesi — yumusak ipucu, ilk N teklifte gosterilir,
@@ -1557,9 +1620,9 @@ export default function TeklifEditor() {
             animation: 'meba-fade-slide-in 280ms ease-out',
           }}
         >
-          {/* Demo 1: Iki satir + ARAYA fareyle gelinir + butonu cikar + tiklayinca yeni satir araya akar */}
-          <div style={{ flex: '0 0 200px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <svg viewBox="0 0 200 64" width="200" height="64" style={{ flexShrink: 0 }}>
+          {/* Demo 1: Iki satir + ARAYA fareyle gelinir + butonu cikar + tiklayinca yeni satir araya akar — BUYUTULDU */}
+          <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 200 64" width="320" height="102" style={{ flexShrink: 0 }}>
               {/* Header (kolonlar) */}
               <g opacity="0.5">
                 <text x="9" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">No</text>
@@ -1612,16 +1675,16 @@ export default function TeklifEditor() {
                 />
               </g>
             </svg>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Araya Kalem Ekle
             </div>
           </div>
 
           <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
 
-          {/* Demo 2: 1 satir + alt kenarda mavi handle belirir + cursor tutup asagi cekiyor + satir buyur */}
-          <div style={{ flex: '0 0 200px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <svg viewBox="0 0 200 64" width="200" height="64" style={{ flexShrink: 0 }}>
+          {/* Demo 2: 1 satir + alt kenarda mavi handle belirir + cursor tutup asagi cekiyor + satir buyur — BUYUTULDU */}
+          <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 200 64" width="320" height="102" style={{ flexShrink: 0 }}>
               <g opacity="0.5">
                 <text x="9" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">No</text>
                 <text x="20" y="6" fontSize="3.5" fill="#64748b" fontWeight="600">Marka</text>
@@ -1664,7 +1727,7 @@ export default function TeklifEditor() {
                 />
               </g>
             </svg>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Yüksekliği Ayarla
             </div>
           </div>
@@ -1718,9 +1781,9 @@ export default function TeklifEditor() {
         </div>
       )}
 
-      {/* Akilli Hucreler Tavsiyesi: 2 animasyonlu demo
-          1) Urun Kodu/Aciklama yazinca onerilen kalemler dropdown ile cikar
-          2) Birim Fiyat tikla -> son liste fiyati rozeti slide-up + tikla->dolar */}
+      {/* Akilli Hucreler Tavsiyesi — gercek aksiyon sonuclari:
+          1) Urun Kodu yaz -> oneri sec -> Marka/Aciklama/Fiyat otomatik dolar
+          2) Aciklama degistir -> DB'yi guncelle modal'i */}
       {akilliHucrelerGoster && (
         <div
           role="status"
@@ -1734,50 +1797,122 @@ export default function TeklifEditor() {
             animation: 'meba-fade-slide-in 280ms ease-out',
           }}
         >
-          {/* Demo 1: Urun Kodu yazinca oneri dropdown */}
-          <div style={{ flex: '0 0 132px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <svg viewBox="0 0 130 56" width="130" height="56">
-              <rect x="4" y="4" width="80" height="14" rx="2" fill="#fff" stroke="#a5b4fc" strokeWidth="0.6" />
-              {/* Yazi cizgisi animasyon (dolu kismi geliyor) */}
-              <foreignObject x="8" y="9" width="70" height="4">
-                <div style={{ width: 0, height: 2.5, background: '#1e293b', borderRadius: 1, animation: 'meba-typing-fill 3s ease-in-out infinite' }} />
+          {/* Demo 1: Urun Kodu yaz -> diger hucreler dolar — BUYUTULDU 320x110 */}
+          <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 320 110" width="320" height="110" style={{ flexShrink: 0 }}>
+              {/* Kolon basliklari */}
+              <g opacity="0.55">
+                <text x="14" y="9" fontSize="5" fill="#64748b" fontWeight="700">No</text>
+                <text x="32" y="9" fontSize="5" fill="#64748b" fontWeight="700">Marka</text>
+                <text x="70" y="9" fontSize="5" fill="#64748b" fontWeight="700">Ürün Kodu</text>
+                <text x="135" y="9" fontSize="5" fill="#64748b" fontWeight="700">Açıklama</text>
+                <text x="255" y="9" fontSize="5" fill="#64748b" fontWeight="700">Fiyat</text>
+              </g>
+              {/* Satir taban */}
+              <rect x="6" y="13" width="308" height="22" rx="2" fill="#fff" stroke="#cbd5e1" strokeWidth="0.6" />
+              <text x="14" y="27" fontSize="6.5" fill="#1e293b" fontWeight="700">01</text>
+              {/* Urun Kodu cell — yaziliyor */}
+              <foreignObject x="68" y="17" width="62" height="14">
+                <div style={{
+                  position: 'relative', height: '100%', display: 'flex', alignItems: 'center', gap: 1.5,
+                  fontFamily: 'monospace', fontSize: 6.5, color: '#1e293b', fontWeight: 700,
+                }}>
+                  <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', display: 'inline-block', animation: 'meba-cell-typing 5s ease-in-out infinite' }}>AS1201F-M5</span>
+                  <span style={{ width: 1.2, height: 8, background: '#1e293b', animation: 'meba-type-cursor 0.6s ease-in-out infinite' }} />
+                </div>
               </foreignObject>
-              {/* Yanip sonen cursor */}
-              <line x1="42" y1="8" x2="42" y2="14" stroke="#1e293b" strokeWidth="1.2" style={{ animation: 'meba-type-cursor 0.8s ease-in-out infinite' }} />
-              {/* Oneri dropdown — slide-in */}
-              <g style={{ animation: 'meba-suggest-slide 3s ease-in-out infinite' }}>
-                <rect x="4" y="22" width="120" height="30" rx="2" fill="#f8fafc" stroke="#5b8def" strokeWidth="0.8" />
-                <rect x="6" y="24" width="116" height="8" rx="1.5" fill="#e0e7ff" />
-                <text x="10" y="30" fontSize="5.5" fill="#1e293b" fontWeight="600">SMC AS1201F-M5...</text>
-                <text x="10" y="38" fontSize="5" fill="#475569">SMC AS2001F-M5</text>
-                <text x="10" y="46" fontSize="5" fill="#475569">SMC AS3001F-M5</text>
+              {/* Marka otomatik */}
+              <g style={{ animation: 'meba-autofill-glow 5s ease-in-out infinite' }}>
+                <rect x="32" y="17" width="34" height="14" rx="1.6" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.4" />
+                <text x="36" y="27" fontSize="6" fill="#92400e" fontWeight="700">SMC</text>
+              </g>
+              {/* Aciklama otomatik */}
+              <g style={{ animation: 'meba-autofill-glow-2 5s ease-in-out infinite' }}>
+                <rect x="125" y="17" width="122" height="14" rx="1.6" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.4" />
+                <text x="129" y="27" fontSize="5.8" fill="#92400e" fontWeight="600">Hava filtresi 1/4 NPT G&apos;li</text>
+              </g>
+              {/* Fiyat otomatik */}
+              <g style={{ animation: 'meba-autofill-glow-3 5s ease-in-out infinite' }}>
+                <rect x="249" y="17" width="62" height="14" rx="1.6" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.4" />
+                <text x="254" y="27" fontSize="6.2" fill="#92400e" fontWeight="700">125 €</text>
+              </g>
+              {/* Dropdown oneri kutusu */}
+              <g style={{ animation: 'meba-suggest-slide-real 5s ease-in-out infinite' }}>
+                <rect x="68" y="39" width="160" height="44" rx="2.5" fill="#fff" stroke="#5b8def" strokeWidth="1" filter="drop-shadow(0 2px 4px rgba(91,141,239,0.25))" />
+                <rect x="68" y="39" width="160" height="13" fill="#dbeafe" />
+                <text x="74" y="48.5" fontSize="6.2" fill="#1e3a8a" fontFamily="monospace" fontWeight="800">SMC AS1201F-M5</text>
+                <text x="74" y="62" fontSize="5.8" fontFamily="monospace" fill="#475569">SMC AS2001F-M5</text>
+                <text x="74" y="74" fontSize="5.8" fontFamily="monospace" fill="#475569">SMC AS3001F-M5</text>
+              </g>
+              {/* Mouse cursor — drop down secimi */}
+              <g style={{ animation: 'meba-cursor-pick-suggest 5s ease-in-out infinite' }}>
+                <path
+                  d="M 120 52 L 120 67 L 124 63 L 127 69 L 129.5 68 L 126.5 62 L 132 62 Z"
+                  fill="#1e293b" stroke="#fff" strokeWidth="0.8"
+                />
+              </g>
+              {/* Sag tarafta basari rozeti */}
+              <g style={{ animation: 'meba-success-check 5s ease-in-out infinite', transformOrigin: 'center' }} transform="translate(296, 96)">
+                <circle cx="0" cy="0" r="10" fill="#10b981" stroke="#fff" strokeWidth="1.2" />
+                <path d="M -4.2 0 L -1 3.2 L 4.6 -3.6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </g>
             </svg>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              ÜRÜN KODU
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Ürün Kodu → 3 Hücre Otomatik
             </div>
           </div>
 
           <div style={{ width: 1, background: 'rgba(99,179,237,0.18)' }} />
 
-          {/* Demo 2: Birim Fiyat tikla -> son liste fiyati rozeti */}
-          <div style={{ flex: '0 0 132px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <svg viewBox="0 0 130 56" width="130" height="56">
-              <rect x="4" y="4" width="58" height="14" rx="2" fill="#fff" stroke="#a5b4fc" strokeWidth="0.6" />
-              <text x="8" y="13" fontSize="6.5" fill="#1e293b" fontWeight="600">Birim Fiyat</text>
-              {/* Fiyat dolma animasyonu */}
-              <foreignObject x="8" y="15" width="50" height="3">
-                <div style={{ width: 0, height: 2, background: '#10b981', borderRadius: 1, animation: 'meba-price-fill 3s ease-in-out infinite' }} />
+          {/* Demo 2: Aciklama degistir -> DB guncelle modal — BUYUTULDU 320x110 */}
+          <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 320 110" width="320" height="110" style={{ flexShrink: 0 }}>
+              {/* Kolon basliklari */}
+              <g opacity="0.55">
+                <text x="14" y="9" fontSize="5" fill="#64748b" fontWeight="700">No</text>
+                <text x="32" y="9" fontSize="5" fill="#64748b" fontWeight="700">Marka</text>
+                <text x="70" y="9" fontSize="5" fill="#64748b" fontWeight="700">Ürün Kodu</text>
+                <text x="135" y="9" fontSize="5" fill="#64748b" fontWeight="700">Açıklama</text>
+                <text x="255" y="9" fontSize="5" fill="#64748b" fontWeight="700">Fiyat</text>
+              </g>
+              {/* Mevcut satir */}
+              <rect x="6" y="13" width="308" height="22" rx="2" fill="#fff" stroke="#cbd5e1" strokeWidth="0.6" />
+              <text x="14" y="27" fontSize="6.5" fill="#1e293b" fontWeight="700">01</text>
+              <text x="36" y="27" fontSize="6" fill="#475569" fontWeight="600">SMC</text>
+              <text x="70" y="27" fontSize="6" fill="#1e293b" fontFamily="monospace" fontWeight="700">AS1201F-M5</text>
+              {/* Aciklama hucresi — eski->yeni gecisi */}
+              <foreignObject x="125" y="15" width="122" height="18">
+                <div style={{
+                  height: '100%', display: 'flex', alignItems: 'center',
+                  fontSize: 6.2, color: '#1e293b', position: 'relative', fontWeight: 500,
+                }}>
+                  <span style={{ animation: 'meba-text-fade-out 5s ease-in-out infinite', position: 'absolute' }}>Hava filtresi</span>
+                  <span style={{ animation: 'meba-text-fade-in 5s ease-in-out infinite', position: 'absolute', color: '#92400e', fontWeight: 700 }}>Hava filtresi 1/4 NPT</span>
+                </div>
               </foreignObject>
-              {/* Liste fiyati rozet — slide-up */}
-              <g style={{ animation: 'meba-chip-slide-up 3s ease-in-out infinite' }}>
-                <rect x="4" y="26" width="122" height="22" rx="11" fill="#ecfdf5" stroke="#10b981" strokeWidth="0.8" />
-                <text x="11" y="36" fontSize="5" fill="#047857" fontWeight="600">★ Son liste fiyatı</text>
-                <text x="64" y="40" fontSize="7.5" fill="#10b981" fontWeight="800">1.250 €</text>
+              <text x="254" y="27" fontSize="6.2" fill="#1e293b" fontWeight="700">125 €</text>
+              {/* Modal — DB guncelle */}
+              <g style={{ animation: 'meba-modal-pop 5s ease-in-out infinite' }}>
+                <rect x="34" y="42" width="252" height="60" rx="3" fill="#fff" stroke="#cbd5e1" strokeWidth="0.7" filter="drop-shadow(0 3px 6px rgba(0,0,0,0.18))" />
+                <rect x="34" y="42" width="252" height="14" fill="#f8fafc" />
+                <text x="44" y="52" fontSize="6.5" fill="#1e293b" fontWeight="800">Açıklama Güncellensin mi?</text>
+                <text x="44" y="68" fontSize="5.6" fill="#475569">Veritabanındaki açıklama da yenilensin mi?</text>
+                <text x="44" y="78" fontSize="5.2" fill="#94a3b8">Bir dahaki seferde otomatik gelecek.</text>
+                <rect x="174" y="84" width="58" height="14" rx="2.5" fill="#5b8def" />
+                <text x="181" y="93.5" fontSize="6" fill="#fff" fontWeight="800">Güncelle</text>
+                <rect x="238" y="84" width="40" height="14" rx="2.5" fill="#fff" stroke="#cbd5e1" strokeWidth="0.6" />
+                <text x="249" y="93.5" fontSize="5.6" fill="#475569" fontWeight="600">İptal</text>
+              </g>
+              {/* Cursor "Guncelle" butonuna gider */}
+              <g style={{ animation: 'meba-cursor-pick-modal 5s ease-in-out infinite' }}>
+                <path
+                  d="M 197 88 L 197 103 L 201 99 L 204 105 L 206.5 104 L 203.5 98 L 209 98 Z"
+                  fill="#1e293b" stroke="#fff" strokeWidth="0.8"
+                />
               </g>
             </svg>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              LİSTE FİYATI
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#5b8def', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Açıklama Düzelt → DB Senkron
             </div>
           </div>
 
@@ -1786,18 +1921,18 @@ export default function TeklifEditor() {
           <div style={{ flex: 1, minWidth: 0, paddingRight: 20 }}>
             <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>💡</span>
-              <span>Akıllı Hücreler — Otomatik Yardımcılar</span>
+              <span>Ürün Kodu & Açıklama — Sonuçları</span>
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>
               <div style={{ marginBottom: 3 }}>
-                <b>Ürün Kodu / Açıklama:</b> Yazmaya başladığında <b>geçmiş tekliflerinizden öneriler</b> dropdown ile çıkar. Birini seçin → tüm satır otomatik dolar (marka, açıklama, fiyat).
+                <b>Ürün kodu</b> yazıp öneriden seçtiğinde: <b>Marka, Açıklama, Birim Fiyat</b> ve <b>Birim</b> alanları otomatik dolar — boş hücrelerin hepsi DB'deki son değerle gelir.
               </div>
               <div>
-                <b>Birim Fiyat:</b> Hücreye tıklayınca, aynı ürün için <b>son verdiğiniz liste fiyatı</b> rozeti popup'ın altında belirir. Rozete tıklayın → fiyat tek tıkla dolar (tutarlı fiyatlama).
+                <b>Açıklamayı düzelttiğinde</b> "Veritabanı da güncellensin mi?" diye sorar. <b>Güncelle</b> dersen bir dahaki sefer aynı ürün seçilince <b>yeni açıklama</b> otomatik gelir.
               </div>
               {akilliHucrelerSayisi < TAVSIYE_MAX - 1 && (
-                <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
-                  ({TAVSIYE_MAX - akilliHucrelerSayisi} gösterim sonra otomatik gizlenir)
+                <div style={{ marginTop: 5, fontSize: 11, color: '#94a3b8' }}>
+                  {TAVSIYE_MAX - akilliHucrelerSayisi} kez daha
                 </div>
               )}
             </div>
