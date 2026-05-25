@@ -97,6 +97,7 @@ interface PaginatedBelgeInlineEditorProps {
   onTarihDegistir: (tarih: string) => void;
   onParaBirimiDegistir: (pb: ParaBirimi) => void;
   satirBazliParaBirimi: boolean;
+  onSatirBazliParaBirimiDegistir?: (aktif: boolean) => void;
   satirBazliIskonto: boolean;
   onKdvOraniDegistir: (oran: number) => void;
   onOdemeVadesiDegistir: (vade: string) => void;
@@ -1069,6 +1070,7 @@ export default function PaginatedBelgeInlineEditor({
   onTarihDegistir,
   onParaBirimiDegistir,
   satirBazliParaBirimi,
+  onSatirBazliParaBirimiDegistir,
   satirBazliIskonto,
   onKdvOraniDegistir,
   onOdemeVadesiDegistir,
@@ -1845,7 +1847,16 @@ export default function PaginatedBelgeInlineEditor({
         const items = buildSettingsItems(teklif, satirBazliParaBirimi);
 
         const PB_LABEL: Record<string, string> = { TRY: 'Türk Lirası (TL)', EUR: 'Euro (EUR)', USD: 'Amerikan Doları (USD)' };
-        const paraBirimiMenuItems = akilliParaBirimleri.map(pb => ({ key: pb, label: PB_LABEL[pb] || pb }));
+        // 'KARISIK' ozel anahtar — secilince satirBazliParaBirimi acilir, her
+        // satir kendi para birimine sahip olur. Document-level paraBirimi
+        // degismez (mevcut deger korunur, gerek olursa kullanilir).
+        const paraBirimiMenuItems = [
+          ...akilliParaBirimleri.map(pb => ({ key: pb, label: PB_LABEL[pb] || pb })),
+          ...(onSatirBazliParaBirimiDegistir ? [
+            { type: 'divider' as const },
+            { key: 'KARISIK', label: 'Karışık (Satır Bazlı)' },
+          ] : []),
+        ];
         const odemeVadesiMenuItems = akilliOdemeVadesi.map((v) => ({ key: v, label: v }));
         const kdvMenuItems = akilliKdvOranlari.map((v) => ({ key: v, label: v === '0' ? 'Hariç' : `%${v}` }));
         const gecerlilikMenuItems = akilliGecerlilik.map((v) => ({ key: v, label: v }));
@@ -1886,7 +1897,19 @@ export default function PaginatedBelgeInlineEditor({
               let menu;
               switch (item.id) {
                 case 'paraBirimi':
-                  menu = { items: paraBirimiMenuItems, onClick: ({ key }: { key: string }) => onParaBirimiDegistir(key as ParaBirimi) };
+                  menu = {
+                    items: paraBirimiMenuItems,
+                    onClick: ({ key }: { key: string }) => {
+                      if (key === 'KARISIK') {
+                        onSatirBazliParaBirimiDegistir?.(true);
+                      } else {
+                        // Tek tip secimi: satirBazli aciksa kapat — kullanici
+                        // 'KARISIK'tan tek tipe geri donuyor demektir.
+                        if (satirBazliParaBirimi) onSatirBazliParaBirimiDegistir?.(false);
+                        onParaBirimiDegistir(key as ParaBirimi);
+                      }
+                    },
+                  };
                   break;
                 case 'odemeVadesi':
                   menu = { items: odemeVadesiMenuItems, onClick: ({ key }: { key: string }) => onOdemeVadesiDegistir(key) };

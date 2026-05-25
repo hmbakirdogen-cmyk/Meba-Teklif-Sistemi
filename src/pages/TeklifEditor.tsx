@@ -1287,6 +1287,7 @@ export default function TeklifEditor() {
               onTarihDegistir={state.setTarih}
               onParaBirimiDegistir={state.setParaBirimi}
               satirBazliParaBirimi={state.satirBazliParaBirimi}
+              onSatirBazliParaBirimiDegistir={state.setSatirBazliParaBirimi}
               satirBazliIskonto={state.satirBazliIskonto}
               onKdvOraniDegistir={state.setKdvOrani}
               onOdemeVadesiDegistir={state.setOdemeVadesi}
