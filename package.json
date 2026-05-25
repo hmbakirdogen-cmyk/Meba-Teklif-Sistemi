@@ -19,6 +19,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "meba": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/start-meba.ps1",
+    "meba:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/install-meba-launcher.ps1",
     "postinstall": "prisma generate"
   },
   "dependencies": {
