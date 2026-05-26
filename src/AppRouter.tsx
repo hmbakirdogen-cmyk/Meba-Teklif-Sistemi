@@ -1,14 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { lazy, Suspense, useEffect, type ReactNode } from 'react';
-import { Spin, Modal } from 'antd';
-import { WarningOutlined, MailOutlined } from '@ant-design/icons';
+import { lazy, Suspense, type ReactNode } from 'react';
+import { Spin } from 'antd';
 import AppLayout from './AppLayout';
 import GirisEkrani from './pages/GirisEkrani';
 import { useKullanici } from './context/useKullanici';
 import IlkGirisModal from './components/IlkGirisModal';
 import { ilkGirisGerekli } from './utils/ilkGiris';
 import { isYonetici } from './utils/yetkiUtils';
-import { useNavigate } from 'react-router-dom';
 
 // Lazy-loaded pages — ağır sayfalar başlangıçta yüklenmez
 const TeklifListesi = lazy(() => import('./pages/TeklifListesi'));
@@ -46,53 +44,15 @@ function YoneticiOnly({ children }: { children: ReactNode }) {
 }
 
 function SmtpUyarisi() {
-  const { aktifKullanici } = useKullanici();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!aktifKullanici) return;
-    const smtpTamam = aktifKullanici.smtpUser && aktifKullanici.smtpPasswordSet;
-    if (smtpTamam) return;
-    const storageKey = `smtp_uyari_${aktifKullanici.id}`;
-    if (sessionStorage.getItem(storageKey)) return;
-    sessionStorage.setItem(storageKey, '1');
-
-    // Kurumsal hitabet (Mehmet Bey direktifi 2026-05-26): kibar, resmi
-    // ve kişiselleştirilmiş ton. Önceki şakacı/emoji'li metin (Plan agent
-    // raporu Faz 14) tamamen değiştirildi.
-    Modal.warning({
-      title: (
-        <span style={{ fontSize: 16 }}>
-          <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
-          E-posta ayarlarınız henüz tamamlanmadı
-        </span>
-      ),
-      content: (
-        <div style={{ lineHeight: 1.7 }}>
-          <p>
-            Sayın <strong>{aktifKullanici.adSoyad}</strong>, sistem üzerinden müşterilerinize
-            teklif gönderebilmeniz için e-posta hesabınızın tanımlı olması gerekmektedir.
-          </p>
-          <p style={{ color: '#8c8c8c', fontSize: 13 }}>
-            Profil → E-posta Ayarları bölümünden hesabınızı yaklaşık iki dakikada
-            tanımlayabilirsiniz. Bu uyarı yeniden gösterilmeyecektir.
-          </p>
-        </div>
-      ),
-      okText: (
-        <span>
-          <MailOutlined style={{ marginRight: 6 }} />
-          Şimdi tanımla
-        </span>
-      ),
-      cancelText: 'Daha sonra',
-      okCancel: true,
-      centered: true,
-      maskClosable: true,
-      onOk: () => navigate('/profil/eposta'),
-    });
-  }, [aktifKullanici?.id]);
-
+  // ── Faz 16 — KRİTİK FIX ─────────────────────────────────────────
+  // Önceki Modal.warning STATİK API (App.useApp context dışı) Antd v5'te
+  // React error #185 (Maximum update depth exceeded) tetikliyordu —
+  // production'da Mehmet Bey'in navbar tıklamalarını engelliyordu.
+  // Stack trace: vendor-antd.js Dr→zr→ul→cl setState chain (Modal mask
+  // sonsuz re-render). Çözüm: Modal yerine sessiz no-op + opsiyonel
+  // banner (AppLayout zaten kendi içinde "SMTP tanımlı değil" rozet
+  // gösteriyor, kullanıcı oradan tıklar). Bu komponent geçici olarak
+  // pasif — Faz 14d sonrası kurumsal e-posta uyarısı banner ile gelir.
   return null;
 }
 
