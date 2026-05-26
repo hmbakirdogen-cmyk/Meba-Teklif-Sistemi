@@ -441,6 +441,13 @@ export default function AppLayout() {
               background: 'transparent',
             }}
             items={menuItems}
+            /* Faz 19 KRITIK: Menu-level onClick fallback — eger per-item
+               onClick herhangi bir nedenle (Antd v6 davranis, event prop
+               isolation, vb.) calismaz ise Menu seviyesinden key'e gore
+               navigate edilir. menuItems'in key'leri zaten URL ile birebir
+               (teklifler, referans-veriler, analiz, veri, personel, firma-profili).
+               iki yol ayni anda dispatch olursa sonuc ayni (idempotent). */
+            onClick={({ key }) => navigate_('/' + String(key))}
           />
         )}
 
@@ -714,6 +721,7 @@ export default function AppLayout() {
           selectedKeys={[seciliMenu]}
           style={{ borderRight: 'none', fontSize: 14 }}
           items={menuItems}
+          onClick={({ key }) => navigate_('/' + String(key))}
         />
         {aktifKullanici && (
           <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.borderSubtle}`, marginTop: 8 }}>

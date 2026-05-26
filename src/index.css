@@ -2719,9 +2719,21 @@ button.referanslar-satir-teklifno:hover .anticon {
 }
 
 /* ═════ MENU ITEM — kibar, kompakt, embossed/pressed 3D ────────────── */
+/* Faz 19 KRITIK: pointer-events: auto + z-index force — bug raporu:
+   "navbar görünür ama tıklanmıyor". Premium navbar üzerinde backdrop-filter
+   blur kullanan halo/before/after pseudo'lar veya başka yerden sızan
+   pointer-events:none olasılığını tamamen elimine etmek için brute-force. */
+.premium-navbar .header-nav-menu.ant-menu-horizontal,
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-item,
+.premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-submenu,
+.premium-navbar .header-nav-menu .ant-menu-title-content,
+.premium-navbar .header-nav-menu .ant-menu-item-icon {
+  pointer-events: auto !important;
+}
 .premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-item,
 .premium-navbar .header-nav-menu.ant-menu-horizontal > .ant-menu-submenu {
   position: relative;
+  z-index: 1;                                /* stacking context — overlay'i bastir */
   transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease, transform 200ms ease !important;
   border-radius: 9px;
   padding-inline: 12px !important;          /* Antd default ~20px → 12px (kibar) */
