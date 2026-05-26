@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
+import { App, Layout, Tooltip, Button, Drawer, Dropdown, Badge, Popover } from 'antd';
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import SelfServeSmtpModal from './components/SelfServeSmtpModal';
@@ -246,6 +246,9 @@ export default function AppLayout() {
   }
 
   // Faz 22 KRITIK: menuItems + selectedKeysMemo useMemo'ya cekildi.
+  // Antd MenuItemType bekliyor (key: React.Key + label/icon/onClick). Mobile
+  // Drawer Menu hala kullaniyor. Desktop'ta button olarak da render edilir.
+  // ────────────────────────────────────────────────────────
   // Antd v6 Menu useMergedState ile selectedKeys controlled prop'u
   // handle ediyor — her render'da YENI ARRAY ([seciliMenu]) gelirse
   // useEffect deps degisik gorulup setState in effect tetikliyordu →
@@ -292,7 +295,6 @@ export default function AppLayout() {
     ] : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [isAdminLike]);
-  const selectedKeysMemo = useMemo(() => [seciliMenu], [seciliMenu]);
   const drawerStylesMemo = useMemo(() => ({ body: { padding: 0 } }), []);
 
   return (
@@ -767,13 +769,40 @@ export default function AppLayout() {
         size={240}
         styles={drawerStylesMemo}
       >
-        <Menu
-          mode="inline"
-          selectedKeys={selectedKeysMemo}
-          style={{ borderRight: 'none', fontSize: 14 }}
-          items={menuItems}
-          onClick={({ key }) => navigate_('/' + String(key))}
-        />
+        {/* Faz 23: Mobile Menu da bypass — Drawer içinde düz button listesi.
+            menuItems aynı array, hem desktop nav hem mobile drawer için kullanılır. */}
+        <nav style={{ display: 'flex', flexDirection: 'column', padding: '4px 0' }}>
+          {menuItems.map((item) => {
+            const aktif = item.key === seciliMenu;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => navigate_('/' + String(item.key))}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  height: 40,
+                  padding: '0 24px',
+                  background: aktif ? 'rgba(91,141,239,0.10)' : 'transparent',
+                  border: 'none',
+                  borderLeft: aktif ? '3px solid #5b8def' : '3px solid transparent',
+                  color: aktif ? '#1e3a8a' : C.textPrimary,
+                  fontSize: 14,
+                  fontWeight: aktif ? 600 : 400,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  width: '100%',
+                }}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
         {aktifKullanici && (
           <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.borderSubtle}`, marginTop: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, marginBottom: 2, letterSpacing: '-0.01em' }}>
