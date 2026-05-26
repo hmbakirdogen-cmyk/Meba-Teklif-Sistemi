@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useKullanici } from '../context/useKullanici';
 import { useRehberCtx } from '../context/useRehber';
 import { kullaniciHitap } from '../utils/kullaniciHitap';
+import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import TipSpotlight from '../components/TipSpotlight';
 import type { TipDef } from '../components/tipler/tipTipleri';
 
@@ -74,16 +75,40 @@ export function useSayfaRehberi(
     [aktifKullanici?.adSoyad],
   );
 
-  // İlk uygun tipi bul (onKosul + DOM hedefi sağlananlar)
+  // ── Rol bazlı pool filtresi (Faz 9, Mehmet Bey 2026-05-26 direktifi) ──
+  // NE: TipDef.roller alanına göre kullanıcı rolüne uymayanları çıkar.
+  // NEDEN: "Yöneticilere ayrı, çalışanlara ayrı tanıtım olsun yerine
+  //        göre." Yönetici-özel tipler (sahiplik audit, ödüller, kim
+  //        kazandı görünürlüğü) çalışana gösterilmez; çalışan-özel
+  //        tipler (revize akışı, durum prosesi önemi) yöneticide tekrar
+  //        edilmez.
+  // NASIL: 1) roller undefined/boş → HERKESE açık (default davranış,
+  //           geri uyumlu — mevcut tiplerin tümü hala çalışır)
+  //        2) roller içinde 'yonetici' varsa → super_admin/firma_admin
+  //           için göster, çalışan göremez
+  //        3) roller içinde 'calisan' varsa → yönetici göremez (sadece
+  //           çalışan rehberi)
+  //        4) Filtre useMemo ile pool değişikliğinde yeniden hesaplar.
+  const yoneticiMi = isYoneticiRol(aktifKullanici?.rol);
+  const filtreliPool = useMemo(() => {
+    return pool.filter((t) => {
+      if (!t.roller || t.roller.length === 0) return true; // herkes
+      if (yoneticiMi && t.roller.includes('yonetici')) return true;
+      if (!yoneticiMi && t.roller.includes('calisan')) return true;
+      return false;
+    });
+  }, [pool, yoneticiMi]);
+
+  // İlk uygun tipi bul (onKosul + DOM hedefi sağlananlar) — filtreli pool üzerinden
   const ilkUygunTip = useCallback((): { tip: TipDef; index: number } | null => {
-    for (let i = 0; i < pool.length; i++) {
-      const t = pool[i];
+    for (let i = 0; i < filtreliPool.length; i++) {
+      const t = filtreliPool[i];
       if (t.onKosul && !t.onKosul()) continue;
       if (t.targetSelector() == null) continue;
       return { tip: t, index: i };
     }
     return null;
-  }, [pool]);
+  }, [filtreliPool]);
 
   /** Rehberleri sirayla goster (global FAB veya elle tetik). */
   const baslat = useCallback(() => {
@@ -112,11 +137,11 @@ export function useSayfaRehberi(
     rehberCtx.register({
       baslat,
       sayfaAdi: secenekler.sayfaAdi ?? 'Bu sayfa',
-      bos: pool.length === 0,
+      bos: filtreliPool.length === 0,
       renderTipSpotlight: () => renderRef.current?.(),
     });
     return () => rehberCtx.unregister();
-  }, [rehberCtx, baslat, secenekler.sayfaAdi, pool.length]);
+  }, [rehberCtx, baslat, secenekler.sayfaAdi, filtreliPool.length]);
 
   // One-shot otomatik tetik — otomatikAcKey verilmis ve daha once acilmamissa
   useEffect(() => {
@@ -183,8 +208,8 @@ export function useSayfaRehberi(
   const tipSonraki = useCallback(() => {
     if (!aktifTip) return;
     // Bir sonraki uygun tip'i bul (onKosul + DOM hedefi)
-    for (let i = aktifIndex + 1; i < pool.length; i++) {
-      const t = pool[i];
+    for (let i = aktifIndex + 1; i < filtreliPool.length; i++) {
+      const t = filtreliPool[i];
       if (t.onKosul && !t.onKosul()) continue;
       if (t.targetSelector() == null) continue;
       setAktifTip(t);
@@ -196,7 +221,7 @@ export function useSayfaRehberi(
     setAktifIndex(-1);
     setAktifHedef(null);
     setAktifEkHedefler([]);
-  }, [aktifTip, aktifIndex, pool]);
+  }, [aktifTip, aktifIndex, filtreliPool]);
 
   // Render artik SADECE TipSpotlight overlay. 🎓 Rehberler butonu global
   // RehberFab'a (AppLayout) tasindi — context register/unregister yukarida.
@@ -210,7 +235,7 @@ export function useSayfaRehberi(
         ekHedefler={aktifEkHedefler}
         step={
           aktifIndex >= 0
-            ? { current: aktifIndex + 1, total: pool.length }
+            ? { current: aktifIndex + 1, total: filtreliPool.length }
             : undefined
         }
         baslik={aktifTip?.baslik(hitap) ?? ''}
@@ -222,10 +247,10 @@ export function useSayfaRehberi(
         kartGenislik={aktifTip?.kartGenislik}
         onAnladim={tipSonraki}
         onAtla={tipKapat}
-        sonAdim={aktifIndex === pool.length - 1}
+        sonAdim={aktifIndex === filtreliPool.length - 1}
       />
     );
-  }, [aktifTip, aktifHedef, aktifEkHedefler, aktifIndex, hitap, pool.length, tipSonraki, tipKapat]);
+  }, [aktifTip, aktifHedef, aktifEkHedefler, aktifIndex, hitap, filtreliPool.length, tipSonraki, tipKapat]);
 
   // renderRef'i useEffect ile güncel tut — context'teki renderTipSpotlight
   // bu ref üzerinden çağrılır, state değişimleri her render'dan sonra yansır.

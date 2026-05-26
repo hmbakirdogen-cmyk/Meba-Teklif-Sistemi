@@ -260,4 +260,67 @@ export const TEKLIF_EDITOR_TIPLERI: TipDef[] = [
     animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
     onKosul: () => bul('[data-tip-target="profilim"]') != null,
   },
+  // ── Faz 9: Rol bazlı tipler (Mehmet Bey 2026-05-26) ─────────────────
+  // Bu tiplerin DOM hedefleri MEVCUT tip hedefleriyle aynı (durum pili,
+  // revize rozet vb.). Sequence sırayla geçer; rol filtresi sayesinde
+  // yönetici farklı metin, çalışan farklı metin görür.
+
+  // ÇALIŞAN-ÖZEL — Sahiplik vurgusu
+  {
+    id: 'sahiplik-vurgu',
+    baslik: (h) => `Bu teklif SANA özel kaydedildi, ${h}`,
+    aciklama: () =>
+      'Hazırladığınız her teklif kayıt altında — kim tarafından oluşturulduğu (siz), ne zaman gönderildiği, ne zaman sonuçlandığı sistem tarafından otomatik damgalanır. Müşteri "evet" derse kazanç sizin hanenize işlenir; kimse başkasının teklifini sahiplenemez. Yöneticileriniz tüm bu kayıtları net görür. İyi takip = görünür performans.',
+    miniEtiket: 'SAHİP SİZSİNİZ',
+    gostericiOk: true,
+    kartGenislik: 540,
+    roller: ['calisan'],
+    targetSelector: () => bul('button[data-tip-target="durum"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('button[data-tip-target="durum"]') != null,
+  },
+
+  // ÇALIŞAN-ÖZEL — Durum prosesi önemi
+  {
+    id: 'durum-akisi-onemi',
+    baslik: (h) => `Durum akışı NEDEN bu kadar önemli, ${h}`,
+    aciklama: () =>
+      'Taslak → Hazır → Gönderildi → Onay sıralaması teklifin gerçek hikayesidir. Müşteriyi aradığınızda durumu güncelleyin: cevap olumlu mu "Onaylandı"ya çekin, ret aldıysanız "Reddedildi". Bu küçük hareket sizin performans karnenize işler — kapanış oranınız, takip hızınız ölçülür. Yöneticileriniz hangi teklifin nerede kaldığını an be an görür; "müşteriyi aradın mı?" sorusu gerek kalmaz.',
+    miniEtiket: 'TAKİP ET',
+    gostericiOk: true,
+    kartGenislik: 540,
+    roller: ['calisan'],
+    targetSelector: () => bul('button[data-tip-target="durum"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('button[data-tip-target="durum"]') != null,
+  },
+
+  // HERKES — Revize teklif akışı (Mehmet Bey: "revize teklif oluşturmaya hakim olmalı")
+  {
+    id: 'revize-akisi',
+    baslik: (h) => `Eski teklifi nasıl revize edersiniz, ${h}`,
+    aciklama: () =>
+      'Müşteri sonradan değişiklik isterse veya teklif onaylandıktan sonra fiyat/miktar güncelliyorsanız: orijinal teklifi açın, kontrol paneli kilidini açın, değişiklikleri yapın. Sistem ORİJİNAL kaydı KORUR; üzerine "⟳ Revize" mor rozeti düşer ve PDF güncellenir. Listede ana teklifin altında "-Rev" numarasıyla yeni teklif görünür. Eski versiyon hep geride durur; revize zinciri net izlenebilir — kim ne değiştirdi sistem hatırlar.',
+    miniEtiket: 'REVİZE OLUŞTUR',
+    gostericiOk: true,
+    kartGenislik: 540,
+    targetSelector: () => bul('[data-tip-target="revize-rozet"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('[data-tip-target="revize-rozet"]') != null,
+  },
+
+  // YÖNETİCİ-ÖZEL — Audit ve sahiplik koruması
+  {
+    id: 'yonetici-audit',
+    baslik: (h) => `Her aksiyon kayıt altında — ${h}`,
+    aciklama: () =>
+      'Bu sistemde her teklif kimin yaptığı, kimin gönderdiği, kimin sonuçlandırdığı zaman damgalı kayıt tutar. Personel başka birinin teklifinin sahipliğini iddia edemez — hazırlayan ID değiştirilemez, sonuç girişi log\'lanır. İleride MEBA değerlendirmesi (yatırım, satış, ekip ödülleri) bu temiz veri üzerine kurulur. /analiz sayfasındaki 3D performans matrisi + risk merkezi her personelin gerçek performansını gösterir.',
+    miniEtiket: 'YÖNETİCİ GÖRÜR',
+    gostericiOk: true,
+    kartGenislik: 540,
+    roller: ['yonetici'],
+    targetSelector: () => bul('button[data-tip-target="durum"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('button[data-tip-target="durum"]') != null,
+  },
 ];

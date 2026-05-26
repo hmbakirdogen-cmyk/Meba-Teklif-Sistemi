@@ -17,6 +17,14 @@ export type TipYanEtki =
 /** Kart konum tercihi — animasyon-kart cakismasini engellemek icin. */
 export type KartTercihYon = 'ust' | 'alt' | 'oto';
 
+/**
+ * Rol bazli rehber filtresi — Mehmet Bey 2026-05-26 direktifi:
+ * "Yoneticilere ayri, calisanlara ayri tanitim olsun yerine gore".
+ * Bir tipin gosterilebilecegi rol(ler) listesi. Belirtilmezse HERKESE
+ * acik (tum kullanicilar gorur). 'yonetici' = super_admin + firma_admin.
+ */
+export type TipRol = 'yonetici' | 'calisan';
+
 export interface TipDef {
   id: string;
   /** Baslik — kullanici hitabesi ("Mehmet Bey") parametre olarak gelir. */
@@ -43,4 +51,15 @@ export interface TipDef {
   kartGenislik?: number;
   /** Ön koşul — tip gosterilmeden once true donmeli (ornek: en az 1 satir). */
   onKosul?: () => boolean;
+  /**
+   * Bu tipin gorunecegi rol(ler). Bos/undefined = HERKES gorur.
+   * Ornek:
+   *   roller: ['yonetici']           → sadece yonetici (super/firma_admin)
+   *   roller: ['calisan']            → sadece calisan rolundeki personel
+   *   roller: undefined              → herkes
+   * Faz 9 (2026-05-26): yonetici-ozel tipler (kim hak iddiasi
+   * yapamaz, sahiplik audit log, kredi hirsizligi engelleme) icin
+   * tanitim turleri ayri pool'da olabilir. Hook bu alani filtreler.
+   */
+  roller?: TipRol[];
 }
