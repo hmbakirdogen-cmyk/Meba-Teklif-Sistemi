@@ -31,6 +31,7 @@ import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
 import EChartBar3D, { type Bar3DData } from '../components/charts/EChartBar3D';
 import EChartPie3D, { type PieData } from '../components/charts/EChartPie3D';
 import EChartScatter3D, { type Scatter3DPoint } from '../components/charts/EChartScatter3D';
+import { caprazTavsiyeHesapla, firmaIdAdHaritasi, type CaprazTavsiye } from '../utils/caprazTavsiye';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import {
   filtreleTeklifleri,
@@ -176,6 +177,23 @@ export default function AnalizSayfasi() {
 
   // Sadece yönetici/firma_admin/super_admin için 3D analiz görünür
   const yoneticiMi = isYoneticiRol(aktifKullanici?.rol);
+
+  // ── Çapraz Grup Şirket Tavsiyeleri (Faz 11) ─────────────────────────
+  // NE: Aktif firmanın carilerinde olmayan ama diğer grup firmalarının
+  //     (MEBA/MESA/ELMOS) aktif olduğu cariler — "potansiyel müşteri".
+  // NEDEN: Mehmet Bey direktifi — "rakam asla konuşulmamalı, sentezleyip
+  //        sadece potansiyel olabilecek firmaları tavsiye". Grup-içi
+  //        bilgi transferi, çapraz satış için aday tespiti.
+  // NASIL: tüm teklifler üzerinden caprazTavsiyeHesapla. Aktif firma
+  //        useFirma()'dan, yoksa aktifKullanici.firmaId. Yönetici dışı
+  //        kullanıcılar da görür (Mehmet Bey "çalışanlar dahil" dedi),
+  //        ama liste rakam ASLA içermez → gizlilik korunmuş.
+  const tavsiyeIcinAktifFirmaId = aktifFirma?.id ?? aktifKullanici?.firmaId ?? '';
+  const caprazTavsiyeler: CaprazTavsiye[] = useMemo(() => {
+    if (!tavsiyeIcinAktifFirmaId) return [];
+    // filtreden bağımsız — tüm teklifler üzerinden (grup karşılaştırması)
+    return caprazTavsiyeHesapla(teklifler, tavsiyeIcinAktifFirmaId, 12);
+  }, [teklifler, tavsiyeIcinAktifFirmaId]);
 
   // ── 3D Sonuç Dağılımı pie verisi (Faz 8b) ─────────────────────────────
   // NE: Filtreli tekliflerin durum dağılımını premium 3D-illüzyon pie ile
@@ -383,6 +401,168 @@ export default function AnalizSayfasi() {
         )}
         <KullaniciPerformansiTablo data={kullaniciPerf} isMobile={isMobile} />
       </Card>
+
+      {/* ─── Çapraz Grup Şirket Tavsiyeleri (Faz 11) ─── */}
+      {/* Mehmet Bey direktifi 2026-05-26: "MEBA'nın carilerinde olmayan
+          ama MESA/ELMOS'un aktif olduğu firmalar — RAKAMLAR YOK, sadece
+          potansiyel sinyal, sentezlenmiş top liste". Çalışanlar da görür
+          (Mehmet Bey "çalışanlar dahil" dedi) — liste rakam içermez,
+          gizlilik korunur. */}
+      {caprazTavsiyeler.length > 0 && tavsiyeIcinAktifFirmaId && (
+        <Card
+          title={
+            <>
+              <TeamOutlined style={{ color: '#a855f7' }} /> &nbsp;
+              Potansiyel Müşteriler — Grup İçi Sinyal
+            </>
+          }
+          style={{ ...cardStyle, marginTop: 16 }}
+          styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: isDark ? '#94a3b8' : '#64748b',
+              marginBottom: 14,
+              padding: '8px 12px',
+              background: isDark ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.04)',
+              border: `1px solid ${isDark ? 'rgba(168,85,247,0.18)' : 'rgba(168,85,247,0.18)'}`,
+              borderRadius: 8,
+              lineHeight: 1.55,
+            }}
+          >
+            💡 {firmaIdAdHaritasi(tavsiyeIcinAktifFirmaId)} hâlâ teklif vermediği,
+            grup şirketlerin <b>aktif</b> olduğu firmalar — sentezlenmiş öneriler.
+            Detaylı rakam paylaşılmaz; <i>buralarda potansiyel var</i> sinyali olarak okuyun.
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile
+                ? '1fr'
+                : 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {caprazTavsiyeler.map((t) => {
+              const seviyeRenk =
+                t.potansiyelSeviye === 'yuksek'
+                  ? '#22c55e'
+                  : t.potansiyelSeviye === 'orta'
+                    ? '#f59e0b'
+                    : '#94a3b8';
+              const seviyeMetin =
+                t.potansiyelSeviye === 'yuksek'
+                  ? 'Yüksek Potansiyel'
+                  : t.potansiyelSeviye === 'orta'
+                    ? 'Orta Potansiyel'
+                    : 'Düşük Potansiyel';
+              return (
+                <div
+                  key={t.cariId}
+                  style={{
+                    padding: 14,
+                    borderRadius: 10,
+                    background: isDark
+                      ? 'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.4) 100%)'
+                      : 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
+                    border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
+                    position: 'relative',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 12,
+                      right: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                      background: `${seviyeRenk}1f`,
+                      border: `1px solid ${seviyeRenk}66`,
+                      color: seviyeRenk,
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: '0.03em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: seviyeRenk }} />
+                    {seviyeMetin}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: isDark ? '#f1f5f9' : '#0f172a',
+                      marginBottom: 4,
+                      paddingRight: 110,
+                      lineHeight: 1.3,
+                      letterSpacing: '-0.005em',
+                    }}
+                  >
+                    {formatCariAdi(t.firmaAdi)}
+                  </div>
+
+                  <div style={{ fontSize: 11.5, color: isDark ? '#94a3b8' : '#475569', marginBottom: 10 }}>
+                    {t.yetkili && <span>{t.yetkili}</span>}
+                    {t.yetkili && t.sektor && <span style={{ margin: '0 6px', opacity: 0.5 }}>·</span>}
+                    {t.sektor && <span style={{ textTransform: 'capitalize' }}>{t.sektor}</span>}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {t.kaynakFirmaIds.map((fid) => (
+                      <span
+                        key={fid}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          color: isDark ? '#cbd5e1' : '#475569',
+                          background: isDark ? 'rgba(91,141,239,0.12)' : 'rgba(91,141,239,0.08)',
+                          border: `1px solid ${isDark ? 'rgba(91,141,239,0.28)' : 'rgba(91,141,239,0.22)'}`,
+                          borderRadius: 4,
+                        }}
+                      >
+                        {firmaIdAdHaritasi(fid)} aktif
+                      </span>
+                    ))}
+                  </div>
+
+                  {t.telefon ? (
+                    <a
+                      href={`tel:${t.telefon.replace(/\s+/g, '')}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        background: isDark ? 'rgba(34,197,94,0.14)' : 'rgba(34,197,94,0.10)',
+                        border: `1px solid ${isDark ? 'rgba(34,197,94,0.35)' : 'rgba(34,197,94,0.30)'}`,
+                        color: isDark ? '#86efac' : '#16a34a',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      📞 {t.telefon}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 10.5, color: isDark ? '#64748b' : '#94a3b8' }}>
+                      Telefon bilgisi yok — yetkiliden iste
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* ─── Performans Matrisi (3D Scatter) ─── */}
       {/* Mehmet Bey direktifi (Faz 8b): yöneticilere personel kullanım
