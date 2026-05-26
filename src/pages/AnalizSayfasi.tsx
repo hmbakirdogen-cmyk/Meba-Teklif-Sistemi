@@ -10,6 +10,7 @@ import {
   TeamOutlined,
   BankOutlined,
   TagOutlined,
+  PieChartOutlined,
   FilePdfOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -28,6 +29,7 @@ import { YoneticiOzeti } from '../components/YoneticiOzeti';
 import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
 import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
 import EChartBar3D, { type Bar3DData } from '../components/charts/EChartBar3D';
+import EChartPie3D, { type PieData } from '../components/charts/EChartPie3D';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import {
   filtreleTeklifleri,
@@ -173,6 +175,31 @@ export default function AnalizSayfasi() {
 
   // Sadece yönetici/firma_admin/super_admin için 3D analiz görünür
   const yoneticiMi = isYoneticiRol(aktifKullanici?.rol);
+
+  // ── 3D Sonuç Dağılımı pie verisi (Faz 8b) ─────────────────────────────
+  // NE: Filtreli tekliflerin durum dağılımını premium 3D-illüzyon pie ile
+  //     gösterir (roseType=area, radial gradient, glow emphasis).
+  // NEDEN: Tek bakışta "onay vs ret vs bekleyen" oranı görsün — tablonun
+  //        sayısal değil görsel iletişimi yöneticinin nabız tutmasını
+  //        hızlandırır.
+  // NASIL: durumDagilimi 8 anahtarını name/value PieData'ya çevir; sıfır
+  //        olanları filtre dışı tut → pie temiz kalır.
+  const DURUM_AD_HARITASI: Record<string, string> = {
+    taslak: 'Hazırlanıyor',
+    hazir: 'Hazır',
+    gonderildi: 'Gönderildi',
+    onaylandi: 'Onaylandı',
+    kismi_onaylandi: 'Kısmi Onay',
+    siparis_alindi: 'Siparişe Döndü',
+    reddedildi: 'Reddedildi',
+    iptal: 'İptal',
+  };
+  const sonucDagilim3D: PieData[] = useMemo(() => {
+    return Object.entries(ozet.durumDagilimi)
+      .map(([k, v]) => ({ name: DURUM_AD_HARITASI[k] ?? k, value: v }))
+      .filter((d) => d.value > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ozet]);
   const firmaAnaliz = useMemo(() => firmaAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const markaAnaliz = useMemo(() => markaAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const urunKoduAnaliz = useMemo(() => urunKoduAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
@@ -324,6 +351,51 @@ export default function AnalizSayfasi() {
         )}
         <KullaniciPerformansiTablo data={kullaniciPerf} isMobile={isMobile} />
       </Card>
+
+      {/* ─── Sonuç Dağılımı (3D Pie) ─── */}
+      {/* Mehmet Bey direktifi (Faz 8b): elit 3D pie. Tüm filtreli
+          tekliflerin durum dağılımı tek bakışta — roseType=area ile
+          parça radius'u value'ya göre; donut ortasında toplam sayı
+          büyük puntoyla. Hover'da parça büyür + glow → 3D his. */}
+      {sonucDagilim3D.length > 0 && (
+        <Card
+          title={<><PieChartOutlined /> &nbsp; Sonuç Dağılımı</>}
+          style={{ ...cardStyle, marginTop: 16 }}
+          styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}
+        >
+          <div
+            style={{
+              padding: '8px 4px',
+              borderRadius: 8,
+              background: isDark
+                ? 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.3) 100%)'
+                : 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+              border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: isDark ? '#94a3b8' : '#475569',
+                padding: '4px 12px 8px',
+              }}
+            >
+              📊 Onay / Ret / Bekleyen — toplam {filtreliTeklifler.length} teklif
+            </div>
+            <EChartPie3D
+              data={sonucDagilim3D}
+              height={400}
+              valueAdi="teklif"
+              innerRadius={0.5}
+              roseMode="area"
+              isDark={isDark}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* ─── Firma Bazlı Analiz ─── */}
       <Card
