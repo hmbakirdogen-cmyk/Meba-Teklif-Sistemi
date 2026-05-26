@@ -58,6 +58,18 @@ export interface TipSpotlightProps {
   ileriEtiket?: string;
   /** Son tip ise bu true; buton "BITIR" olur. */
   sonAdim?: boolean;
+  /**
+   * Animasyonun hedefin altinda kapladigi yer ihtiyaci (px). TipDef'ten
+   * gelir, kartin alt yerlesim hesabini etkiler. Default: 200 (tipik).
+   * Ornek: satir-yukseklik 80, para-birimi 340, birim-fiyat 220.
+   */
+  animAltKaplama?: number;
+  /**
+   * Icerik kartinin max genisligi (px). TipDef'ten gelir. Default: 720
+   * (A4 hucre tipleri). Toolbar tipleri 540 kullanir — daha ferah dengeli
+   * yerlesim icin.
+   */
+  kartGenislik?: number;
 }
 
 interface RectState {
@@ -170,6 +182,8 @@ export default function TipSpotlight({
   onAtla,
   ileriEtiket,
   sonAdim,
+  animAltKaplama,
+  kartGenislik,
 }: TipSpotlightProps) {
   const rect = useTargetRect(target);
   const ekRectler = useTargetRects(ekHedefler);
@@ -203,7 +217,9 @@ export default function TipSpotlight({
   const altBosluk = rect.vh - (sY + sH);
   const ustBosluk = sY;
   const KART_YUKSEKLIK_TAHMIN = step ? 230 : 200;
-  const ANIM_ALT_KAPLAMA = 200; // animasyonlarin tipik alt yer ihtiyaci
+  // animAltKaplama prop'undan (TipDef pool field'i) gelir — her tip kendi
+  // animasyonunun kapladigi alt alani belirtir. Yoksa default 200 (tipik).
+  const ANIM_ALT_KAPLAMA = animAltKaplama ?? 200;
   const ustYeterli = ustBosluk >= KART_YUKSEKLIK_TAHMIN + 36;
   const altAnimSonra = altBosluk - ANIM_ALT_KAPLAMA;
   const kartAlt = !ustYeterli && altAnimSonra >= KART_YUKSEKLIK_TAHMIN;
@@ -211,9 +227,9 @@ export default function TipSpotlight({
     ? sY + sH + ANIM_ALT_KAPLAMA
     : Math.max(24, sY - KART_YUKSEKLIK_TAHMIN - 36);
   // Kart yatay konumu: hedefin merkezine yapis, viewport sinirlarinda clamp.
-  // Boylece "burada" denilen yer ile kart birbirine HIZALI olur — eskiden
-  // kart her zaman ekran ortasindaydi, hedef yan tarafta ise kacik gozukurdu.
-  const KART_GENISLIK = Math.min(720, rect.vw - 48);
+  // kartGenislik prop'undan (TipDef pool field'i) gelir — toolbar tipleri
+  // 540 (ferah), A4 hucre tipleri 720 (default). Yoksa 720'a duser.
+  const KART_GENISLIK = Math.min(kartGenislik ?? 720, rect.vw - 48);
   const targetCenterX = sX + sW / 2;
   const kartMinCenterX = KART_GENISLIK / 2 + 24;
   const kartMaxCenterX = rect.vw - KART_GENISLIK / 2 - 24;

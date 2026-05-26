@@ -194,6 +194,8 @@ export function useSayfaRehberi(
 
   // Render artik SADECE TipSpotlight overlay. 🎓 Rehberler butonu global
   // RehberFab'a (AppLayout) tasindi — context register/unregister yukarida.
+  // Faz 3: animAltKaplama + kartGenislik artik TipDef pool field'larindan
+  // okunup TipSpotlight'a iletilir (eski sabit 200 / 720 fallback olarak).
   const render = useCallback((): React.ReactNode => {
     return (
       <TipSpotlight
@@ -210,6 +212,8 @@ export function useSayfaRehberi(
         miniEtiket={aktifTip?.miniEtiket}
         gostericiOk={aktifTip?.gostericiOk ?? false}
         animasyon={aktifTip?.animasyon}
+        animAltKaplama={aktifTip?.animAltKaplama}
+        kartGenislik={aktifTip?.kartGenislik}
         onAnladim={tipSonraki}
         onAtla={tipKapat}
         sonAdim={aktifIndex === pool.length - 1}
