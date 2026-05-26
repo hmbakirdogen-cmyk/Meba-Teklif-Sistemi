@@ -122,7 +122,7 @@ kullanicilarRouter.patch(
     const isAdmin = !isSelf && canEdit;
     const body = req.body ?? {};
     const data: Record<string, unknown> = {};
-    const selfIzin = ['adSoyad', 'unvan', 'initials', 'telefon', 'dahili'];
+    const selfIzin = ['adSoyad', 'unvan', 'unvanCinsiyet', 'initials', 'telefon', 'dahili'];
     const adminEk = ['rol', 'aktifMi', 'gosterilenFirmalar', 'firmaId'];
     const izinli = isAdmin ? [...selfIzin, ...adminEk] : selfIzin;
     for (const alan of izinli) {

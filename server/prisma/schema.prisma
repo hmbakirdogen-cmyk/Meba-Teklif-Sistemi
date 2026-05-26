@@ -91,6 +91,7 @@ model Kullanici {
   sifreHash                   String    // "scrypt$<saltHex>$<hashHex>"
   adSoyad                     String
   unvan                       String?
+  unvanCinsiyet               String?  // 'Bey' | 'Hanım' — kullaniciHitap için (Faz 14b)
   initials                    String?
   rol                         Rol
   firmaId                     String?
