@@ -80,3 +80,6 @@ data/
 *_cariler.xls
 *_urunler.xls
 *.XLSX
+
+# Local DB yedek/dump (production veri kopyası — commit'lenmesin)
+db-backup/
