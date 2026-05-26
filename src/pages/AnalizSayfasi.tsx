@@ -96,7 +96,7 @@ export default function AnalizSayfasi() {
   useSayfaRehberi(ANALIZ_TIPLERI, { sayfaAdi: 'Analiz' });
   const navigate = useNavigate();
   const { aktifKullanici } = useKullanici();
-  const { firmalar } = useFirma();
+  const { firmalar, aktifFirma } = useFirma();
   const { isDark } = useTheme();
   const isMobile = useIsMobile(768);
   const C = useColors();
@@ -509,8 +509,8 @@ export default function AnalizSayfasi() {
 
                   <div style={{ fontSize: 11.5, color: isDark ? '#94a3b8' : '#475569', marginBottom: 10 }}>
                     {t.yetkili && <span>{t.yetkili}</span>}
-                    {t.yetkili && t.sektor && <span style={{ margin: '0 6px', opacity: 0.5 }}>·</span>}
-                    {t.sektor && <span style={{ textTransform: 'capitalize' }}>{t.sektor}</span>}
+                    {t.yetkili && t.sehir && <span style={{ margin: '0 6px', opacity: 0.5 }}>·</span>}
+                    {t.sehir && <span style={{ textTransform: 'capitalize' }}>{t.sehir}</span>}
                   </div>
 
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>

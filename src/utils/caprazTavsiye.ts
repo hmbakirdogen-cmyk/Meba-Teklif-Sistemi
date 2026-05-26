@@ -29,7 +29,7 @@ export interface CaprazTavsiye {
   cariId: string;
   firmaAdi: string;
   yetkili: string | undefined;
-  sektor: string | undefined;
+  sehir: string | undefined;
   telefon: string | undefined;
   ePosta: string | undefined;
   /** Bu cariye hangi grup firma(lar)ı aktif teklif veriyor — UI'da rozet */
@@ -39,8 +39,6 @@ export interface CaprazTavsiye {
    * "yüksek/orta/düşük" potansiyel etiketi için 3 segmente bölünür.
    */
   potansiyelSeviye: 'yuksek' | 'orta' | 'dusuk';
-  /** Cari aktif sektörlerinde rastgele 1 ipucu — "endüstri uyumu" sinyali */
-  sektorelIpucu?: string;
 }
 
 interface PotansiyelInternal {
@@ -144,14 +142,11 @@ export function caprazTavsiyeHesapla(
     cariId: p.cari.id,
     firmaAdi: p.cari.firmaAdi,
     yetkili: p.cari.yetkiliKisi,
-    sektor: p.cari.sektor,
+    sehir: p.cari.sehir,
     telefon: p.cari.telefon,
     ePosta: p.cari.ePosta,
     kaynakFirmaIds: [...p.kaynakFirmaIds],
     potansiyelSeviye: seviye(skor),
-    sektorelIpucu: p.cari.sektor
-      ? `${p.cari.sektor} sektöründe aktif`
-      : undefined,
   }));
 }
 
