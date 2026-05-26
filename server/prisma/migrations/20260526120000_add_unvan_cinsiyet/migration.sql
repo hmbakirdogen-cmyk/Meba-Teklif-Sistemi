@@ -3,4 +3,4 @@
 -- Kullanici tablosuna `unvanCinsiyet` alanı ekle ('Bey' | 'Hanım').
 -- Default 'Bey' fallback frontend tarafında (geri uyumlu); SQL NULL kabul.
 
-ALTER TABLE "Kullanici" ADD COLUMN "unvanCinsiyet" TEXT;
+ALTER TABLE "kullanicilar" ADD COLUMN "unvanCinsiyet" TEXT;
