@@ -1,21 +1,26 @@
 /**
  * kullaniciHitap.ts
  * ─────────────────────────────────────────────────────────────────
- * Kullanici "adSoyad" alanindan kibar hitap uretir.
+ * Kullanici "adSoyad" + opsiyonel cinsiyet alanindan kibar hitap uretir.
  *
  * Davranis:
- *  • "Mehmet Bakirdogen" → "Mehmet Bey"
- *  • "Furkan Bey Sezer"  → "Furkan Bey" (ilk isim alinir)
- *  • undefined / boş     → "değerli kullanıcı" (fallback, hitabesiz görünmez)
+ *  • "Mehmet Bakirdogen" + 'Bey'   → "Mehmet Bey"
+ *  • "Ayşe Yılmaz"       + 'Hanım' → "Ayşe Hanım"
+ *  • "Furkan Bey Sezer"  + undef.  → "Furkan Bey" (ilk isim alinir, default Bey)
+ *  • undefined / boş               → "değerli kullanıcı" (fallback)
  *
- * Cinsiyet field'i yoksa "Bey" varsayilan (MEBA personeli buyuk cogunlukla erkek).
- * Ileride `cinsiyet` eklenirse: `cinsiyet === 'kadin' ? 'Hanim' : 'Bey'`.
+ * Mehmet Bey 2026-05-26 direktifi: "Herkese Bey veya Hanım hitabeti her
+ * yerde kullanılmalı". Kullanici tipinde unvanCinsiyet alanı opsiyonel;
+ * tanımsızsa "Bey" default (geri uyumlu — eski kayıtlar bozulmaz).
  *
  * Saf fonksiyon — hook degil, side-effect yok. Memoization caller'in sorumlulugu.
  */
-export function kullaniciHitap(adSoyad: string | null | undefined): string {
+export function kullaniciHitap(
+  adSoyad: string | null | undefined,
+  cinsiyet?: 'Bey' | 'Hanım',
+): string {
   const ad = adSoyad?.trim();
   if (!ad) return 'değerli kullanıcı';
   const ilkIsim = ad.split(/\s+/)[0];
-  return `${ilkIsim} Bey`;
+  return `${ilkIsim} ${cinsiyet ?? 'Bey'}`;
 }

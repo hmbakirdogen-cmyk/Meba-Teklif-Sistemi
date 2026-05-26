@@ -33,6 +33,14 @@ export interface Kullanici {
   profilFotoUrl?: string;
   telefon?: string;
   dahili?: string;
+  /**
+   * Hitabet cinsiyeti — Mehmet Bey 2026-05-26 direktifi: "Herkese Bey
+   * veya Hanım hitabeti her yerde kullanılmalı". kullaniciHitap util
+   * bu alana göre "Bey" veya "Hanım" suffix'i koyar. Default 'Bey'
+   * (MEBA personeli büyük çoğunlukla erkek; kadın personel profil
+   * düzenleme modalından 'Hanım' seçer). Geri uyumlu opsiyonel.
+   */
+  unvanCinsiyet?: 'Bey' | 'Hanım';
   mustChangePassword?: boolean;
   olusturmaTarihi?: string;
   olusturanKullaniciId?: string;

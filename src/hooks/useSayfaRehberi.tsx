@@ -69,10 +69,11 @@ export function useSayfaRehberi(
   const [aktifHedef, setAktifHedef] = useState<HTMLElement | null>(null);
   const [aktifEkHedefler, setAktifEkHedefler] = useState<HTMLElement[]>([]);
 
-  // Kibar hitap — "Mehmet Bey" gibi
+  // Kibar hitap — "Mehmet Bey" veya "Ayşe Hanım" (Faz 14b)
+  // unvanCinsiyet alanı tanımsızsa default "Bey" (geri uyumlu).
   const hitap = useMemo(
-    () => kullaniciHitap(aktifKullanici?.adSoyad),
-    [aktifKullanici?.adSoyad],
+    () => kullaniciHitap(aktifKullanici?.adSoyad, aktifKullanici?.unvanCinsiyet),
+    [aktifKullanici?.adSoyad, aktifKullanici?.unvanCinsiyet],
   );
 
   // ── Rol bazlı pool filtresi (Faz 9, Mehmet Bey 2026-05-26 direktifi) ──
