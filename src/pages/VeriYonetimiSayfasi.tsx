@@ -597,8 +597,8 @@ export default function VeriYonetimiSayfasi() {
   const tabCariler = (
     <div>
       {/* Araç çubuğu */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={cariEkleAc} className={buttonClassNames.primary}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }} data-tip-target="veri-cari-toolbar">
+        <Button type="primary" icon={<PlusOutlined />} onClick={cariEkleAc} className={buttonClassNames.primary} data-tip-target="veri-yeni-cari">
           Yeni Cari
         </Button>
         <Upload
@@ -609,7 +609,7 @@ export default function VeriYonetimiSayfasi() {
             return Upload.LIST_IGNORE;
           }}
         >
-          <Button icon={<UploadOutlined />} loading={cariYukleniyor} className={buttonClassNames.secondary}>Excel'den Aktar</Button>
+          <Button icon={<UploadOutlined />} loading={cariYukleniyor} className={buttonClassNames.secondary} data-tip-target="veri-excel-aktar">Excel'den Aktar</Button>
         </Upload>
         <Button icon={<FileExcelOutlined />} onClick={cariSablonIndir} className={buttonClassNames.secondary}>
           Boş Şablon İndir

@@ -197,6 +197,7 @@ export default function AnalizSayfasi() {
       </div>
 
       {/* ─── Filtre Çubuğu ─── */}
+      <div data-tip-target="analiz-filtre-cubugu">
       <FiltreBari
         C={C}
         cardStyle={cardStyle}
@@ -214,8 +215,10 @@ export default function AnalizSayfasi() {
         kullanicilar={kullanicilar}
         firmalar={firmalar}
       />
+      </div>
 
       {/* ─── Üst Özet Kartları ─── */}
+      <div data-tip-target="analiz-ozet-kartlari">
       <OzetKartlari
         C={C}
         cardStyle={cardStyle}
@@ -224,6 +227,7 @@ export default function AnalizSayfasi() {
         enAktifK={enAktifK}
         enAktifF={enAktifF}
       />
+      </div>
 
       {/* ─── Para Birimi Özeti ─── */}
       <Card
@@ -282,6 +286,7 @@ export default function AnalizSayfasi() {
 
       {/* ─── Yönetici Dikkat Merkezi (Risk) ─── */}
       <Card
+        data-tip-target="analiz-risk-merkezi"
         title={<><WarningOutlined style={{ color: '#f59e0b' }} /> &nbsp; Yönetici Dikkat Merkezi</>}
         style={{ ...cardStyle, marginTop: 16 }}
         styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}

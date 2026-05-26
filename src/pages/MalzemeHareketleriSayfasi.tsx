@@ -186,7 +186,7 @@ export default function MalzemeHareketleriSayfasi() {
       </div>
 
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} data-tip-target="malzeme-arama-kutusu">
           <AutoComplete
             value={arananKod}
             onChange={(v) => setArananKod(v)}
@@ -219,6 +219,7 @@ export default function MalzemeHareketleriSayfasi() {
               borderRadius: 6,
               cursor: 'pointer',
             }}
+            data-tip-target="malzeme-gecmis-getir"
           >
             Geçmişi Getir
           </button>

@@ -262,7 +262,7 @@ function UrunSetleriTab() {
   return (
     <>
       <div style={{ marginBottom: 12 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={setEkleAc} className={buttonClassNames.primary}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={setEkleAc} className={buttonClassNames.primary} data-tip-target="referans-yeni-set">
           Yeni Set Ekle
         </Button>
       </div>
@@ -549,7 +549,9 @@ export default function ReferansVerilerSayfasi() {
         <SettingOutlined /> Referans Veriler
       </Typography.Title>
       <Card>
-        <Tabs defaultActiveKey="markalar" items={tabItems} />
+        <div data-tip-target="referans-sekme-listesi">
+          <Tabs defaultActiveKey="markalar" items={tabItems} />
+        </div>
       </Card>
     </div>
   );

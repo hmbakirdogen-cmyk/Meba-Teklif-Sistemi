@@ -361,6 +361,7 @@ export default function PersonelSayfasi() {
                   <Button
                     icon={<AimOutlined />}
                     loading={topluIsleniyor}
+                    data-tip-target="personel-toplu-foto-isle"
                   >
                     {topluIsleniyor && topluIlerleme
                       ? `İşleniyor… ${topluIlerleme.tamam}/${topluIlerleme.toplam}`
@@ -368,7 +369,7 @@ export default function PersonelSayfasi() {
                   </Button>
                 </Popconfirm>
               )}
-              <Button type="primary" icon={<PlusOutlined />} onClick={yeniPersonel}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={yeniPersonel} data-tip-target="personel-yeni-ekle">
                 Yeni Personel
               </Button>
             </Space>

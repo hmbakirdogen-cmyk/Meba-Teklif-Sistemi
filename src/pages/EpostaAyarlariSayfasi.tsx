@@ -244,6 +244,7 @@ export default function EpostaAyarlariSayfasi() {
             loading={testEdiliyor}
             onClick={onTestConnection}
             className={buttonClassNames.secondary}
+            data-tip-target="eposta-baglanti-test"
           >
             Bağlantı Testi (yeni şifre gerektirir)
           </Button>
@@ -253,6 +254,7 @@ export default function EpostaAyarlariSayfasi() {
             onClick={onTestMail}
             className={buttonClassNames.secondary}
             disabled={!hasPassword}
+            data-tip-target="eposta-test-mail"
           >
             Kendime Test Maili
           </Button>

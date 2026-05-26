@@ -228,7 +228,7 @@ function FirmaForm({ firma, onSave }: { firma: Firma; onSave: (patch: Partial<Fi
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button type="primary" htmlType="submit" loading={yukleniyor}>
+            <Button type="primary" htmlType="submit" loading={yukleniyor} data-tip-target="firma-profil-kaydet">
               Kaydet
             </Button>
           </div>
