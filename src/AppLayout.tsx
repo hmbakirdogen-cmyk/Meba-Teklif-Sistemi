@@ -439,28 +439,67 @@ export default function AppLayout() {
           );
         })()}
 
-        {/* ── DESKTOP NAV ── */}
+        {/* ── DESKTOP NAV — Faz 23: Antd Menu KALDIRILDI ──
+            NE: Antd Menu yerine düz HTML <button> + react-router programmatic
+                navigate. menuItems aynı array (key + label + icon + path).
+            NEDEN: Antd v6 + React 19 + Vite v8 (Rolldown beta) stack'inde
+                Menu'nun useMergedState pattern'i sürekli #185 atıyor (Faz
+                17-22'de tüm context/props memoize'lere rağmen). Mehmet Bey
+                "ctrl+shift+r yapınca ayrı sekmelerde açılıyor" — yani sol
+                tık React handler'ında ölüyor, browser default davranış
+                Ctrl+click'te çalışıyor. Antd Menu'yu BYPASS etmek garantili.
+            NASIL: <nav>+<button> tasarımı premium-navbar CSS class'larıyla
+                uyumlu kalır (.header-nav-menu container, navbar buttons
+                .premium-navbar .ant-btn-text rules zaten var). selectedKey
+                kontrolü inline. */}
         {!isMobile && (
-          <Menu
-            theme="dark"
-            mode="horizontal"
-            selectedKeys={selectedKeysMemo}
-            className="header-nav-menu"
+          <nav
+            className="header-nav-menu meba-nav-buttons"
             style={{
               flex: 1,
               minWidth: 0,
-              borderBottom: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
               background: 'transparent',
             }}
-            items={menuItems}
-            /* Faz 19 KRITIK: Menu-level onClick fallback — eger per-item
-               onClick herhangi bir nedenle (Antd v6 davranis, event prop
-               isolation, vb.) calismaz ise Menu seviyesinden key'e gore
-               navigate edilir. menuItems'in key'leri zaten URL ile birebir
-               (teklifler, referans-veriler, analiz, veri, personel, firma-profili).
-               iki yol ayni anda dispatch olursa sonuc ayni (idempotent). */
-            onClick={({ key }) => navigate_('/' + String(key))}
-          />
+          >
+            {menuItems.map((item) => {
+              const aktif = item.key === seciliMenu;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => navigate_('/' + String(item.key))}
+                  data-menu-key={item.key}
+                  className={aktif ? 'meba-nav-btn meba-nav-btn-active' : 'meba-nav-btn'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    height: 36,
+                    padding: '0 12px',
+                    background: aktif
+                      ? 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 100%)'
+                      : 'transparent',
+                    border: '1px solid transparent',
+                    borderRadius: 9,
+                    color: aktif ? '#fff' : '#d2d8e0',
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    letterSpacing: 0.012,
+                    cursor: 'pointer',
+                    transition: 'background 200ms ease, color 200ms ease, transform 120ms ease',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         )}
 
         {/* ── SPACER (mobile) ── */}
