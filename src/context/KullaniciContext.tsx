@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { message } from 'antd';
 import type { Kullanici } from '../types/kullanici';
@@ -253,19 +253,35 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Faz 17 KRİTİK FIX: value useMemo. Önceki versiyon her render'da yeni
+  // obje → tüketici useEffect deps'leri her render tetiği → KullaniciContext'i
+  // izleyen tüm komponentler (AppLayout, AppRouter, useSayfaRehberi, vb.)
+  // sonsuz tetiklemeli → React #185.
+  const value = useMemo(
+    () => ({
+      aktifKullanici,
+      yukleniyor,
+      loginYap,
+      cikisYap,
+      girisYap,
+      refreshKullanici,
+      sifreDegistir,
+      profilFotoYukle,
+    }),
+    [
+      aktifKullanici,
+      yukleniyor,
+      loginYap,
+      cikisYap,
+      girisYap,
+      refreshKullanici,
+      sifreDegistir,
+      profilFotoYukle,
+    ],
+  );
+
   return (
-    <KullaniciContext.Provider
-      value={{
-        aktifKullanici,
-        yukleniyor,
-        loginYap,
-        cikisYap,
-        girisYap,
-        refreshKullanici,
-        sifreDegistir,
-        profilFotoYukle,
-      }}
-    >
+    <KullaniciContext.Provider value={value}>
       {children}
     </KullaniciContext.Provider>
   );

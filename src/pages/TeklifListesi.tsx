@@ -34,6 +34,13 @@ import { useColors } from '../hooks/useColors';
 import { useTheme } from '../context/useTheme';
 import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
 import { TEKLIF_LISTESI_TIPLERI } from './TeklifListesi.tips';
+// Premium Klasör İkonu — 3D rendered PNG (transparent bg). Vite asset
+// import; build sırasında hash'lenir. NOT: Bu import ES module spec'i
+// gereği dosya TOP-LEVEL'da olmak ZORUNDA — fonksiyon ortasındaydı
+// (eski line 1389), production minify'da chunk SyntaxError veriyordu →
+// React.lazy reject → Suspense fallback'te kaldı → navbar tıklamaları
+// "çalışmıyor" gibi göründü. Faz 17 fix.
+import folderIconPng from '../components/premium-icons/png-transparent-folder-3d-icon.png';
 
 // SONUC_CFG, KAYIP_SEBEBI_LABEL, computeYoneticiOzeti, YoneticiOzetiData
 // → ./teklifListesiShared'e taşındı (react-refresh constraint).
@@ -1382,12 +1389,7 @@ function KlasorSatiri({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorSati
   );
 }
 
-// ─── Premium Klasör İkonu — 3D rendered PNG (transparent bg) ────────────────
-// Vite asset import ile import edilir; build sırasında hash'lenip optimize
-// edilir, production'da statik serve. SVG yerine PNG kullanma sebebi: 3D
-// rendered (claymorphism) görsel SVG ile birebir yeniden çizilemiyordu.
-import folderIconPng from '../components/premium-icons/png-transparent-folder-3d-icon.png';
-
+// ─── Premium Klasör İkonu — 3D rendered PNG (top-level import yukarıda) ──
 function PremiumKlasorIcon({ size = 72, isDark = false }: { size?: number; isDark?: boolean }) {
   void isDark;
   return (

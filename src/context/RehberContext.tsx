@@ -25,7 +25,7 @@
 // dosyaya bölmek karmaşıklığı artırır — KullaniciContext pattern'i ile
 // uyumlu olarak file-level disable. Hook (useRehberCtx) zaten ayrı dosyada
 // (./useRehber.ts) — sadece context sabitinin co-existence'ı için disable.
-import { createContext, useCallback, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react';
 
 export interface RehberHandle {
   /** Rehber sequence'ini başlatır (ilk tip görünür hale gelir). */
@@ -60,9 +60,12 @@ export function RehberProvider({ children }: { children: ReactNode }) {
   const [aktif, setAktif] = useState<RehberHandle | null>(null);
   const register = useCallback((h: RehberHandle) => setAktif(h), []);
   const unregister = useCallback(() => setAktif(null), []);
-  return (
-    <RehberContext.Provider value={{ aktif, register, unregister }}>
-      {children}
-    </RehberContext.Provider>
+  // Faz 17 KRİTİK FIX: value useMemo ile stable. Önceki versiyon her
+  // render'da yeni obje üretiyordu → tüketicilerin (useSayfaRehberi)
+  // useEffect deps'i sürekli tetikleniyor → infinite loop → React #185.
+  const value = useMemo(
+    () => ({ aktif, register, unregister }),
+    [aktif, register, unregister],
   );
+  return <RehberContext.Provider value={value}>{children}</RehberContext.Provider>;
 }
