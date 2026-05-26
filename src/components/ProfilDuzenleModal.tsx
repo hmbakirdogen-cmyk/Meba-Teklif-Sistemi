@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Form, Input, message, Divider, Button, Alert, Space, Tag, Tooltip } from 'antd';
+import { Modal, Form, Input, message, Divider, Button, Alert, Space, Tag, Tooltip, Radio } from 'antd';
 import { LockOutlined, FolderOpenOutlined, FolderOutlined, SwapOutlined, DisconnectOutlined, CopyOutlined } from '@ant-design/icons';
 import { api } from '../services/apiClient';
 import { useKullanici } from '../context/useKullanici';
@@ -15,6 +15,7 @@ interface Props {
 interface FormValues {
   adSoyad: string;
   unvan: string;
+  unvanCinsiyet: 'Bey' | 'Hanım';
   telefon: string;
   dahili: string;
 }
@@ -85,6 +86,7 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
     form.setFieldsValue({
       adSoyad: aktifKullanici.adSoyad || '',
       unvan: aktifKullanici.unvan || '',
+      unvanCinsiyet: aktifKullanici.unvanCinsiyet || 'Bey',
       telefon: aktifKullanici.telefon || '',
       dahili: aktifKullanici.dahili || '',
     });
@@ -98,14 +100,15 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
       await api.kullanicilar.update(aktifKullanici.id, {
         adSoyad: formatAdSoyad(values.adSoyad ?? '', false),
         unvan: formatUnvan(values.unvan ?? '', false),
+        unvanCinsiyet: values.unvanCinsiyet || 'Bey',
         telefon: (values.telefon ?? '').trim(),
         dahili: (values.dahili ?? '').trim(),
       });
       await refreshKullanici();
-      message.success('Profil güncellendi');
+      message.success('Profil bilgileriniz başarıyla güncellendi.');
       onClose();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Profil güncellenemedi');
+      message.error(err instanceof Error ? err.message : 'Profil bilgileri güncellenemedi.');
     } finally {
       setYukleniyor(false);
     }
@@ -155,6 +158,16 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
           normalize={(val: string) => formatUnvan(val ?? '', true)}
         >
           <Input placeholder="Ünvan" autoComplete="off" />
+        </Form.Item>
+        <Form.Item
+          name="unvanCinsiyet"
+          label="Hitabet"
+          tooltip="Sistem tüm yazışmalarda bu hitabeti kullanır (örn. 'Ahmet Bey' veya 'Ayşe Hanım')."
+        >
+          <Radio.Group>
+            <Radio.Button value="Bey">Bey</Radio.Button>
+            <Radio.Button value="Hanım">Hanım</Radio.Button>
+          </Radio.Group>
         </Form.Item>
         <Form.Item name="telefon" label="Telefon">
           <Input placeholder="0XXX XXX XX XX" autoComplete="off" />
