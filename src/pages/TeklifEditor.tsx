@@ -982,7 +982,11 @@ export default function TeklifEditor() {
   //        geçer; tip değişince/sequence biterse BIZ açtıysak kapatırız
   //        (tipAcanPanelRef ile takip — kullanıcının manuel açtığı panel
   //        bozulmaz).
-  const rehber = useSayfaRehberi(TEKLIF_EDITOR_TIPLERI, {
+  // Hook return değeri kullanılmıyor — TipSpotlight artık AppLayout'taki
+  // <GlobalTipSpotlight /> tarafından context üzerinden render ediliyor.
+  // Hook çağrısı tek başına side-effect (context register + DOM polling +
+  // otomatik tetik) için yeterli. Faz 6 refactor.
+  useSayfaRehberi(TEKLIF_EDITOR_TIPLERI, {
     sayfaAdi: 'Teklif Editörü',
     otomatikAcKey: 'meba_pdf_rehber',
     otomatikAcTetik: pdfRehberTetik,
@@ -2487,10 +2491,9 @@ export default function TeklifEditor() {
         }}
       />
 
-      {/* Rehber sistemi — useSayfaRehberi hook'u TipSpotlight + 🎓 buton'u
-          tek seferde render eder. Davranis hook icindedir; sayfa sadece pool ve
-          yanEtki handler'larini verir. */}
-      {rehber.render()}
+      {/* Rehber sistemi — useSayfaRehberi hook'u context'e register eder;
+          TipSpotlight overlay'i AppLayout'taki <GlobalTipSpotlight /> render
+          eder (Faz 6 refactor). Sayfa burada render etmez. */}
     </div>
   );
 }

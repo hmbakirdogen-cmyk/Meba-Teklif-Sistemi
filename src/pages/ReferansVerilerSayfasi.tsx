@@ -12,6 +12,8 @@ import type { UrunSeti } from '../types';
 import { normalizeProductCode, cleanTextInput, formatMarka, formatDisplayText } from '../utils/formatters';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { buttonClassNames } from '../styles/buttonStyles';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { REFERANS_VERILER_TIPLERI } from './ReferansVerilerSayfasi.tips';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UrunSetModal
@@ -454,6 +456,7 @@ function ListeYonetimi({ alan, placeholder, transformInput, formatLabel, useNumb
 // Ana Sayfa
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ReferansVerilerSayfasi() {
+  useSayfaRehberi(REFERANS_VERILER_TIPLERI, { sayfaAdi: 'Referans Veriler' });
   const tabItems = [
     {
       key: 'markalar',

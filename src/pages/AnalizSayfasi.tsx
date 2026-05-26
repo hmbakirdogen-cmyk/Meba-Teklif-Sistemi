@@ -25,6 +25,8 @@ import { useTheme } from '../context/useTheme';
 import { formatCurrency, formatDate, formatCariAdi, formatAdSoyad } from '../utils/formatters';
 import { computeYoneticiOzeti } from './teklifListesiShared';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
 import {
   filtreleTeklifleri,
   ozetMetrikleriHesapla,
@@ -83,6 +85,9 @@ const DURUM_RENK: Record<TeklifDurum, string> = {
 };
 
 export default function AnalizSayfasi() {
+  // Global rehber sistemine kayıt — pool boşken FAB "yakında" mesajı, dolunca
+  // sequence başlar. Faz 6b'de ANALIZ_TIPLERI gerçek tiplerle doldurulacak.
+  useSayfaRehberi(ANALIZ_TIPLERI, { sayfaAdi: 'Analiz' });
   const navigate = useNavigate();
   const { aktifKullanici } = useKullanici();
   const { firmalar } = useFirma();

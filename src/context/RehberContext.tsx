@@ -34,6 +34,14 @@ export interface RehberHandle {
   sayfaAdi: string;
   /** Pool boş ise true → buton "yakında" gösterir, baslat() çağırmaz. */
   bos?: boolean;
+  /**
+   * Aktif rehberin TipSpotlight JSX'ini render eder. AppLayout'taki
+   * GlobalTipSpotlight bunu çağırır → spotlight overlay her sayfada
+   * AppLayout seviyesinden render edilir, sayfaların kendi return JSX'ine
+   * dokunmaya gerek kalmaz. Faz 6 sırasında eklendi (8 sayfa rehber
+   * entegrasyonunu basitleştirir).
+   */
+  renderTipSpotlight?: () => ReactNode;
 }
 
 export interface RehberCtxValue {

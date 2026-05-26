@@ -5,6 +5,8 @@ import { api } from '../services/apiClient';
 import { useColors } from '../hooks/useColors';
 import { useKullanici } from '../context/useKullanici';
 import { buttonClassNames } from '../styles/buttonStyles';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { EPOSTA_AYARLARI_TIPLERI } from './EpostaAyarlariSayfasi.tips';
 
 interface SMTPFormValues {
   preset: string;
@@ -29,6 +31,7 @@ const FORM_DEFAULTS: SMTPFormValues = {
 };
 
 export default function EpostaAyarlariSayfasi() {
+  useSayfaRehberi(EPOSTA_AYARLARI_TIPLERI, { sayfaAdi: 'E-posta Ayarları' });
   const C = useColors();
   const { aktifKullanici } = useKullanici();
   const { message } = AntdApp.useApp();

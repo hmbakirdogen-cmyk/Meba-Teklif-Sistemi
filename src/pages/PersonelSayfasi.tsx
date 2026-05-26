@@ -14,6 +14,8 @@ import {
   isYonetici,
   tumFirmalaraErisir as tumFirmalaraErisirFn,
 } from '../utils/yetkiUtils';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { PERSONEL_TIPLERI } from './PersonelSayfasi.tips';
 
 interface FormValues {
   kullaniciAdi: string;
@@ -27,6 +29,7 @@ interface FormValues {
 }
 
 export default function PersonelSayfasi() {
+  useSayfaRehberi(PERSONEL_TIPLERI, { sayfaAdi: 'Personel' });
   const { aktifKullanici } = useKullanici();
   const { firmalar } = useFirma();
   const [liste, setListe] = useState<Kullanici[]>([]);

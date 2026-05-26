@@ -8,8 +8,11 @@ import { FIRMA_KART_LAYOUT } from '../components/FirmaSecimKartLayout';
 import { LogoContainer } from '../components/LogoContainer';
 import { getAdaptiveLogoPlacement } from '../styles/logoStyles';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { FIRMA_PROFIL_TIPLERI } from './FirmaProfilSayfasi.tips';
 
 export default function FirmaProfilSayfasi() {
+  useSayfaRehberi(FIRMA_PROFIL_TIPLERI, { sayfaAdi: 'Firma Profili' });
   const { aktifKullanici } = useKullanici();
   const { firmalar, firmaGuncelle, refresh } = useFirma();
   const isAdmin = isYoneticiRol(aktifKullanici?.rol);

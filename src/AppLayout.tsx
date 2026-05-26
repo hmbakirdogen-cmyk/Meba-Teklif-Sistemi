@@ -5,6 +5,7 @@ import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import SelfServeSmtpModal from './components/SelfServeSmtpModal';
 import GlobalRehberFab from './components/GlobalRehberFab';
+import GlobalTipSpotlight from './components/GlobalTipSpotlight';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
 import BildirimPaneli from './components/BildirimPaneli';
@@ -837,6 +838,12 @@ export default function AppLayout() {
           NASIL: AppLayout Outlet'inin DIŞINDA render edilir; ProfilFoto
                  modalleri seviyesinde, kontekst sayfa içeriği üstünde. */}
       <GlobalRehberFab />
+
+      {/* GlobalTipSpotlight — aktif sayfanın rehberindeki TipSpotlight
+          overlay'ini render eder. Aktif rehber/tip yoksa null. Sayfaların
+          kendi return JSX'inde `{rehber.render()}` çağrısı GEREKMEZ —
+          AppLayout tek noktadan render eder. */}
+      <GlobalTipSpotlight />
 
       {/* Profil fotosu guncelleme modal'i (header avatar tiklanmasi ile acilir) */}
       <ProfilFotoModal

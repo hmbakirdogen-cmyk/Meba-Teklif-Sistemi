@@ -32,6 +32,8 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { buttonClassNames } from '../styles/buttonStyles';
 import { useColors } from '../hooks/useColors';
 import { useTheme } from '../context/useTheme';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { TEKLIF_LISTESI_TIPLERI } from './TeklifListesi.tips';
 
 // SONUC_CFG, KAYIP_SEBEBI_LABEL, computeYoneticiOzeti, YoneticiOzetiData
 // → ./teklifListesiShared'e taşındı (react-refresh constraint).
@@ -261,6 +263,7 @@ type GorunumModu = 'grid' | 'liste';
 // ─── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function TeklifListesi() {
+  useSayfaRehberi(TEKLIF_LISTESI_TIPLERI, { sayfaAdi: 'Teklif Listesi' });
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { aktifKullanici } = useKullanici();

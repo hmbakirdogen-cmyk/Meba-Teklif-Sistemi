@@ -102,12 +102,18 @@ export function useSayfaRehberi(
   //        sabit, sayfa-bazli pool varsa baslat(), yoksa "yakinda" mesaji.
   // NASIL: useEffect register/unregister, pool boş olsa bile register edilir
   //        (bos:true bayrağı ile FAB davranışı ayrılır → diyalog gösterir).
+  // Render callback referansı — context'e renderTipSpotlight olarak geçer.
+  // useRef ile en güncel render fonksiyonunu tutar, register effect dependency
+  // listesine her render'da hot-reload yaratmaz.
+  const renderRef = useRef<(() => React.ReactNode) | null>(null);
+
   useEffect(() => {
     if (!rehberCtx) return;
     rehberCtx.register({
       baslat,
       sayfaAdi: secenekler.sayfaAdi ?? 'Bu sayfa',
       bos: pool.length === 0,
+      renderTipSpotlight: () => renderRef.current?.(),
     });
     return () => rehberCtx.unregister();
   }, [rehberCtx, baslat, secenekler.sayfaAdi, pool.length]);
@@ -220,6 +226,13 @@ export function useSayfaRehberi(
       />
     );
   }, [aktifTip, aktifHedef, aktifEkHedefler, aktifIndex, hitap, pool.length, tipSonraki, tipKapat]);
+
+  // renderRef'i useEffect ile güncel tut — context'teki renderTipSpotlight
+  // bu ref üzerinden çağrılır, state değişimleri her render'dan sonra yansır.
+  // (react-hooks/refs kuralı: render içinde ref atama yapılmaz.)
+  useEffect(() => {
+    renderRef.current = render;
+  });
 
   return { render, baslat, aktifTip, aktifIndex };
 }

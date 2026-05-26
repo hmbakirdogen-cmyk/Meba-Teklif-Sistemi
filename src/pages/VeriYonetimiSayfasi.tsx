@@ -28,6 +28,8 @@ import {
   formatCariAdi, formatDisplayText,
 } from '../utils/formatters';
 import { formatPhone } from '../utils/phone';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { VERI_YONETIMI_TIPLERI } from './VeriYonetimiSayfasi.tips';
 import { buttonClassNames } from '../styles/buttonStyles';
 
 const { Title, Paragraph } = Typography;
@@ -396,6 +398,7 @@ function UrunSetModal({
 // Ana Sayfa
 // ─────────────────────────────────────────────────────────────────────────────
 export default function VeriYonetimiSayfasi() {
+  useSayfaRehberi(VERI_YONETIMI_TIPLERI, { sayfaAdi: 'Veri Yönetimi' });
   const { message } = App.useApp();
   // ── Veri state ──────────────────────────────────────────────────────────────
   const [cariler, setCariler] = useState<Cari[]>(() => cariService.tumCarileriGetir());

@@ -23,6 +23,8 @@ import { useKullanici } from '../context/useKullanici';
 import { useColors } from '../hooks/useColors';
 import { formatCariAdi, formatCurrency, formatDate } from '../utils/formatters';
 import type { Teklif, TeklifDurum } from '../types';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { MALZEME_HAREKETLERI_TIPLERI } from './MalzemeHareketleriSayfasi.tips';
 
 interface Hareket {
   teklifId: string;
@@ -62,6 +64,7 @@ const DURUM_RENK: Record<TeklifDurum, string> = {
 };
 
 export default function MalzemeHareketleriSayfasi() {
+  useSayfaRehberi(MALZEME_HAREKETLERI_TIPLERI, { sayfaAdi: 'Malzeme Hareketleri' });
   const { aktifKullanici } = useKullanici();
   const C = useColors();
   const [arananKod, setArananKod] = useState('');
