@@ -147,6 +147,15 @@ export function useSayfaRehberi(
   // bunlara göre triggerlenir.
   const register = rehberCtx?.register;
   const unregister = rehberCtx?.unregister;
+  // Faz 26 FIX (Faz 25 regression): aktifTip + aktifIndex deps'e eklendi.
+  // Faz 25 register'ı stable yaptı → loop bitti ama GlobalTipSpotlight artık
+  // re-render olmuyordu (context.aktif değişmiyor → spotlight gösterilmedi).
+  // baslat() çağrılınca local aktifTip değişiyor ama RehberContext bilmiyor.
+  // Çözüm: aktifTip değişince register'ı tekrar fire et → setAktif(new
+  // handle) → context.aktif değişir → GlobalTipSpotlight re-render → güncel
+  // renderTipSpotlight() çağrılır → spotlight visible=true. Loop YOK çünkü
+  // baslat/tipSonraki/tipKapat event handler'lardan tetikleniyor, effect
+  // chain'inden değil. register/unregister stable (Faz 25 fix korunuyor).
   useEffect(() => {
     if (!register || !unregister) return;
     register({
@@ -156,7 +165,7 @@ export function useSayfaRehberi(
       renderTipSpotlight: () => renderRef.current?.(),
     });
     return () => unregister();
-  }, [register, unregister, baslat, secenekler.sayfaAdi, filtreliPool.length]);
+  }, [register, unregister, baslat, secenekler.sayfaAdi, filtreliPool.length, aktifTip, aktifIndex]);
 
   // One-shot otomatik tetik — otomatikAcKey verilmis ve daha once acilmamissa
   useEffect(() => {
