@@ -30,6 +30,7 @@ import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
 import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
 import EChartBar3D, { type Bar3DData } from '../components/charts/EChartBar3D';
 import EChartPie3D, { type PieData } from '../components/charts/EChartPie3D';
+import EChartScatter3D, { type Scatter3DPoint } from '../components/charts/EChartScatter3D';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import {
   filtreleTeklifleri,
@@ -200,6 +201,37 @@ export default function AnalizSayfasi() {
       .filter((d) => d.value > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ozet]);
+
+  // ── 3D Performans Matrisi (Faz 8b Scatter) ───────────────────────────
+  // NE: Yöneticiye personel performansını 5 boyutlu görsellestirir:
+  //     X=teklif sayısı, Y=onay yüzdesi, Z=toplam tutar (TRY).
+  //     Renk gradyanı = onay% (kırmızıdan yeşile), nokta boyutu = tutar.
+  // NEDEN: Tek bakışta "hangi personel hem çok teklif yapıyor hem onay
+  //        oranı yüksek hem büyük tutarlar getiriyor?" sorusuna görsel
+  //        cevap. Sağ-üst köşedeki nokta = ideal performans (4 boyutta
+  //        yüksek). Sol-alt = düşük.
+  // NASIL: kullaniciPerf'in tümünden (en az 1 teklifi olan) Scatter3D
+  //        point üret. Toplam teklif 0 olanlar (sistem'e giriş yapmış
+  //        ama teklif yazmamış) filtrelenir → grafik temiz.
+  const personelPerformans3D: Scatter3DPoint[] = useMemo(() => {
+    return kullaniciPerf
+      .filter((p) => p.toplamTeklifSayisi > 0)
+      .map((p) => {
+        const onayYuzde =
+          p.toplamTeklifSayisi > 0
+            ? Math.round((p.onaylanan / p.toplamTeklifSayisi) * 1000) / 10
+            : 0;
+        const toplamTry = p.toplamTutar?.TRY ?? 0;
+        return {
+          name: p.adSoyad.split(' ').slice(0, 2).join(' '),
+          x: p.toplamTeklifSayisi,
+          y: onayYuzde,
+          z: Math.round(toplamTry / 1000), // bin TL cinsinden
+          colorValue: onayYuzde,
+          sizeValue: toplamTry,
+        };
+      });
+  }, [kullaniciPerf]);
   const firmaAnaliz = useMemo(() => firmaAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const markaAnaliz = useMemo(() => markaAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const urunKoduAnaliz = useMemo(() => urunKoduAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
@@ -351,6 +383,57 @@ export default function AnalizSayfasi() {
         )}
         <KullaniciPerformansiTablo data={kullaniciPerf} isMobile={isMobile} />
       </Card>
+
+      {/* ─── Performans Matrisi (3D Scatter) ─── */}
+      {/* Mehmet Bey direktifi (Faz 8b): yöneticilere personel kullanım
+          istatistikleri. Scatter 5 boyutlu görsel — X teklif sayısı,
+          Y onay yüzdesi, Z toplam tutar (bin TL), renk onay%'ya göre,
+          nokta boyutu tutar büyüklüğüne göre. Sağ-üst köşedeki büyük
+          yeşil nokta = ideal performans. */}
+      {yoneticiMi && personelPerformans3D.length > 0 && (
+        <Card
+          title={<><TeamOutlined /> &nbsp; Performans Matrisi (3D)</>}
+          style={{ ...cardStyle, marginTop: 16 }}
+          styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}
+        >
+          <div
+            style={{
+              padding: '8px 4px',
+              borderRadius: 8,
+              background: isDark
+                ? 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.3) 100%)'
+                : 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+              border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: isDark ? '#94a3b8' : '#475569',
+                padding: '4px 12px 8px',
+              }}
+            >
+              🎯 Teklif × Onay% × Tutar — sağ üst köşe ideal
+              <span style={{ marginLeft: 12, fontWeight: 400, opacity: 0.75, textTransform: 'none' }}>
+                · Renk: onay% (kırmızı → yeşil) · Nokta boyutu: toplam tutar
+              </span>
+            </div>
+            <EChartScatter3D
+              data={personelPerformans3D}
+              xAxisAdi="Teklif Sayısı"
+              yAxisAdi="Onay %"
+              zAxisAdi="Tutar (bin ₺)"
+              height={460}
+              isDark={isDark}
+              colorRange={['#ef4444', '#22c55e']}
+              symbolSizeRange={[14, 42]}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* ─── Sonuç Dağılımı (3D Pie) ─── */}
       {/* Mehmet Bey direktifi (Faz 8b): elit 3D pie. Tüm filtreli
