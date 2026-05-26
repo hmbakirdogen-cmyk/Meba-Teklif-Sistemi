@@ -131,8 +131,11 @@ export default function AppLayout() {
   }, [aktifKullanici?.id, aktifKullanici?.adSoyad]);
 
   // Tum kullanicilar icin okunmamis bildirim sayisi (atama/teklif olaylari).
+  // Faz 20: deps stable id'ye cekildi — onceki `aktifKullanici` whole obj
+  // ref Antd v6 + React 19 strict mode'da loop tetikleyebilir (yine #185).
+  const aktifKullaniciId = aktifKullanici?.id;
   useEffect(() => {
-    if (!aktifKullanici) return;
+    if (!aktifKullaniciId) return;
     let aktif = true;
     const yukle = async () => {
       try {
@@ -146,7 +149,7 @@ export default function AppLayout() {
     void yukle();
     const id = window.setInterval(yukle, 30000);
     return () => { aktif = false; window.clearInterval(id); };
-  }, [aktifKullanici, bildirimDrawerAcik]);
+  }, [aktifKullaniciId, bildirimDrawerAcik]);
 
   const seciliMenu =
     location.pathname.startsWith('/analiz') ? 'analiz'
