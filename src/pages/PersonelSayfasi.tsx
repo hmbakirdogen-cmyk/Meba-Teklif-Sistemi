@@ -158,12 +158,12 @@ export default function PersonelSayfasi() {
           telefon: (values.telefon ?? '').trim(),
           dahili: (values.dahili ?? '').trim(),
         });
-        message.success(`Personel eklendi. Varsayılan şifre: ${r.varsayilanSifre}`);
+        message.success(`${formatAdSoyad(values.adSoyad)} sisteme başarıyla eklendi. Varsayılan şifre: ${r.varsayilanSifre}`);
       }
       setModalOpen(false);
       void fetchListe();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Kaydedilemedi');
+      message.error(err instanceof Error ? err.message : 'Kayıt işlemi tamamlanamadı.');
     }
   }
 

@@ -57,33 +57,35 @@ function SmtpUyarisi() {
     if (sessionStorage.getItem(storageKey)) return;
     sessionStorage.setItem(storageKey, '1');
 
+    // Kurumsal hitabet (Mehmet Bey direktifi 2026-05-26): kibar, resmi
+    // ve kişiselleştirilmiş ton. Önceki şakacı/emoji'li metin (Plan agent
+    // raporu Faz 14) tamamen değiştirildi.
     Modal.warning({
       title: (
         <span style={{ fontSize: 16 }}>
           <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
-          E-posta adresiniz tanımlı değil!
+          E-posta ayarlarınız henüz tamamlanmadı
         </span>
       ),
       content: (
         <div style={{ lineHeight: 1.7 }}>
           <p>
-            Sayın <strong>{aktifKullanici.adSoyad}</strong>, e-posta adresinizi sisteme
-            tanıtmadınız. Bu gidişle teklif göndermeye çalıştığınızda sistem{' '}
-            <strong>"e-posta yok, ben ne yapayım?"</strong> diye çaresizce bakıp kalacak —
-            bilgisayar patlamaz ama siz paniklersiniz. 😅
+            Sayın <strong>{aktifKullanici.adSoyad}</strong>, sistem üzerinden müşterilerinize
+            teklif gönderebilmeniz için e-posta hesabınızın tanımlı olması gerekmektedir.
           </p>
           <p style={{ color: '#8c8c8c', fontSize: 13 }}>
-            Ayarlar → E-posta bölümünden 2 dakikada tanıtın, bir daha bu uyarıyı görmezsiniz.
+            Profil → E-posta Ayarları bölümünden hesabınızı yaklaşık iki dakikada
+            tanımlayabilirsiniz. Bu uyarı yeniden gösterilmeyecektir.
           </p>
         </div>
       ),
       okText: (
         <span>
           <MailOutlined style={{ marginRight: 6 }} />
-          Hemen Tanıt
+          Şimdi tanımla
         </span>
       ),
-      cancelText: 'Sonra',
+      cancelText: 'Daha sonra',
       okCancel: true,
       centered: true,
       maskClosable: true,

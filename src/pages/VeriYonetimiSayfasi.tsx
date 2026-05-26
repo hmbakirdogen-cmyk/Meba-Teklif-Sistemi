@@ -461,7 +461,7 @@ export default function VeriYonetimiSayfasi() {
   function cariSil(id: string) {
     cariService.cariSil(id);
     cariListesiYenile();
-    message.success('Cari silindi.');
+    message.success('Cari kaydı başarıyla silindi.');
   }
 
   function cariDuzenle(cari: Cari) { setSeciliCari(cari); setCariModalAcik(true); }
@@ -480,7 +480,7 @@ export default function VeriYonetimiSayfasi() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
       setUrunHata(msg);
-      message.error('Ürün dosyası okunamadı.');
+      message.error('Ürün dosyası okunamadı. Lütfen dosya formatını kontrol ediniz.');
     } finally { setUrunYukleniyor(false); }
     return basarili;
   }
@@ -488,7 +488,7 @@ export default function VeriYonetimiSayfasi() {
   function urunSil(id: string) {
     urunService.urunSil(id);
     urunListesiYenile();
-    message.success('Ürün silindi.');
+    message.success('Ürün kaydı başarıyla silindi.');
   }
 
   function urunDuzenle(urun: Urun) { setSeciliUrun(urun); setUrunModalAcik(true); }
@@ -497,7 +497,7 @@ export default function VeriYonetimiSayfasi() {
   function setSil(id: string) {
     urunSetService.setSil(id);
     setListesiYenile();
-    message.success('Set silindi.');
+    message.success('Ürün seti başarıyla silindi.');
   }
 
   function setDuzenle(set: UrunSeti) { setSeciliSet(set); setSetModalAcik(true); }
