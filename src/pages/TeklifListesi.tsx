@@ -2291,10 +2291,24 @@ function TeklifKarti({ teklif, benim, isDark, C, navigate, onSil, onCogalt, onSo
               />
             </Tooltip>
             {silinebilir ? (
+              // ── Sil Popconfirm — kart click bubble guard'ı ───────────────
+              // NE: Sil butonu Popconfirm içinde; "Sil" onayı verilince
+              //     onConfirm tetiklenir + Antd popover kapanır.
+              // NEDEN: BUG (2026-05-26 Mehmet Bey raporu) — "teklif sildiğim
+              //     zaman yeni teklif başlatmaya çalışıyor". Popconfirm "Sil"
+              //     butonunun click event'i kart DOM'una bubble ediyor →
+              //     dış div onClick={pdfAc} tetikleniyor → navigate(`/teklif/
+              //     ${id}`) silinen ID'ye yöneliyor → Editor o ID DB'de
+              //     olmadığı için "yeni teklif" modunda açılıyor.
+              // NASIL: onConfirm + onCancel callback'lerinde e?.stopPropagation
+              //     ile click event'in kart wrapper'a ulaşması engellenir.
+              //     Silme akışı normal → liste tazelenir → kullanıcı listede
+              //     kalır, yeni teklif AÇILMAZ.
               <Popconfirm
                 title="Teklif silinecek"
                 description="Bu işlem geri alınamaz. Emin misiniz?"
-                onConfirm={() => onSil(teklif.id)}
+                onConfirm={(e) => { e?.stopPropagation(); onSil(teklif.id); }}
+                onCancel={(e) => { e?.stopPropagation(); }}
                 okText="Sil"
                 cancelText="İptal"
                 okButtonProps={{ danger: true }}

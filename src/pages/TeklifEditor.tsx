@@ -33,6 +33,9 @@ import { DOCUMENT_PAGE, mmToPx } from '../templates/teklifDocumentShared';
 import CanliA4Belge from '../components/CanliA4Belge';
 import SagPanel from '../components/SagPanel';
 import BelgeToolbar from '../components/BelgeToolbar';
+import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
+import { TEKLIF_EDITOR_TIPLERI } from './TeklifEditor.tips';
+import type { TipDef } from '../components/tipler/tipTipleri';
 import KumandaPaneli from '../components/KumandaPaneli';
 import CariSecimi from '../components/CariSecimi';
 import IlgiliKisiSecimModal from '../components/IlgiliKisiSecimModal';
@@ -112,6 +115,14 @@ export default function TeklifEditor() {
   const [satirIslemleriBumped, setSatirIslemleriBumped] = useState(false);
   const [akilliHucrelerKapatildi, setAkilliHucrelerKapatildi] = useState(false);
   const [akilliHucrelerBumped, setAkilliHucrelerBumped] = useState(false);
+
+  // ── Rehber sistemi (useSayfaRehberi hook'u) ──────────────────────
+  // State + 3 useEffect + 3 callback + render hepsi hook icine kapsullenmistir.
+  // Burada SADECE yanEtki (panel-notlar acma/kapama) handler'i veriyoruz; geri
+  // kalan davranis hook tarafindan yonetilir. Sag-alttaki 🎓 Rehberler butonu da
+  // hook tarafindan render edilir.
+  // ileri kullanim icin TipDef referansi:
+  void ({} as TipDef);
   useEffect(() => {
     let iptal = false;
     const sorgula = async () => {
@@ -126,6 +137,8 @@ export default function TeklifEditor() {
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [pdfKayit]);
+
+  // Rehber sistemi cagrisi state tanimlandiktan SONRA — bkz. useSayfaRehberi(...)
   const C = useColors();
 
   // Teklif degisince tavsiye flag'lerini sifirla — her yeni teklif acılışında
@@ -177,6 +190,25 @@ export default function TeklifEditor() {
   // compose context'ine geçileceğini hatırlar.
   const [smtpSetupOpen, setSmtpSetupOpen] = useState(false);
   const [pendingMailCtx, setPendingMailCtx] = useState<MailComposeContext | null>(null);
+  // ── PDF Rehberi One-Shot Auto-Trigger (Faz 2) ───────────────────────
+  // NE: Kullanıcı toolbar'daki "PDF" / "PDF + Mail" butonuna ilk kez basınca,
+  //     editör üstünde rehber sequence (TipSpotlight) otomatik olarak başlar.
+  // NEDEN: Mehmet Bey direktifi — yeni kullanıcı PDF üretirken neyin nereden
+  //        akacağını ilk seferinde görsün; sonraki PDF üretimlerinde rehber
+  //        kendi başına açılmaz, sağ-alttaki 🎓 butonundan istediğinde
+  //        tekrar tetikler. "Onboarding ipucu", "sürekli pop-up" değil.
+  // NASIL: 1) handlePdfIndir / handleEMailGonder çağrılır çağrılmaz
+  //           setPdfRehberTetik(true) çalışır (PDF üretim akışı engellenmez).
+  //        2) useSayfaRehberi hook'una otomatikAcKey + otomatikAcTetik
+  //           prop'ları geçilir. Hook bir useEffect ile bu trigger=true
+  //           ANINDA localStorage[`meba_pdf_rehber_${userId}`] kontrol eder.
+  //        3) Önceden '1' ise: hiçbir şey yapmaz (kullanıcı zaten gördü).
+  //           Henüz '1' değilse: anahtarı '1' yazıp 800ms sonra baslat()
+  //           çağırır → ilk tip görünür hale gelir, kullanıcı "İleri/Atla"
+  //           ile sequence'i bitirir veya kapatır.
+  // TEKRAR AKTİF ETME: localStorage'dan ilgili key silinirse next mount'ta
+  //                    bir kez daha açılır. Manuel başlatma her zaman 🎓 ile.
+  const [pdfRehberTetik, setPdfRehberTetik] = useState(false);
   const cizimCanvasRef = useRef<HTMLCanvasElement>(null);
   const cizimRenk = useRef('#E53935');
   const cizimKalinlik = useRef(3);
@@ -747,11 +779,23 @@ export default function TeklifEditor() {
     }
   }, [teklifObj, state, message, modal, showExportMessage, aktifKullanici, firmalar, pdfKayit]);
 
+  // ── PDF / E-Mail butonları — rehber tetiği + dışa aktarım ───────────
+  // NE: Kullanıcı butona her bastığında setPdfRehberTetik(true) çağrılır,
+  //     ardından gerçek dışa aktarım akışı (handleDisaAktar) başlar.
+  // NEDEN: Rehberin "one-shot" davranışı hook tarafında (localStorage guard)
+  //        kararlı — burada her seferinde true'ya çekmek zararsız. Hook
+  //        zaten daha önce gösterilmişse sessizce yutar.
+  // NASIL: setState'ler senkron sıraya girer, await handleDisaAktar ise
+  //        async PDF üretim akışını başlatır. İkisi paralel: rehber overlay
+  //        açılırken PDF üretimi arka planda devam eder → kullanıcı hem
+  //        rehberi okur hem dosya hazırlanır, UI beklemez.
   const handlePdfIndir = useCallback(async () => {
+    setPdfRehberTetik(true);
     await handleDisaAktar('pdf');
   }, [handleDisaAktar]);
 
   const handleEMailGonder = useCallback(async () => {
+    setPdfRehberTetik(true);
     await handleDisaAktar('email');
   }, [handleDisaAktar]);
 
@@ -916,6 +960,46 @@ export default function TeklifEditor() {
     state.setPanelModu(null);
     state.setSeciliSatirId(null);
   }, [state]);
+
+  // Rehber sistemi — useSayfaRehberi hook'u tum davranisi (state + polling +
+  // sequence + sag-alt 🎓 buton) kapsuller. Burada YALNIZ yanEtki handler'lari
+  // var: 'panel-notlar' tipinde sag panel notlar moduna gecer, tip bittiginde
+  // (BIZ actiysak) tekrar kapanir. Kullanicinin manuel actigi paneli korur.
+  const tipAcanPanelRef = useRef<PanelModu | null>(null);
+  // ── useSayfaRehberi çağrısı (Faz 1 hook + Faz 2 otomatik tetik) ─────
+  // NE: TEKLIF_EDITOR_TIPLERI pool'undaki 16 tipi sequence olarak çalıştıran
+  //     hook. State + DOM polling + TipSpotlight render + sağ-alt 🎓 buton
+  //     hepsi hook içinde kapsüllü.
+  // NEDEN: TeklifEditor.tsx'ten 70+ satır boilerplate (3 useState + 3
+  //        useEffect + 3 callback + JSX render) sökülüp tek satıra indi.
+  //        Diğer sayfalar da aynı hook'u kullanarak rehber sistemine
+  //        bağlanabilir (Faz 6'da 8 sayfa için kullanılacak).
+  // YENİ (Faz 2): otomatikAcKey + otomatikAcTetik prop'ları geçildi.
+  //        Bunlar pdfRehberTetik state'i true olduğunda hook'un içindeki
+  //        useEffect'i tetikleyip rehberi bir kez (per-user localStorage)
+  //        otomatik başlatır. Detay yukarıdaki pdfRehberTetik bloğunda.
+  // YAN ETKİ HANDLER: 'panel-notlar' tipinde sağ panel notlar moduna
+  //        geçer; tip değişince/sequence biterse BIZ açtıysak kapatırız
+  //        (tipAcanPanelRef ile takip — kullanıcının manuel açtığı panel
+  //        bozulmaz).
+  const rehber = useSayfaRehberi(TEKLIF_EDITOR_TIPLERI, {
+    otomatikAcKey: 'meba_pdf_rehber',
+    otomatikAcTetik: pdfRehberTetik,
+    onYanEtki: (tip) => {
+      if (tip.yanEtki === 'panel-notlar' && state.panelModu !== 'notlar') {
+        state.setPanelModu('notlar');
+        tipAcanPanelRef.current = 'notlar';
+      }
+    },
+    onYanEtkiKapat: (onceki) => {
+      if (onceki.yanEtki === 'panel-notlar'
+          && tipAcanPanelRef.current === 'notlar'
+          && state.panelModu === 'notlar') {
+        state.setPanelModu(null);
+      }
+      tipAcanPanelRef.current = null;
+    },
+  });
 
   // ── REVIZE GUARD ─────────────────────────────────────────────────────────
   // Sonuçlanmış / gönderilmiş teklif düzenlenmek istendiğinde orijinal kayıt
@@ -1156,13 +1240,16 @@ export default function TeklifEditor() {
     const raw = window.localStorage.getItem(tavsiyeKey);
     return raw ? Number.parseInt(raw, 10) || 0 : 0;
   })();
+  // ESKI ust-bar tipler DEVRE DISI — yeni TipSpotlight sistemi A4 ustunde gosterir.
+  // tavsiyeEligible hesabi referans icin tutuluyor (eski sistem yeniden acilirsa gerekli).
   const tavsiyeEligible =
     state.satirlar.length === 0 &&
     !tavsiyeKapatildi &&
     !kilitli &&
     tavsiyeSayisi < TAVSIYE_MAX &&
     tipCooldownGecmis(tavsiyeKey);
-  const tavsiyeGoster = tavsiyeEligible; // baslangic en yuksek oncelik
+  void tavsiyeEligible;
+  const tavsiyeGoster = false; // tavsiyeEligible — eski top-bar kapatildi
 
   // Tavsiye gosterildiyse counter + lastShown bump et (1 kere bu acilista)
   useEffect(() => {
@@ -1189,8 +1276,9 @@ export default function TeklifEditor() {
     !kilitli &&
     notlarPopoverSayisi < TAVSIYE_MAX &&
     tipCooldownGecmis(notlarPopoverKey);
+  void notlarEligible;
   // Mutex: baslangic gosterildiyse notlar bekler
-  const notlarPopoverGoster = notlarEligible && !tavsiyeGoster;
+  const notlarPopoverGoster = false; // notlarEligible — eski top-bar kapatildi
   useEffect(() => {
     if (notlarPopoverGoster && !notlarPopoverBumped && typeof window !== 'undefined') {
       const yeni = (Number.parseInt(window.localStorage.getItem(notlarPopoverKey) || '0', 10) || 0) + 1;
@@ -1216,8 +1304,9 @@ export default function TeklifEditor() {
     !kilitli &&
     satirIslemleriSayisi < TAVSIYE_MAX &&
     tipCooldownGecmis(satirIslemleriKey);
+  void satirIslemleriEligible;
   // Mutex: baslangic veya notlar gosterildiyse satir islemleri bekler
-  const satirIslemleriGoster = satirIslemleriEligible && !tavsiyeGoster && !notlarPopoverGoster;
+  const satirIslemleriGoster = false; // satirIslemleriEligible — eski top-bar kapatildi
   useEffect(() => {
     if (satirIslemleriGoster && !satirIslemleriBumped && typeof window !== 'undefined') {
       const yeni = (Number.parseInt(window.localStorage.getItem(satirIslemleriKey) || '0', 10) || 0) + 1;
@@ -1243,11 +1332,8 @@ export default function TeklifEditor() {
     !kilitli &&
     akilliHucrelerSayisi < TAVSIYE_MAX &&
     tipCooldownGecmis(akilliHucrelerKey);
-  const akilliHucrelerGoster =
-    akilliHucrelerEligible &&
-    !tavsiyeGoster &&
-    !notlarPopoverGoster &&
-    !satirIslemleriGoster;
+  void akilliHucrelerEligible;
+  const akilliHucrelerGoster = false; // eski top-bar kapatildi
   useEffect(() => {
     if (akilliHucrelerGoster && !akilliHucrelerBumped && typeof window !== 'undefined') {
       const yeni = (Number.parseInt(window.localStorage.getItem(akilliHucrelerKey) || '0', 10) || 0) + 1;
@@ -2398,6 +2484,11 @@ export default function TeklifEditor() {
           }
         }}
       />
+
+      {/* Rehber sistemi — useSayfaRehberi hook'u TipSpotlight + 🎓 buton'u
+          tek seferde render eder. Davranis hook icindedir; sayfa sadece pool ve
+          yanEtki handler'larini verir. */}
+      {rehber.render()}
     </div>
   );
 }

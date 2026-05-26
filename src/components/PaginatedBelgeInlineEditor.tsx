@@ -1514,7 +1514,7 @@ export default function PaginatedBelgeInlineEditor({
                   <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '2px 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Teklif No</td>
                   <td style={{ fontSize: '11.5px', fontWeight: 700, color: C.navy, padding: '2px 0 1px 0', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>{teklif.teklifNo}</td>
                 </tr>
-                <tr>
+                <tr data-tip-target="tarih">
                   <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Tarih</td>
                   <td style={{ fontSize: '10.2px', fontWeight: 400, color: C.textMid, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                     {readOnly ? (

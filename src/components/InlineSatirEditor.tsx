@@ -812,6 +812,7 @@ export function SatirAksiyonlariPanel({
         <>
           <Tooltip title="Bu ürünün geçmiş tekliflerini gör" mouseEnterDelay={0.5}>
             <span
+              data-tip-target="referanslar"
               onClick={(e) => {
                 e.stopPropagation();
                 onReferanslar();

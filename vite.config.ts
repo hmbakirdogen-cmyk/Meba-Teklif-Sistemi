@@ -6,6 +6,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    // strictPort: 5173 dolu ise BAŞKA porta kaçma, hata ver. Boylece dev URL
+    // her zaman http://localhost:5173/ — bookmark/PWA/tarayıcı tab'ı stabil
+    // kalir, "5174'te eski versiyon" gibi kabuslar olmaz.
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
@@ -16,6 +20,7 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: 4173,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

@@ -1626,6 +1626,7 @@ export default function KumandaPaneli({
               type="button"
               className={`lock-button button-edit ${readOnly ? 'is-locked' : 'is-editing'}`}
               data-readonly={readOnly}
+              data-tip-target="kilit"
               onClick={() => onReadOnlyDegistir(!readOnly)}
               aria-label={readOnly ? 'Kilitli' : 'Düzenleme'}
               aria-pressed={!readOnly}

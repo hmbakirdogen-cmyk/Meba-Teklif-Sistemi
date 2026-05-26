@@ -220,6 +220,7 @@ export default function BelgeToolbar({
           <button
             type="button"
             title="Tıkla → durum değiştir"
+            data-tip-target="durum"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -292,6 +293,7 @@ export default function BelgeToolbar({
         <Tooltip title={ilgiliKisiAdSoyad ? `İlgili: ${ilgiliKisiAdSoyad}` : 'İlgili kişi ata (şirket içi)'}>
           <Button
             type="text"
+            data-tip-target="ilgili-kisi"
             icon={<Icon icon="solar:user-plus-rounded-bold-duotone" width={17} height={17} />}
             onClick={onIlgiliKisiAc}
             style={{
@@ -383,6 +385,7 @@ export default function BelgeToolbar({
           <Tooltip title="Notlar">
             <Button
               type="text"
+              data-tip-target="notlar"
               icon={
                 <svg viewBox="0 0 20 20" width="1em" height="1em" fill="currentColor" aria-hidden="true">
                   <circle cx="5" cy="4" r="1.1" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
@@ -485,6 +488,7 @@ export default function BelgeToolbar({
         >
           <Button
             type="text"
+            data-tip-target="pdf"
             icon={<Icon icon="solar:file-text-bold-duotone" width={18} height={18} />}
             onClick={onPdfIndir}
             loading={uretiliyor}
@@ -503,6 +507,7 @@ export default function BelgeToolbar({
         >
           <Button
             type="text"
+            data-tip-target="gonder"
             icon={<Icon icon="solar:letter-bold-duotone" width={18} height={18} />}
             onClick={onEMailGonder}
             loading={uretiliyor}

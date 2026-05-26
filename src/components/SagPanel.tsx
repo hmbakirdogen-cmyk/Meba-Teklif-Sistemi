@@ -375,6 +375,7 @@ function NotlarPaneli(props: SagPanelProps & { C: ReturnType<typeof useColors> }
       <PanelBaslik icon={<FileTextOutlined />} baslik="Notlar" onKapat={onKapat} C={C} />
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         <TextArea
+          data-tip-target="notlar-textarea"
           value={notlar}
           onChange={e => onNotlarDegistir(e.target.value)}
           autoSize={{ minRows: 6, maxRows: 20 }}
