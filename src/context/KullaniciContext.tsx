@@ -232,15 +232,52 @@ export function KullaniciProvider({ children }: { children: ReactNode }) {
     } catch { /* sessizce ignore */ }
   }, []);
 
-  const sifreDegistir = useCallback(async (mevcut: string, yeni: string) => {
+  // Faz 27 fix (Mehmet Bey 2026-05-26 "halen eski şifremle girebildim"):
+  // Şifre değişimi başarılı olduğunda;
+  //   1) Tarayıcıya kayıtlı obfuscate eski şifreyi sil. Aksi halde login
+  //      ekranı auto-fill ile eski şifreyi geri getirir → kullanıcı şifresini
+  //      değiştirmediğini sanır. (authStorage.setRememberedPassword login'de
+  //      yazılıyor; o değer eski hash'in plain'i olduğu için stale.)
+  //   2) Toast ile NET teyit göster. Önceki tasarımda "Şifreniz başarıyla
+  //      değiştirildi" mesajı modal'ın sifreKaydet'inde basılıyordu fakat
+  //      modal kapanmıyor olabilir, kullanıcı görmeden geçebilir → buradan
+  //      context-level toast da basıyoruz.
+  //   3) autoLogout=true ise mevcut oturumu kapat. Yeni şifrenin gerçekten
+  //      backend tarafında değiştiğinin KANITI olarak kullanıcı yeniden
+  //      login olur. IlkGirisModal akışında autoLogout=false geçilir
+  //      (kullanıcı zaten ilk girişte yeni şifre belirliyor).
+  const sifreDegistir = useCallback(async (
+    mevcut: string,
+    yeni: string,
+    opts?: { autoLogout?: boolean },
+  ) => {
     try {
       await api.auth.changePassword(mevcut, yeni);
-      await refreshKullanici();
+      // KAYITLI ESKİ ŞİFREYİ SİL — auto-fill kabusu burada biter.
+      if (aktifKullanici?.id) {
+        authStorage.clearRememberedPassword(aktifKullanici.id);
+      }
+      const autoLogout = opts?.autoLogout !== false; // default: true
+      if (autoLogout) {
+        try {
+          message.success({
+            content: 'Şifreniz başarıyla değiştirildi. Yeni şifrenizle tekrar giriş yapın.',
+            duration: 3,
+          });
+        } catch { /* message provider yoksa sessizce devam */ }
+        // 1.4 sn sonra logout: toast okunsun + kullanıcı login ekranına atılsın.
+        // Backend change-password handler'ı diğer cihazlardaki oturumları zaten
+        // iptal etti; burada kendi tab'ımızı da kapatıyoruz.
+        setTimeout(() => { void cikisYap(); }, 1400);
+      } else {
+        // İlk giriş akışı — modal kapansın, ana sayfa açılsın.
+        await refreshKullanici();
+      }
       return { ok: true as const };
     } catch (err) {
       return { ok: false as const, error: err instanceof Error ? err.message : 'Şifre değiştirilemedi.' };
     }
-  }, [refreshKullanici]);
+  }, [aktifKullanici, cikisYap, refreshKullanici]);
 
   const profilFotoYukle = useCallback(async (base64: string) => {
     try {

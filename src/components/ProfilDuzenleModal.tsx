@@ -117,11 +117,14 @@ export default function ProfilDuzenleModal({ open, onClose }: Props) {
   async function sifreKaydet(values: SifreFormValues) {
     setSifreYukleniyor(true);
     try {
+      // Faz 27: sifreDegistir default autoLogout=true. Başarılı sonrası
+      // KullaniciContext kayıtlı obfuscate eski şifreyi siler, 1.4 sn'lik
+      // success toast'u kendisi gösterir, sonra logout yapar. Burada ek
+      // toast/refresh yapma — modal kapanıp login ekranına geçilecek.
       const r = await sifreDegistir(values.mevcutSifre, values.yeniSifre);
       if (r.ok) {
-        message.success('Şifreniz başarıyla değiştirildi');
         sifreForm.resetFields();
-        await refreshKullanici();
+        onClose(); // modal kapansın; context cikisYap'i tetikleyecek
       } else {
         message.error(r.error || 'Şifre değiştirilemedi');
       }

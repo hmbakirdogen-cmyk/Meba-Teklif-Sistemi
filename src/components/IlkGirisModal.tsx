@@ -50,7 +50,9 @@ export default function IlkGirisModal() {
     const mevcutSifre = isYonetici(aktifKullanici?.rol)
       ? VARSAYILAN_SIFRE_YONETICI
       : VARSAYILAN_SIFRE_PERSONEL;
-    const r = await sifreDegistir(mevcutSifre, yeniSifre);
+    // İlk giriş akışında autoLogout=false: kullanıcı yeni şifre belirleyip
+    // modal'dan çıkıp ana sayfaya geçer; force logout istenmez (Faz 27).
+    const r = await sifreDegistir(mevcutSifre, yeniSifre, { autoLogout: false });
     setYukleniyor(false);
     if (!r.ok) {
       setSifreHata(r.error || 'Şifre değiştirilemedi.');
