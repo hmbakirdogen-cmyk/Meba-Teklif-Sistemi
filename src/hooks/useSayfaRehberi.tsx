@@ -133,16 +133,30 @@ export function useSayfaRehberi(
   // listesine her render'da hot-reload yaratmaz.
   const renderRef = useRef<(() => React.ReactNode) | null>(null);
 
+  // Faz 25 KRITIK FIX (GERÇEK #185 KÖK SEBEBİ):
+  // Önceki versiyon deps = [rehberCtx, baslat, secenekler.sayfaAdi, filtreliPool.length]
+  // — rehberCtx WHOLE CONTEXT object'i RehberContext value useMemo'sundan geliyor.
+  // useMemo deps [aktif, register, unregister]; aktif değişince value YENİ obj.
+  // Loop: register(handle) → setAktif → aktif değişir → value re-compute →
+  // rehberCtx new ref → bu useEffect fire AGAIN → register tekrar → setAktif
+  // tekrar → 50+ kez → React #185.
+  //
+  // Çözüm: rehberCtx yerine destructured register/unregister (useCallback
+  // stable, ref'leri değişmiyor) dep'e koy. rehberCtx referansı değişse bile
+  // register/unregister içlerindeki fonksiyon ref'leri stabil — useEffect
+  // bunlara göre triggerlenir.
+  const register = rehberCtx?.register;
+  const unregister = rehberCtx?.unregister;
   useEffect(() => {
-    if (!rehberCtx) return;
-    rehberCtx.register({
+    if (!register || !unregister) return;
+    register({
       baslat,
       sayfaAdi: secenekler.sayfaAdi ?? 'Bu sayfa',
       bos: filtreliPool.length === 0,
       renderTipSpotlight: () => renderRef.current?.(),
     });
-    return () => rehberCtx.unregister();
-  }, [rehberCtx, baslat, secenekler.sayfaAdi, filtreliPool.length]);
+    return () => unregister();
+  }, [register, unregister, baslat, secenekler.sayfaAdi, filtreliPool.length]);
 
   // One-shot otomatik tetik — otomatikAcKey verilmis ve daha once acilmamissa
   useEffect(() => {

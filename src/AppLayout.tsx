@@ -913,7 +913,15 @@ export default function AppLayout() {
           kırmızı nokta gösterilir; tıklayınca self-serve sihirbazı açılır.
           Eski full-width Alert bar yer kaplıyordu → discreet badge tercih edildi. */}
 
-      <Content style={{ background: 'transparent' }}>
+      {/* Faz 24 KRITIK: <Outlet/> wrapper'a key={location.pathname} eklendi.
+          Bug: URL değişiyor ama sayfa içeriği değişmiyordu (Mehmet Bey
+          2026-05-26: "sekmelere basıyorum, url'deki adres değişiyor ama
+          sayfada hiçbir değişiklik yok"). React Router v7 + React 19
+          concurrent rendering bazen Outlet child update'ini skip edebiliyor.
+          key={location.pathname} ile her URL değişikliğinde Outlet container
+          REMOUNT olur — yeni route component'i mount edilir. Tradeoff:
+          aynı path'te scroll restoration kaybolur ama navigate doğru çalışır. */}
+      <Content key={location.pathname} style={{ background: 'transparent' }}>
         <Outlet />
       </Content>
 
