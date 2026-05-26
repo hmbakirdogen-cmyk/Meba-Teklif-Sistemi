@@ -196,20 +196,8 @@ export default function PersonelSayfasi() {
   async function sifreSifirla(k: Kullanici) {
     try {
       const r = await api.kullanicilar.sifirla(k.id);
-      Modal.success({
-        title: 'Şifre sıfırlandı',
-        content: (
-          <div>
-            <p><strong>{formatAdSoyad(k.adSoyad)}</strong> kullanıcısının şifresi:</p>
-            <p style={{ fontSize: 22, fontWeight: 700, fontFamily: 'monospace', textAlign: 'center', padding: 14, background: '#f1f5f9', borderRadius: 8 }}>
-              {r.varsayilanSifre}
-            </p>
-            <p style={{ fontSize: 12, color: '#64748b' }}>
-              Personel ilk giriş yapınca yeni şifresini belirleyecek.
-            </p>
-          </div>
-        ),
-      });
+      // Faz 16 fix: statik Modal.success → message.success (React #185 önle)
+      message.success(`${formatAdSoyad(k.adSoyad)} için yeni şifre: ${r.varsayilanSifre} (Personel ilk giriş yapınca yenisini belirleyecek.)`, 12);
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Sıfırlanamadı');
     }
