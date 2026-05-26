@@ -95,18 +95,18 @@ export default function GeriBildirimDrawer({ open, onClose, initialSayfa }: Prop
   async function handleGonder() {
     const text = mesaj.trim();
     if (!text) {
-      message.warning('Lütfen bir mesaj yazın.');
+      message.warning('Lütfen mesaj alanını doldurunuz.');
       return;
     }
     setGonderiliyor(true);
     try {
       await api.geriBildirimler.create({ mesaj: text, tur, sayfa: initialSayfa });
-      message.success('Bildirimin iletildi. Teşekkürler!');
+      message.success('Bildiriminiz tarafımıza ulaştı. Teşekkür ederiz.');
       setMesaj('');
       setTur('hata');
       void refreshList();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Gönderilemedi');
+      message.error(err instanceof Error ? err.message : 'Bildiriminiz gönderilemedi.');
     } finally {
       setGonderiliyor(false);
     }
@@ -124,16 +124,16 @@ export default function GeriBildirimDrawer({ open, onClose, initialSayfa }: Prop
   async function handleCevapKaydet(id: string) {
     const cevap = (cevapTaslak[id] || '').trim();
     if (!cevap) {
-      message.warning('Cevap boş olamaz.');
+      message.warning('Lütfen cevap alanını doldurunuz.');
       return;
     }
     try {
       const guncel = await api.geriBildirimler.update(id, { cevap, okundu: true });
       setBildirimler((prev) => prev.map((g) => (g.id === id ? guncel : g)));
       setCevapTaslak((prev) => { const n = { ...prev }; delete n[id]; return n; });
-      message.success('Cevap gönderildi.');
+      message.success('Cevabınız başarıyla iletildi.');
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Cevap kaydedilemedi');
+      message.error(err instanceof Error ? err.message : 'Cevap kaydedilemedi.');
     }
   }
 
@@ -141,9 +141,9 @@ export default function GeriBildirimDrawer({ open, onClose, initialSayfa }: Prop
     try {
       await api.geriBildirimler.sil(id);
       setBildirimler((prev) => prev.filter((g) => g.id !== id));
-      message.success('Silindi.');
+      message.success('Bildirim başarıyla silindi.');
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Silinemedi');
+      message.error(err instanceof Error ? err.message : 'Bildirim silinemedi.');
     }
   }
 
@@ -255,9 +255,10 @@ export default function GeriBildirimDrawer({ open, onClose, initialSayfa }: Prop
                       {g.cevap ? 'Cevabı Düzenle' : 'Cevap Yaz'}
                     </Button>
                     <Popconfirm
-                      title="Bu bildirimi sil?"
-                      okText="Sil"
-                      cancelText="İptal"
+                      title="Bildirimi silmek istediğinize emin misiniz?"
+                      okText="Evet, sil"
+                      cancelText="Vazgeç"
+                      okButtonProps={{ danger: true }}
                       onConfirm={() => handleSil(g.id)}
                     >
                       <Button size="small" danger icon={<DeleteOutlined />}>

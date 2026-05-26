@@ -610,11 +610,11 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        message.info('PDF indirildi (yeni sekme engellenmis).');
+        message.info('PDF indirildi (yeni sekme tarayıcı tarafından engellendi).');
       }
     } catch (err) {
-      console.error('[MailComposeModal] PDF acma hatasi:', err);
-      message.error('PDF acilamadi. Lutfen yeniden olusturun.');
+      console.error('[MailComposeModal] PDF açma hatası:', err);
+      message.error('PDF açılamadı. Lütfen yeniden oluşturmayı deneyiniz.');
     }
   }, [pdfUrl, context?.pdfFileName]);
 
@@ -622,7 +622,7 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
     if (!context || !editorRef.current) return;
     const toList = to.map((s) => s.trim()).filter(Boolean);
     if (toList.length === 0) {
-      message.warning('En az bir alıcı e-posta adresi girin.');
+      message.warning('Lütfen en az bir alıcı e-posta adresi giriniz.');
       return;
     }
     setGonderiliyor(true);
@@ -656,15 +656,15 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
       });
 
       if (!sonuc.ok) {
-        message.error('Gönderim başarısız: ' + (sonuc.error || 'bilinmeyen hata'));
+        message.error('E-posta gönderiminde bir sorun oluştu: ' + (sonuc.error || 'Bilinmeyen hata. Lütfen tekrar deneyiniz.'));
         return;
       }
       if (sonuc.sentSyncOk) {
-        message.success(`E-posta gönderildi ve "${sonuc.sentMailbox || 'Gönderilmiş Öğeler'}" klasörüne kopyalandı.`);
+        message.success(`E-posta başarıyla gönderildi ve "${sonuc.sentMailbox || 'Gönderilmiş Öğeler'}" klasörüne kopyalandı.`);
       } else if (sonuc.sentSyncError) {
-        message.warning(`E-posta gönderildi, ama "Gönderilmiş Öğeler" klasörüne yazılamadı: ${sonuc.sentSyncError}`);
+        message.warning(`E-posta gönderildi, ancak "Gönderilmiş Öğeler" klasörüne yazılamadı: ${sonuc.sentSyncError}`);
       } else {
-        message.success('E-posta gönderildi.');
+        message.success('E-posta başarıyla gönderildi.');
       }
       onSent({
         messageId: sonuc.messageId,
@@ -673,7 +673,7 @@ export function MailComposeModal({ open, context, onClose, onSent, onReconfigure
       });
       onClose();
     } catch (err) {
-      message.error('Gönderim hatası: ' + (err instanceof Error ? err.message : 'bilinmeyen'));
+      message.error('E-posta gönderim sırasında bir hata oluştu: ' + (err instanceof Error ? err.message : 'Bilinmeyen hata. Lütfen tekrar deneyiniz.'));
     } finally {
       setGonderiliyor(false);
     }

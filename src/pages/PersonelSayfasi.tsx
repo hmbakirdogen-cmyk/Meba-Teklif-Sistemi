@@ -306,9 +306,9 @@ export default function PersonelSayfasi() {
             <Button size="small" icon={<EditOutlined />} disabled={yoneticiKilidi} onClick={() => duzenle(k)}>Düzenle</Button>
             <Button size="small" icon={<KeyOutlined />} disabled={yoneticiKilidi} onClick={() => void sifreSifirla(k)}>Şifre</Button>
             <Popconfirm
-              title="Personeli pasif et?"
-              description="Tekrar aktifleştirmek için yöneticiye başvurmak gerekir."
-              okText="Pasif et"
+              title="Personeli pasif duruma getirmek istediğinize emin misiniz?"
+              description="Tekrar aktifleştirebilmek için yöneticiye başvurulması gerekir."
+              okText="Evet, pasif et"
               cancelText="Vazgeç"
               okButtonProps={{ danger: true }}
               disabled={k.id === aktifKullanici?.id || yoneticiKilidi}
