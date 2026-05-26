@@ -197,4 +197,41 @@ export const TEKLIF_EDITOR_TIPLERI: TipDef[] = [
     animasyon: (rect) => <ReferansVerilerAnimasyonu rect={rect} />,
     onKosul: () => bul('span[data-tip-target="referanslar"]') != null,
   },
+  // ── Faz 4 — Yanıp sönen göstergeler (Mehmet Bey direktifi 2026-05-26) ─
+  // "Arayüzde yanıp sönen noktaların veya ikonların manasını mutlaka anlat."
+  // Bu 3 tip arayüzde belirip kaybolan küçük göstergeleri açıklar; her biri
+  // onKosul ile koşullu çalışır — gösterge görünür değilse rehber atlar.
+  {
+    id: 'revize-rozet',
+    baslik: (h) => `Mor "⟳ Revize" rozeti, ${h}`,
+    aciklama: () => 'Durum pilinin yanında belirdiyse: teklif Hazır/Gönderildi/Onaylandı gibi bir aşamadayken üzerinde değişiklik yapıldı demektir. Sistem her değişiklikte teklifi otomatik Taslak\'a çekip "revize" işaretler. PDF güncel değildir — düzeltmeden sonra tekrar PDF üretip Gönder ile yenisini iletmeniz gerekir.',
+    miniEtiket: 'REVİZE',
+    gostericiOk: true,
+    kartGenislik: 540,
+    targetSelector: () => bul('[data-tip-target="revize-rozet"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('[data-tip-target="revize-rozet"]') != null,
+  },
+  {
+    id: 'pdf-kayit-rozet',
+    baslik: (h) => `PDF kayıt rozeti — yeşil veya turuncu, ${h}`,
+    aciklama: () => 'PDF butonunun yanında küçük renkli bir klasör rozeti çıkar. YEŞİL "Klasöre: …" → seçtiğiniz klasör hazır, PDF doğrudan oraya kaydedilir. TURUNCU "Klasör izni yenilenmeli" → tarayıcı izni süresi doldu, PDF üretirken sizden bir kez daha onay isteyecek. Rozet görünmüyorsa PDF\'ler tarayıcının İndirilenler klasörüne iner.',
+    miniEtiket: 'PDF KLASÖR',
+    gostericiOk: true,
+    kartGenislik: 540,
+    targetSelector: () => bul('[data-tip-target="pdf-kayit-rozet"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('[data-tip-target="pdf-kayit-rozet"]') != null,
+  },
+  {
+    id: 'kismi-onay-banner',
+    baslik: (h) => `Sarı kısmi onay bandı, ${h}`,
+    aciklama: () => 'Müşteri tekliften bazı kalemleri onaylayıp bazılarını reddettiyse durumu "Kısmi Onay"a çekersiniz; üstte sarı bir banner belirir. A4 üzerinde reddedilen satırlara tıklayıp ✕ ile işaretler, sağ taraftaki "Tamamla"ya basarsınız. Onaylanan kalemler kalır, reddedilenler iptal işaretlenir; toplamlar otomatik yeniden hesaplanır.',
+    miniEtiket: 'KALEMLERİ İŞARETLE',
+    gostericiOk: true,
+    kartGenislik: 540,
+    targetSelector: () => bul('[data-tip-target="kismi-onay-banner"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('[data-tip-target="kismi-onay-banner"]') != null,
+  },
 ];

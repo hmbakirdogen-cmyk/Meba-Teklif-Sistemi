@@ -2048,6 +2048,7 @@ export default function TeklifEditor() {
           görmeye devam eder. Tamamla/Vazgeç burada. */}
       {kismiSecimAktif && kismiOzet && (
         <div
+          data-tip-target="kismi-onay-banner"
           style={{
             position: 'sticky',
             top: 0,

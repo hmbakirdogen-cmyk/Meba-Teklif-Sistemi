@@ -266,6 +266,7 @@ export default function BelgeToolbar({
           >
             <span
               aria-label="Revize"
+              data-tip-target="revize-rozet"
               style={{
                 display: 'inline-flex', alignItems: 'center',
                 padding: '2px 8px',
@@ -451,6 +452,7 @@ export default function BelgeToolbar({
           return (
             <Tooltip title={style.tooltip} placement="bottom">
               <span
+                data-tip-target="pdf-kayit-rozet"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
