@@ -28,9 +28,9 @@ import { computeYoneticiOzeti } from './teklifListesiShared';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
 import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
 import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
-import EChartBar3D, { type Bar3DData } from '../components/charts/EChartBar3D';
+import EChartBar2D, { type Bar2DData } from '../components/charts/EChartBar2D';
 import EChartPie3D, { type PieData } from '../components/charts/EChartPie3D';
-import EChartScatter3D, { type Scatter3DPoint } from '../components/charts/EChartScatter3D';
+import EChartScatter2D, { type Scatter2DPoint } from '../components/charts/EChartScatter2D';
 import EChartHeatmap2D, { type HeatmapData } from '../components/charts/EChartHeatmap2D';
 import { caprazTavsiyeHesapla, firmaIdAdHaritasi, type CaprazTavsiye } from '../utils/caprazTavsiye';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
@@ -155,7 +155,7 @@ export default function AnalizSayfasi() {
   const kullaniciPerf = useMemo(() => kullaniciPerformansiHesapla(filtreliTeklifler), [filtreliTeklifler]);
 
   // ── 3D Personel Kullanım Analizi verisi (Faz 8a) ────────────────────
-  // NE: kullaniciPerf array'inden EChartBar3D'nin beklediği {rows, xLabels,
+  // NE: kullaniciPerf array'inden EChartBar2D'nin beklediği {rows, xLabels,
   //     yLabels} formatına dönüştürür. X: personel, Y: durum (Toplam +
   //     Onaylanan + Bekleyen + Reddedilen), Z: teklif sayısı.
   // NEDEN: Mehmet Bey 2026-05-26 — "yöneticilere personel kullanım
@@ -167,7 +167,7 @@ export default function AnalizSayfasi() {
   //        azalan) gösterilir — 10+ personel kalabalıklaşır. Y eksen 4
   //        durum kategorisi. Rows: her (personel, durum) kombinasyonu
   //        için [xi, yi, value] satırı.
-  const personelKullanim3D: Bar3DData = useMemo(() => {
+  const personelKullanim3D: Bar2DData = useMemo(() => {
     const top10 = [...kullaniciPerf]
       .sort((a, b) => b.toplamTeklifSayisi - a.toplamTeklifSayisi)
       .slice(0, 10);
@@ -278,7 +278,7 @@ export default function AnalizSayfasi() {
     return { rows, xLabels, yLabels };
   }, [teklifler]);
 
-  const personelPerformans3D: Scatter3DPoint[] = useMemo(() => {
+  const personelPerformans3D: Scatter2DPoint[] = useMemo(() => {
     return kullaniciPerf
       .filter((p) => p.toplamTeklifSayisi > 0)
       .map((p) => {
@@ -436,13 +436,11 @@ export default function AnalizSayfasi() {
             >
               📊 3D Personel Kullanım Analizi — Top 10 (sürükleyerek döndürebilirsiniz)
             </div>
-            <EChartBar3D
+            <EChartBar2D
               data={personelKullanim3D}
               height={420}
               valueAdi="teklif"
-              colorRange={['#3b82f6', '#22c55e']}
               isDark={isDark}
-              autoRotate={false}
             />
           </div>
         )}
@@ -694,7 +692,7 @@ export default function AnalizSayfasi() {
                 · Renk: onay% (kırmızı → yeşil) · Nokta boyutu: toplam tutar
               </span>
             </div>
-            <EChartScatter3D
+            <EChartScatter2D
               data={personelPerformans3D}
               xAxisAdi="Teklif Sayısı"
               yAxisAdi="Onay %"
