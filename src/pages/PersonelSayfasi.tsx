@@ -103,16 +103,19 @@ export default function PersonelSayfasi() {
   // NASIL: list() çağrısı backend'in döndürdüğü tüm kullanıcıları alır;
   //        biz UI'da rol bazlı filtre uygular sadece görmesi gerekenleri
   //        gösteririz.
+  // Deps array'inde array referansı tutmak → her render'da yeni instance
+  // → fetchListe yeni instance → useEffect tekrar tetiklenir → sonsuz
+  // döngü ("Maximum update depth exceeded"). Çözüm: array'i stable
+  // string'e çevir, deps'te string kullan.
+  const gosterilenFirmalarKey = (aktifKullanici?.gosterilenFirmalar ?? []).join('|');
   const fetchListe = useCallback(async () => {
     setYukleniyor(true);
     try {
       const data = await api.kullanicilar.list();
       const aktif = data.filter((k) => k.aktifMi);
-      // Çapraz-firma sızıntı guard'ı: super_admin hariç, görünür firma
-      // setine göre kısıtla
       const erisilebilirFirmaIds =
         aktifKullanici?.rol === 'super_admin'
-          ? null // sınırsız
+          ? null
           : new Set<string>([
               ...(aktifKullanici?.firmaId ? [aktifKullanici.firmaId] : []),
               ...(aktifKullanici?.gosterilenFirmalar ?? []),
@@ -126,7 +129,8 @@ export default function PersonelSayfasi() {
     } finally {
       setYukleniyor(false);
     }
-  }, [aktifKullanici?.rol, aktifKullanici?.firmaId, aktifKullanici?.gosterilenFirmalar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktifKullanici?.rol, aktifKullanici?.firmaId, gosterilenFirmalarKey]);
 
   useEffect(() => { void fetchListe(); }, [fetchListe]);
 
