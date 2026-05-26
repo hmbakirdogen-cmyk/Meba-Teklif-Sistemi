@@ -367,10 +367,29 @@ export default function TeklifListesi() {
     return () => { aborted = true; };
   }, [kullaniciCtx, teklifleriYukle]);
 
+  // ── Sahiplik kilidi: silme (Faz 15a, Plan agent denetimi) ───────────
+  // NE: Çalışan sadece KENDİ tekliflerini silebilir; yönetici (super/firma
+  //     admin) tüm tekliflere yetkili. UI kart üzerinde sil butonu zaten
+  //     visibility ile gizlenebilir (Faz 12'de eklenir); bu fonksiyon
+  //     defense-in-depth.
+  // NEDEN: "Hiçbir personel başkasının teklifini ben yaptım diyemesin"
+  //        (Mehmet Bey direktifi). Sil eylemi audit log için kritik —
+  //        sadece sahip veya yönetici.
   function teklifSil(id: string) {
+    const teklif = teklifler.find((t) => t.id === id);
+    if (teklif) {
+      const sahip = teklif.hazirlayanKullaniciId === aktifKullanici?.id;
+      const yonetici = isYonetici(aktifKullanici?.rol);
+      if (!sahip && !yonetici) {
+        message.warning(
+          `Bu teklifi yalnızca ${teklif.hazirlayanAdSoyad ?? 'hazırlayan kullanıcı'} veya yönetici silebilir.`,
+        );
+        return;
+      }
+    }
     teklifService.teklifSil(id);
     teklifleriYukle();
-    message.success('Teklif silindi.');
+    message.success('Teklif başarıyla silindi.');
   }
 
   // ── Çoğalt akışı ────────────────────────────────────────────────────
@@ -747,7 +766,27 @@ function KlasorGorunumu({
     sonucYaz(teklif, patch);
   }
 
+  // ── Sahiplik kilidi (Faz 15a, Mehmet Bey direktifi 2026-05-26) ──────
+  // NE: Çalışan başkasının teklifini sonuçlandıramaz; sadece hazırlayan
+  //     veya yönetici (super_admin/firma_admin) durum dropdown'undan
+  //     işlem yapabilir. UI'da disabled + tooltip; ek olarak
+  //     hizliSonuc'a defense-in-depth guard.
+  // NEDEN: Plan agent denetimi (2026-05-26): "TeklifListesi'nde çalışan
+  //        başkasının teklifinin durumunu dropdown'dan değiştirebilir →
+  //        Mehmet Bey'in audit/sahiplik talebiyle çelişir". Faz 12
+  //        kapsamında "kim ne yaptı kayıt altında" mantığının frontend
+  //        ayağı.
+  // NASIL: Karşılaştır teklif.hazirlayanKullaniciId === aktifKullanici.id
+  //        VEYA isYonetici(rol). Yoksa erken return + bilgi mesajı.
   function hizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
+    const sahip = teklif.hazirlayanKullaniciId === aktifKullanici?.id;
+    const yonetici = isYonetici(aktifKullanici?.rol);
+    if (!sahip && !yonetici) {
+      message.warning(
+        `Bu teklif ${teklif.hazirlayanAdSoyad ?? 'başka bir kullanıcı'} tarafından hazırlanmış. Sonuç bilgisini yalnızca hazırlayan veya yönetici güncelleyebilir.`,
+      );
+      return;
+    }
     const KAPALI: TeklifDurum[] = ['onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'];
     if (KAPALI.includes(teklif.durum) && yeniDurum !== teklif.durum) {
       modal.confirm({
@@ -1661,6 +1700,16 @@ function DetayGorunumu({
   }
 
   function hizliSonuc(teklif: Teklif, yeniDurum: TeklifDurum) {
+    // Sahiplik kilidi — Faz 15a (Plan agent denetimi). Sadece hazırlayan
+    // veya yönetici sonuç bilgisini değiştirebilir.
+    const sahip = teklif.hazirlayanKullaniciId === aktifKullanici?.id;
+    const yonetici = isYonetici(aktifKullanici?.rol);
+    if (!sahip && !yonetici) {
+      message.warning(
+        `Bu teklif ${teklif.hazirlayanAdSoyad ?? 'başka bir kullanıcı'} tarafından hazırlanmış. Sonuç bilgisini yalnızca hazırlayan veya yönetici güncelleyebilir.`,
+      );
+      return;
+    }
     // Sonuclanmis (onaylandi/reddedildi/iptal) durumdan baska bir duruma
     // gecis kullanicidan onay ister — kazanmis teklifi yanlislikla taslaga
     // dusurmemesi vs. icin koruyucu.

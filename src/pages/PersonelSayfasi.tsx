@@ -94,17 +94,39 @@ export default function PersonelSayfasi() {
     await fetchListe();
   }
 
+  // ── Personel firma scoping (Faz 15b, Plan agent denetimi) ───────────
+  // NE: super_admin tüm personeli; diğer yöneticiler (firma_admin) sadece
+  //     kendi firmasındaki + gosterilenFirmalar'daki personeli görür.
+  // NEDEN: "Yönetici/personel ayrımı çok iyi" (Mehmet Bey) + Plan agent
+  //        uyarısı: backend kısıtlamasına güvenirsek çapraz-firma sızıntı
+  //        riski var. Frontend defansif post-filter.
+  // NASIL: list() çağrısı backend'in döndürdüğü tüm kullanıcıları alır;
+  //        biz UI'da rol bazlı filtre uygular sadece görmesi gerekenleri
+  //        gösteririz.
   const fetchListe = useCallback(async () => {
     setYukleniyor(true);
     try {
       const data = await api.kullanicilar.list();
-      setListe(data.filter((k) => k.aktifMi));
+      const aktif = data.filter((k) => k.aktifMi);
+      // Çapraz-firma sızıntı guard'ı: super_admin hariç, görünür firma
+      // setine göre kısıtla
+      const erisilebilirFirmaIds =
+        aktifKullanici?.rol === 'super_admin'
+          ? null // sınırsız
+          : new Set<string>([
+              ...(aktifKullanici?.firmaId ? [aktifKullanici.firmaId] : []),
+              ...(aktifKullanici?.gosterilenFirmalar ?? []),
+            ]);
+      const filtreli = erisilebilirFirmaIds
+        ? aktif.filter((k) => !k.firmaId || erisilebilirFirmaIds.has(k.firmaId))
+        : aktif;
+      setListe(filtreli);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Personel listesi alınamadı');
+      message.error(err instanceof Error ? err.message : 'Personel listesi alınamadı.');
     } finally {
       setYukleniyor(false);
     }
-  }, []);
+  }, [aktifKullanici?.rol, aktifKullanici?.firmaId, aktifKullanici?.gosterilenFirmalar]);
 
   useEffect(() => { void fetchListe(); }, [fetchListe]);
 
