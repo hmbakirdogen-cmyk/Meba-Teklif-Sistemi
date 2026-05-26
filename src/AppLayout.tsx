@@ -72,9 +72,8 @@ export default function AppLayout() {
   }, [adminMi, adminGbDrawerAcik]);
 
   // ── Ahmet ESMERAY ozel karsilamasi (firma switcher fix bildirimi) ──
-  // Tek seferlik — adi gecen kullanici programi ilk kez actiginda otomatik
-  // acilir. localStorage flag'i ile gosterildi/gosterilmedi takip edilir.
-  // Espirili ton: bug duzeltildi mesaji + geri bildirim istegi.
+  // Faz 16 fix: deps array `[aktifKullanici, modal]` her render'da yeni
+  // referans → sonsuz useEffect tetiği. Stable id'ye çekildi.
   useEffect(() => {
     if (!aktifKullanici) return;
     const adKontrol = String(aktifKullanici.adSoyad || '').toLocaleLowerCase('tr-TR');
@@ -127,7 +126,9 @@ export default function AppLayout() {
       });
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [aktifKullanici, modal]);
+    // Stable id + adSoyad — modal context değişmez (App.useApp scope)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktifKullanici?.id, aktifKullanici?.adSoyad]);
 
   // Tum kullanicilar icin okunmamis bildirim sayisi (atama/teklif olaylari).
   useEffect(() => {
