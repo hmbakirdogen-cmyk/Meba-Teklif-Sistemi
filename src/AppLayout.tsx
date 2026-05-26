@@ -245,7 +245,13 @@ export default function AppLayout() {
     });
   }
 
-  const menuItems = [
+  // Faz 22 KRITIK: menuItems + selectedKeysMemo useMemo'ya cekildi.
+  // Antd v6 Menu useMergedState ile selectedKeys controlled prop'u
+  // handle ediyor — her render'da YENI ARRAY ([seciliMenu]) gelirse
+  // useEffect deps degisik gorulup setState in effect tetikliyordu →
+  // 50+ aynı component re-render → React #185. items array de aynı
+  // riskli (Menu items farklarini diff'liyor). Stable referans şart.
+  const menuItems = useMemo(() => [
     {
       key: 'teklifler',
       icon: <Icon icon="solar:bill-list-bold-duotone" width={17} height={17} />,
@@ -284,7 +290,10 @@ export default function AppLayout() {
         onClick: () => navigate_('/firma-profili'),
       },
     ] : []),
-  ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isAdminLike]);
+  const selectedKeysMemo = useMemo(() => [seciliMenu], [seciliMenu]);
+  const drawerStylesMemo = useMemo(() => ({ body: { padding: 0 } }), []);
 
   return (
     <Layout style={{ minHeight: '100vh', background: C.bgBody, backgroundAttachment: 'fixed' }}>
@@ -435,7 +444,7 @@ export default function AppLayout() {
           <Menu
             theme="dark"
             mode="horizontal"
-            selectedKeys={[seciliMenu]}
+            selectedKeys={selectedKeysMemo}
             className="header-nav-menu"
             style={{
               flex: 1,
@@ -717,11 +726,11 @@ export default function AppLayout() {
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
         size={240}
-        styles={{ body: { padding: 0 } }}
+        styles={drawerStylesMemo}
       >
         <Menu
           mode="inline"
-          selectedKeys={[seciliMenu]}
+          selectedKeys={selectedKeysMemo}
           style={{ borderRight: 'none', fontSize: 14 }}
           items={menuItems}
           onClick={({ key }) => navigate_('/' + String(key))}
