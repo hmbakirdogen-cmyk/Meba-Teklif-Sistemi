@@ -1716,7 +1716,19 @@ export default function KumandaPaneli({
 
         <div className={`kp-alt-bolum ${(!readOnly && panelGenis) ? '' : 'kp-alt-bolum--kapali'}`} aria-hidden={readOnly || !panelGenis}>
           <div className="kp-alt-bolum-icerik">
+        {/* ── Belge İçeriği (Faz 7, Alt-A) ──────────────────────────────
+            Mehmet Bey 2026-05-26 onayı: "a" — Alternatif A (hedef bazlı
+            gruplama). Önceki yapıda:
+              • Section #4 başlıksızdı (Resim + Çizim)
+              • Section #5 "Satır Ayarları" başlığı altında SADECE Notlar
+                toggle vardı (eski "Satır İskontosu" + "Satır Para Birimi"
+                kaldırılıp tarihsel artık başlık kalmış).
+            Yeni: ikisi tek "Belge İçeriği" başlığı altında birleşti.
+            Notlar belge geneli (A4/PDF'te alttaki Notlar bloğunu açar) —
+            Resim Ekle ile aynı zihinsel grupta. "Satır Ayarları" başlığı
+            tamamen kaldırıldı. */}
         <section className="panel-section">
+          <SecLabel text="Belge İçeriği" />
           <div className="kp-buton-cifti">
             <Tooltip
               title="Resim Ekle"
@@ -1760,6 +1772,20 @@ export default function KumandaPaneli({
                 <DrawIcon />
               </button>
             </Tooltip>
+
+            {/* Notları Göster/Gizle — A4/PDF'te alttaki Notlar bloğunu
+                açıp kapatır. Eskiden "Satır Ayarları" başlığı altındaydı
+                (yanıltıcı isim); şimdi Resim + Çizim ile aynı "Belge
+                İçeriği" grubunda (hedef bazlı gruplama, Faz 7 Alt-A). */}
+            <SquareToggle
+              labelLines={[]}
+              ariaLabel={notlarGosterilsin ? 'Notlar: Gösteriliyor' : 'Notlar: Gizli'}
+              extraClass="button-row-notes"
+              icon={<NotesToggleIcon />}
+              on={notlarGosterilsin}
+              onClick={() => onNotlarGosterilsinDegistir(!notlarGosterilsin)}
+              disabled={readOnly}
+            />
           </div>
 
           <input
@@ -1772,30 +1798,7 @@ export default function KumandaPaneli({
         </section>
 
         <section className="panel-section">
-          <SecLabel text="Satır Ayarları" />
-          <div className="grid">
-            {/* "Satir Iskonto" toggle butonu KALDIRILDI: Birim Fiyat popup'inda
-                Iskonto alani her zaman gorunur. Kullanici deger girince
-                satirBazliIskonto auto-true olur (kolon ortaya cikar). Manuel
-                toggle gereksiz — kullanici dostu pattern. */}
-            {/* "Satir Para Birimi" toggle butonu KALDIRILDI: A4 para birimi
-                karti zaten "Karisik (Satir Bazli)" secenegini sunuyor. Tek
-                tip secimi karti uzerinden otomatik kapatiliyor. Panel'de
-                ikinci bir buton ayni mantik icin gereksizdi. */}
-            <SquareToggle
-              labelLines={[]}
-              ariaLabel={notlarGosterilsin ? 'Notlar: Gösteriliyor' : 'Notlar: Gizli'}
-              extraClass="button-row-notes"
-              icon={<NotesToggleIcon />}
-              on={notlarGosterilsin}
-              onClick={() => onNotlarGosterilsinDegistir(!notlarGosterilsin)}
-              disabled={readOnly}
-            />
-          </div>
-        </section>
-
-        <section className="panel-section">
-          <SecLabel text="Genel Finans" />
+          <SecLabel text="Belge Finansı" />
           <div className="grid">
             <SquareToggle
               labelLines={[]}
