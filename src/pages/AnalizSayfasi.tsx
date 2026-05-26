@@ -278,6 +278,51 @@ export default function AnalizSayfasi() {
     return { rows, xLabels, yLabels };
   }, [teklifler]);
 
+  // ── Heatmap özeti — kart başı 1 cümle anlatım (Mehmet Bey 2026-05-26
+  //    "saçma gibi ne olduğu belli değil" direktifi: ne dediğini önce
+  //    kelimeyle söyle, sonra grafiği göster).
+  // NE: personelHeatmap matrisinden en aktif gün + en sessiz gün + en
+  //     çok yazan personel + onun favori günü çıkarılır.
+  // NEDEN: Yönetici tek cümleyle resmi okur, sonra hücrelere bakar.
+  //        Renk açıklamasıyla zaman kaybı bitti.
+  // NASIL: rows üzerinde tek tarama; gun ve personel toplamlarını
+  //        hesapla, max/min indislerini bul, label'ları döndür.
+  const heatmapOzet = useMemo(() => {
+    const { rows, xLabels, yLabels } = personelHeatmap;
+    if (rows.length === 0 || yLabels.length === 0) return null;
+    const gunToplam = new Array(xLabels.length).fill(0);
+    const personelToplam = new Array(yLabels.length).fill(0);
+    const personelEnAktifGunIdx = new Array(yLabels.length).fill(0);
+    const personelEnAktifGunDeger = new Array(yLabels.length).fill(-1);
+    rows.forEach(([xi, yi, v]) => {
+      gunToplam[xi] += v;
+      personelToplam[yi] += v;
+      if (v > personelEnAktifGunDeger[yi]) {
+        personelEnAktifGunDeger[yi] = v;
+        personelEnAktifGunIdx[yi] = xi;
+      }
+    });
+    let enAktif = 0;
+    let enSessiz = 0;
+    for (let i = 1; i < gunToplam.length; i++) {
+      if (gunToplam[i] > gunToplam[enAktif]) enAktif = i;
+      if (gunToplam[i] < gunToplam[enSessiz]) enSessiz = i;
+    }
+    let enCokYazan = 0;
+    for (let i = 1; i < personelToplam.length; i++) {
+      if (personelToplam[i] > personelToplam[enCokYazan]) enCokYazan = i;
+    }
+    return {
+      enAktifGunAd: xLabels[enAktif],
+      enAktifGunSayi: gunToplam[enAktif],
+      enSessizGunAd: xLabels[enSessiz],
+      enSessizGunSayi: gunToplam[enSessiz],
+      enCokYazanAd: yLabels[enCokYazan],
+      enCokYazanToplam: personelToplam[enCokYazan],
+      enCokYazanFavoriGun: xLabels[personelEnAktifGunIdx[enCokYazan]],
+    };
+  }, [personelHeatmap]);
+
   const personelPerformans3D: Scatter2DPoint[] = useMemo(() => {
     return kullaniciPerf
       .filter((p) => p.toplamTeklifSayisi > 0)
@@ -424,17 +469,35 @@ export default function AnalizSayfasi() {
               border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
             }}
           >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: isDark ? '#94a3b8' : '#475569',
-                padding: '4px 12px 8px',
-              }}
-            >
-              📊 3D Personel Kullanım Analizi — Top 10 (sürükleyerek döndürebilirsiniz)
+            {/* Mehmet Bey 2026-05-26 düzeltmesi: önceki başlık "3D Personel
+                Kullanım Analizi — sürükleyerek döndürebilirsiniz" YANLIŞ idi.
+                Grafik 2D bar, döndürülmez. Başlık şimdi gerçeği söyler:
+                top 10 personel × 4 durum (toplam/onaylanan/bekleyen/red).
+                Alt satırda kullanıcıya "her bar = 1 personel, renk = durum"
+                rehberi. */}
+            <div style={{ padding: '4px 12px 8px' }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: isDark ? '#e2e8f0' : '#0f172a',
+                }}
+              >
+                📊 Top 10 Personel — Teklif Durumu Dağılımı
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 400,
+                  color: isDark ? '#94a3b8' : '#64748b',
+                  marginTop: 3,
+                  lineHeight: 1.45,
+                }}
+              >
+                Her personelin bu dönemde yazdığı toplam, onaylanan, bekleyen ve
+                reddedilen teklif sayısı. Bar üstüne gelince detay açılır.
+              </div>
             </div>
             <EChartBar2D
               data={personelKullanim3D}
@@ -468,26 +531,84 @@ export default function AnalizSayfasi() {
               border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
             }}
           >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: isDark ? '#94a3b8' : '#475569',
-                padding: '4px 12px 8px',
-              }}
-            >
-              🔥 Personel × Hafta Günü — Hangi gün hangi personel aktif
-              <span style={{ marginLeft: 12, fontWeight: 400, opacity: 0.75, textTransform: 'none' }}>
-                · Koyu = düşük aktivite · Parlak = yoğun gün
-              </span>
+            {/* Mehmet Bey 2026-05-26 düzeltmesi: önceki başlık "Koyu=düşük,
+                Parlak=yoğun" renk teknik dili kullanıyordu — yönetici "bu
+                kart ne anlatıyor?" diye soruyordu. Şimdi: başlık net soru,
+                hemen altında AI-tarzı 1-cümle özet bandı (en aktif/sessiz
+                gün + en üretken personelin favori günü). Hücreler artık 0
+                değerleriyle de görünür (sifirGoster) → seyrek matris boş
+                hissetmez. */}
+            <div style={{ padding: '4px 12px 8px' }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: isDark ? '#e2e8f0' : '#0f172a',
+                }}
+              >
+                🔥 Kim Hangi Gün Teklif Yazıyor?
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 400,
+                  color: isDark ? '#94a3b8' : '#64748b',
+                  marginTop: 3,
+                  lineHeight: 1.45,
+                }}
+              >
+                Hücredeki sayı = o personelin o gün yazdığı teklif. Daha sıcak
+                (turuncu) renk → daha yoğun gün; soğuk (koyu mavi) → sessiz.
+              </div>
+              {heatmapOzet && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: isDark
+                      ? 'linear-gradient(90deg, rgba(6,182,212,0.10) 0%, rgba(91,141,239,0.08) 100%)'
+                      : 'linear-gradient(90deg, rgba(6,182,212,0.07) 0%, rgba(91,141,239,0.06) 100%)',
+                    border: `1px solid ${isDark ? 'rgba(6,182,212,0.25)' : 'rgba(6,182,212,0.18)'}`,
+                    fontSize: 12.5,
+                    lineHeight: 1.55,
+                    color: isDark ? '#cbd5e1' : '#334155',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '4px 14px',
+                  }}
+                >
+                  <span>
+                    <b style={{ color: isDark ? '#fbbf24' : '#b45309' }}>
+                      En aktif gün:
+                    </b>{' '}
+                    {heatmapOzet.enAktifGunAd} ({heatmapOzet.enAktifGunSayi} teklif)
+                  </span>
+                  <span style={{ opacity: 0.4 }}>·</span>
+                  <span>
+                    <b style={{ color: isDark ? '#60a5fa' : '#1d4ed8' }}>
+                      En sessiz gün:
+                    </b>{' '}
+                    {heatmapOzet.enSessizGunAd} ({heatmapOzet.enSessizGunSayi} teklif)
+                  </span>
+                  <span style={{ opacity: 0.4 }}>·</span>
+                  <span>
+                    <b style={{ color: isDark ? '#34d399' : '#047857' }}>
+                      En üretken personel:
+                    </b>{' '}
+                    {heatmapOzet.enCokYazanAd} ({heatmapOzet.enCokYazanToplam} teklif
+                    · favori gün {heatmapOzet.enCokYazanFavoriGun})
+                  </span>
+                </div>
+              )}
             </div>
             <EChartHeatmap2D
               data={personelHeatmap}
               height={Math.max(360, personelHeatmap.yLabels.length * 36 + 130)}
               valueAdi="teklif"
               isDark={isDark}
+              sifirGoster
             />
           </div>
         </Card>
