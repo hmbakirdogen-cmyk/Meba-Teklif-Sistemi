@@ -63,10 +63,20 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
     [aktifFirmaId, firmalar]
   );
 
+  // Faz 21 KRİTİK FIX (KAÇIRILAN HALKA): Faz 17'de Kullanici+Rehber context
+  // value'ları useMemo'ya çekilmişti ama BURASI (FirmaContext) gözden kaçtı.
+  // Her render'da yeni object literal → tüm useFirma tüketicileri (Antd
+  // Menu/Drawer/Modal hierarchisi dahil) sürekli yeni context referansı
+  // alıyordu → setInterval(syncFromStorage, 5000) her 5sn re-render zinciri
+  // tetiklerken Antd Modal internal mask hesabı 50+ kez aynı component'i
+  // re-render ediyor → React #185.
+  const value = useMemo(
+    () => ({ firmalar, aktifFirma, yukleniyor, refresh, setAktifFirma, firmaGuncelle }),
+    [firmalar, aktifFirma, yukleniyor, refresh, setAktifFirma, firmaGuncelle],
+  );
+
   return (
-    <FirmaContext.Provider
-      value={{ firmalar, aktifFirma, yukleniyor, refresh, setAktifFirma, firmaGuncelle }}
-    >
+    <FirmaContext.Provider value={value}>
       {children}
     </FirmaContext.Provider>
   );
