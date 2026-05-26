@@ -902,6 +902,7 @@ function KlasorGorunumu({
             type="primary"
             size="large"
             icon={<PlusOutlined />}
+            data-tip-target="yeni-teklif"
             className={buttonClassNames.primary}
             onClick={() => navigate('/teklif/yeni')}
             style={{ height: 44, fontWeight: 600, paddingLeft: 18, paddingRight: 18, letterSpacing: '0.005em' }}
@@ -925,9 +926,10 @@ function KlasorGorunumu({
             onChange={(e) => setAramaMetni(e.target.value)}
             allowClear
             className="app-ops-search"
+            data-tip-target="liste-arama"
           />
           {siralama !== 'aktiflik' && (
-            <div className="app-ops-view-toggle">
+            <div className="app-ops-view-toggle" data-tip-target="liste-gorunum-modu">
               {([
                 { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
                 { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
