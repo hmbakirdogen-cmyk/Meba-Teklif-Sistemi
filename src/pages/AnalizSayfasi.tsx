@@ -27,6 +27,8 @@ import { computeYoneticiOzeti } from './teklifListesiShared';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
 import { useSayfaRehberi } from '../hooks/useSayfaRehberi';
 import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
+import EChartBar3D, { type Bar3DData } from '../components/charts/EChartBar3D';
+import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import {
   filtreleTeklifleri,
   ozetMetrikleriHesapla,
@@ -139,6 +141,38 @@ export default function AnalizSayfasi() {
   const ozet = useMemo(() => ozetMetrikleriHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const yoneticiOzeti = useMemo(() => computeYoneticiOzeti(filtreliTeklifler), [filtreliTeklifler]);
   const kullaniciPerf = useMemo(() => kullaniciPerformansiHesapla(filtreliTeklifler), [filtreliTeklifler]);
+
+  // ── 3D Personel Kullanım Analizi verisi (Faz 8a) ────────────────────
+  // NE: kullaniciPerf array'inden EChartBar3D'nin beklediği {rows, xLabels,
+  //     yLabels} formatına dönüştürür. X: personel, Y: durum (Toplam +
+  //     Onaylanan + Bekleyen + Reddedilen), Z: teklif sayısı.
+  // NEDEN: Mehmet Bey 2026-05-26 — "yöneticilere personel kullanım
+  //        istatistikleri + en kuvvetli görseli olan grafiklerle, elit
+  //        seviyede 3D". 2D tablo tek başına yetersiz; 3D bar derinlik
+  //        verir, kim ne kadar üretiyor + kimin onay oranı yüksek tek
+  //        bakışta görülür.
+  // NASIL: kullaniciPerf'in ilk 10 personeli (toplamTeklifSayisi'na göre
+  //        azalan) gösterilir — 10+ personel kalabalıklaşır. Y eksen 4
+  //        durum kategorisi. Rows: her (personel, durum) kombinasyonu
+  //        için [xi, yi, value] satırı.
+  const personelKullanim3D: Bar3DData = useMemo(() => {
+    const top10 = [...kullaniciPerf]
+      .sort((a, b) => b.toplamTeklifSayisi - a.toplamTeklifSayisi)
+      .slice(0, 10);
+    const xLabels = top10.map((p) => p.adSoyad.split(' ').slice(0, 2).join(' '));
+    const yLabels = ['Toplam', 'Onaylanan', 'Bekleyen', 'Reddedilen'];
+    const rows: Array<[number, number, number]> = [];
+    top10.forEach((p, xi) => {
+      rows.push([xi, 0, p.toplamTeklifSayisi]);
+      rows.push([xi, 1, p.onaylanan]);
+      rows.push([xi, 2, p.bekleyen]);
+      rows.push([xi, 3, p.reddedilen]);
+    });
+    return { rows, xLabels, yLabels };
+  }, [kullaniciPerf]);
+
+  // Sadece yönetici/firma_admin/super_admin için 3D analiz görünür
+  const yoneticiMi = isYoneticiRol(aktifKullanici?.rol);
   const firmaAnaliz = useMemo(() => firmaAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const markaAnaliz = useMemo(() => markaAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
   const urunKoduAnaliz = useMemo(() => urunKoduAnaliziHesapla(filtreliTeklifler), [filtreliTeklifler]);
@@ -249,6 +283,45 @@ export default function AnalizSayfasi() {
         style={{ ...cardStyle, marginTop: 16 }}
         styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}
       >
+        {/* 3D Personel Kullanım Bar Chart — sadece yönetici/admin için.
+            Mehmet Bey 2026-05-26: "yöneticilere personel kullanım
+            istatistikleri + elit 3D grafikler". Top 10 personel × 4 durum
+            (Toplam/Onaylanan/Bekleyen/Reddedilen). Realistic shading +
+            bloom + SSAO postEffect ile premium görünüm. */}
+        {yoneticiMi && kullaniciPerf.length > 0 && (
+          <div
+            style={{
+              marginBottom: 18,
+              padding: '8px 4px',
+              borderRadius: 8,
+              background: isDark
+                ? 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.3) 100%)'
+                : 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+              border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: isDark ? '#94a3b8' : '#475569',
+                padding: '4px 12px 8px',
+              }}
+            >
+              📊 3D Personel Kullanım Analizi — Top 10 (sürükleyerek döndürebilirsiniz)
+            </div>
+            <EChartBar3D
+              data={personelKullanim3D}
+              height={420}
+              valueAdi="teklif"
+              colorRange={['#3b82f6', '#22c55e']}
+              isDark={isDark}
+              autoRotate={false}
+            />
+          </div>
+        )}
         <KullaniciPerformansiTablo data={kullaniciPerf} isMobile={isMobile} />
       </Card>
 
