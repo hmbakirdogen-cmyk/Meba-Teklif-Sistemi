@@ -1146,10 +1146,11 @@ export function getOfferTableSeparatorClass(columnKey: OfferTableColumnKey): str
   return OPTICAL_SEPARATOR_COLUMNS.has(columnKey) ? 'optical-separator-col' : undefined;
 }
 
-export function getOfferTableSeparatorStyle(
-  columnKey: OfferTableColumnKey,
-  _surface: 'head' | 'body' = 'body',
-): CSSProperties {
+// Dikey ayraç stilleri tek kaynaktan (global CSS .optical-separator-col)
+// yönetildiği için surface (head/body) ayrımı runtime'da gerekmiyor —
+// parametre kaldırıldı, caller'lar tek argümanla çağırır. İleride farklı
+// stil gerekirse (örn. head'de daha kalın border) imza burada genişler.
+export function getOfferTableSeparatorStyle(columnKey: OfferTableColumnKey): CSSProperties {
   if (!OPTICAL_SEPARATOR_COLUMNS.has(columnKey)) return {};
 
   // Dikey ayraçların tüm görseli global CSS'te `.optical-separator-col`
@@ -1221,7 +1222,7 @@ export function getTableHeadCellStyle(
     whiteSpace: 'nowrap',
     textTransform: 'uppercase',
     fontFeatureSettings: '"tnum" 1, "calt" 1, "ss01" 1',
-    ...(columnKey ? getOfferTableSeparatorStyle(columnKey, 'head') : null),
+    ...(columnKey ? getOfferTableSeparatorStyle(columnKey) : null),
   };
 }
 
@@ -1336,28 +1337,46 @@ export function KargoNotuSatiri({
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onGizle(); }}
             title="Bu notu gizle"
+            aria-label="Notu gizle"
             style={{
               cursor: 'pointer',
-              width: '16px',
-              height: '16px',
+              width: '14px',
+              height: '14px',
               padding: 0,
-              border: 'none',
+              border: '1px solid rgba(100, 116, 139, 0.35)',
               borderRadius: '50%',
-              background: '#dc2626',
-              color: '#fff',
-              fontSize: '12px',
-              fontWeight: 700,
-              lineHeight: 1,
-              fontFamily: 'inherit',
+              background: 'rgba(248, 250, 252, 0.95)',
+              color: '#64748b',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: 0.95,
+              opacity: 0.9,
               pointerEvents: 'auto',
               userSelect: 'none',
+              transition: 'all 160ms ease',
+              boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)',
+            }}
+            onMouseEnter={(e) => {
+              const t = e.currentTarget;
+              t.style.background = '#fee2e2';
+              t.style.borderColor = '#ef4444';
+              t.style.color = '#b91c1c';
+              t.style.opacity = '1';
+              t.style.transform = 'scale(1.08)';
+            }}
+            onMouseLeave={(e) => {
+              const t = e.currentTarget;
+              t.style.background = 'rgba(248, 250, 252, 0.95)';
+              t.style.borderColor = 'rgba(100, 116, 139, 0.35)';
+              t.style.color = '#64748b';
+              t.style.opacity = '0.9';
+              t.style.transform = 'scale(1)';
             }}
           >
-            ×
+            <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
+              <path d="M 1.5 1.5 L 6.5 6.5 M 6.5 1.5 L 1.5 6.5"
+                stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+            </svg>
           </button>
         )}
         <span>*&nbsp;</span>

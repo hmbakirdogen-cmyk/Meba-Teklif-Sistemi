@@ -40,6 +40,8 @@ export function setUrunSonFiyat(urunRef: string, payload: UrunSonFiyatPayload) {
   try {
     window.localStorage.setItem(getStorageKey(urunRef), JSON.stringify(payload));
   } catch {
+    // localStorage quota dolu / private mode / disabled — sessizce geç,
+    // fiyat hatırlama opsiyonel özellik (akış bloklamaz).
   }
 }
 
@@ -48,5 +50,6 @@ export function clearUrunSonFiyat(urunRef?: string | null) {
   try {
     window.localStorage.removeItem(getStorageKey(urunRef));
   } catch {
+    // localStorage erişilemez (private mode vb.) — sessizce geç.
   }
 }

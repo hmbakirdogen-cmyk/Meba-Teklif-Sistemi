@@ -45,7 +45,10 @@ const FALLBACK_PAGINATION: TeklifPaginationResult = {
   totalPages: 1,
 };
 
-const noop = (..._args: unknown[]) => {};
+// Print sayfası read-only — düzenleme callback'leri için no-op stub'lar.
+// Type imzası rest params alır (her callback farklı parametre sayısıyla çağrılır),
+// implementation body'de hiçbir argüman tüketilmez → lint temiz, type compat korunur.
+const noop: (...args: unknown[]) => void = () => {};
 const noopToggleRowMark = () => () => {};
 
 export default function TeklifPrintSayfasi() {

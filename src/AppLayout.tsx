@@ -203,7 +203,7 @@ export default function AppLayout() {
       ),
       okText: 'Tamam',
     });
-  }, [modal]);
+  }, [modal, C.textSecondary]);
 
   const masaustuneEkleHandler = useCallback(() => {
     if (canInstall) {

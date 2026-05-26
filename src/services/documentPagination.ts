@@ -374,7 +374,6 @@ export function calculateTeklifPagination(
     const cur = pages[i];
     const nxt = pages[i + 1];
     if (nxt.rowStartIndex > cur.rowEndIndex) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[pagination] page ${cur.pageNumber} ends at row ${cur.rowEndIndex} ama page ${nxt.pageNumber} ${nxt.rowStartIndex}'ten basliyor — eksik araligi sonraki sayfaya ekliyorum.`,
       );
@@ -384,7 +383,6 @@ export function calculateTeklifPagination(
   // Son sayfa data sonuna kadar uzanmazsa (extreme edge case), uzat.
   const lastPage = pages[pages.length - 1];
   if (rows.length > 0 && lastPage.rowEndIndex < rows.length) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[pagination] son sayfa ${lastPage.rowEndIndex}'te bitti ama veri ${rows.length} satir — son sayfayi uzatiyorum.`,
     );
