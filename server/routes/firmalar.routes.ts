@@ -88,11 +88,25 @@ firmalarRouter.get(
 
     const filtered = liste
       .filter((u) => {
-        if (u.rol === 'super_admin' || u.rol === 'firma_admin') {
-          if (Array.isArray(u.gosterilenFirmalar) && u.gosterilenFirmalar.length > 0) {
-            return u.gosterilenFirmalar.includes(firmaId);
-          }
-          return u.firmaId === firmaId;
+        // Mehmet Bey 2026-05-26 direktifi: "MEBA giriş ekranında diğer
+        // yöneticilerin görünmemesi gerekiyor. En güncel versiyonda öyle."
+        // Önceki mantık firma_admin'in gosterilenFirmalar listesinde
+        // hangi firmalar varsa hepsinde gösteriyordu → MESA/ELMOS
+        // yöneticileri MEBA giriş ekranında görünüyordu (3 firmalı
+        // gosterilenFirmalar). YENİ:
+        //   super_admin: firmaId === seçili VEYA gosterilenFirmalar'da
+        //                (Mehmet Bey gibi firmaId=null kullanıcılar
+        //                gosterilenFirmalar=['meba'] ile MEBA'da görünür)
+        //   firma_admin: SADECE u.firmaId === firmaId (ana firma)
+        //                gosterilenFirmalar SADECE backend yetki için
+        //                kullanılır (hangi firma verisini görür) —
+        //                giriş ekranı görünürlüğünü etkilemez
+        //   engineer/sales: u.firmaId === firmaId
+        if (u.rol === 'super_admin') {
+          return (
+            u.firmaId === firmaId ||
+            (Array.isArray(u.gosterilenFirmalar) && u.gosterilenFirmalar.includes(firmaId))
+          );
         }
         return u.firmaId === firmaId;
       })
