@@ -24,7 +24,8 @@
       } catch(e) {}
     </script>
     <!--
-      One-shot cache + service worker reset (vBust8).
+      One-shot cache + service worker reset (vBust9 — Faz 13-15 sonrası
+      eski bundle/SW + cache temizle: 3D→2D, Bey/Hanım, sahiplik kilit).
       index.html `Cache-Control: no-cache` ile her seferinde server'dan revalidate
       olduğu için bu script GARANTİLİ çalışır. Eski cache + SW kayıtları temizler,
       hiç sayfa açmamış kullanıcı için no-op (flag ile bir kez tetiklenir).
@@ -32,7 +33,7 @@
     -->
     <script>
       (function() {
-        var VBUST_KEY = 'meba_cache_bust_v8';
+        var VBUST_KEY = 'meba_cache_bust_v9';
         try {
           if (localStorage.getItem(VBUST_KEY) === '1') return;
         } catch (e) { return; }
