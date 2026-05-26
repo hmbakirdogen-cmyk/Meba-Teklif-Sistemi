@@ -31,6 +31,7 @@ import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
 import EChartBar3D, { type Bar3DData } from '../components/charts/EChartBar3D';
 import EChartPie3D, { type PieData } from '../components/charts/EChartPie3D';
 import EChartScatter3D, { type Scatter3DPoint } from '../components/charts/EChartScatter3D';
+import EChartHeatmap2D, { type HeatmapData } from '../components/charts/EChartHeatmap2D';
 import { caprazTavsiyeHesapla, firmaIdAdHaritasi, type CaprazTavsiye } from '../utils/caprazTavsiye';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import {
@@ -45,6 +46,7 @@ import {
   riskTekliflerHesapla,
   enAktifKullanici,
   enCokTeklifVerilenFirma,
+  personelGunAktivitesi,
   type AnalizFiltresi,
   type ParaBirimiToplam,
   type KullaniciPerformansi,
@@ -89,6 +91,12 @@ const DURUM_RENK: Record<TeklifDurum, string> = {
   reddedildi: '#f87171',
   iptal: '#94a3b8',
 };
+
+// Hafta günleri (Faz 8c Heatmap için) — modül scope'ta (sabit, re-render
+// olmaz, useMemo dep listesinde gereksiz).
+const HAFTA_GUNLERI_TR = ['Pazar', 'Pzt', 'Sa', 'Ça', 'Pe', 'Cu', 'Cmt'];
+// Pazartesi başlangıçlı Türk iş haftası: gunIdx → kolon pozisyonu
+const HAFTA_GUNLERI_SIRA = [1, 2, 3, 4, 5, 6, 0];
 
 export default function AnalizSayfasi() {
   // Global rehber sistemine kayıt — pool boşken FAB "yakında" mesajı, dolunca
@@ -231,6 +239,45 @@ export default function AnalizSayfasi() {
   // NASIL: kullaniciPerf'in tümünden (en az 1 teklifi olan) Scatter3D
   //        point üret. Toplam teklif 0 olanlar (sistem'e giriş yapmış
   //        ama teklif yazmamış) filtrelenir → grafik temiz.
+  // ── Personel × Hafta Günü Heatmap (Faz 8c) ───────────────────────────
+  // NE: kullaniciId × gunIdx (0-6) matrisi → ECharts heatmap formatı.
+  // NEDEN: Yöneticiye "kim ne gün aktif?" net görsel — düşük aktivite
+  //        çukurları soluk hücrelerle anında görülür.
+  // NASIL: Top 12 personel + 7 gün. Etiket günleri Türkçe Pzt-Pzr;
+  //        ECharts'ta x ekseni gün, y ekseni personel.
+  const personelHeatmap: HeatmapData = useMemo(() => {
+    const gunSayilari = personelGunAktivitesi(teklifler);
+    const personelAdById = new Map<string, string>();
+    gunSayilari.forEach((g) => personelAdById.set(g.kullaniciId, g.adSoyad));
+
+    // Personel toplam aktivite — top 12 göster (perf + okunabilirlik)
+    const personelToplam = new Map<string, number>();
+    gunSayilari.forEach((g) => {
+      personelToplam.set(g.kullaniciId, (personelToplam.get(g.kullaniciId) ?? 0) + g.sayi);
+    });
+    const top12 = [...personelToplam.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([id]) => id);
+
+    const yLabels = top12.map((id) =>
+      (personelAdById.get(id) ?? 'Bilinmeyen').split(' ').slice(0, 2).join(' '),
+    );
+    const xLabels = HAFTA_GUNLERI_SIRA.map((g) => HAFTA_GUNLERI_TR[g]);
+
+    // Matris: [xIdx, yIdx, value]
+    const rows: Array<[number, number, number]> = [];
+    top12.forEach((kullaniciId, yIdx) => {
+      HAFTA_GUNLERI_SIRA.forEach((gunIdx, xIdx) => {
+        const match = gunSayilari.find(
+          (g) => g.kullaniciId === kullaniciId && g.gunIdx === gunIdx,
+        );
+        rows.push([xIdx, yIdx, match?.sayi ?? 0]);
+      });
+    });
+    return { rows, xLabels, yLabels };
+  }, [teklifler]);
+
   const personelPerformans3D: Scatter3DPoint[] = useMemo(() => {
     return kullaniciPerf
       .filter((p) => p.toplamTeklifSayisi > 0)
@@ -401,6 +448,52 @@ export default function AnalizSayfasi() {
         )}
         <KullaniciPerformansiTablo data={kullaniciPerf} isMobile={isMobile} />
       </Card>
+
+      {/* ─── Personel × Hafta Günü Aktivite Heatmap (Faz 8c) ─── */}
+      {/* Mehmet Bey direktifi — yöneticilere kim ne gün aktif tek bakışta.
+          Top 12 personel × 7 gün. Düşük aktivite çukurları soluk
+          hücrelerle anında görülür; Pazartesi başlangıçlı Türk iş
+          haftası sıralaması. */}
+      {yoneticiMi && personelHeatmap.yLabels.length > 0 && (
+        <Card
+          title={<><TeamOutlined style={{ color: '#06b6d4' }} /> &nbsp; Haftalık Aktivite Isı Haritası</>}
+          style={{ ...cardStyle, marginTop: 16 }}
+          styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}
+        >
+          <div
+            style={{
+              padding: '8px 4px',
+              borderRadius: 8,
+              background: isDark
+                ? 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.3) 100%)'
+                : 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+              border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: isDark ? '#94a3b8' : '#475569',
+                padding: '4px 12px 8px',
+              }}
+            >
+              🔥 Personel × Hafta Günü — Hangi gün hangi personel aktif
+              <span style={{ marginLeft: 12, fontWeight: 400, opacity: 0.75, textTransform: 'none' }}>
+                · Koyu = düşük aktivite · Parlak = yoğun gün
+              </span>
+            </div>
+            <EChartHeatmap2D
+              data={personelHeatmap}
+              height={Math.max(360, personelHeatmap.yLabels.length * 36 + 130)}
+              valueAdi="teklif"
+              isDark={isDark}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* ─── Çapraz Grup Şirket Tavsiyeleri (Faz 11) ─── */}
       {/* Mehmet Bey direktifi 2026-05-26: "MEBA'nın carilerinde olmayan
