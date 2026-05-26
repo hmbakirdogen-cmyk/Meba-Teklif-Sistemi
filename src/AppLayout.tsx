@@ -4,6 +4,7 @@ import { App, Layout, Menu, Tooltip, Button, Drawer, Dropdown, Badge, Popover } 
 import ProfilFotoModal from './components/ProfilFotoModal';
 import ProfilDuzenleModal from './components/ProfilDuzenleModal';
 import SelfServeSmtpModal from './components/SelfServeSmtpModal';
+import GlobalRehberFab from './components/GlobalRehberFab';
 import GeriBildirimButonu from './components/GeriBildirimButonu';
 import GeriBildirimDrawer from './components/GeriBildirimDrawer';
 import BildirimPaneli from './components/BildirimPaneli';
@@ -823,6 +824,17 @@ export default function AppLayout() {
       <Content style={{ background: 'transparent' }}>
         <Outlet />
       </Content>
+
+      {/* Global 🎓 Rehberler FAB — her sayfada sag-altta görünür.
+          NE: useSayfaRehberi hook'u çağrılan sayfa (RehberContext'e
+              register etmiş) için aktif rehberi başlatır; pool'u olmayan
+              sayfalarda "yakında" Antd info mesajı gösterir.
+          NEDEN: Mehmet Bey 2026-05-26 direktifi — "rehberler butonu
+                 her sayfada mevcut olsun". Önceki tasarımda buton
+                 useSayfaRehberi içindeydi (sadece TeklifEditor'da).
+          NASIL: AppLayout Outlet'inin DIŞINDA render edilir; ProfilFoto
+                 modalleri seviyesinde, kontekst sayfa içeriği üstünde. */}
+      <GlobalRehberFab />
 
       {/* Profil fotosu guncelleme modal'i (header avatar tiklanmasi ile acilir) */}
       <ProfilFotoModal

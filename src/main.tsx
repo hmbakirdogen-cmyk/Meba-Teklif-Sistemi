@@ -7,6 +7,7 @@ import './index.css'
 import App from './App.tsx'
 import { KullaniciProvider } from './context/KullaniciContext.tsx'
 import { FirmaProvider } from './context/FirmaContext.tsx'
+import { RehberProvider } from './context/RehberContext.tsx'
 
 // Solar Bold-Duotone ikon set'ini lokal olarak yükle. Premium navbar +
 // toolbar'da kullanılır; Iconify online API'ye fallback yapmadan offline
@@ -44,7 +45,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <FirmaProvider>
       <KullaniciProvider>
-        <App />
+        {/* RehberProvider — useSayfaRehberi hook'larının aktif rehberlerini
+            tek context'te tutar; AppLayout'taki global 🎓 buton bu context'ten
+            okur. Provider en içte (Kullanıcı sonrası) → hook gerektiğinde
+            useKullanici'ya da erişebilir. */}
+        <RehberProvider>
+          <App />
+        </RehberProvider>
       </KullaniciProvider>
     </FirmaProvider>
   </StrictMode>,

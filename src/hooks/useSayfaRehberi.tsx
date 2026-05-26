@@ -25,6 +25,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useKullanici } from '../context/useKullanici';
+import { useRehberCtx } from '../context/useRehber';
 import { kullaniciHitap } from '../utils/kullaniciHitap';
 import TipSpotlight from '../components/TipSpotlight';
 import type { TipDef } from '../components/tipler/tipTipleri';
@@ -42,6 +43,11 @@ interface SayfaRehberiSecenekler {
   otomatikAcKey?: string;
   /** Tetik trigger'i otomatikAcKey gerektirmiyorsa: belirli koşul aktifleşince. */
   otomatikAcTetik?: boolean;
+  /**
+   * Sayfa adı — global RehberFab diyalog/mesajlarında gösterilir.
+   * Default: 'Bu sayfa' (jenerik). Örnek: 'Teklif Editörü', 'Teklif Listesi'.
+   */
+  sayfaAdi?: string;
 }
 
 interface SayfaRehberi {
@@ -56,6 +62,7 @@ export function useSayfaRehberi(
   secenekler: SayfaRehberiSecenekler = {},
 ): SayfaRehberi {
   const { aktifKullanici } = useKullanici();
+  const rehberCtx = useRehberCtx();
   const [aktifTip, setAktifTip] = useState<TipDef | null>(null);
   const [aktifIndex, setAktifIndex] = useState<number>(-1);
   const [aktifHedef, setAktifHedef] = useState<HTMLElement | null>(null);
@@ -78,7 +85,7 @@ export function useSayfaRehberi(
     return null;
   }, [pool]);
 
-  /** Rehberleri sirayla goster (🎓 butonu basildiginda). */
+  /** Rehberleri sirayla goster (global FAB veya elle tetik). */
   const baslat = useCallback(() => {
     const sec = ilkUygunTip();
     if (sec) {
@@ -86,6 +93,24 @@ export function useSayfaRehberi(
       setAktifIndex(sec.index);
     }
   }, [ilkUygunTip]);
+
+  // ── Global RehberContext'e kayit (Mehmet Bey 2026-05-26 direktifi) ──
+  // NE: Hook mount oldugu sayfada kendini global context'e register eder,
+  //     unmount'ta unregister. AppLayout'taki global FAB context.aktif'i
+  //     okur, tiklaninca baslat()'ı cagirir.
+  // NEDEN: "rehberler butonu her sayfada mevcut olsun" — buton AppLayout'ta
+  //        sabit, sayfa-bazli pool varsa baslat(), yoksa "yakinda" mesaji.
+  // NASIL: useEffect register/unregister, pool boş olsa bile register edilir
+  //        (bos:true bayrağı ile FAB davranışı ayrılır → diyalog gösterir).
+  useEffect(() => {
+    if (!rehberCtx) return;
+    rehberCtx.register({
+      baslat,
+      sayfaAdi: secenekler.sayfaAdi ?? 'Bu sayfa',
+      bos: pool.length === 0,
+    });
+    return () => rehberCtx.unregister();
+  }, [rehberCtx, baslat, secenekler.sayfaAdi, pool.length]);
 
   // One-shot otomatik tetik — otomatikAcKey verilmis ve daha once acilmamissa
   useEffect(() => {
@@ -167,60 +192,30 @@ export function useSayfaRehberi(
     setAktifEkHedefler([]);
   }, [aktifTip, aktifIndex, pool]);
 
+  // Render artik SADECE TipSpotlight overlay. 🎓 Rehberler butonu global
+  // RehberFab'a (AppLayout) tasindi — context register/unregister yukarida.
   const render = useCallback((): React.ReactNode => {
     return (
-      <>
-        <TipSpotlight
-          visible={!!aktifTip}
-          target={aktifHedef}
-          ekHedefler={aktifEkHedefler}
-          step={
-            aktifIndex >= 0
-              ? { current: aktifIndex + 1, total: pool.length }
-              : undefined
-          }
-          baslik={aktifTip?.baslik(hitap) ?? ''}
-          aciklama={aktifTip?.aciklama(hitap) ?? ''}
-          miniEtiket={aktifTip?.miniEtiket}
-          gostericiOk={aktifTip?.gostericiOk ?? false}
-          animasyon={aktifTip?.animasyon}
-          onAnladim={tipSonraki}
-          onAtla={tipKapat}
-          sonAdim={aktifIndex === pool.length - 1}
-        />
-        {!aktifTip && (
-          <button
-            type="button"
-            onClick={baslat}
-            aria-label="Tum klavuzlari sirayla onizle"
-            title="Tüm klavuzları sırayla göster"
-            className="no-print"
-            style={{
-              position: 'fixed', bottom: 24, right: 80, zIndex: 50,
-              background: 'rgba(15, 23, 42, 0.85)', color: '#fff',
-              padding: '8px 14px', borderRadius: 999,
-              border: '1px solid rgba(91, 141, 239, 0.4)',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 6px 16px rgba(15, 23, 42, 0.25)',
-              display: 'flex', alignItems: 'center', gap: 6,
-              opacity: 0.7,
-              transition: 'opacity 200ms ease, transform 200ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '1';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '0.7';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            🎓 Rehberler
-          </button>
-        )}
-      </>
+      <TipSpotlight
+        visible={!!aktifTip}
+        target={aktifHedef}
+        ekHedefler={aktifEkHedefler}
+        step={
+          aktifIndex >= 0
+            ? { current: aktifIndex + 1, total: pool.length }
+            : undefined
+        }
+        baslik={aktifTip?.baslik(hitap) ?? ''}
+        aciklama={aktifTip?.aciklama(hitap) ?? ''}
+        miniEtiket={aktifTip?.miniEtiket}
+        gostericiOk={aktifTip?.gostericiOk ?? false}
+        animasyon={aktifTip?.animasyon}
+        onAnladim={tipSonraki}
+        onAtla={tipKapat}
+        sonAdim={aktifIndex === pool.length - 1}
+      />
     );
-  }, [aktifTip, aktifHedef, aktifEkHedefler, aktifIndex, hitap, pool.length, tipSonraki, tipKapat, baslat]);
+  }, [aktifTip, aktifHedef, aktifEkHedefler, aktifIndex, hitap, pool.length, tipSonraki, tipKapat]);
 
   return { render, baslat, aktifTip, aktifIndex };
 }

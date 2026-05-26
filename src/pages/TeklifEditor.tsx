@@ -983,6 +983,7 @@ export default function TeklifEditor() {
   //        (tipAcanPanelRef ile takip — kullanıcının manuel açtığı panel
   //        bozulmaz).
   const rehber = useSayfaRehberi(TEKLIF_EDITOR_TIPLERI, {
+    sayfaAdi: 'Teklif Editörü',
     otomatikAcKey: 'meba_pdf_rehber',
     otomatikAcTetik: pdfRehberTetik,
     onYanEtki: (tip) => {
