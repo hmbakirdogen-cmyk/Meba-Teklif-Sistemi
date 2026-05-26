@@ -189,7 +189,7 @@ export const TEKLIF_EDITOR_TIPLERI: TipDef[] = [
   {
     id: 'referans-veriler',
     baslik: (h) => `Referans veriler — bu ürünü kime, kaça sattınız, ${h}`,
-    aciklama: () => 'Ürün kodu girilmiş bir satırın yanında küçük bir geçmiş ikonu belirir. Tıkladığınızda sağdan açılan panelde aynı ürünün önceki tekliflerini tarih, müşteri, miktar ve fiyat olarak görürsünüz. Yeni fiyat verirken referans bulmanın en hızlı yolu.',
+    aciklama: () => 'Ürün kodu girilmiş bir satırın yanında küçük bir geçmiş ikonu belirir. Tıkladığınızda sağdan açılan panelde aynı ürünün son 24 ayda hangi müşteriye, hangi tarihte, hangi miktarda, hangi para biriminde, hangi birim fiyat ve iskonto ile satıldığını görürsünüz. Liste tarihe göre sıralı; her satırın yanındaki "Bu fiyatı kopyala" butonuyla geçmiş bir fiyatı yeni satıra anında getirebilirsiniz. Müşteri "geçen sefer şu fiyat verdiniz" derken doğrulamak ya da yeni teklifte mantıklı bir baz oluşturmak için en hızlı yol.',
     miniEtiket: 'GEÇMİŞE BAK',
     gostericiOk: true,
     kartGenislik: 540,
@@ -233,5 +233,31 @@ export const TEKLIF_EDITOR_TIPLERI: TipDef[] = [
     targetSelector: () => bul('[data-tip-target="kismi-onay-banner"]'),
     animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
     onKosul: () => bul('[data-tip-target="kismi-onay-banner"]') != null,
+  },
+  // ── Faz 5 — Header tipleri (AppLayout butonları, Mehmet Bey 2026-05-26) ─
+  // Bu tipler AppLayout'taki global butonlara işaret eder; TeklifEditor pool
+  // içinde olmaları sequence'in sonunda kullanıcının headere de dikkatini
+  // çekmesi için (PWA install + profil yönetimi farkındalığı).
+  {
+    id: 'masaustune-ekle',
+    baslik: (h) => `Masaüstüne Ekle — uygulama gibi kurun, ${h}`,
+    aciklama: () => 'Üst bardaki indirme ikonu programı masaüstüne tarayıcı sekmesine ihtiyaç duymadan açabileceğiniz bir uygulama olarak kurar. Chrome/Edge native "Yükle" diyaloğu açılır; tarayıcı desteklemiyorsa size adım adım talimat gösteren bir modal çıkar. Masaüstünde kısayol oluşur — çift tıkla aç, daha hızlı erişim. Mobilde "Ana Ekrana Ekle" karşılığı.',
+    miniEtiket: 'YÜKLE',
+    gostericiOk: true,
+    kartGenislik: 540,
+    targetSelector: () => bul('[data-tip-target="masaustune-ekle"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('[data-tip-target="masaustune-ekle"]') != null,
+  },
+  {
+    id: 'profilim',
+    baslik: (h) => `Profilim — kendi bilgilerinizi düzenleyin, ${h}`,
+    aciklama: () => 'Profil ikonuna tıklayınca açılan modalda ad, soyad, unvan, telefon, e-posta, fotoğraf ve PDF kayıt klasörü (Chrome/Edge\'de kalıcı klasör seçimi) bilgilerinizi güncelleyebilirsiniz. Şifre değişimi de bu paneldedir. Yapılan değişiklikler tüm tekliflerinizde anında yansır — hazırladığınız PDF\'lerin "Hazırlayan" satırı, mail imzanız ve sistem bildirimleri yeni bilgilerle çıkar.',
+    miniEtiket: 'PROFİLİME GİR',
+    gostericiOk: true,
+    kartGenislik: 540,
+    targetSelector: () => bul('[data-tip-target="profilim"]'),
+    animasyon: (rect) => <ButonHoverAnimasyonu rect={rect} />,
+    onKosul: () => bul('[data-tip-target="profilim"]') != null,
   },
 ];

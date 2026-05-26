@@ -602,6 +602,7 @@ export default function AppLayout() {
               <Tooltip title="Masaüstüne Ekle — bu uygulamayı bilgisayara yükle">
                 <Button
                   type="text"
+                  data-tip-target="masaustune-ekle"
                   icon={<Icon icon="solar:download-minimalistic-bold-duotone" width={17} height={17} />}
                   onClick={masaustuneEkleHandler}
                   className={buttonClassNames.iconGhost}
@@ -614,6 +615,7 @@ export default function AppLayout() {
             <Tooltip title="Profilim">
               <Button
                 type="text"
+                data-tip-target="profilim"
                 icon={<Icon icon="solar:user-circle-bold-duotone" width={17} height={17} />}
                 onClick={() => setProfilDuzenleOpen(true)}
                 size="small"
