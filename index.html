@@ -24,8 +24,8 @@
       } catch(e) {}
     </script>
     <!--
-      AGRESİF one-shot reset (vBust10 — Mehmet Bey 2026-05-26 direktifi:
-      "Bu problemden kurtulmak istiyorum"):
+      AGRESİF one-shot reset (vBust11 — Faz 18, navbar tıklanmama bug'ı için
+      bir kere daha sıfırlama):
         • Tüm Service Worker'ları unregister
         • Tüm caches.delete (HTTP cache + SW cache)
         • Eski auth + session localStorage'larını da temizle (re-login zorla)
@@ -33,7 +33,7 @@
     -->
     <script>
       (function() {
-        var VBUST_KEY = 'meba_cache_bust_v10';
+        var VBUST_KEY = 'meba_cache_bust_v11';
         try {
           if (localStorage.getItem(VBUST_KEY) === '1') return;
         } catch (e) { return; }
@@ -61,6 +61,7 @@
             'meba_cache_bust_v8': 1,
             'meba_cache_bust_v9': 1,
             'meba_cache_bust_v10': 1,
+            'meba_cache_bust_v11': 1,
             'meba_pdf_klasor_handle': 1,
             'meba_pdf_klasor_ad': 1,
           };

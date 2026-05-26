@@ -248,7 +248,11 @@ export default function TipSpotlight({
       role="dialog"
       aria-modal="true"
       style={{
-        position: 'fixed', inset: 0, zIndex: 9000,
+        // Faz 18 KRITIK: pointerEvents:'none' wrapper'a — overlay yanlislikla
+        // stuck visible kalsa bile tum viewport'u bloklayip navbar/sekme
+        // tikleri yutmaz. Interaktif cocuklarda (icerik karti, butonlar)
+        // pointerEvents:'auto' ile geri acilir.
+        position: 'fixed', inset: 0, zIndex: 9000, pointerEvents: 'none',
         animation: 'meba-tip-overlay-in 240ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
@@ -486,7 +490,9 @@ export default function TipSpotlight({
         </div>
       )}
 
-      {/* Icerik karti — hedefe yatay olarak hizali, viewport icinde clamp */}
+      {/* Icerik karti — hedefe yatay olarak hizali, viewport icinde clamp.
+          Faz 18: pointerEvents:'auto' — wrapper'in 'none' override'ini geri
+          ac (butonlar tiklanabilir kalmali). */}
       <div
         style={{
           position: 'absolute',
@@ -499,6 +505,7 @@ export default function TipSpotlight({
           boxShadow: '0 24px 64px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255,255,255,0.05)',
           padding: '22px 28px 18px 28px',
           animation: 'meba-tip-card-in 340ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards',
+          pointerEvents: 'auto',
         }}
       >
         {/* Step gostergesi */}
