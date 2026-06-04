@@ -11,6 +11,7 @@ import {
   CaretDownOutlined,
   FlagOutlined,
   LineChartOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { PremiumPdfBadge } from '../components/premium-icons';
 import { YoneticiOzeti } from '../components/YoneticiOzeti';
@@ -647,12 +648,13 @@ interface KlasorGorunumuProps {
   onRefresh: () => void;
 }
 
-// Segmented control label tipografi — Tekliflerim üst sekmeleri için
-// Apple SF Pro tarzı premium görünüm. macOS/iOS'ta gerçek SF Pro, diğer
-// platformlarda en yakın fallback (Helvetica Neue → system-ui).
+// Segmented control label tipografi — Tekliflerim üst sekmeleri için.
+// Faz A: ayrı SF-Pro cascade KALDIRILDI → uygulamanın tek font kaynağı
+// var(--font-sans) (Inter). Önceki cascade'de Inter 5. sıradaydı; Windows'ta
+// segmented'lar Segoe UI, geri kalan UI Inter render ediyordu (aynı sayfada
+// iki font). Artık tek tutarlı tipografi.
 const kapsamLabelStyle: CSSProperties = {
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Inter", system-ui, "Segoe UI", sans-serif',
+  fontFamily: 'var(--font-sans)',
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '-0.005em',
@@ -686,8 +688,11 @@ const kapsamSayiStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 700,
   fontVariantNumeric: 'tabular-nums',
-  color: 'inherit',
-  background: 'rgba(15, 31, 69, 0.10)',
+  // Faz A: hardcoded lacivert rgba(15,31,69,0.10) yerine tema-duyarlı token.
+  // Dark modda "lacivert üstü lacivert" okunmazlığı çözülür (var'lar
+  // index.css'te light/dark için tanımlı).
+  color: 'var(--tab-count-text)',
+  background: 'var(--tab-count-bg)',
   borderRadius: 999,
   letterSpacing: 0,
 };
@@ -881,7 +886,7 @@ function KlasorGorunumu({
                     <span style={gorunumIkonKutusu}>
                       <PremiumKlasorIcon size={28} />
                     </span>
-                    <span style={kapsamLabelStyle}>Klasör</span>
+                    <span style={kapsamLabelStyle}>Müşteriye göre</span>
                   </span>
                 ),
               },
@@ -890,9 +895,9 @@ function KlasorGorunumu({
                 label: (
                   <span style={gorunumLabelStyle}>
                     <span style={gorunumIkonKutusu}>
-                      <PremiumPdfBadge size={28} />
+                      <ClockCircleOutlined style={{ fontSize: 22 }} />
                     </span>
-                    <span style={kapsamLabelStyle}>Liste</span>
+                    <span style={kapsamLabelStyle}>Son aktivite</span>
                   </span>
                 ),
               },
@@ -907,7 +912,15 @@ function KlasorGorunumu({
                 value: 'benim',
                 label: (
                   <span style={kapsamLabelStyle}>
-                    Benim <span style={kapsamSayiStyle}>{benimSayisi}</span>
+                    Bende <span style={kapsamSayiStyle}>{benimSayisi}</span>
+                  </span>
+                ),
+              },
+              {
+                value: 'atanan',
+                label: (
+                  <span style={kapsamLabelStyle}>
+                    Bana Atanan <span style={kapsamSayiStyle}>{atananSayisi}</span>
                   </span>
                 ),
               },
@@ -916,14 +929,6 @@ function KlasorGorunumu({
                 label: (
                   <span style={kapsamLabelStyle}>
                     Tümü <span style={kapsamSayiStyle}>{tumSayisi}</span>
-                  </span>
-                ),
-              },
-              {
-                value: 'atanan',
-                label: (
-                  <span style={kapsamLabelStyle}>
-                    Atanan <span style={kapsamSayiStyle}>{atananSayisi}</span>
                   </span>
                 ),
               },
@@ -978,7 +983,7 @@ function KlasorGorunumu({
             <div className="app-ops-view-toggle" data-tip-target="liste-gorunum-modu">
               {([
                 { k: 'grid' as GorunumModu,  l: 'Izgara', icon: GridIcon },
-                { k: 'liste' as GorunumModu, l: 'Liste',  icon: ListIcon },
+                { k: 'liste' as GorunumModu, l: 'Satır',  icon: ListIcon },
               ]).map(({ k, l, icon: Icon }) => {
                 const aktif = gorunumModu === k;
                 return (
@@ -1471,6 +1476,22 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
     .map((id) => kullaniciMap.get(id))
     .filter((k): k is Kullanici => Boolean(k));
 
+  // Durum mini-bar (Faz A) — klasördeki tekliflerin kazanıldı/bekliyor/sonuçsuz
+  // dağılımı. durumDist zaten hesaplanıyordu ama kartta gösterilmiyordu;
+  // "para nerede / hangi müşteri sıcak" sorusunu tek bakışta cevaplar.
+  const durumGruplari = useMemo(() => {
+    const d = klasor.durumDist;
+    const kazanildi = d.onaylandi + d.siparis_alindi + d.kismi_onaylandi;
+    const bekliyor = d.taslak + d.hazir + d.gonderildi;
+    const sonuclanan = d.reddedildi + d.iptal;
+    return { kazanildi, bekliyor, sonuclanan, toplam: kazanildi + bekliyor + sonuclanan };
+  }, [klasor.durumDist]);
+  // Mini-bar renkleri — DURUM_CFG ile uyumlu (kazanıldı=yeşil, bekliyor=amber,
+  // sonuçsuz=kırmızı), light/dark ton çifti.
+  const renkKazan = isDark ? '#34d399' : '#059669';
+  const renkBekle = isDark ? '#fbbf24' : '#d97706';
+  const renkSonuc = isDark ? '#f87171' : '#b91c1c';
+
   // Premium B2B kart yüzeyi — sayfa zemininden belirgin ayrılır
   const cardBg = isDark ? '#1F2533' : '#FFFFFF';
   const cardBgHover = isDark ? '#262D3D' : '#F7F4ED';
@@ -1486,9 +1507,11 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
+    // Faz A: rest'te de hafif (cool-blue tinted) gölge → kart zeminden "yüzer"
+    // (önceden boxShadow:none ile düz/cansızdı). Hover'da belirginleşir.
     boxShadow: hover
-      ? (isDark ? '0 3px 10px rgba(0,0,0,0.28)' : '0 2px 6px rgba(40,30,15,0.05)')
-      : 'none',
+      ? (isDark ? '0 6px 16px rgba(0,0,0,0.34)' : '0 4px 12px rgba(15,30,60,0.10)')
+      : (isDark ? '0 2px 6px rgba(0,0,0,0.22)' : '0 1px 3px rgba(15,30,60,0.07)'),
   };
 
   const logoSize = 54;
@@ -1566,6 +1589,36 @@ function KlasorKarti({ klasor, isMobile, C, kullaniciMap, onClick }: KlasorKarti
 
       {/* Ayraç */}
       <div style={{ height: 1, background: C.borderSubtle, margin: '0 10px', position: 'relative', zIndex: 1 }} />
+
+      {/* Durum mini-bar (Faz A) — kazanıldı/bekliyor/sonuçsuz oranı.
+          durumDist'ten beslenir; hover'da detay tooltip. */}
+      {durumGruplari.toplam > 0 && (
+        <div style={{ padding: isMobile ? '5px 9px 0' : '5px 10px 0', position: 'relative', zIndex: 1 }}>
+          <Tooltip
+            title={`${durumGruplari.kazanildi} kazanıldı · ${durumGruplari.bekliyor} bekliyor · ${durumGruplari.sonuclanan} sonuçsuz`}
+            mouseEnterDelay={0.3}
+          >
+            <div style={{
+              display: 'flex',
+              gap: 2,
+              height: 5,
+              borderRadius: 3,
+              overflow: 'hidden',
+              background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,30,60,0.06)',
+            }}>
+              {durumGruplari.kazanildi > 0 && (
+                <div style={{ flex: durumGruplari.kazanildi, background: renkKazan }} />
+              )}
+              {durumGruplari.bekliyor > 0 && (
+                <div style={{ flex: durumGruplari.bekliyor, background: renkBekle }} />
+              )}
+              {durumGruplari.sonuclanan > 0 && (
+                <div style={{ flex: durumGruplari.sonuclanan, background: renkSonuc }} />
+              )}
+            </div>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Alt meta */}
       <div style={{

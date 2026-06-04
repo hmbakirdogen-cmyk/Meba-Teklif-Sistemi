@@ -1,61 +1,57 @@
 /**
  * useSayfaRehberi.tsx
  * ─────────────────────────────────────────────────────────────────
- * Reusable rehber sistemi — her sayfa kendi tip pool'unu register eder,
- * sequence playback'i + 🎓 Rehberler butonunu otomatik alir.
+ * Her sayfa kendi tip havuzunu RehberContext'e register eder; global 🎓
+ * Rehberler butonu (GlobalRehberFab) ve spotlight overlay (GlobalTipSpotlight)
+ * bu havuzu kullanır.
  *
- * Kullanim:
- *   const rehber = useSayfaRehberi(SAYFA_TIPLERI, {
- *     onYanEtki: (tip) => { ... },          // opsiyonel: panel/modal acma
- *     onYanEtkiKapat: () => { ... },        // opsiyonel: tip degisince kapama
+ * Kullanım:
+ *   useSayfaRehberi(SAYFA_TIPLERI, {
+ *     sayfaAdi: 'Teklif Editörü',
+ *     onYanEtki: (tip) => { ... },          // opsiyonel: panel/modal açma
+ *     onYanEtkiKapat: (onceki) => { ... },  // opsiyonel: tip değişince kapama
  *     otomatikAcKey: 'meba_pdf_rehber',     // opsiyonel: one-shot otomatik tetik
+ *     otomatikAcTetik: pdfRehberTetik,      // opsiyonel: tetik koşulu
  *   });
- *   ...JSX...
- *   {rehber.render()}
  *
- * Davranis:
- *  • State + effect + callback'ler hook icinde kapsullenir.
- *  • 120ms polling ile DOM hedef takibi (yanEtki sonrasi acilan panel/popover icin).
- *  • Sequence mode: tipPreviewBaslat → ilk uygun tip'ten basla → SONRAKİ → BITIR.
- *  • Tip kapaninca yanEtkiyle aciklanan panel/modal otomatik kapatilir
- *    (tipAcanPanelRef ile takip — kullanicinin manuel acigi paneli dokunmaz).
- *  • Onkosul filtresi: tip.onKosul() === false ise sequence'de atlanir.
- *  • Otomatik bir-kez-ac: otomatikAcKey verilirse localStorage kontrol,
- *    daha once acilmadiysa mount'tan 1500ms sonra otomatik tetik.
+ * NOT (Faz 28): Playback state (aktif tip/index/hedef), DOM polling ve
+ * TipSpotlight render'ı artık RehberProvider'ın içinde. Bu hook yalnız:
+ *   • Rol bazlı havuz filtresi
+ *   • Kibar hitap hesaplama
+ *   • Havuzu + yan-etki callback'lerini Provider'a register/unregister
+ *   • One-shot otomatik tetik
+ * yapar. Dönüş değeri (baslat) genelde kullanılmaz — global FAB yeterlidir.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useKullanici } from '../context/useKullanici';
 import { useRehberCtx } from '../context/useRehber';
 import { kullaniciHitap } from '../utils/kullaniciHitap';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
-import TipSpotlight from '../components/TipSpotlight';
 import type { TipDef } from '../components/tipler/tipTipleri';
 
 interface SayfaRehberiSecenekler {
-  /** Tip aktiflestiginde yan etki tetigi (panel acma vb.). */
+  /** Tip aktifleştiğinde yan etki tetiği (panel açma vb.). */
   onYanEtki?: (tip: TipDef) => void;
-  /** Yan etkiyi kapatma (tip bittiginde "biz acmissak" kapatmak icin). */
+  /** Yan etkiyi kapatma (tip bittiğinde "biz açmışsak" kapatmak için). */
   onYanEtkiKapat?: (oncekiTip: TipDef) => void;
   /**
-   * One-shot otomatik tetik — bu localStorage anahtari hic aktifelmediyse
-   * mount'tan 1500ms sonra rehberi otomatik baslat. Ornek: 'meba_pdf_rehber'.
-   * Anahtara `_${userId}` eklenir.
+   * One-shot otomatik tetik — bu localStorage anahtarı hiç aktifleşmediyse
+   * mount'tan 800ms sonra rehberi otomatik başlat. Anahtara `_${userId}`
+   * eklenir. Örnek: 'meba_pdf_rehber'.
    */
   otomatikAcKey?: string;
-  /** Tetik trigger'i otomatikAcKey gerektirmiyorsa: belirli koşul aktifleşince. */
+  /** Otomatik tetik koşulu — true olunca otomatikAcKey kontrolü yapılır. */
   otomatikAcTetik?: boolean;
   /**
-   * Sayfa adı — global RehberFab diyalog/mesajlarında gösterilir.
-   * Default: 'Bu sayfa' (jenerik). Örnek: 'Teklif Editörü', 'Teklif Listesi'.
+   * Sayfa adı — global FAB diyalog/mesajlarında gösterilir.
+   * Default: 'Bu sayfa'. Örnek: 'Teklif Editörü', 'Teklif Listesi'.
    */
   sayfaAdi?: string;
 }
 
 interface SayfaRehberi {
-  render: () => React.ReactNode;
-  baslat: () => void;
-  aktifTip: TipDef | null;
-  aktifIndex: number;
+  /** Rehberi elle başlat (genelde gerekmez — global 🎓 FAB kullanılır). */
+  baslat: () => boolean;
 }
 
 export function useSayfaRehberi(
@@ -63,33 +59,17 @@ export function useSayfaRehberi(
   secenekler: SayfaRehberiSecenekler = {},
 ): SayfaRehberi {
   const { aktifKullanici } = useKullanici();
-  const rehberCtx = useRehberCtx();
-  const [aktifTip, setAktifTip] = useState<TipDef | null>(null);
-  const [aktifIndex, setAktifIndex] = useState<number>(-1);
-  const [aktifHedef, setAktifHedef] = useState<HTMLElement | null>(null);
-  const [aktifEkHedefler, setAktifEkHedefler] = useState<HTMLElement[]>([]);
+  const ctx = useRehberCtx();
 
-  // Kibar hitap — "Mehmet Bey" veya "Ayşe Hanım" (Faz 14b)
-  // unvanCinsiyet alanı tanımsızsa default "Bey" (geri uyumlu).
+  // Kibar hitap — "Mehmet Bey" veya "Ayşe Hanım" (Faz 14b).
   const hitap = useMemo(
     () => kullaniciHitap(aktifKullanici?.adSoyad, aktifKullanici?.unvanCinsiyet),
     [aktifKullanici?.adSoyad, aktifKullanici?.unvanCinsiyet],
   );
 
-  // ── Rol bazlı pool filtresi (Faz 9, Mehmet Bey 2026-05-26 direktifi) ──
-  // NE: TipDef.roller alanına göre kullanıcı rolüne uymayanları çıkar.
-  // NEDEN: "Yöneticilere ayrı, çalışanlara ayrı tanıtım olsun yerine
-  //        göre." Yönetici-özel tipler (sahiplik audit, ödüller, kim
-  //        kazandı görünürlüğü) çalışana gösterilmez; çalışan-özel
-  //        tipler (revize akışı, durum prosesi önemi) yöneticide tekrar
-  //        edilmez.
-  // NASIL: 1) roller undefined/boş → HERKESE açık (default davranış,
-  //           geri uyumlu — mevcut tiplerin tümü hala çalışır)
-  //        2) roller içinde 'yonetici' varsa → super_admin/firma_admin
-  //           için göster, çalışan göremez
-  //        3) roller içinde 'calisan' varsa → yönetici göremez (sadece
-  //           çalışan rehberi)
-  //        4) Filtre useMemo ile pool değişikliğinde yeniden hesaplar.
+  // ── Rol bazlı havuz filtresi (Faz 9) ──
+  // roller undefined/boş → herkes; 'yonetici' → super/firma_admin;
+  // 'calisan' → yalnız çalışan. Filtre stabil (pool modül sabiti + rol).
   const yoneticiMi = isYoneticiRol(aktifKullanici?.rol);
   const filtreliPool = useMemo(() => {
     return pool.filter((t) => {
@@ -100,78 +80,42 @@ export function useSayfaRehberi(
     });
   }, [pool, yoneticiMi]);
 
-  // İlk uygun tipi bul (onKosul + DOM hedefi sağlananlar) — filtreli pool üzerinden
-  const ilkUygunTip = useCallback((): { tip: TipDef; index: number } | null => {
-    for (let i = 0; i < filtreliPool.length; i++) {
-      const t = filtreliPool[i];
-      if (t.onKosul && !t.onKosul()) continue;
-      if (t.targetSelector() == null) continue;
-      return { tip: t, index: i };
-    }
-    return null;
-  }, [filtreliPool]);
+  // Yan-etki callback'lerini ref'te tut. Sayfalar bunları inline (her render'da
+  // yeni referans) geçiyor; register effect'inin deps'ine koyarsak her render'da
+  // re-register → #185 churn riski (Faz 25 dersi). Provider en güncel
+  // callback'i bu ref üzerinden çağırır.
+  const secRef = useRef(secenekler);
+  useEffect(() => {
+    secRef.current = secenekler;
+  });
 
-  /** Rehberleri sirayla goster (global FAB veya elle tetik). */
-  const baslat = useCallback(() => {
-    const sec = ilkUygunTip();
-    if (sec) {
-      setAktifTip(sec.tip);
-      setAktifIndex(sec.index);
-    }
-  }, [ilkUygunTip]);
+  const register = ctx?.register;
+  const unregister = ctx?.unregister;
+  const sayfaAdi = secenekler.sayfaAdi ?? 'Bu sayfa';
 
-  // ── Global RehberContext'e kayit (Mehmet Bey 2026-05-26 direktifi) ──
-  // NE: Hook mount oldugu sayfada kendini global context'e register eder,
-  //     unmount'ta unregister. AppLayout'taki global FAB context.aktif'i
-  //     okur, tiklaninca baslat()'ı cagirir.
-  // NEDEN: "rehberler butonu her sayfada mevcut olsun" — buton AppLayout'ta
-  //        sabit, sayfa-bazli pool varsa baslat(), yoksa "yakinda" mesaji.
-  // NASIL: useEffect register/unregister, pool boş olsa bile register edilir
-  //        (bos:true bayrağı ile FAB davranışı ayrılır → diyalog gösterir).
-  // Render callback referansı — context'e renderTipSpotlight olarak geçer.
-  // useRef ile en güncel render fonksiyonunu tutar, register effect dependency
-  // listesine her render'da hot-reload yaratmaz.
-  const renderRef = useRef<(() => React.ReactNode) | null>(null);
-
-  // Faz 25 KRITIK FIX (GERÇEK #185 KÖK SEBEBİ):
-  // Önceki versiyon deps = [rehberCtx, baslat, secenekler.sayfaAdi, filtreliPool.length]
-  // — rehberCtx WHOLE CONTEXT object'i RehberContext value useMemo'sundan geliyor.
-  // useMemo deps [aktif, register, unregister]; aktif değişince value YENİ obj.
-  // Loop: register(handle) → setAktif → aktif değişir → value re-compute →
-  // rehberCtx new ref → bu useEffect fire AGAIN → register tekrar → setAktif
-  // tekrar → 50+ kez → React #185.
-  //
-  // Çözüm: rehberCtx yerine destructured register/unregister (useCallback
-  // stable, ref'leri değişmiyor) dep'e koy. rehberCtx referansı değişse bile
-  // register/unregister içlerindeki fonksiyon ref'leri stabil — useEffect
-  // bunlara göre triggerlenir.
-  const register = rehberCtx?.register;
-  const unregister = rehberCtx?.unregister;
-  // Faz 26 FIX (Faz 25 regression): aktifTip + aktifIndex deps'e eklendi.
-  // Faz 25 register'ı stable yaptı → loop bitti ama GlobalTipSpotlight artık
-  // re-render olmuyordu (context.aktif değişmiyor → spotlight gösterilmedi).
-  // baslat() çağrılınca local aktifTip değişiyor ama RehberContext bilmiyor.
-  // Çözüm: aktifTip değişince register'ı tekrar fire et → setAktif(new
-  // handle) → context.aktif değişir → GlobalTipSpotlight re-render → güncel
-  // renderTipSpotlight() çağrılır → spotlight visible=true. Loop YOK çünkü
-  // baslat/tipSonraki/tipKapat event handler'lardan tetikleniyor, effect
-  // chain'inden değil. register/unregister stable (Faz 25 fix korunuyor).
+  // Havuzu Provider'a register et. Deps SADECE stabil değerler: filtreliPool
+  // (modül sabiti + rol), hitap (memo), sayfaAdi (literal). Inline callback'ler
+  // secRef üzerinden geçtiği için effect'i tetiklemez → loop yok.
   useEffect(() => {
     if (!register || !unregister) return;
     register({
-      baslat,
-      sayfaAdi: secenekler.sayfaAdi ?? 'Bu sayfa',
-      bos: filtreliPool.length === 0,
-      renderTipSpotlight: () => renderRef.current?.(),
+      pool: filtreliPool,
+      sayfaAdi,
+      hitap,
+      onYanEtki: (tip) => secRef.current.onYanEtki?.(tip),
+      onYanEtkiKapat: (onceki) => secRef.current.onYanEtkiKapat?.(onceki),
     });
     return () => unregister();
-  }, [register, unregister, baslat, secenekler.sayfaAdi, filtreliPool.length, aktifTip, aktifIndex]);
+  }, [register, unregister, filtreliPool, hitap, sayfaAdi]);
 
-  // One-shot otomatik tetik — otomatikAcKey verilmis ve daha once acilmamissa
+  // One-shot otomatik tetik — anahtar daha önce kullanılmamışsa mount'tan
+  // 800ms sonra rehberi otomatik başlat.
+  const baslat = ctx?.baslat;
   useEffect(() => {
     if (!secenekler.otomatikAcKey) return;
     if (!aktifKullanici?.id) return;
     if (!secenekler.otomatikAcTetik) return;
+    if (!baslat) return;
     try {
       const key = `${secenekler.otomatikAcKey}_${aktifKullanici.id}`;
       if (window.localStorage.getItem(key) === '1') return;
@@ -181,107 +125,9 @@ export function useSayfaRehberi(
       }, 800);
       return () => window.clearTimeout(id);
     } catch {
-      // localStorage erisilemez — sessizce gec
+      // localStorage erişilemez — sessizce geç
     }
   }, [secenekler.otomatikAcKey, secenekler.otomatikAcTetik, aktifKullanici?.id, baslat]);
 
-  // Tip yan etkisi — onYanEtki callback'i (panel/modal acma)
-  const oncekiTipRef = useRef<TipDef | null>(null);
-  useEffect(() => {
-    const onceki = oncekiTipRef.current;
-    if (onceki && onceki !== aktifTip) {
-      secenekler.onYanEtkiKapat?.(onceki);
-    }
-    if (aktifTip?.yanEtki) {
-      secenekler.onYanEtki?.(aktifTip);
-    }
-    oncekiTipRef.current = aktifTip;
-  }, [aktifTip, secenekler]);
-
-  // Aktif tipin DOM hedefini polling ile takip et (yanEtki sonrasi DOM degisir).
-  // NOT: setState çağrıları effect'ten ÇIKARILIP tipKapat/tipSonraki callback'lerine
-  // taşındı (React 19 react-hooks/set-state-in-effect kuralı). Effect artık sadece
-  // polling başlatır + cleanup ile durdurur — null'lama callback'lerde yapılır,
-  // tek sorumluluk her yer için.
-  useEffect(() => {
-    if (!aktifTip) return;
-    const olc = () => {
-      const yeni = aktifTip.targetSelector();
-      setAktifHedef((eski) => (eski === yeni ? eski : yeni));
-      const yeniEk = aktifTip.ekHedeflerSelector?.() ?? [];
-      setAktifEkHedefler((eski) => {
-        if (eski.length !== yeniEk.length) return yeniEk;
-        for (let i = 0; i < eski.length; i++) {
-          if (eski[i] !== yeniEk[i]) return yeniEk;
-        }
-        return eski;
-      });
-    };
-    olc();
-    const id = window.setInterval(olc, 120);
-    return () => window.clearInterval(id);
-  }, [aktifTip]);
-
-  const tipKapat = useCallback(() => {
-    setAktifTip(null);
-    setAktifIndex(-1);
-    setAktifHedef(null);
-    setAktifEkHedefler([]);
-  }, []);
-
-  const tipSonraki = useCallback(() => {
-    if (!aktifTip) return;
-    // Bir sonraki uygun tip'i bul (onKosul + DOM hedefi)
-    for (let i = aktifIndex + 1; i < filtreliPool.length; i++) {
-      const t = filtreliPool[i];
-      if (t.onKosul && !t.onKosul()) continue;
-      if (t.targetSelector() == null) continue;
-      setAktifTip(t);
-      setAktifIndex(i);
-      return;
-    }
-    // Sequence bitti — hedef state'leri de temizle (effect içinde değil)
-    setAktifTip(null);
-    setAktifIndex(-1);
-    setAktifHedef(null);
-    setAktifEkHedefler([]);
-  }, [aktifTip, aktifIndex, filtreliPool]);
-
-  // Render artik SADECE TipSpotlight overlay. 🎓 Rehberler butonu global
-  // RehberFab'a (AppLayout) tasindi — context register/unregister yukarida.
-  // Faz 3: animAltKaplama + kartGenislik artik TipDef pool field'larindan
-  // okunup TipSpotlight'a iletilir (eski sabit 200 / 720 fallback olarak).
-  const render = useCallback((): React.ReactNode => {
-    return (
-      <TipSpotlight
-        visible={!!aktifTip}
-        target={aktifHedef}
-        ekHedefler={aktifEkHedefler}
-        step={
-          aktifIndex >= 0
-            ? { current: aktifIndex + 1, total: filtreliPool.length }
-            : undefined
-        }
-        baslik={aktifTip?.baslik(hitap) ?? ''}
-        aciklama={aktifTip?.aciklama(hitap) ?? ''}
-        miniEtiket={aktifTip?.miniEtiket}
-        gostericiOk={aktifTip?.gostericiOk ?? false}
-        animasyon={aktifTip?.animasyon}
-        animAltKaplama={aktifTip?.animAltKaplama}
-        kartGenislik={aktifTip?.kartGenislik}
-        onAnladim={tipSonraki}
-        onAtla={tipKapat}
-        sonAdim={aktifIndex === filtreliPool.length - 1}
-      />
-    );
-  }, [aktifTip, aktifHedef, aktifEkHedefler, aktifIndex, hitap, filtreliPool.length, tipSonraki, tipKapat]);
-
-  // renderRef'i useEffect ile güncel tut — context'teki renderTipSpotlight
-  // bu ref üzerinden çağrılır, state değişimleri her render'dan sonra yansır.
-  // (react-hooks/refs kuralı: render içinde ref atama yapılmaz.)
-  useEffect(() => {
-    renderRef.current = render;
-  });
-
-  return { render, baslat, aktifTip, aktifIndex };
+  return { baslat: baslat ?? (() => false) };
 }

@@ -1,23 +1,3 @@
-// ── GlobalRehberFab ──────────────────────────────────────────────────
-// NE: Programın her sayfasında sag-alt köşede görünen sabit 🎓 Rehberler
-//     butonu (FAB). Tıklandığında o anki sayfanın RehberContext'e register
-//     ettiği rehberi başlatır; sayfa register etmemişse "yakında" diyaloğu.
-//
-// NEDEN: Mehmet Bey 2026-05-26 direktifi — "rehberler butonu her sayfada
-//        mevcut olsun". Önceki tasarımda buton useSayfaRehberi hook'unun
-//        içinde render ediliyordu → sadece hook çağrılan sayfada (TeklifEditor)
-//        görünüyordu. Global FAB tek noktadan render → her sayfa otomatik
-//        kapsama girer.
-//
-// NASIL: 1) AppLayout'un alt katmanına (Outlet'in dışında) yerleştirilir,
-//           hangi route olursa olsun görünür.
-//        2) useRehberCtx ile aktif rehberi okur.
-//        3) Tıklanınca: aktif varsa baslat(), yoksa Antd info message.
-//        4) Aktif tip görünürken (TipSpotlight açıkken) buton GİZLENİR
-//           (overlay altında kalmaması için ctx.aktif.bos kontrolü değil,
-//           pencerede TipSpotlight'ın kendi başlığı olduğundan FAB
-//           gereksiz; basit `display: none` veya zIndex altında).
-
 import { App } from 'antd';
 import { useRehberCtx } from '../context/useRehber';
 
@@ -26,16 +6,21 @@ export default function GlobalRehberFab() {
   const { message } = App.useApp();
 
   const handleClick = () => {
-    const aktif = ctx?.aktif;
-    if (!aktif) {
-      message.info('Bu sayfa için rehber henüz hazır değil — yakında eklenecek.');
+    // Faz 28: context artık özet bilgiyi (hazir/bos/sayfaAdi) ve baslat()'ı
+    // doğrudan sunuyor — eski `ctx.aktif` handle'ı kaldırıldı.
+    if (!ctx || !ctx.hazir) {
+      message.info('Bu sayfa için rehber henüz hazır değil - yakında eklenecek.');
       return;
     }
-    if (aktif.bos) {
-      message.info(`${aktif.sayfaAdi} için rehber henüz hazır değil — yakında eklenecek.`);
+    if (ctx.bos) {
+      message.info(`${ctx.sayfaAdi} için rehber henüz hazır değil - yakında eklenecek.`);
       return;
     }
-    aktif.baslat();
+
+    const basladi = ctx.baslat();
+    if (!basladi) {
+      message.info(`${ctx.sayfaAdi} için şu an gösterilebilecek rehber adımı bulunamadı. Gerekli paneli açıp tekrar deneyin.`);
+    }
   };
 
   return (
@@ -74,7 +59,7 @@ export default function GlobalRehberFab() {
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
-      🎓 Rehberler
+      {'🎓 Rehberler'}
     </button>
   );
 }
