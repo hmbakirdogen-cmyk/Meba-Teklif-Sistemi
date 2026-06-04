@@ -31,7 +31,6 @@ import { ANALIZ_TIPLERI } from './AnalizSayfasi.tips';
 import EChartBar2D, { type Bar2DData } from '../components/charts/EChartBar2D';
 import EChartPie3D, { type PieData } from '../components/charts/EChartPie3D';
 import EChartScatter2D, { type Scatter2DPoint } from '../components/charts/EChartScatter2D';
-import EChartHeatmap2D, { type HeatmapData } from '../components/charts/EChartHeatmap2D';
 import { caprazTavsiyeHesapla, firmaIdAdHaritasi, type CaprazTavsiye } from '../utils/caprazTavsiye';
 import { isYonetici as isYoneticiRol } from '../utils/yetkiUtils';
 import {
@@ -46,7 +45,6 @@ import {
   riskTekliflerHesapla,
   enAktifKullanici,
   enCokTeklifVerilenFirma,
-  personelGunAktivitesi,
   type AnalizFiltresi,
   type ParaBirimiToplam,
   type KullaniciPerformansi,
@@ -91,12 +89,6 @@ const DURUM_RENK: Record<TeklifDurum, string> = {
   reddedildi: '#f87171',
   iptal: '#94a3b8',
 };
-
-// Hafta günleri (Faz 8c Heatmap için) — modül scope'ta (sabit, re-render
-// olmaz, useMemo dep listesinde gereksiz).
-const HAFTA_GUNLERI_TR = ['Pazar', 'Pzt', 'Sa', 'Ça', 'Pe', 'Cu', 'Cmt'];
-// Pazartesi başlangıçlı Türk iş haftası: gunIdx → kolon pozisyonu
-const HAFTA_GUNLERI_SIRA = [1, 2, 3, 4, 5, 6, 0];
 
 export default function AnalizSayfasi() {
   // Global rehber sistemine kayıt — pool boşken FAB "yakında" mesajı, dolunca
@@ -239,90 +231,6 @@ export default function AnalizSayfasi() {
   // NASIL: kullaniciPerf'in tümünden (en az 1 teklifi olan) Scatter3D
   //        point üret. Toplam teklif 0 olanlar (sistem'e giriş yapmış
   //        ama teklif yazmamış) filtrelenir → grafik temiz.
-  // ── Personel × Hafta Günü Heatmap (Faz 8c) ───────────────────────────
-  // NE: kullaniciId × gunIdx (0-6) matrisi → ECharts heatmap formatı.
-  // NEDEN: Yöneticiye "kim ne gün aktif?" net görsel — düşük aktivite
-  //        çukurları soluk hücrelerle anında görülür.
-  // NASIL: Top 12 personel + 7 gün. Etiket günleri Türkçe Pzt-Pzr;
-  //        ECharts'ta x ekseni gün, y ekseni personel.
-  const personelHeatmap: HeatmapData = useMemo(() => {
-    const gunSayilari = personelGunAktivitesi(teklifler);
-    const personelAdById = new Map<string, string>();
-    gunSayilari.forEach((g) => personelAdById.set(g.kullaniciId, g.adSoyad));
-
-    // Personel toplam aktivite — top 12 göster (perf + okunabilirlik)
-    const personelToplam = new Map<string, number>();
-    gunSayilari.forEach((g) => {
-      personelToplam.set(g.kullaniciId, (personelToplam.get(g.kullaniciId) ?? 0) + g.sayi);
-    });
-    const top12 = [...personelToplam.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12)
-      .map(([id]) => id);
-
-    const yLabels = top12.map((id) =>
-      (personelAdById.get(id) ?? 'Bilinmeyen').split(' ').slice(0, 2).join(' '),
-    );
-    const xLabels = HAFTA_GUNLERI_SIRA.map((g) => HAFTA_GUNLERI_TR[g]);
-
-    // Matris: [xIdx, yIdx, value]
-    const rows: Array<[number, number, number]> = [];
-    top12.forEach((kullaniciId, yIdx) => {
-      HAFTA_GUNLERI_SIRA.forEach((gunIdx, xIdx) => {
-        const match = gunSayilari.find(
-          (g) => g.kullaniciId === kullaniciId && g.gunIdx === gunIdx,
-        );
-        rows.push([xIdx, yIdx, match?.sayi ?? 0]);
-      });
-    });
-    return { rows, xLabels, yLabels };
-  }, [teklifler]);
-
-  // ── Heatmap özeti — kart başı 1 cümle anlatım (Mehmet Bey 2026-05-26
-  //    "saçma gibi ne olduğu belli değil" direktifi: ne dediğini önce
-  //    kelimeyle söyle, sonra grafiği göster).
-  // NE: personelHeatmap matrisinden en aktif gün + en sessiz gün + en
-  //     çok yazan personel + onun favori günü çıkarılır.
-  // NEDEN: Yönetici tek cümleyle resmi okur, sonra hücrelere bakar.
-  //        Renk açıklamasıyla zaman kaybı bitti.
-  // NASIL: rows üzerinde tek tarama; gun ve personel toplamlarını
-  //        hesapla, max/min indislerini bul, label'ları döndür.
-  const heatmapOzet = useMemo(() => {
-    const { rows, xLabels, yLabels } = personelHeatmap;
-    if (rows.length === 0 || yLabels.length === 0) return null;
-    const gunToplam = new Array(xLabels.length).fill(0);
-    const personelToplam = new Array(yLabels.length).fill(0);
-    const personelEnAktifGunIdx = new Array(yLabels.length).fill(0);
-    const personelEnAktifGunDeger = new Array(yLabels.length).fill(-1);
-    rows.forEach(([xi, yi, v]) => {
-      gunToplam[xi] += v;
-      personelToplam[yi] += v;
-      if (v > personelEnAktifGunDeger[yi]) {
-        personelEnAktifGunDeger[yi] = v;
-        personelEnAktifGunIdx[yi] = xi;
-      }
-    });
-    let enAktif = 0;
-    let enSessiz = 0;
-    for (let i = 1; i < gunToplam.length; i++) {
-      if (gunToplam[i] > gunToplam[enAktif]) enAktif = i;
-      if (gunToplam[i] < gunToplam[enSessiz]) enSessiz = i;
-    }
-    let enCokYazan = 0;
-    for (let i = 1; i < personelToplam.length; i++) {
-      if (personelToplam[i] > personelToplam[enCokYazan]) enCokYazan = i;
-    }
-    return {
-      enAktifGunAd: xLabels[enAktif],
-      enAktifGunSayi: gunToplam[enAktif],
-      enSessizGunAd: xLabels[enSessiz],
-      enSessizGunSayi: gunToplam[enSessiz],
-      enCokYazanAd: yLabels[enCokYazan],
-      enCokYazanToplam: personelToplam[enCokYazan],
-      enCokYazanFavoriGun: xLabels[personelEnAktifGunIdx[enCokYazan]],
-    };
-  }, [personelHeatmap]);
-
   const personelPerformans3D: Scatter2DPoint[] = useMemo(() => {
     return kullaniciPerf
       .filter((p) => p.toplamTeklifSayisi > 0)
@@ -509,110 +417,6 @@ export default function AnalizSayfasi() {
         )}
         <KullaniciPerformansiTablo data={kullaniciPerf} isMobile={isMobile} />
       </Card>
-
-      {/* ─── Personel × Hafta Günü Aktivite Heatmap (Faz 8c) ─── */}
-      {/* Mehmet Bey direktifi — yöneticilere kim ne gün aktif tek bakışta.
-          Top 12 personel × 7 gün. Düşük aktivite çukurları soluk
-          hücrelerle anında görülür; Pazartesi başlangıçlı Türk iş
-          haftası sıralaması. */}
-      {yoneticiMi && personelHeatmap.yLabels.length > 0 && (
-        <Card
-          title={<><TeamOutlined style={{ color: '#06b6d4' }} /> &nbsp; Haftalık Aktivite Isı Haritası</>}
-          style={{ ...cardStyle, marginTop: 16 }}
-          styles={{ header: { borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#E3DFD8'}` } }}
-        >
-          <div
-            style={{
-              padding: '8px 4px',
-              borderRadius: 8,
-              background: isDark
-                ? 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.3) 100%)'
-                : 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
-              border: `1px solid ${isDark ? 'rgba(91,141,239,0.18)' : '#E3DFD8'}`,
-            }}
-          >
-            {/* Mehmet Bey 2026-05-26 düzeltmesi: önceki başlık "Koyu=düşük,
-                Parlak=yoğun" renk teknik dili kullanıyordu — yönetici "bu
-                kart ne anlatıyor?" diye soruyordu. Şimdi: başlık net soru,
-                hemen altında AI-tarzı 1-cümle özet bandı (en aktif/sessiz
-                gün + en üretken personelin favori günü). Hücreler artık 0
-                değerleriyle de görünür (sifirGoster) → seyrek matris boş
-                hissetmez. */}
-            <div style={{ padding: '4px 12px 8px' }}>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
-                  color: isDark ? '#e2e8f0' : '#0f172a',
-                }}
-              >
-                🔥 Kim Hangi Gün Teklif Yazıyor?
-              </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 400,
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  marginTop: 3,
-                  lineHeight: 1.45,
-                }}
-              >
-                Hücredeki sayı = o personelin o gün yazdığı teklif. Daha sıcak
-                (turuncu) renk → daha yoğun gün; soğuk (koyu mavi) → sessiz.
-              </div>
-              {heatmapOzet && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    background: isDark
-                      ? 'linear-gradient(90deg, rgba(6,182,212,0.10) 0%, rgba(91,141,239,0.08) 100%)'
-                      : 'linear-gradient(90deg, rgba(6,182,212,0.07) 0%, rgba(91,141,239,0.06) 100%)',
-                    border: `1px solid ${isDark ? 'rgba(6,182,212,0.25)' : 'rgba(6,182,212,0.18)'}`,
-                    fontSize: 12.5,
-                    lineHeight: 1.55,
-                    color: isDark ? '#cbd5e1' : '#334155',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '4px 14px',
-                  }}
-                >
-                  <span>
-                    <b style={{ color: isDark ? '#fbbf24' : '#b45309' }}>
-                      En aktif gün:
-                    </b>{' '}
-                    {heatmapOzet.enAktifGunAd} ({heatmapOzet.enAktifGunSayi} teklif)
-                  </span>
-                  <span style={{ opacity: 0.4 }}>·</span>
-                  <span>
-                    <b style={{ color: isDark ? '#60a5fa' : '#1d4ed8' }}>
-                      En sessiz gün:
-                    </b>{' '}
-                    {heatmapOzet.enSessizGunAd} ({heatmapOzet.enSessizGunSayi} teklif)
-                  </span>
-                  <span style={{ opacity: 0.4 }}>·</span>
-                  <span>
-                    <b style={{ color: isDark ? '#34d399' : '#047857' }}>
-                      En üretken personel:
-                    </b>{' '}
-                    {heatmapOzet.enCokYazanAd} ({heatmapOzet.enCokYazanToplam} teklif
-                    · favori gün {heatmapOzet.enCokYazanFavoriGun})
-                  </span>
-                </div>
-              )}
-            </div>
-            <EChartHeatmap2D
-              data={personelHeatmap}
-              height={Math.max(360, personelHeatmap.yLabels.length * 36 + 130)}
-              valueAdi="teklif"
-              isDark={isDark}
-              sifirGoster
-            />
-          </div>
-        </Card>
-      )}
 
       {/* ─── Çapraz Grup Şirket Tavsiyeleri (Faz 11) ─── */}
       {/* Mehmet Bey direktifi 2026-05-26: "MEBA'nın carilerinde olmayan

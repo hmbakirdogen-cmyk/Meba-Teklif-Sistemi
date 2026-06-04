@@ -37,20 +37,6 @@ export interface OzetMetrikleri {
   bekleyenSayisi: number;
 }
 
-// ── Faz 8c — Personel × Gün Aktivite Heatmap (Mehmet Bey direktifi) ──
-// NE: Her personelin her hafta gününde hazırladığı teklif sayısı.
-// NEDEN: Yöneticiye "kim ne gün aktif?" sorusuna görsel cevap; Pzt-Pzr
-//        ısı haritası ile tek bakışta düşük aktivite çukurları görülür.
-// NASIL: teklif.olusturmaTarihi'den Date.getDay() (0=Pazar, 1=Pzt...);
-//        personel × gün matrisi sayım.
-export interface PersonelGunSayisi {
-  kullaniciId: string;
-  adSoyad: string;
-  /** 0=Pazar, 1=Pzt, 2=Sa, 3=Ça, 4=Pe, 5=Cu, 6=Cmt */
-  gunIdx: number;
-  sayi: number;
-}
-
 export interface KullaniciPerformansi {
   kullaniciId: string;
   adSoyad: string;
@@ -629,36 +615,4 @@ export function enCokTeklifVerilenFirma(teklifler: Teklif[]): { firmaAdi: string
     if (!best || v.n > best.sayi) best = { firmaAdi: v.ad, sayi: v.n };
   }
   return best;
-}
-
-/**
- * Faz 8c — Personel × Hafta Günü Aktivite Heatmap için hesaplama.
- *
- * Her tekliften olusturmaTarihi'nin getDay() değerini alıp (0-6),
- * hazırlayan kullanıcı bazında gün sayımı yapar. Sonuç UI'da heatmap'e
- * dönüştürülür — düşük aktivite günleri/personeller hücrelerin soluk
- * rengi ile, yoğun günler parlak renkle gösterilir.
- *
- * Mehmet Bey direktifi: "yöneticilere personel kullanım istatistikleri".
- */
-export function personelGunAktivitesi(teklifler: Teklif[]): PersonelGunSayisi[] {
-  const matrix = new Map<string, PersonelGunSayisi>();
-  for (const t of teklifler) {
-    const kullaniciId = t.hazirlayanKullaniciId;
-    if (!kullaniciId) continue;
-    const tarihStr = t.olusturmaTarihi || t.tarih;
-    if (!tarihStr) continue;
-    const d = new Date(tarihStr);
-    if (Number.isNaN(d.getTime())) continue;
-    const gunIdx = d.getDay(); // 0=Pazar, 1=Pzt, ... 6=Cumartesi
-    const adSoyad = t.hazirlayanAdSoyad || 'Bilinmeyen';
-    const key = `${kullaniciId}|${gunIdx}`;
-    const mevcut = matrix.get(key);
-    if (mevcut) {
-      mevcut.sayi += 1;
-    } else {
-      matrix.set(key, { kullaniciId, adSoyad, gunIdx, sayi: 1 });
-    }
-  }
-  return [...matrix.values()];
 }
