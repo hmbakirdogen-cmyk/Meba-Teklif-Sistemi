@@ -72,23 +72,38 @@ export function SatirCellEditor({
 
 function MarkaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEditorProps) {
   const markalar = useAkilliReferans('markalar');
+  // NE: Marka hücresi artık AutoComplete (serbest yazılabilir combobox).
+  // NEDEN: Eski hâli salt Select'ti → kullanıcı yalnızca listedeki markalardan
+  //   seçebiliyor, listede olmayan markayı ELLE YAZAMIYORDU (Mustafa'nın geri
+  //   bildirimi). AutoComplete hem listeden öneri sunar hem serbest girişe izin verir.
+  // NASIL: onChange yazılan/seçilen değeri satıra işler; senkronizasyon (ürün
+  //   kataloğuna kalıcı yazma) yalnızca seçim/çıkış anında yapılır — her tuş
+  //   vuruşunda DB'ye yazılmasın diye. YAN ETKİ: yok; mevcut seçim akışı korunur.
+  const senkronizeMarka = (deger: string) => {
+    const v = deger.trim();
+    if (v && satir.urunKod) {
+      urunService.markaSenkronize(satir.urunKod, v);
+    }
+  };
   return (
-    <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onEnterNext?.(); } }}>
-      <InlineTableSelectField
+    <div onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); senkronizeMarka(satir.marka || ''); onEnterNext?.(); } }}>
+      <InlineTableAutocompleteField
         autoFocus={autoFocus}
         defaultOpen={autoFocus}
         style={ROW_TEXT.brand}
         value={satir.marka || undefined}
-        onChange={(value) => {
-          onGuncelle('marka', value);
-          // Marka senkronize — ürün kataloğunda marka boşsa kalıcı kaydet
-          // → bir sonraki seçişte otomatik gelsin.
-          if (typeof value === 'string' && satir.urunKod) {
-            urunService.markaSenkronize(satir.urunKod, value);
-          }
+        onChange={(value) => onGuncelle('marka', (value as string) ?? '')}
+        onSelect={(value) => {
+          const v = (value as string) ?? '';
+          onGuncelle('marka', v);
+          senkronizeMarka(v);
           onEnterNext?.();
         }}
+        onBlur={() => senkronizeMarka(satir.marka || '')}
         options={markalar.map((m) => ({ value: m, label: m }))}
+        filterOption={(input, option) =>
+          String(option?.value ?? '').toLocaleLowerCase('tr').includes(input.toLocaleLowerCase('tr'))
+        }
         placeholder="—"
         popupMatchSelectWidth={false}
         dropdownStyle={{ minWidth: 180 }}
@@ -553,19 +568,28 @@ function AciklamaEditor({ satir, autoFocus, onGuncelle, onEnterNext }: CellEdito
   };
 
   return (
-    <Input
+    // NE: Açıklama editörü tek satırlık Input yerine otomatik büyüyen TextArea.
+    // NEDEN: Eski Input tek satırdı → uzun metin alt satıra kaymıyor, yatay
+    //   kayıyordu (Mustafa'nın geri bildirimi). TextArea + autoSize ile metin
+    //   sözcük sözcük alt satıra sarar ve hücre yüksekliği kendiliğinden artar.
+    // NASIL: Enter → bir sonraki hücreye geçiş davranışı KORUNUR; metin içinde
+    //   manuel satır eklemek isteyen Shift+Enter kullanır. YAN ETKİ: hücre
+    //   yüksekliği içeriğe göre değişebilir (zaten display tarafı DescText ile sarar).
+    <Input.TextArea
       autoFocus={autoFocus}
       className="inline-table-field description-editor"
       variant="borderless"
       size="small"
       style={ACIKLAMA_EDIT}
       value={satir.aciklama}
+      autoSize={{ minRows: 1 }}
       onChange={(e) => onGuncelle('aciklama', e.target.value)}
       onBlur={handleBlur}
       placeholder="Açıklama"
-      onFocus={(e) => (e.target as HTMLInputElement).select()}
+      onFocus={(e) => (e.target as HTMLTextAreaElement).select()}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') {
+        // Enter (Shift'siz) → sonraki hücre; Shift+Enter → metinde alt satır.
+        if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           onEnterNext?.();
         }
