@@ -298,6 +298,15 @@ export default function TeklifSablonu({ teklif, totals }: TeklifSablonuProps) {
                     {teklif.hazirlayanAdSoyad ? formatAdSoyad(teklif.hazirlayanAdSoyad) : firmaBilgi.kisaAd}
                   </td>
                 </tr>
+                {/* ── Hazırlayan Telefonu — yalnızca tanımlıysa, ad-soyadın altında ── */}
+                {teklif.hazirlayanTelefon && (
+                  <tr>
+                    <td style={{ fontSize: '8.5px', color: C.textMuted, padding: '0 0 1px 0', lineHeight: 1.3, letterSpacing: '0.05em' }}>Tel</td>
+                    <td style={{ fontSize: '9.5px', fontWeight: 400, color: C.textSoft, padding: '0 0 1px 0', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatPhone(teklif.hazirlayanTelefon.replace(/\s+/g, ''))}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

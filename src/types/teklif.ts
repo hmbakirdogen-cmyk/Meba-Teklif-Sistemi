@@ -91,6 +91,9 @@ export interface Teklif {
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
   hazirlayanUnvan?: string;
+  /** Teklifi hazırlayan personelin telefonu — belgede ad-soyadın altında
+   *  gösterilir. Snapshot: teklif kaydedildiği anki hazırlayanın telefonu. */
+  hazirlayanTelefon?: string;
   contactName?: string;
   contactTitle?: 'BEY' | 'HANIM' | 'YETKILI';
   /** Teklif ile ilgilenen/takip eden kişi — kendi firmasından seçilir. */

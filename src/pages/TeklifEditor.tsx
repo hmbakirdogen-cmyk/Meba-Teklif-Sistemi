@@ -217,7 +217,7 @@ export default function TeklifEditor() {
 
   const state = useBelgeState(
     id,
-    aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan } : null,
+    aktifKullanici ? { id: aktifKullanici.id, adSoyad: aktifKullanici.adSoyad, rol: aktifKullanici.rol, unvan: aktifKullanici.unvan, telefon: aktifKullanici.telefon } : null,
   );
 
   // ── Undo/Redo ────────────────────────────────────────────────────────

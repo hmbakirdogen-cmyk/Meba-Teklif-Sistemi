@@ -196,6 +196,7 @@ model Teklif {
   hazirlayanAdSoyad        String?
   hazirlayanRol            String?
   hazirlayanUnvan          String?
+  hazirlayanTelefon        String?
   ilgiliKisiId             String?
   visibility               Visibility  @default(team)
 

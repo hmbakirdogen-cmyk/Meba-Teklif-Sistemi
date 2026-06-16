@@ -70,6 +70,7 @@ export interface BelgeState {
   hazirlayanAdSoyad?: string;
   hazirlayanRol?: string;
   hazirlayanUnvan?: string;
+  hazirlayanTelefon?: string;
   gorseller: ImageItem[];
   status: TeklifStatus;
   visibility: TeklifVisibility;
@@ -168,6 +169,7 @@ interface KullaniciBilgisi {
   adSoyad: string;
   rol: KullaniciRol;
   unvan?: string;
+  telefon?: string;
 }
 
 export function useBelgeState(
@@ -213,6 +215,7 @@ export function useBelgeState(
   const teklifSahibiAdSoyadRef = useRef<string | undefined>(mevcut?.hazirlayanAdSoyad);
   const teklifSahibiRolRef = useRef<string | undefined>(mevcut?.hazirlayanRol);
   const teklifSahibiUnvanRef = useRef<string | undefined>(mevcut?.hazirlayanUnvan);
+  const teklifSahibiTelefonRef = useRef<string | undefined>(mevcut?.hazirlayanTelefon);
   // KRİTİK: Mount sırasında dataStore cache'i henüz dolu olmayabilir →
   // mevcut=undefined → ref'ler undefined ile init olur. Sonra cache dolunca
   // mevcut yüklenir ama useRef güncellenmez → state'te aktif kullanıcı (yönetici)
@@ -226,9 +229,22 @@ export function useBelgeState(
       teklifSahibiAdSoyadRef.current = mevcut.hazirlayanAdSoyad;
       teklifSahibiRolRef.current = mevcut.hazirlayanRol;
       teklifSahibiUnvanRef.current = mevcut.hazirlayanUnvan;
+      teklifSahibiTelefonRef.current = mevcut.hazirlayanTelefon;
       sahipSetEdildiRef.current = true;
     }
-  }, [mevcut?.hazirlayanKullaniciId, mevcut?.hazirlayanAdSoyad, mevcut?.hazirlayanRol, mevcut?.hazirlayanUnvan]);
+  }, [mevcut?.hazirlayanKullaniciId, mevcut?.hazirlayanAdSoyad, mevcut?.hazirlayanRol, mevcut?.hazirlayanUnvan, mevcut?.hazirlayanTelefon]);
+
+  // Hazırlayan telefonunu çöz: snapshot (kayıttaki) öncelikli; snapshot yoksa
+  // YALNIZCA teklifi hazırlayan = aktif kullanıcının kendisiyse (ya da henüz
+  // hazırlayan atanmamış yeni teklifse) aktif kullanıcının telefonu kullanılır.
+  // GUARD nedeni: eski kayıtlarda hazirlayanTelefon yok → fallback'e düşer; o
+  // teklifi BAŞKASI açtığında, açan kişinin telefonunu hazırlayanmış gibi
+  // göstermemek için sahiplik eşleşmesi şart (yanlış numara = müşteri yanlış kişiyi arar).
+  const hazirlayanTelefonCoz = useCallback((): string | undefined => {
+    if (teklifSahibiTelefonRef.current) return teklifSahibiTelefonRef.current;
+    const sahipId = teklifSahibiIdRef.current ?? kullanici?.id;
+    return sahipId && sahipId === kullanici?.id ? kullanici?.telefon : undefined;
+  }, [kullanici?.id, kullanici?.telefon]);
 
   const [teklifId] = useState(() => mevcut ? mevcutId! : teklifService.teklifIdUret());
   const [teklifNo, setTeklifNo] = useState(mevcut?.teklifNo ?? '...');
@@ -431,6 +447,7 @@ export function useBelgeState(
       hazirlayanAdSoyad: teklifSahibiAdSoyadRef.current ?? kullanici?.adSoyad,
       hazirlayanRol: teklifSahibiRolRef.current ?? kullanici?.rol,
       hazirlayanUnvan: teklifSahibiUnvanRef.current ?? kullanici?.unvan,
+      hazirlayanTelefon: hazirlayanTelefonCoz(),
       gecerlilikSuresi,
       dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
@@ -696,6 +713,7 @@ export function useBelgeState(
       hazirlayanAdSoyad: teklifSahibiAdSoyadRef.current ?? kullanici?.adSoyad,
       hazirlayanRol: teklifSahibiRolRef.current ?? kullanici?.rol,
       hazirlayanUnvan: teklifSahibiUnvanRef.current ?? kullanici?.unvan,
+      hazirlayanTelefon: hazirlayanTelefonCoz(),
       gecerlilikSuresi,
       dovizKuru: dovizKuru || undefined,
       contactName: contactName.trim() || undefined,
@@ -869,6 +887,7 @@ export function useBelgeState(
     hazirlayanAdSoyad: teklifSahibiAdSoyadRef.current ?? kullanici?.adSoyad,
     hazirlayanRol: teklifSahibiRolRef.current ?? kullanici?.rol,
     hazirlayanUnvan: teklifSahibiUnvanRef.current ?? kullanici?.unvan,
+    hazirlayanTelefon: hazirlayanTelefonCoz(),
     gorseller,
     status,
     visibility,
