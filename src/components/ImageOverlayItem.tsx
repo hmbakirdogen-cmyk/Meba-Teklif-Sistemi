@@ -56,6 +56,7 @@ export function ImageOverlayItem({
   const [optimistic, setOptimistic] = useState<Geom | null>(null);
   const [dragMode, setDragMode] = useState<'move' | Corner | null>(null);
   const rafRef = useRef<number | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     pointerId: number;
     mode: 'move' | Corner;
@@ -64,6 +65,11 @@ export function ImageOverlayItem({
     geom: Geom;
     aspect: number;
     shiftDown: boolean;
+    /** Move drag'i sırasında overflow'u geçici 'visible' yapılan sayfa elemanı. */
+    pageEl: HTMLElement | null;
+    overflowPrev: string;
+    /** Editörün görsel ölçeği (sayfa rect / doküman px) — delta düzeltmesi için. */
+    scale: number;
   } | null>(null);
 
   const geom: Geom = optimistic ?? {
@@ -86,7 +92,7 @@ export function ImageOverlayItem({
     });
   }, []);
 
-  const finishGesture = useCallback((g: Geom) => {
+  const finishGesture = useCallback((g: Geom, pageIndex?: number) => {
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -98,8 +104,58 @@ export function ImageOverlayItem({
       y: Math.round(g.y),
       width: Math.round(g.width),
       height: Math.round(g.height),
+      // Çapraz sayfa taşımada hedef sayfa da commit'lenir — görsel o
+      // sayfanın overlay katmanına geçer (ImageOverlayLayer pageIndex filtresi).
+      ...(pageIndex !== undefined ? { pageIndex } : {}),
     });
   }, [item.id, onCommit]);
+
+  // NE: Move bırakıldığında görselin merkezi hangi sayfanın üstündeyse görseli
+  //     o sayfaya yerleştirir (gerekirse pageIndex değişikliğiyle).
+  // NEDEN: Görseller sayfa-bazlı saklanır (pageIndex) ve eski drag kodu
+  //        koordinatı kendi sayfasına clamp'liyordu → görsel 1. sayfadan
+  //        2. sayfaya asla taşınamıyordu.
+  // NASIL: Kendi sayfası closest('[data-pdf-page]') ile, kardeş sayfalar aynı
+  //        parent'tan bulunur; ölçek rect.width / pageWidthPx'ten türetilir
+  //        (editörün scale transform'undan bağımsız çalışır). Görsel merkezi
+  //        sayfalar arası boşluğa düşerse dikeyde en yakın sayfa seçilir.
+  // YAN ETKİ: Aynı sayfaya bırakışta da kenardan taşan kısım içeri clamp'lenir
+  //        — eski davranışla aynı nihai sonuç.
+  const resolveDropTarget = useCallback((g: Geom): { geom: Geom; pageIndex?: number } => {
+    const pageEl = rootRef.current?.closest('[data-pdf-page]') as HTMLElement | null;
+    const pages = pageEl?.parentElement
+      ? (Array.from(pageEl.parentElement.querySelectorAll(':scope > [data-pdf-page]')) as HTMLElement[])
+      : [];
+    const curIdx = pageEl ? pages.indexOf(pageEl) : -1;
+    if (!pageEl || curIdx < 0) {
+      // Sayfa DOM'da çözülemedi → eski davranış: kendi sayfası içine clamp.
+      return {
+        geom: {
+          ...g,
+          x: clamp(g.x, 0, pageWidthPx - g.width),
+          y: clamp(g.y, 0, pageHeightPx - g.height),
+        },
+      };
+    }
+    const rect = pageEl.getBoundingClientRect();
+    const scale = rect.width / pageWidthPx || 1;
+    const cx = rect.left + (g.x + g.width / 2) * scale;
+    const cy = rect.top + (g.y + g.height / 2) * scale;
+    let bestIdx = curIdx;
+    let bestDist = Infinity;
+    pages.forEach((p, i) => {
+      const r = p.getBoundingClientRect();
+      const dist = cy < r.top ? r.top - cy : cy > r.bottom ? cy - r.bottom : 0;
+      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    });
+    const tr = pages[bestIdx].getBoundingClientRect();
+    const hedefGeom: Geom = {
+      ...g,
+      x: clamp((cx - tr.left) / scale - g.width / 2, 0, pageWidthPx - g.width),
+      y: clamp((cy - tr.top) / scale - g.height / 2, 0, pageHeightPx - g.height),
+    };
+    return bestIdx === curIdx ? { geom: hedefGeom } : { geom: hedefGeom, pageIndex: bestIdx };
+  }, [pageWidthPx, pageHeightPx]);
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, mode: 'move' | Corner) => {
     if (!interactive) return;
@@ -108,6 +164,31 @@ export function ImageOverlayItem({
     onSelect?.(item.id);
     (e.target as Element).setPointerCapture?.(e.pointerId);
     setDragMode(mode);
+    // NE: Move modunda sayfanın overflow:hidden'ı drag süresince kaldırılır.
+    // NEDEN: Görsel komşu sayfaya sürüklenirken sayfa kenarında kırpılıp
+    //        kaybolmasın — kullanıcı taşıdığı görseli hep parmağının altında
+    //        görsün.
+    // NASIL: Inline style doğrudan güncellenir; pointerUp/Cancel eski değeri
+    //        geri yazar. Drag boyunca sadece bu bileşen re-render olduğu için
+    //        React sayfa elemanının stilini ezmez.
+    // YAN ETKİ: Drag anında sayfa içeriği taşıyorsa görünür olur — pagination
+    //        içeriği sığdırdığından pratikte taşan tek şey sürüklenen görsel.
+    const hostPageEl = (rootRef.current?.closest('[data-pdf-page]') as HTMLElement | null) ?? null;
+    let pageEl: HTMLElement | null = null;
+    let overflowPrev = '';
+    if (mode === 'move' && hostPageEl) {
+      pageEl = hostPageEl;
+      overflowPrev = pageEl.style.overflow;
+      pageEl.style.overflow = 'visible';
+    }
+    // NE: Editörün görsel ölçeği drag başında ölçülür (sayfa rect / doküman px).
+    // NEDEN: Pointer delta'ları ekran pikseli, geom ise ölçeksiz doküman
+    //        pikseli — scale < 1 iken görsel imlecin gerisinde sürükleniyordu.
+    // NASIL: onPointerMove tüm delta'ları bu ölçeğe böler → görsel birebir
+    //        imlecin altında kalır (move + resize).
+    // YAN ETKİ: scale=1'de davranış değişmez (bölme etkisiz).
+    const pageRectW = hostPageEl?.getBoundingClientRect().width ?? 0;
+    const dragScale = pageRectW > 0 ? pageRectW / pageWidthPx : 1;
     dragRef.current = {
       pointerId: e.pointerId,
       mode,
@@ -116,20 +197,25 @@ export function ImageOverlayItem({
       geom: { x: geom.x, y: geom.y, width: geom.width, height: geom.height },
       aspect,
       shiftDown: e.shiftKey,
+      pageEl,
+      overflowPrev,
+      scale: dragScale,
     };
-  }, [interactive, onSelect, item.id, geom.x, geom.y, geom.width, geom.height, aspect]);
+  }, [interactive, onSelect, item.id, geom.x, geom.y, geom.width, geom.height, aspect, pageWidthPx]);
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
+    // Ekran pikseli → doküman pikseli dönüşümü (editör scale düzeltmesi).
+    const dx = (e.clientX - d.startX) / d.scale;
+    const dy = (e.clientY - d.startY) / d.scale;
     d.shiftDown = e.shiftKey;
 
     if (d.mode === 'move') {
-      const x = clamp(d.geom.x + dx, 0, pageWidthPx - d.geom.width);
-      const y = clamp(d.geom.y + dy, 0, pageHeightPx - d.geom.height);
-      scheduleSet({ ...d.geom, x, y });
+      // Sayfa sınırına clamp YOK — görsel serbestçe sayfa dışına sürüklenebilir.
+      // Bırakınca resolveDropTarget merkezin düştüğü sayfaya yerleştirir
+      // (çapraz sayfa taşıma). Resize modları eskisi gibi clamp'li kalır.
+      scheduleSet({ ...d.geom, x: d.geom.x + dx, y: d.geom.y + dy });
       return;
     }
 
@@ -194,8 +280,15 @@ export function ImageOverlayItem({
     if (!d || d.pointerId !== e.pointerId) return;
     const final = optimistic ?? { x: item.x, y: item.y, width: item.width, height: item.height };
     dragRef.current = null;
-    finishGesture(final);
-  }, [optimistic, item.x, item.y, item.width, item.height, finishGesture]);
+    // Drag başında 'visible' yapılan sayfa overflow'unu eski değerine döndür.
+    if (d.pageEl) d.pageEl.style.overflow = d.overflowPrev;
+    if (d.mode === 'move') {
+      const drop = resolveDropTarget(final);
+      finishGesture(drop.geom, drop.pageIndex);
+    } else {
+      finishGesture(final);
+    }
+  }, [optimistic, item.x, item.y, item.width, item.height, finishGesture, resolveDropTarget]);
 
   useEffect(() => () => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -205,6 +298,7 @@ export function ImageOverlayItem({
 
   return (
     <div
+      ref={rootRef}
       data-image-overlay-item
       data-image-id={item.id}
       onPointerDown={(e) => onPointerDown(e, 'move')}

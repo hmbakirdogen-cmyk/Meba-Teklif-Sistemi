@@ -926,6 +926,12 @@ export default function TeklifEditor() {
   // ── Resim ekleme ──
   // Default fallback: x %60, y %60 (sağ-alt). Doğal boyut yüklenince
   // max 220px sınırına ölçeklenir; aspect korunur.
+  // NE: Yeni resim, kullanıcının O AN ekranda baktığı sayfaya eklenir.
+  // NEDEN: Eski kod ilk görselin sayfasını (yoksa 0) alıyordu → 2. sayfaya
+  //        inmiş kullanıcı resim eklediğinde resim hep 1. sayfaya düşüyordu.
+  // NASIL: Ekrandaki [data-pdf-page] elemanlarından viewport ile dikeyde en
+  //        çok kesişeni bulunur; onun sırası pageIndex olur.
+  // YAN ETKİ: Tek sayfalık teklifte davranış eskisiyle birebir aynı (index 0).
   const handleResimEkle = useCallback((dataUrl: string) => {
     const pageW = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
     const pageH = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
@@ -941,9 +947,20 @@ export default function TeklifEditor() {
       const yRaw = Math.round(pageH * 0.60 - height / 2);
       const x = Math.max(0, Math.min(pageW - width,  xRaw));
       const y = Math.max(0, Math.min(pageH - height, yRaw));
-      // Son sayfa default
-      const lastPageIndex = Math.max(0, (state.gorseller[0]?.pageIndex ?? 0));
-      const id = state.gorselEkle(dataUrl, { width, height, pageIndex: lastPageIndex });
+      // Kullanıcının baktığı sayfa: ekranda dikeyde en çok görünen sayfa.
+      // (.belge-screen-view scope'u şart — PDF kaynağı kopyası -9999px'te
+      //  aynı [data-pdf-page] elemanlarını barındırır, ona karışmayalım.)
+      const pageEls = Array.from(
+        document.querySelectorAll<HTMLElement>('.belge-screen-view [data-pdf-page]'),
+      );
+      let gorunenSayfa = 0;
+      let enCokGorunen = -Infinity;
+      pageEls.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        const gorunen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+        if (gorunen > enCokGorunen) { enCokGorunen = gorunen; gorunenSayfa = i; }
+      });
+      const id = state.gorselEkle(dataUrl, { width, height, pageIndex: gorunenSayfa });
       // Pozisyonu commit et (gorselEkle x/y=0 koyar, doğru konuma çek)
       state.gorselGuncelle(id, { x, y });
     };

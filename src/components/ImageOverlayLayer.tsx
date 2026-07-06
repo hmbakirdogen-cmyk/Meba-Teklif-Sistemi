@@ -40,8 +40,15 @@ export function ImageOverlayLayer({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const items = gorseller.filter((g) => g.pageIndex === pageIndex);
+  // Seçim yalnız BU sayfada duran görsel için geçerli sayılır: görsel başka
+  // sayfaya taşınır (çapraz sayfa sürükleme) veya silinirse effective null
+  // olur → bu katman klavye olaylarını (ok/Delete) dinlemeyi bırakır.
+  // (State'te kalan eski selectedId zararsız; görsel bu sayfaya geri
+  // taşınırsa seçim doğal olarak geri gelir.)
   const effectiveSelectedId =
-    selectedId && gorseller.some((g) => g.id === selectedId) ? selectedId : null;
+    selectedId && gorseller.some((g) => g.id === selectedId && g.pageIndex === pageIndex)
+      ? selectedId
+      : null;
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
@@ -79,8 +86,6 @@ export function ImageOverlayLayer({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [effectiveSelectedId, gorseller, interactive, onDelete, onUpdate, pageWidthPx, pageHeightPx]);
-
-  // Görsel pageIndex değişince ve seçili kaybolursa temizle
 
   // Document-level outside-click → deselect.
   // Layer'ın kendisi pointer-events:none olduğu için tıklamaları yakalayamaz;
