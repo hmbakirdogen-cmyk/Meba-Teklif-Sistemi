@@ -52,6 +52,38 @@ function waitForNextPaint(): Promise<void> {
   });
 }
 
+// ── Görsel küçültme (belgeye ekleme + R2 upload öncesi) ──
+// NE: Büyük görselleri (>~300KB) canvas ile en fazla 1600px kenara küçültüp
+//     JPEG 0.85 olarak yeniden kodlar; küçükler olduğu gibi kalır.
+// NEDEN: Telefon fotoğrafları 3-8MB geliyor — hem R2 upload'ı hem belge/PDF
+//        render'ı gereksiz şişiyordu. A4'te görselin ekran karşılığı
+//        ~220-800px; 1600px baskı için de fazlasıyla yeterli.
+// NASIL: dataURL zaten yüklü <img>'den canvas'a beyaz zeminle çizilir
+//        (JPEG alfa desteklemez) → toDataURL('image/jpeg', 0.85).
+// YAN ETKİ: Eşik üstü PNG'lerde şeffaflık beyaza düşer — büyük görseller
+//        pratikte ürün fotoğrafı; logolar zaten eşik altı PNG olarak korunur.
+const GORSEL_KUCULT_ESIK_CHAR = 400_000; // ~300KB binary ≈ 400k dataURL karakteri
+const GORSEL_MAX_KENAR_PX = 1600;
+function gorselKucult(dataUrl: string, img: HTMLImageElement): string {
+  if (dataUrl.length <= GORSEL_KUCULT_ESIK_CHAR) return dataUrl;
+  const nw = img.naturalWidth || 1;
+  const nh = img.naturalHeight || 1;
+  const oran = Math.min(GORSEL_MAX_KENAR_PX / nw, GORSEL_MAX_KENAR_PX / nh, 1);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(nw * oran));
+  canvas.height = Math.max(1, Math.round(nh * oran));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  try {
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } catch {
+    return dataUrl; // canvas taint vb. — orijinali kullan, akışı kırma
+  }
+}
+
 // Sonuçlanmış/gönderilmiş teklif düzenlemesi için revize zorunlu kapanan durumlar.
 const KAPALI_DURUMLAR = ['gonderildi', 'onaylandi', 'kismi_onaylandi', 'reddedildi', 'iptal'] as const;
 
@@ -926,12 +958,18 @@ export default function TeklifEditor() {
   // ── Resim ekleme ──
   // Default fallback: x %60, y %60 (sağ-alt). Doğal boyut yüklenince
   // max 220px sınırına ölçeklenir; aspect korunur.
-  // NE: Yeni resim, kullanıcının O AN ekranda baktığı sayfaya eklenir.
-  // NEDEN: Eski kod ilk görselin sayfasını (yoksa 0) alıyordu → 2. sayfaya
-  //        inmiş kullanıcı resim eklediğinde resim hep 1. sayfaya düşüyordu.
-  // NASIL: Ekrandaki [data-pdf-page] elemanlarından viewport ile dikeyde en
-  //        çok kesişeni bulunur; onun sırası pageIndex olur.
-  // YAN ETKİ: Tek sayfalık teklifte davranış eskisiyle birebir aynı (index 0).
+  // NE: (1) Resim kullanıcının O AN baktığı sayfaya eklenir. (2) Resim önce
+  //     küçültülür, ANINDA belgeye girer (dataURL), arka planda R2'ye
+  //     yüklenir ve başarılıysa src sessizce URL'e çevrilir.
+  // NEDEN: Görseller teklif JSON'una base64 gömülüyordu → teklif ~1.6MB'a
+  //        şişiyor, 600ms'lik autosave bu gövdeyi her değişiklikte yeniden
+  //        yüklüyor ve sunucu 512MB limitinde OOM ile çöküyordu (23 Haz'dan
+  //        beri 48 çökme). URL'e geçince kayıt birkaç KB'a iner.
+  // NASIL: gorselKucult (≤1600px JPEG) → gorselEkle(dataURL) → arka planda
+  //        api.teklifler.gorselYukle → gorselGuncelle(id, { src: url }).
+  // YAN ETKİ: Upload başarısızsa (ör. local dev'de R2 yok → 503) görsel
+  //        dataURL olarak gömülü kalır — eski davranış, hiçbir şey kırılmaz.
+  //        Kullanıcı upload bitmeden görseli silerse swap no-op olur.
   const handleResimEkle = useCallback((dataUrl: string) => {
     const pageW = Math.round(mmToPx(DOCUMENT_PAGE.widthMm));
     const pageH = Math.round(mmToPx(DOCUMENT_PAGE.heightMm));
@@ -960,9 +998,19 @@ export default function TeklifEditor() {
         const gorunen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
         if (gorunen > enCokGorunen) { enCokGorunen = gorunen; gorunenSayfa = i; }
       });
-      const id = state.gorselEkle(dataUrl, { width, height, pageIndex: gorunenSayfa });
+      const kucuk = gorselKucult(dataUrl, img);
+      const id = state.gorselEkle(kucuk, { width, height, pageIndex: gorunenSayfa });
       // Pozisyonu commit et (gorselEkle x/y=0 koyar, doğru konuma çek)
       state.gorselGuncelle(id, { x, y });
+      // Arka plan R2 upload — başarılıysa dataURL yerine hafif URL yazılır.
+      void (async () => {
+        try {
+          const { url } = await api.teklifler.gorselYukle(kucuk);
+          state.gorselGuncelle(id, { src: url });
+        } catch (e) {
+          console.warn('[resim] R2 yüklemesi başarısız — görsel belgeye gömülü kaldı:', e);
+        }
+      })();
     };
     img.src = dataUrl;
   }, [state]);

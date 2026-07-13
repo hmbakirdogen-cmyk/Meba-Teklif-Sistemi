@@ -269,10 +269,18 @@ export const api = {
      *  or list page wants fresh data). */
     list:   (kullanici?: { id: string; rol: string }) =>
       get<Teklif[]>(`/teklifler${userQuery(kullanici)}`),
-    upsert:    (t: Teklif)                => put<Teklif>(`/teklifler/${t.id}`, t),
+    // NE: Teklif kaydı LONG timeout kullanır (30s). NEDEN: Görsel gömülü eski
+    // teklifler ~1.6MB olabiliyor; ofis upload hızında 8s'ye sığmayınca istek
+    // yarıda kesiliyor, autosave yenisini başlatıyor ve sunucuda yarım gövde
+    // fırtınası OOM'a katkı yapıyordu. 30s gerçek yavaş hatlara yetiyor.
+    upsert:    (t: Teklif)                => put<Teklif>(`/teklifler/${t.id}`, t, TIMEOUT_MS_LONG),
     sil:       (id: string)              => del(`/teklifler/${id}`),
     pdfYukle:  (id: string, pdfBase64: string, dosyaAdi: string) =>
       post<{ ok: boolean; pdfUrl: string; teklif: Teklif }>(`/teklifler/${id}/pdf-yukle`, { pdfBase64, dosyaAdi }),
+    /** Belge üstü görseli R2'ye yükler → { url: '/api/storage/…' }.
+     *  Görsel teklif JSON'una gömülmez (OOM kök sebebiydi) — sadece URL saklanır. */
+    gorselYukle: (gorselBase64: string) =>
+      post<{ url: string }>(`/teklifler/gorsel-yukle`, { gorselBase64 }, TIMEOUT_MS_LONG),
   },
 
   cariler: {

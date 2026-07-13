@@ -7,7 +7,8 @@ import { deriveCtx } from '../lib/reqCtx.js';
 import { shapeTeklif, shapeTeklifList } from '../lib/shape.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
-import { uploadFile, deleteFile, r2Configured } from '../lib/storage.js';
+import { uploadFile, deleteFile, decodeDataUrl, mimeToExt, r2Configured } from '../lib/storage.js';
+import { randomUUID } from 'node:crypto';
 
 export const tekliflerRouter: Router = Router();
 
@@ -204,6 +205,45 @@ tekliflerRouter.post(
     });
 
     res.json({ ok: true, pdfUrl: url, teklif: shapeTeklif(updated) });
+  }),
+);
+
+// ── POST /api/teklifler/gorsel-yukle — belge üstü görsel R2 upload ──
+// NE: A4 belgeye eklenen serbest görseli R2'ye yükler, aynı-origin proxy
+//     URL'i (/api/storage/<key>) döner.
+// NEDEN: Görseller eskiden teklif JSON'una base64 gömülüyordu → tek teklif
+//        ~1.6MB'a şişiyor, 600ms'lik otomatik kayıt her değişiklikte bu
+//        gövdeyi yeniden yüklüyor ve sunucu 512MB limitinde OOM ile
+//        çöküyordu (Render events: 23 Haz'dan beri 48 oomKilled; loglar
+//        çökme öncesi saniyede 3-4 yarıda kesilmiş 1.6MB istek gösteriyor).
+// NASIL: dataURL decode → boyut guard'ı → `teklif-gorselleri/<uuid>.<ext>`
+//        R2 key'i → relative /api/storage URL (rewriteR2Urls middleware'in
+//        cari logolarında PDF dahil kanıtlanmış kalıbı).
+// YAN ETKİ: R2 yapılandırılmamışsa 503 → istemci eski gömme davranışına
+//        düşer (local dev R2'siz çalışmaya devam eder). Teklif id İSTEMEZ —
+//        görsel, teklif DB'ye ilk kez kaydedilmeden önce de eklenebilir.
+const MAX_TEKLIF_GORSEL_BYTES = 4 * 1024 * 1024;
+tekliflerRouter.post(
+  '/gorsel-yukle',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!r2Configured) throw new HttpError(503, 'R2 depolama yapılandırılmamış.');
+    const gorselBase64 = String((req.body ?? {}).gorselBase64 || '');
+    if (!gorselBase64) throw new HttpError(400, 'gorselBase64 zorunlu.');
+
+    const { mime, buffer } = decodeDataUrl(gorselBase64);
+    if (buffer.length === 0) throw new HttpError(400, 'Görsel verisi geçersiz.');
+    if (!mime.startsWith('image/')) throw new HttpError(400, 'Sadece görsel dosyaları yüklenebilir.');
+    if (buffer.length > MAX_TEKLIF_GORSEL_BYTES) {
+      throw new HttpError(
+        400,
+        `Görsel çok büyük (${Math.round(buffer.length / 1024)} KB). Maks ${Math.round(MAX_TEKLIF_GORSEL_BYTES / 1024)} KB.`,
+      );
+    }
+
+    const key = `teklif-gorselleri/${randomUUID()}.${mimeToExt(mime)}`;
+    await uploadFile(key, buffer, mime);
+    res.json({ url: `/api/storage/${key}` });
   }),
 );
 

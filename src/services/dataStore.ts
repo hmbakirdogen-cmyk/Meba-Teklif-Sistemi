@@ -199,6 +199,38 @@ function handleNetworkError(promise: Promise<unknown>, label: string): void {
   });
 }
 
+// ── Teklif upsert tek-uçuş kilidi ────────────────────────────────────────────
+// NE: Aynı teklif için aynı anda EN FAZLA BİR PUT uçuşta olur; kayıt sürerken
+//     gelen yeni versiyonlar kuyruğa yazılır (sadece EN SONUNCUSU tutulur) ve
+//     uçuş bitince tek seferde gönderilir.
+// NEDEN: 600ms debounce'lu autosave, yükleme süresi uzun (büyük/eski görsel
+//        gömülü) tekliflerde üst üste binen paralel PUT'lar üretiyordu.
+//        Sunucu loglarında çökme öncesi saniyede 3-4 yarıda kesilmiş ~1.6MB
+//        istek görüldü → 512MB bellek doldu → oomKilled (23 Haz'dan beri 48).
+// NASIL: id-bazlı in-flight kümesi + "en son hali" pending haritası; finally
+//        ile uçuş kapanınca bekleyen varsa zincirleme gönderilir.
+// YAN ETKİ: Ara versiyonlar sunucuya hiç gitmez (atlanır) — zaten upsert
+//        olduğu için son hali kazanır; veri kaybı yok, trafik azalır.
+const teklifUpsertUcusta = new Set<string>();
+const teklifUpsertBekleyen = new Map<string, Teklif>();
+
+function teklifUpsertGonder(t: Teklif): void {
+  if (teklifUpsertUcusta.has(t.id)) {
+    teklifUpsertBekleyen.set(t.id, t);
+    return;
+  }
+  teklifUpsertUcusta.add(t.id);
+  const ucusBitti = () => {
+    teklifUpsertUcusta.delete(t.id);
+    const bekleyen = teklifUpsertBekleyen.get(t.id);
+    if (bekleyen) {
+      teklifUpsertBekleyen.delete(t.id);
+      teklifUpsertGonder(bekleyen);
+    }
+  };
+  handleNetworkError(api.teklifler.upsert(t).finally(ucusBitti), 'upsertTeklif');
+}
+
 // ── Public cache accessors ────────────────────────────────────────────────────
 
 export const dataStore = {
@@ -231,7 +263,7 @@ export const dataStore = {
     const idx = store.teklifler.findIndex((x) => x.id === enriched.id);
     if (idx >= 0) { store.teklifler[idx] = enriched; }
     else { store.teklifler.unshift(enriched); }
-    handleNetworkError(api.teklifler.upsert(enriched), 'upsertTeklif');
+    teklifUpsertGonder(enriched);
   },
 
   deleteTeklif(id: string): void {
